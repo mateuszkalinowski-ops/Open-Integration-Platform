@@ -1,7 +1,8 @@
-import { Component, OnDestroy, OnInit, ViewChild } from '@angular/core';
-import { CommonModule } from '@angular/common';
+import { Component, OnDestroy, OnInit, ViewChild, Inject } from '@angular/core';
+import { CommonModule, DOCUMENT } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
 import { FormsModule } from '@angular/forms';
+import { Clipboard, ClipboardModule } from '@angular/cdk/clipboard';
 import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -46,6 +47,7 @@ import {
     MatChipsModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    ClipboardModule,
     WorkflowCanvasComponent,
     WorkflowNodeConfigComponent,
   ],
@@ -242,6 +244,47 @@ import {
                     <mat-label>Timeout (seconds)</mat-label>
                     <input matInput type="number" [(ngModel)]="workflowTimeout" />
                   </mat-form-field>
+
+                  @if (workflowId && workflowId !== 'new') {
+                    <div class="wb__api-section">
+                      <div class="wb__api-header">
+                        <mat-icon>code</mat-icon>
+                        <span>API — Execute this workflow</span>
+                      </div>
+
+                      <div class="wb__api-block">
+                        <div class="wb__api-label">
+                          <span class="wb__api-method">POST</span>
+                          Endpoint
+                          <button mat-icon-button class="wb__api-copy" (click)="copyToClipboard(executeEndpoint)" matTooltip="Copy endpoint">
+                            <mat-icon>content_copy</mat-icon>
+                          </button>
+                        </div>
+                        <code class="wb__api-code">{{ executeEndpoint }}</code>
+                      </div>
+
+                      <div class="wb__api-block">
+                        <div class="wb__api-label">
+                          curl
+                          <button mat-icon-button class="wb__api-copy" (click)="copyToClipboard(curlExample)" matTooltip="Copy curl">
+                            <mat-icon>content_copy</mat-icon>
+                          </button>
+                        </div>
+                        <pre class="wb__api-code wb__api-curl">{{ curlExample }}</pre>
+                      </div>
+
+                      <div class="wb__api-block">
+                        <div class="wb__api-label">Response</div>
+                        <pre class="wb__api-code wb__api-response">{{ responseExample }}</pre>
+                      </div>
+
+                      <div class="wb__api-hint">
+                        The workflow executes synchronously — the response contains
+                        <strong>node_results</strong> with each step's output and
+                        <strong>context_snapshot</strong> with the merged final data.
+                      </div>
+                    </div>
+                  }
                 </div>
               </mat-tab>
             </mat-tab-group>
@@ -398,6 +441,71 @@ import {
       word-break: break-all;
     }
     .wb__test-node-error { background: #ffebee; color: #c62828; }
+
+    .wb__api-section {
+      margin-top: 16px;
+      border-top: 1px solid #e0e0e0;
+      padding-top: 16px;
+    }
+    .wb__api-header {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      margin-bottom: 16px;
+      color: #333;
+    }
+    .wb__api-header mat-icon { font-size: 20px; width: 20px; height: 20px; color: #1976d2; }
+    .wb__api-block { margin-bottom: 12px; }
+    .wb__api-label {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: #666;
+      margin-bottom: 4px;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    .wb__api-method {
+      background: #1976d2;
+      color: #fff;
+      font-size: 10px;
+      font-weight: 700;
+      padding: 2px 6px;
+      border-radius: 3px;
+      letter-spacing: 0;
+    }
+    .wb__api-copy {
+      width: 24px !important;
+      height: 24px !important;
+      line-height: 24px !important;
+      margin-left: auto;
+    }
+    .wb__api-copy mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .wb__api-code {
+      display: block;
+      background: #1e1e1e;
+      color: #d4d4d4;
+      padding: 12px;
+      border-radius: 6px;
+      font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+      font-size: 12px;
+      line-height: 1.5;
+      overflow-x: auto;
+      word-break: break-all;
+    }
+    .wb__api-curl { white-space: pre-wrap; }
+    .wb__api-response { white-space: pre-wrap; max-height: 160px; overflow-y: auto; }
+    .wb__api-hint {
+      font-size: 12px;
+      color: #666;
+      line-height: 1.5;
+      margin-top: 8px;
+    }
+    .wb__api-hint strong { color: #1976d2; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
   `],
 })
 export class WorkflowBuilderPage implements OnInit, OnDestroy {
@@ -442,7 +550,49 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     private readonly route: ActivatedRoute,
     private readonly router: Router,
     private readonly snackBar: MatSnackBar,
+    private readonly clipboard: Clipboard,
+    @Inject(DOCUMENT) private readonly doc: Document,
   ) {}
+
+  get executeEndpoint(): string {
+    const base = this.getApiBaseUrl();
+    return `${base}/api/v1/workflows/${this.workflowId}/execute`;
+  }
+
+  get curlExample(): string {
+    const base = this.getApiBaseUrl();
+    return `curl -X POST "${base}/api/v1/workflows/${this.workflowId}/execute" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_API_KEY" \\
+  -d '{
+    "trigger_data": {
+      "your_field": "value"
+    }
+  }'`;
+  }
+
+  get responseExample(): string {
+    return `{
+  "status": "success",
+  "node_results": [
+    { "node_id": "action-1", "status": "success",
+      "output": { ... } }
+  ],
+  "context_snapshot": { ... },
+  "duration_ms": 1200
+}`;
+  }
+
+  copyToClipboard(text: string): void {
+    this.clipboard.copy(text);
+    this.snackBar.open('Copied to clipboard', '', { duration: 2000 });
+  }
+
+  private getApiBaseUrl(): string {
+    const cfg = (this.doc.defaultView as any)?.['__PINQUARK_CONFIG__'];
+    if (cfg?.apiUrl) return cfg.apiUrl;
+    return `${this.doc.location.protocol}//${this.doc.location.hostname}:8080`;
+  }
 
   ngOnInit(): void {
     this.workflowId = this.route.snapshot.paramMap.get('id');

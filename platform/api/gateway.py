@@ -1,8 +1,10 @@
 """API Gateway -- main FastAPI application for Open Integration Platform by Pinquark.com."""
 
+import base64
+import hashlib
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Any
 
 import httpx
@@ -574,7 +576,7 @@ def _normalize_wms_url(raw: str) -> str:
     return url
 
 
-async def _validate_wms_credentials(creds: dict[str, str]) -> dict[str, Any]:
+async def _validate_wms_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
     """Validate WMS credentials by attempting JWT login."""
     api_url = _normalize_wms_url(creds.get("api_url", ""))
     username = creds.get("username", "")
@@ -617,7 +619,7 @@ async def _validate_wms_credentials(creds: dict[str, str]) -> dict[str, Any]:
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
 
 
-async def _validate_email_credentials(creds: dict[str, str]) -> dict[str, Any]:
+async def _validate_email_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
     """Validate email credentials by testing IMAP and SMTP connectivity."""
     import imaplib
     import smtplib
@@ -706,7 +708,7 @@ async def _validate_email_credentials(creds: dict[str, str]) -> dict[str, Any]:
     }
 
 
-async def _validate_ai_agent_credentials(creds: dict[str, str]) -> dict[str, Any]:
+async def _validate_ai_agent_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
     """Validate AI Agent credentials by testing Gemini API key with a minimal request."""
     api_key = creds.get("gemini_api_key", "")
     model_name = creds.get("model_name", "gemini-2.5-flash")
@@ -757,7 +759,7 @@ async def _validate_ai_agent_credentials(creds: dict[str, str]) -> dict[str, Any
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
 
 
-async def _validate_invoice_ocr_credentials(creds: dict[str, str]) -> dict[str, Any]:
+async def _validate_invoice_ocr_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
     login = creds.get("login", "")
     password = creds.get("password", "")
     api_url = creds.get("api_url", "https://skanujfakture.pl:8443/SFApi").rstrip("/")
@@ -767,8 +769,6 @@ async def _validate_invoice_ocr_credentials(creds: dict[str, str]) -> dict[str, 
             "status": "failed",
             "message": "Missing required credentials: login and password",
         }
-
-    import base64
 
     credentials_b64 = base64.b64encode(f"{login}:{password}".encode()).decode()
     start = time.monotonic()
@@ -813,11 +813,390 @@ async def _validate_invoice_ocr_credentials(creds: dict[str, str]) -> dict[str, 
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
 
 
+
+# ---------------------------------------------------------------------------
+# Credential validation helpers
+# ---------------------------------------------------------------------------
+
+
+async def _http_credential_check(
+    method: str,
+    url: str,
+    *,
+    headers: dict[str, str] | None = None,
+    data: dict[str, str] | None = None,
+    json_body: dict | None = None,
+    auth: tuple[str, str] | None = None,
+    params: dict[str, str] | None = None,
+    service_name: str = "API",
+    success_msg: str = "",
+) -> dict[str, Any]:
+    """Execute an HTTP request to validate credentials.
+
+    Treats 401/403 as credential failure, 5xx as server error,
+    and any other response (2xx, 3xx, 4xx) as credential success
+    (the service accepted auth even if the specific request had issues).
+    """
+    if not success_msg:
+        success_msg = f"{service_name} authentication successful"
+    start = time.monotonic()
+    try:
+        async with httpx.AsyncClient(
+            timeout=httpx.Timeout(connect=10, read=15, write=10, pool=10),
+        ) as client:
+            resp = await client.request(
+                method, url, headers=headers, data=data, json=json_body,
+                auth=auth, params=params,
+            )
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        if resp.status_code in (401, 403):
+            return {"status": "failed", "message": f"Invalid {service_name} credentials", "response_time_ms": elapsed_ms}
+        if resp.status_code >= 500:
+            return {"status": "failed", "message": f"{service_name} API error: HTTP {resp.status_code}", "response_time_ms": elapsed_ms}
+        return {"status": "success", "message": success_msg, "response_time_ms": elapsed_ms}
+    except httpx.ConnectError:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return {"status": "failed", "message": f"Cannot connect to {service_name} API", "response_time_ms": elapsed_ms}
+    except httpx.TimeoutException:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return {"status": "failed", "message": f"{service_name} API connection timed out", "response_time_ms": elapsed_ms}
+    except Exception as exc:
+        elapsed_ms = int((time.monotonic() - start) * 1000)
+        return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
+
+
+def _missing_fields(creds: dict[str, str], fields: list[str], service_name: str) -> dict[str, Any] | None:
+    """Return a failure dict if any required field is missing/empty, else None."""
+    missing = [f for f in fields if not creds.get(f)]
+    if missing:
+        return {"status": "failed", "message": f"Missing required {service_name} credentials: {', '.join(missing)}"}
+    return None
+
+
+# ---------------------------------------------------------------------------
+# Courier credential sub-validators
+# ---------------------------------------------------------------------------
+
+
+async def _validate_courier_inpost(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["organization_id", "access_token"], "InPost")
+    if fail:
+        return fail
+    sandbox = creds.get("sandbox_mode", "false").lower() in ("true", "1", "yes")
+    base = "https://sandbox-api-shipx-pl.easypack24.net" if sandbox else "https://api-shipx-pl.easypack24.net"
+    org_id = creds["organization_id"]
+    return await _http_credential_check(
+        "GET", f"{base}/v1/organizations/{org_id}/shipments",
+        headers={"Authorization": f"Bearer {creds['access_token']}"},
+        params={"per_page": "1"},
+        service_name="InPost",
+        success_msg=f"InPost credentials valid (org: {org_id})",
+    )
+
+
+async def _validate_courier_fedex(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["client_id", "client_secret"], "FedEx")
+    if fail:
+        return fail
+    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
+    base = "https://apis-sandbox.fedex.com" if sandbox else "https://apis.fedex.com"
+    return await _http_credential_check(
+        "POST", f"{base}/oauth/token",
+        headers={"content-type": "application/x-www-form-urlencoded"},
+        data={
+            "grant_type": "client_credentials",
+            "client_id": creds["client_id"],
+            "client_secret": creds["client_secret"],
+        },
+        service_name="FedEx",
+        success_msg="FedEx OAuth2 authentication successful",
+    )
+
+
+async def _validate_courier_ups(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["client_id", "client_secret", "account_number"], "UPS")
+    if fail:
+        return fail
+    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
+    base = "https://wwwcie.ups.com" if sandbox else "https://onlinetools.ups.com"
+    return await _http_credential_check(
+        "POST", f"{base}/security/v1/oauth/token",
+        headers={"Content-Type": "application/x-www-form-urlencoded"},
+        data={"grant_type": "client_credentials"},
+        auth=(creds["client_id"], creds["client_secret"]),
+        service_name="UPS",
+        success_msg="UPS OAuth2 authentication successful",
+    )
+
+
+async def _validate_courier_dhl_express(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["api_key", "api_secret"], "DHL Express")
+    if fail:
+        return fail
+    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
+    base = "https://express.api.dhl.com/mydhlapi/test" if sandbox else "https://express.api.dhl.com/mydhlapi"
+    auth_val = base64.b64encode(f"{creds['api_key']}:{creds['api_secret']}".encode()).decode()
+    return await _http_credential_check(
+        "GET", f"{base}/shipments",
+        headers={"Authorization": f"Basic {auth_val}", "Accept": "application/json"},
+        service_name="DHL Express",
+        success_msg="DHL Express credentials valid",
+    )
+
+
+async def _validate_courier_raben(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["username", "password"], "Raben")
+    if fail:
+        return fail
+    sandbox = creds.get("sandbox_mode", "false").lower() in ("true", "1", "yes")
+    base = "https://sandbox.myraben.com/api/v1" if sandbox else "https://myraben.com/api/v1"
+    return await _http_credential_check(
+        "POST", f"{base}/auth/login",
+        headers={"Content-Type": "application/json"},
+        json_body={"username": creds["username"], "password": creds["password"]},
+        service_name="Raben",
+        success_msg="Raben JWT login successful",
+    )
+
+
+async def _validate_courier_paxy(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["api_key", "api_token"], "Paxy")
+    if fail:
+        return fail
+    return await _http_credential_check(
+        "POST", "https://api.paxy.pl/v1/trackings",
+        headers={
+            "CL-API-KEY": creds["api_key"],
+            "CL-API-TOKEN": creds["api_token"],
+            "Content-Type": "application/json",
+        },
+        json_body={"trackingNrs": []},
+        service_name="Paxy",
+        success_msg="Paxy API credentials valid",
+    )
+
+
+async def _validate_courier_sellasist(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["login", "api_key"], "SellAsist")
+    if fail:
+        return fail
+    base_url = f"https://{creds['login']}.sellasist.pl/api/v1"
+    return await _http_credential_check(
+        "GET", f"{base_url}/ordersshipments",
+        headers={"apiKey": creds["api_key"], "accept": "application/json"},
+        service_name="SellAsist",
+        success_msg="SellAsist API credentials valid",
+    )
+
+
+def _validate_courier_soap_fields(creds: dict[str, str], required: list[str], name: str) -> dict[str, Any]:
+    """Validate credentials for SOAP-based couriers (field presence check)."""
+    fail = _missing_fields(creds, required, name)
+    if fail:
+        return fail
+    return {
+        "status": "success",
+        "message": f"{name} credentials present (SOAP service — full validation on first use)",
+    }
+
+
+_COURIER_SUB_VALIDATORS: dict[str, Any] = {
+    "inpost": _validate_courier_inpost,
+    "fedex": _validate_courier_fedex,
+    "ups": _validate_courier_ups,
+    "dhl-express": _validate_courier_dhl_express,
+    "raben": _validate_courier_raben,
+    "paxy": _validate_courier_paxy,
+    "sellasist": _validate_courier_sellasist,
+}
+
+_COURIER_SOAP_REQUIRED: dict[str, tuple[str, list[str]]] = {
+    "dhl": ("DHL Parcel Poland", ["username", "password"]),
+    "dpd": ("DPD Poland", ["login", "password", "master_fid"]),
+    "gls": ("GLS", ["username", "password"]),
+    "geis": ("Geis", ["customer_code", "password"]),
+    "packeta": ("Packeta", ["api_password"]),
+    "orlenpaczka": ("Orlen Paczka", ["partner_id", "partner_key"]),
+    "pocztapolska": ("Poczta Polska", ["username", "password"]),
+    "schenker": ("DB Schenker", ["username", "password"]),
+    "suus": ("SUUS", ["username", "password"]),
+    "fedexpl": ("FedEx Poland", ["api_key", "client_id"]),
+}
+
+
+async def _validate_courier_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
+    """Validate courier credentials — dispatches to connector-specific validators."""
+    sub = _COURIER_SUB_VALIDATORS.get(connector_name)
+    if sub:
+        return await sub(creds)
+    soap_info = _COURIER_SOAP_REQUIRED.get(connector_name)
+    if soap_info:
+        display_name, required_fields = soap_info
+        return _validate_courier_soap_fields(creds, required_fields, display_name)
+    connectors = registry.get_by_name(connector_name)
+    if connectors:
+        manifest = connectors[0]
+        required = manifest.config_schema.get("required", [])
+        if required:
+            fail = _missing_fields(creds, required, manifest.display_name)
+            if fail:
+                return fail
+            return {"status": "success", "message": f"{manifest.display_name} credentials present"}
+    return {"status": "failed", "message": f"Unknown courier connector: {connector_name}"}
+
+
+# ---------------------------------------------------------------------------
+# E-commerce credential sub-validators
+# ---------------------------------------------------------------------------
+
+
+async def _validate_ecommerce_allegro(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["client_id", "client_secret"], "Allegro")
+    if fail:
+        return fail
+    auth_url = creds.get("auth_url", "https://allegro.pl/auth/oauth").rstrip("/")
+    auth_val = base64.b64encode(f"{creds['client_id']}:{creds['client_secret']}".encode()).decode()
+    return await _http_credential_check(
+        "POST", f"{auth_url}/token",
+        headers={
+            "Authorization": f"Basic {auth_val}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={"grant_type": "client_credentials"},
+        service_name="Allegro",
+        success_msg="Allegro OAuth2 client credentials valid",
+    )
+
+
+async def _validate_ecommerce_baselinker(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["api_token"], "BaseLinker")
+    if fail:
+        return fail
+    return await _http_credential_check(
+        "POST", "https://api.baselinker.com/connector.php",
+        headers={"X-BLToken": creds["api_token"]},
+        data={"method": "getOrderStatusList", "parameters": "{}"},
+        service_name="BaseLinker",
+        success_msg="BaseLinker API token valid",
+    )
+
+
+async def _validate_ecommerce_shoper(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["shop_url", "login", "password"], "Shoper")
+    if fail:
+        return fail
+    shop_url = creds["shop_url"].rstrip("/")
+    auth_val = base64.b64encode(f"{creds['login']}:{creds['password']}".encode()).decode()
+    return await _http_credential_check(
+        "POST", f"{shop_url}/webapi/rest/auth",
+        headers={"Authorization": f"Basic {auth_val}"},
+        service_name="Shoper",
+        success_msg="Shoper authentication successful",
+    )
+
+
+async def _validate_ecommerce_woocommerce(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["store_url", "consumer_key", "consumer_secret"], "WooCommerce")
+    if fail:
+        return fail
+    store_url = creds["store_url"].rstrip("/")
+    api_version = creds.get("api_version", "wc/v3")
+    return await _http_credential_check(
+        "GET", f"{store_url}/wp-json/{api_version}/system_status",
+        auth=(creds["consumer_key"], creds["consumer_secret"]),
+        service_name="WooCommerce",
+        success_msg="WooCommerce API credentials valid",
+    )
+
+
+async def _validate_ecommerce_idosell(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["shop_url"], "IdoSell")
+    if fail:
+        return fail
+    shop_url = creds["shop_url"].rstrip("/")
+    api_version = creds.get("api_version", "v6")
+    auth_mode = creds.get("auth_mode", "api_key")
+
+    if auth_mode == "api_key":
+        api_key = creds.get("api_key", "")
+        if not api_key:
+            return {"status": "failed", "message": "Missing required IdoSell credentials: api_key"}
+        return await _http_credential_check(
+            "GET", f"{shop_url}/api/admin/{api_version}/system/shops",
+            headers={"X-API-KEY": api_key, "Accept": "application/json"},
+            service_name="IdoSell",
+            success_msg="IdoSell API key valid",
+        )
+
+    login = creds.get("login", "")
+    password = creds.get("password", "")
+    if not login or not password:
+        return {"status": "failed", "message": "Missing required IdoSell credentials: login, password"}
+    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
+    hashed_pw = hashlib.sha1(password.encode()).hexdigest()  # noqa: S324
+    auth_key = hashlib.sha1(f"{date_str}{hashed_pw}".encode()).hexdigest()  # noqa: S324
+    return await _http_credential_check(
+        "POST", f"{shop_url}/admin/{api_version}/system/shops",
+        headers={"Content-Type": "application/json"},
+        json_body={"authenticate": {"userLogin": login, "authenticateKey": auth_key}},
+        service_name="IdoSell",
+        success_msg="IdoSell legacy credentials valid",
+    )
+
+
+async def _validate_ecommerce_shopify(creds: dict[str, str]) -> dict[str, Any]:
+    fail = _missing_fields(creds, ["shop_url", "access_token"], "Shopify")
+    if fail:
+        return fail
+    shop_url = creds["shop_url"].rstrip("/")
+    if not shop_url.startswith("http"):
+        shop_url = f"https://{shop_url}"
+    api_version = creds.get("api_version", "2024-07")
+    return await _http_credential_check(
+        "GET", f"{shop_url}/admin/api/{api_version}/shop.json",
+        headers={"X-Shopify-Access-Token": creds["access_token"]},
+        service_name="Shopify",
+        success_msg="Shopify access token valid",
+    )
+
+
+_ECOMMERCE_SUB_VALIDATORS: dict[str, Any] = {
+    "allegro": _validate_ecommerce_allegro,
+    "baselinker": _validate_ecommerce_baselinker,
+    "shoper": _validate_ecommerce_shoper,
+    "woocommerce": _validate_ecommerce_woocommerce,
+    "idosell": _validate_ecommerce_idosell,
+    "shopify": _validate_ecommerce_shopify,
+}
+
+
+async def _validate_ecommerce_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
+    """Validate e-commerce credentials — dispatches to connector-specific validators."""
+    sub = _ECOMMERCE_SUB_VALIDATORS.get(connector_name)
+    if sub:
+        return await sub(creds)
+    connectors = registry.get_by_name(connector_name)
+    if connectors:
+        manifest = connectors[0]
+        required = manifest.config_schema.get("required", [])
+        if required:
+            fail = _missing_fields(creds, required, manifest.display_name)
+            if fail:
+                return fail
+            return {"status": "success", "message": f"{manifest.display_name} credentials present"}
+    return {"status": "failed", "message": f"Unknown e-commerce connector: {connector_name}"}
+
+
+# ---------------------------------------------------------------------------
+
+
 _INTERFACE_VALIDATORS: dict[str, Any] = {
     "wms": _validate_wms_credentials,
     "email": _validate_email_credentials,
     "ai-agent": _validate_ai_agent_credentials,
     "invoice-ocr": _validate_invoice_ocr_credentials,
+    "courier": _validate_courier_credentials,
+    "ecommerce": _validate_ecommerce_credentials,
 }
 
 
@@ -848,7 +1227,7 @@ async def validate_credentials(
     if not validator:
         return {"status": "unsupported", "message": f"Validation not yet supported for interface '{interface}'"}
 
-    return await validator(merged)
+    return await validator(merged, connector_name)
 
 
 # --- Flows ---
@@ -989,7 +1368,15 @@ async def trigger_event(
             for e in flow_executions
         ],
         "workflow_executions": [
-            {"workflow_id": str(e.workflow_id), "status": e.status, "duration_ms": e.duration_ms}
+            {
+                "workflow_id": str(e.workflow_id),
+                "execution_id": str(e.id),
+                "status": e.status,
+                "duration_ms": e.duration_ms,
+                "node_results": e.node_results or [],
+                "context_snapshot": e.context_snapshot or {},
+                "error": e.error,
+            }
             for e in workflow_executions
         ],
     }
@@ -1346,6 +1733,36 @@ async def test_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowExecutionResponse:
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    workflow = result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
+    await db.commit()
+    return WorkflowExecutionResponse.model_validate(execution)
+
+
+@app.post(
+    "/api/v1/workflows/{workflow_id}/execute",
+    response_model=WorkflowExecutionResponse,
+    tags=["workflows"],
+)
+async def execute_workflow(
+    workflow_id: str,
+    body: WorkflowTestRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> WorkflowExecutionResponse:
+    """Execute a workflow synchronously and return full results.
+
+    Use this endpoint when you need the workflow output in the same
+    HTTP response (e.g. fetching a shipping label from a courier).
+    The response includes ``node_results`` with each node's output
+    and ``context_snapshot`` with the final merged data.
+    """
     result = await db.execute(
         select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
     )

@@ -93,9 +93,139 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-dhl-express:
+    build:
+      context: ./integrators/courier/dhl-express/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
   connector-dpd:
     build:
       context: ./integrators/courier/dpd/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-fedex:
+    build:
+      context: ./integrators/courier/fedex/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-fedexpl:
+    build:
+      context: ./integrators/courier/fedexpl/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-geis:
+    build:
+      context: ./integrators/courier/geis/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-gls:
+    build:
+      context: ./integrators/courier/gls/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-orlenpaczka:
+    build:
+      context: ./integrators/courier/orlenpaczka/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-packeta:
+    build:
+      context: ./integrators/courier/packeta/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-paxy:
+    build:
+      context: ./integrators/courier/paxy/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-pocztapolska:
+    build:
+      context: ./integrators/courier/pocztapolska/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-schenker:
+    build:
+      context: ./integrators/courier/schenker/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-sellasist:
+    build:
+      context: ./integrators/courier/sellasist/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-suus:
+    build:
+      context: ./integrators/courier/suus/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-ups:
+    build:
+      context: ./integrators/courier/ups/v1.0.0
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -243,4 +373,7 @@ services:
 
 volumes:
   pgdata:
+    name: pinquark_pgdata
+    external: true
   redisdata:
+    name: pinquark_redisdata

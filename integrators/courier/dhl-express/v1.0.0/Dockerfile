@@ -2,7 +2,6 @@
 FROM python:3.12-slim AS build
 WORKDIR /app
 COPY requirements.txt .
-ENV PINQUARK_COMMON_PATH=/app/shared/python
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 COPY . .
 
