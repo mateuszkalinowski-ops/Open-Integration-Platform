@@ -228,6 +228,19 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-woocommerce:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/woocommerce/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      WOOCOMMERCE_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
   redisdata:

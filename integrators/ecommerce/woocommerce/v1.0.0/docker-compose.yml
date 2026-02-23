@@ -1,0 +1,73 @@
+services:
+  woocommerce-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woocommerce-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - woocommerce-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - WOOCOMMERCE_LOG_LEVEL=INFO
+      - WOOCOMMERCE_SCRAPING_ENABLED=true
+      - WOOCOMMERCE_SCRAPING_INTERVAL_SECONDS=60
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  # Local development: standalone mode without Kafka
+  # For full platform with Kafka, use the root docker-compose.yml
+  woocommerce-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woocommerce-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - woocommerce-data-dev:/app/data
+    environment:
+      - WOOCOMMERCE_DEBUG=true
+      - WOOCOMMERCE_LOG_LEVEL=DEBUG
+      - WOOCOMMERCE_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/woocommerce_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: woocommerce-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - WOOCOMMERCE_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  woocommerce-data:
+  woocommerce-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

@@ -44,6 +44,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 22 | IdoSell | E-commerce | v1.0.0 | REST (API Key / SHA-1 legacy) | `shop_url`, `api_key` or `login`+`password` |
 | 23 | BaseLinker | E-commerce | v1.0.0 | REST (API Token) | `api_token` |
 | 24 | Raben Group | Courier | v1.0.0 | REST (JWT) | `username`, `password` |
+| 25 | WooCommerce | E-commerce | v1.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
 
 ---
 
@@ -503,6 +504,50 @@ Features:
 - Kafka event streaming for orders and products
 
 Protocol: REST (API Token via X-BLToken header).
+
+---
+
+### WooCommerce (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `store_url` | Yes | WooCommerce store URL (e.g. `https://my-store.example.com`) |
+| `consumer_key` | Yes | REST API Consumer Key (starts with `ck_`) |
+| `consumer_secret` | Yes | REST API Consumer Secret (starts with `cs_`) |
+| `api_version` | No | WooCommerce API version (default: `wc/v3`) |
+| `verify_ssl` | No | SSL verification (default: `true`) |
+
+Environment variables:
+```bash
+WOOCOMMERCE_SCRAPING_ENABLED=true           # Automatic order polling
+WOOCOMMERCE_SCRAPING_INTERVAL_SECONDS=60    # How often to check for orders (seconds)
+KAFKA_ENABLED=false                         # Publish orders to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+WooCommerce account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-store
+    store_url: "https://my-store.example.com"
+    consumer_key: "ck_xxxxx"
+    consumer_secret: "cs_xxxxx"
+    api_version: "wc/v3"
+    verify_ssl: true
+    environment: production
+```
+
+Features:
+- Automatic order polling (every 60s by default) with `modified_after` incremental fetching
+- Publishing orders to Kafka (`output.ecommerce.orders.save`)
+- Order status updates (bidirectional status mapping)
+- Stock level synchronization by product ID or SKU lookup
+- Product sync (create/update)
+- API key authentication: Basic Auth (HTTPS) or OAuth 1.0a HMAC-SHA256 (HTTP)
+- Multi-store support (multiple WooCommerce accounts per instance)
+- Rate limit handling (respects `Retry-After` header)
+
+Protocol: REST (API Key / OAuth 1.0a).
 
 ---
 

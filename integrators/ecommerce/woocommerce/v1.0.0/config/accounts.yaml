@@ -1,0 +1,31 @@
+# WooCommerce account configuration
+# Each account represents a separate WooCommerce store
+# One integrator container can handle multiple stores simultaneously
+
+accounts:
+  # Development / sandbox account
+  - name: dev-store
+    store_url: "https://your-store.example.com"
+    consumer_key: "ck_YOUR_CONSUMER_KEY"
+    consumer_secret: "cs_YOUR_CONSUMER_SECRET"
+    api_version: "wc/v3"
+    verify_ssl: true
+    environment: development
+
+  # Production store example (uncomment and fill in)
+  # - name: production-store
+  #   store_url: "https://shop.example.com"
+  #   consumer_key: "ck_PRODUCTION_KEY"
+  #   consumer_secret: "cs_PRODUCTION_SECRET"
+  #   api_version: "wc/v3"
+  #   verify_ssl: true
+  #   environment: production
+
+  # Second store example
+  # - name: second-store
+  #   store_url: "https://another-shop.example.com"
+  #   consumer_key: "ck_ANOTHER_KEY"
+  #   consumer_secret: "cs_ANOTHER_SECRET"
+  #   api_version: "wc/v3"
+  #   verify_ssl: true
+  #   environment: production

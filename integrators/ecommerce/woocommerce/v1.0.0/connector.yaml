@@ -1,0 +1,185 @@
+name: woocommerce
+category: ecommerce
+version: 1.0.0
+display_name: "WooCommerce"
+description: "WooCommerce (WordPress) e-commerce platform. Order sync, stock management, product catalog and customer data."
+website_url: "https://woocommerce.com"
+country: US
+logo_url: /assets/logos/woocommerce.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - sync_products
+events:
+  - order.created
+  - order.status_changed
+  - stock.updated
+  - product.updated
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - stock.sync
+  - product.get
+  - product.sync
+event_fields:
+  order.created:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: buyer.email
+      label: "Email kupujacego"
+      type: string
+    - field: buyer.first_name
+      label: "Imie kupujacego"
+      type: string
+    - field: buyer.last_name
+      label: "Nazwisko kupujacego"
+      type: string
+    - field: buyer.phone
+      label: "Telefon kupujacego"
+      type: string
+    - field: delivery.address.street
+      label: "Ulica dostawy"
+      type: string
+    - field: delivery.address.city
+      label: "Miasto dostawy"
+      type: string
+    - field: delivery.address.zip_code
+      label: "Kod pocztowy dostawy"
+      type: string
+    - field: delivery.address.country
+      label: "Kraj dostawy"
+      type: string
+    - field: delivery.method
+      label: "Metoda dostawy"
+      type: string
+    - field: payment.amount
+      label: "Kwota zamowienia"
+      type: number
+    - field: payment.currency
+      label: "Waluta"
+      type: string
+    - field: items
+      label: "Produkty (lista)"
+      type: "object[]"
+    - field: note
+      label: "Uwagi kupujacego"
+      type: string
+    - field: created_at
+      label: "Data utworzenia"
+      type: datetime
+  order.status_changed:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: status
+      label: "Nowy status"
+      type: string
+    - field: previous_status
+      label: "Poprzedni status"
+      type: string
+    - field: updated_at
+      label: "Data zmiany"
+      type: datetime
+  stock.updated:
+    - field: product_id
+      label: "ID produktu"
+      type: string
+    - field: sku
+      label: "SKU"
+      type: string
+    - field: quantity
+      label: "Ilosc"
+      type: integer
+    - field: updated_at
+      label: "Data aktualizacji"
+      type: datetime
+  product.updated:
+    - field: product_id
+      label: "ID produktu"
+      type: string
+    - field: sku
+      label: "SKU"
+      type: string
+    - field: name
+      label: "Nazwa produktu"
+      type: string
+    - field: updated_at
+      label: "Data aktualizacji"
+      type: datetime
+
+action_fields:
+  order.fetch:
+    - field: status
+      label: "Filtruj po statusie"
+      type: string
+    - field: limit
+      label: "Limit wynikow"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  order.get:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+      required: true
+  order.status_update:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+      required: true
+    - field: status
+      label: "Nowy status"
+      type: string
+      required: true
+    - field: tracking_number
+      label: "Numer sledzenia"
+      type: string
+    - field: carrier
+      label: "Przewoznik"
+      type: string
+  stock.sync:
+    - field: sku
+      label: "SKU produktu"
+      type: string
+      required: true
+    - field: quantity
+      label: "Nowa ilosc"
+      type: integer
+      required: true
+  product.get:
+    - field: product_id
+      label: "ID produktu"
+      type: string
+      required: true
+  product.sync:
+    - field: products
+      label: "Lista produktow"
+      type: "object[]"
+      required: true
+
+config_schema:
+  required:
+    - store_url
+    - consumer_key
+    - consumer_secret
+  optional:
+    - api_version
+    - verify_ssl
+  field_types:
+    api_version:
+      type: string
+      label: "Wersja API"
+      default: "wc/v3"
+    verify_ssl:
+      type: boolean
+      label: "Weryfikacja SSL"
+      default: true
+health_endpoint: /health
+docs_url: /docs
