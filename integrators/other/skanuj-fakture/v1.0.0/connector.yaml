@@ -1,0 +1,222 @@
+name: skanuj-fakture
+category: other
+version: 1.0.0
+display_name: "SkanujFakture"
+description: "Integration with the SkanujFakture.pl invoice OCR system — automatic scanning, recognition and management of accounting documents with KSeF support."
+website_url: "https://skanujfakture.pl"
+country: PL
+logo_url: /assets/logos/skanuj-fakture.svg
+interface: invoice-ocr
+capabilities:
+  - upload_document
+  - get_documents
+  - get_document_details
+  - update_document
+  - delete_documents
+  - get_document_file
+  - get_document_image
+  - edit_attributes
+  - manage_dictionaries
+  - get_ksef_xml
+  - get_ksef_qr
+  - send_ksef_invoice
+  - get_companies
+  - get_company_entities
+events:
+  - document.scanned
+  - document.uploaded
+actions:
+  - document.upload
+  - document.get
+  - document.list
+  - document.update
+  - document.delete
+  - document.file.get
+  - document.image.get
+  - document.attributes.edit
+  - document.attributes.delete
+  - dictionary.list
+  - dictionary.add
+  - ksef.xml.get
+  - ksef.qr.get
+  - ksef.invoice.send
+  - company.list
+  - company.entities.list
+config_schema:
+  required:
+    - login
+    - password
+  optional:
+    - api_url
+    - company_id
+    - polling_interval_seconds
+    - polling_status_filter
+  field_types:
+    login:
+      type: string
+      label: "Login (email)"
+      placeholder: "user@example.com"
+      row: credentials
+    password:
+      type: password
+      label: "Haslo do konta SkanujFakture"
+      row: credentials
+    api_url:
+      type: string
+      label: "URL API SkanujFakture"
+      default: "https://skanujfakture.pl:8443/SFApi"
+      row: connection
+    company_id:
+      type: integer
+      label: "ID firmy (opcjonalnie — automatycznie wykrywane)"
+      row: connection
+    polling_interval_seconds:
+      type: integer
+      label: "Interwal pollingu nowych dokumentow (sekundy)"
+      default: 300
+      row: polling
+    polling_status_filter:
+      type: string
+      label: "Filtr statusow przy pollingu"
+      default: "zeskanowany"
+      row: polling
+event_fields:
+  document.scanned:
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+    - field: number
+      label: "Numer faktury"
+      type: string
+    - field: date
+      label: "Data wystawienia"
+      type: string
+    - field: netto
+      label: "Wartosc netto"
+      type: number
+    - field: brutto
+      label: "Wartosc brutto"
+      type: number
+    - field: contractor
+      label: "Nazwa sprzedawcy"
+      type: string
+    - field: status
+      label: "Status dokumentu"
+      type: string
+    - field: invoice_type
+      label: "Typ faktury (PURCHASE/SELL)"
+      type: string
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+  document.uploaded:
+    - field: documents
+      label: "Liczba wyslanych dokumentow"
+      type: integer
+    - field: uploaded_documents
+      label: "Liczba poprawnie wyslanych"
+      type: integer
+    - field: documents_id_list
+      label: "Lista ID wyslanych dokumentow"
+      type: "integer[]"
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+action_fields:
+  document.upload:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: file
+      label: "Plik dokumentu (PDF/JPG/PNG)"
+      type: file
+      required: true
+    - field: single_document
+      label: "Jeden plik = jedna faktura"
+      type: boolean
+    - field: sale
+      label: "Czy faktura sprzedazowa"
+      type: boolean
+  document.list:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_statuses
+      label: "Filtry statusow"
+      type: "string[]"
+    - field: is_sale
+      label: "Czy sprzedazowe"
+      type: boolean
+  document.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+  document.update:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+    - field: data
+      label: "Dane dokumentu (JSON)"
+      type: object
+      required: true
+  document.delete:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_ids
+      label: "Lista ID dokumentow do usuniecia"
+      type: "integer[]"
+      required: true
+  ksef.invoice.send:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: invoice_data
+      label: "Dane faktury w formacie FA3 (JSON)"
+      type: object
+      required: true
+  company.list:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+health_endpoint: /health
+docs_url: /docs

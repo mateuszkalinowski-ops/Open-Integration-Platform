@@ -1,0 +1,119 @@
+# Alerting rules from AGENTS.md section 9.4
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pinquark-integrator-alerts
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: pinquark
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: pinquark.integrator.errors
+      rules:
+        - alert: IntegratorHighErrorRate
+          expr: |
+            (
+              sum(rate(integrator_errors_total[5m])) by (integrator)
+              /
+              sum(rate(integrator_requests_total[5m])) by (integrator)
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High error rate on {{ $labels.integrator }}"
+            description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 5%)"
+
+        - alert: IntegratorCriticalErrorRate
+          expr: |
+            (
+              sum(rate(integrator_errors_total[5m])) by (integrator)
+              /
+              sum(rate(integrator_requests_total[5m])) by (integrator)
+            ) > 0.20
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical error rate on {{ $labels.integrator }}"
+            description: "Error rate is {{ $value | humanizePercentage }} over the last 5 minutes (threshold: 20%)"
+
+    - name: pinquark.integrator.latency
+      rules:
+        - alert: IntegratorHighLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket[5m])) by (le, integrator)) > 5
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "High p95 latency on {{ $labels.integrator }}"
+            description: "p95 response time is {{ $value }}s (threshold: 5s)"
+
+        - alert: IntegratorCriticalLatency
+          expr: |
+            histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket[5m])) by (le, integrator)) > 15
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Critical p95 latency on {{ $labels.integrator }}"
+            description: "p95 response time is {{ $value }}s (threshold: 15s)"
+
+    - name: pinquark.integrator.health
+      rules:
+        - alert: IntegratorHealthCheckFailing
+          expr: |
+            kube_pod_container_status_ready{namespace="pinquark-uat"} == 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Health check failing for {{ $labels.pod }}"
+            description: "Pod {{ $labels.pod }} in namespace {{ $labels.namespace }} has been not-ready for more than 3 minutes"
+
+    - name: pinquark.integrator.kafka
+      rules:
+        - alert: KafkaConsumerLagWarning
+          expr: |
+            kafka_consumergroup_lag_sum{namespace="pinquark-uat"} > 1000
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Kafka consumer lag warning for {{ $labels.consumergroup }}"
+            description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} messages"
+
+        - alert: KafkaConsumerLagCritical
+          expr: |
+            kafka_consumergroup_lag_sum{namespace="pinquark-uat"} > 10000
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "Kafka consumer lag critical for {{ $labels.consumergroup }}"
+            description: "Consumer group {{ $labels.consumergroup }} has lag of {{ $value }} messages"
+
+    - name: pinquark.onpremise.heartbeat
+      rules:
+        - alert: OnPremiseHeartbeatMissing
+          expr: |
+            time() - max(integrator_active_connections{system=~".*onpremise.*"}) by (system) > 300
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "On-premise agent heartbeat missing for {{ $labels.system }}"
+            description: "No heartbeat received for more than 5 minutes"
+
+        - alert: OnPremiseHeartbeatCritical
+          expr: |
+            time() - max(integrator_active_connections{system=~".*onpremise.*"}) by (system) > 900
+          for: 5m
+          labels:
+            severity: critical
+          annotations:
+            summary: "On-premise agent heartbeat critical for {{ $labels.system }}"
+            description: "No heartbeat received for more than 15 minutes"

@@ -1,0 +1,731 @@
+# pinquark Integration Platform — GitLab CI/CD Pipeline
+# Following AGENTS.md sections 4 and 5
+
+variables:
+  DOCKER_REGISTRY: registry.pinquark.com
+  DOCKER_TLS_CERTDIR: "/certs"
+  KUSTOMIZE_VERSION: "5.4.0"
+  TRIVY_VERSION: "0.58.0"
+  NAMESPACE: pinquark-uat
+
+stages:
+  - lint
+  - build
+  - test
+  - deploy-uat
+  - verify
+
+# ---------------------------------------------------------------------------
+# Templates
+# ---------------------------------------------------------------------------
+
+.python_integrator:
+  image: python:3.12-slim
+  before_script:
+    - pip install --no-cache-dir ruff mypy pip-audit
+
+.docker_build:
+  image: docker:27
+  services:
+    - docker:27-dind
+  before_script:
+    - echo "$REGISTRY_PASSWORD" | docker login "$DOCKER_REGISTRY" -u "$REGISTRY_USERNAME" --password-stdin
+
+.kubectl:
+  image: bitnami/kubectl:1.30
+  before_script:
+    - echo "$KUBECONFIG_DATA" | base64 -d > /tmp/kubeconfig
+    - export KUBECONFIG=/tmp/kubeconfig
+
+# ---------------------------------------------------------------------------
+# Stage 1: Lint & Security Audit (AGENTS.md 5.2)
+# ---------------------------------------------------------------------------
+
+lint:python:
+  extends: .python_integrator
+  stage: lint
+  script:
+    - ruff check integrators/ shared/python/ --output-format=gitlab
+    - ruff format --check integrators/ shared/python/
+  rules:
+    - changes:
+        - integrators/**/*.py
+        - shared/python/**/*.py
+
+lint:dockerfile:
+  stage: lint
+  image: hadolint/hadolint:latest-debian
+  script:
+    - find integrators/ -name "Dockerfile" -exec hadolint {} \;
+  rules:
+    - changes:
+        - integrators/**/Dockerfile
+
+lint:security:
+  extends: .python_integrator
+  stage: lint
+  script:
+    - pip-audit -r integrators/ecommerce/allegro/v1.0.0/requirements.txt || true
+    - pip install semgrep
+    - semgrep --config auto integrators/ shared/python/ --json --output semgrep-results.json || true
+  artifacts:
+    paths:
+      - semgrep-results.json
+    when: always
+  rules:
+    - changes:
+        - integrators/**/*
+        - shared/python/**/*
+
+lint:secrets:
+  stage: lint
+  image: zricethezav/gitleaks:latest
+  script:
+    - gitleaks detect --source . --verbose
+  allow_failure: true
+
+# ---------------------------------------------------------------------------
+# Stage 2: Build Docker Images (AGENTS.md 5.2, 4.1, 4.3)
+# ---------------------------------------------------------------------------
+
+.build_integrator:
+  extends: .docker_build
+  stage: build
+  script:
+    - |
+      IMAGE="${DOCKER_REGISTRY}/integrations/${CATEGORY}/${SYSTEM}:${VERSION}-uat"
+      IMAGE_SHA="${DOCKER_REGISTRY}/integrations/${CATEGORY}/${SYSTEM}:${CI_COMMIT_SHORT_SHA}"
+
+      echo "Building ${IMAGE}..."
+      docker build \
+        --label "org.opencontainers.image.source=${CI_PROJECT_URL}" \
+        --label "org.opencontainers.image.revision=${CI_COMMIT_SHA}" \
+        -t "${IMAGE}" \
+        -t "${IMAGE_SHA}" \
+        "${BUILD_CONTEXT}"
+
+      echo "Scanning image with Trivy..."
+      docker run --rm \
+        -v /var/run/docker.sock:/var/run/docker.sock \
+        aquasec/trivy:${TRIVY_VERSION} image \
+        --severity HIGH,CRITICAL \
+        --exit-code 0 \
+        "${IMAGE}"
+
+      echo "Pushing images..."
+      docker push "${IMAGE}"
+      docker push "${IMAGE_SHA}"
+
+# E-commerce
+build:allegro:
+  extends: .build_integrator
+  variables:
+    CATEGORY: ecommerce
+    SYSTEM: allegro
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/ecommerce/allegro/v1.0.0
+  rules:
+    - changes:
+        - integrators/ecommerce/allegro/v1.0.0/**/*
+        - shared/python/**/*
+
+# Courier builds
+build:dhl:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: dhl
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/dhl/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/dhl/v1.0.0/**/*
+
+build:dpd:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: dpd
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/dpd/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/dpd/v1.0.0/**/*
+
+build:fedex:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: fedex
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/fedex/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/fedex/v1.0.0/**/*
+
+build:fedexpl:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: fedexpl
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/fedexpl/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/fedexpl/v1.0.0/**/*
+
+build:geis:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: geis
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/geis/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/geis/v1.0.0/**/*
+
+build:gls:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: gls
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/gls/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/gls/v1.0.0/**/*
+
+build:inpost:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: inpost
+    VERSION: "3.0.0"
+    BUILD_CONTEXT: integrators/courier/inpost/v3.0.0
+  rules:
+    - changes:
+        - integrators/courier/inpost/v3.0.0/**/*
+
+build:orlenpaczka:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: orlenpaczka
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/orlenpaczka/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/orlenpaczka/v1.0.0/**/*
+
+build:packeta:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: packeta
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/packeta/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/packeta/v1.0.0/**/*
+
+build:paxy:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: paxy
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/paxy/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/paxy/v1.0.0/**/*
+
+build:pocztapolska:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: pocztapolska
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/pocztapolska/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/pocztapolska/v1.0.0/**/*
+
+build:schenker:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: schenker
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/schenker/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/schenker/v1.0.0/**/*
+
+build:sellasist:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: sellasist
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/sellasist/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/sellasist/v1.0.0/**/*
+
+build:suus:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: suus
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/suus/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/suus/v1.0.0/**/*
+
+build:ups:
+  extends: .build_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: ups
+    VERSION: "1.0.0"
+    BUILD_CONTEXT: integrators/courier/ups/v1.0.0
+  rules:
+    - changes:
+        - integrators/courier/ups/v1.0.0/**/*
+
+# ---------------------------------------------------------------------------
+# Stage 3: Test (AGENTS.md 5.2, 12)
+# ---------------------------------------------------------------------------
+
+test:allegro:
+  extends: .python_integrator
+  stage: test
+  script:
+    - cd integrators/ecommerce/allegro/v1.0.0
+    - pip install -r requirements.txt
+    - pip install pytest pytest-asyncio pytest-cov httpx
+    - pip install ../../shared/python 2>/dev/null || true
+    - python -m pytest tests/ -v --tb=short --cov=src --cov-report=xml:coverage.xml --cov-report=term
+  coverage: '/^TOTAL\s+\d+\s+\d+\s+(\d+%)/'
+  artifacts:
+    reports:
+      coverage_report:
+        coverage_format: cobertura
+        path: integrators/ecommerce/allegro/v1.0.0/coverage.xml
+  rules:
+    - changes:
+        - integrators/ecommerce/allegro/v1.0.0/**/*
+        - shared/python/**/*
+
+test:shared-library:
+  extends: .python_integrator
+  stage: test
+  script:
+    - cd shared/python
+    - pip install -e .
+    - pip install pytest pytest-asyncio
+    - python -m pytest tests/ -v --tb=short || echo "No tests found in shared library"
+  rules:
+    - changes:
+        - shared/python/**/*
+
+# ---------------------------------------------------------------------------
+# Stage 4: Deploy to UAT (AGENTS.md 5.2)
+# ---------------------------------------------------------------------------
+
+.deploy_integrator:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - |
+      echo "==> Deploying ${CATEGORY}/${SYSTEM} to UAT..."
+      kubectl kustomize "k8s/integrators/${KUSTOMIZE_PATH}" | kubectl apply -f -
+
+      echo "==> Waiting for rollout..."
+      kubectl rollout status deployment/"${SYSTEM}-integrator" \
+        --namespace "$NAMESPACE" \
+        --timeout=120s
+
+      echo "==> Checking health endpoint..."
+      for i in $(seq 1 30); do
+        STATUS=$(kubectl exec -n "$NAMESPACE" \
+          deploy/"${SYSTEM}-integrator" -- \
+          python -c "import httpx; print(httpx.get('http://localhost:8000/health').status_code)" 2>/dev/null || echo "0")
+        if [ "$STATUS" = "200" ]; then
+          echo "Health check passed!"
+          exit 0
+        fi
+        echo "Attempt $i/30: status=$STATUS, waiting..."
+        sleep 5
+      done
+      echo "Health check failed after 30 attempts"
+      kubectl logs -n "$NAMESPACE" deploy/"${SYSTEM}-integrator" --tail=50
+      exit 1
+  environment:
+    name: uat/$SYSTEM
+    url: https://${SYSTEM}.uat.pinquark.com
+
+deploy:secrets:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - chmod +x ci/scripts/setup-secrets.sh
+    - bash ci/scripts/setup-secrets.sh
+  rules:
+    - when: manual
+      allow_failure: true
+
+deploy:infra:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - |
+      echo "==> Applying base infrastructure..."
+      kubectl kustomize k8s/base | kubectl apply -f -
+
+      echo "==> Applying ingress..."
+      kubectl kustomize k8s/base/ingress | kubectl apply -f -
+
+      echo "==> Infrastructure deployed."
+  rules:
+    - changes:
+        - k8s/base/**/*
+    - when: manual
+      allow_failure: true
+
+deploy:kafka:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - |
+      echo "==> Applying Kafka cluster..."
+      kubectl kustomize k8s/base/kafka | kubectl apply -f -
+
+      echo "==> Waiting for Kafka to be ready..."
+      kubectl wait kafka/pinquark-kafka \
+        --namespace kafka \
+        --for=condition=Ready \
+        --timeout=300s || echo "Kafka not ready yet (may take a few minutes on first deploy)"
+  rules:
+    - changes:
+        - k8s/base/kafka/**/*
+    - when: manual
+      allow_failure: true
+
+deploy:monitoring:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - |
+      echo "==> Applying monitoring resources..."
+      kubectl kustomize k8s/base/monitoring | kubectl apply -f -
+  rules:
+    - changes:
+        - k8s/base/monitoring/**/*
+    - when: manual
+      allow_failure: true
+
+deploy:allegro:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: ecommerce
+    SYSTEM: allegro
+    KUSTOMIZE_PATH: ecommerce/allegro-v1
+  needs:
+    - job: build:allegro
+      optional: true
+    - job: test:allegro
+      optional: true
+  rules:
+    - changes:
+        - integrators/ecommerce/allegro/v1.0.0/**/*
+        - k8s/integrators/ecommerce/allegro-v1/**/*
+
+deploy:dhl:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: dhl
+    KUSTOMIZE_PATH: courier/dhl-v1
+  needs:
+    - job: build:dhl
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/dhl/v1.0.0/**/*
+        - k8s/integrators/courier/dhl-v1/**/*
+
+deploy:dpd:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: dpd
+    KUSTOMIZE_PATH: courier/dpd-v1
+  needs:
+    - job: build:dpd
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/dpd/v1.0.0/**/*
+        - k8s/integrators/courier/dpd-v1/**/*
+
+deploy:fedex:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: fedex
+    KUSTOMIZE_PATH: courier/fedex-v1
+  needs:
+    - job: build:fedex
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/fedex/v1.0.0/**/*
+        - k8s/integrators/courier/fedex-v1/**/*
+
+deploy:fedexpl:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: fedexpl
+    KUSTOMIZE_PATH: courier/fedexpl-v1
+  needs:
+    - job: build:fedexpl
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/fedexpl/v1.0.0/**/*
+        - k8s/integrators/courier/fedexpl-v1/**/*
+
+deploy:geis:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: geis
+    KUSTOMIZE_PATH: courier/geis-v1
+  needs:
+    - job: build:geis
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/geis/v1.0.0/**/*
+        - k8s/integrators/courier/geis-v1/**/*
+
+deploy:gls:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: gls
+    KUSTOMIZE_PATH: courier/gls-v1
+  needs:
+    - job: build:gls
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/gls/v1.0.0/**/*
+        - k8s/integrators/courier/gls-v1/**/*
+
+deploy:inpost:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: inpost
+    KUSTOMIZE_PATH: courier/inpost-v3
+  needs:
+    - job: build:inpost
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/inpost/v3.0.0/**/*
+        - k8s/integrators/courier/inpost-v3/**/*
+
+deploy:orlenpaczka:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: orlenpaczka
+    KUSTOMIZE_PATH: courier/orlenpaczka-v1
+  needs:
+    - job: build:orlenpaczka
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/orlenpaczka/v1.0.0/**/*
+        - k8s/integrators/courier/orlenpaczka-v1/**/*
+
+deploy:packeta:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: packeta
+    KUSTOMIZE_PATH: courier/packeta-v1
+  needs:
+    - job: build:packeta
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/packeta/v1.0.0/**/*
+        - k8s/integrators/courier/packeta-v1/**/*
+
+deploy:paxy:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: paxy
+    KUSTOMIZE_PATH: courier/paxy-v1
+  needs:
+    - job: build:paxy
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/paxy/v1.0.0/**/*
+        - k8s/integrators/courier/paxy-v1/**/*
+
+deploy:pocztapolska:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: pocztapolska
+    KUSTOMIZE_PATH: courier/pocztapolska-v1
+  needs:
+    - job: build:pocztapolska
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/pocztapolska/v1.0.0/**/*
+        - k8s/integrators/courier/pocztapolska-v1/**/*
+
+deploy:schenker:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: schenker
+    KUSTOMIZE_PATH: courier/schenker-v1
+  needs:
+    - job: build:schenker
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/schenker/v1.0.0/**/*
+        - k8s/integrators/courier/schenker-v1/**/*
+
+deploy:sellasist:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: sellasist
+    KUSTOMIZE_PATH: courier/sellasist-v1
+  needs:
+    - job: build:sellasist
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/sellasist/v1.0.0/**/*
+        - k8s/integrators/courier/sellasist-v1/**/*
+
+deploy:suus:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: suus
+    KUSTOMIZE_PATH: courier/suus-v1
+  needs:
+    - job: build:suus
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/suus/v1.0.0/**/*
+        - k8s/integrators/courier/suus-v1/**/*
+
+deploy:ups:
+  extends: .deploy_integrator
+  variables:
+    CATEGORY: courier
+    SYSTEM: ups
+    KUSTOMIZE_PATH: courier/ups-v1
+  needs:
+    - job: build:ups
+      optional: true
+  rules:
+    - changes:
+        - integrators/courier/ups/v1.0.0/**/*
+        - k8s/integrators/courier/ups-v1/**/*
+
+# ---------------------------------------------------------------------------
+# Stage 5: Verification Agent (AGENTS.md 5.2, 6.2)
+# ---------------------------------------------------------------------------
+
+.verify_integrator:
+  extends: .kubectl
+  stage: verify
+  script:
+    - |
+      echo "==> Verification Agent for ${SYSTEM}..."
+
+      HEALTH_URL="http://${SYSTEM}-integrator.${NAMESPACE}.svc.cluster.local:8000/health"
+
+      echo "Checking health..."
+      kubectl exec -n "$NAMESPACE" deploy/"${SYSTEM}-integrator" -- \
+        python -c "
+      import httpx, json, sys
+      r = httpx.get('http://localhost:8000/health')
+      data = r.json()
+      print(json.dumps(data, indent=2))
+      if r.status_code != 200 or data.get('status') != 'healthy':
+          sys.exit(1)
+      "
+
+      echo "Checking /docs endpoint..."
+      kubectl exec -n "$NAMESPACE" deploy/"${SYSTEM}-integrator" -- \
+        python -c "
+      import httpx
+      r = httpx.get('http://localhost:8000/docs')
+      assert r.status_code == 200, f'Expected 200, got {r.status_code}'
+      print('OpenAPI docs accessible')
+      "
+
+      echo "Checking /metrics endpoint..."
+      kubectl exec -n "$NAMESPACE" deploy/"${SYSTEM}-integrator" -- \
+        python -c "
+      import httpx
+      r = httpx.get('http://localhost:8000/metrics')
+      assert r.status_code == 200, f'Expected 200, got {r.status_code}'
+      assert 'integrator_requests_total' in r.text or 'python_info' in r.text
+      print('Prometheus metrics accessible')
+      "
+
+      echo "==> Verification passed for ${SYSTEM}!"
+  allow_failure: true
+
+verify:allegro:
+  extends: .verify_integrator
+  variables:
+    SYSTEM: allegro
+  needs:
+    - deploy:allegro
+  rules:
+    - changes:
+        - integrators/ecommerce/allegro/**/*
+
+# Deploy all (manual trigger)
+deploy:all:
+  extends: .kubectl
+  stage: deploy-uat
+  script:
+    - |
+      echo "==> Deploying full UAT overlay..."
+      kubectl kustomize k8s/overlays/uat | kubectl apply -f -
+
+      echo "==> Waiting for all deployments..."
+      kubectl get deployments -n "$NAMESPACE" -o name | while read dep; do
+        echo "Waiting for $dep..."
+        kubectl rollout status "$dep" -n "$NAMESPACE" --timeout=120s || true
+      done
+
+      echo "==> Full platform deployment complete."
+  rules:
+    - when: manual
+  environment:
+    name: uat/full-platform

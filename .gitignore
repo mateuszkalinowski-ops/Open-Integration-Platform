@@ -1,0 +1,68 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+
+# Environment
+.env
+*.env.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+.DS_Store
+
+# Docker
+docker-compose.override.yml
+
+# Secrets
+*.keystore
+*.jks
+*.pem
+*.key
+*.crt
+!*.example
+
+# Database
+*.db
+*.sqlite3
+
+# Coverage
+htmlcov/
+.coverage
+coverage.xml
+
+# Java
+*.class
+*.jar
+.gradle/
+build/
+
+# Logs
+*.log
+logs/
+
+# Testing
+.pytest_cache/
+.mypy_cache/
+
+# Node.js / Angular
+node_modules/
+platform/dashboard/dist/
+platform/dashboard/.angular/
+*.tsbuildinfo
+
+# SDK build artifacts
+sdk/python/dist/
+sdk/python/*.egg-info/
+sdk/javascript/dist/
+sdk/javascript/node_modules/

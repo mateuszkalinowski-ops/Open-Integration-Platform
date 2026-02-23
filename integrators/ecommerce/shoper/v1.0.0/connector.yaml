@@ -1,0 +1,66 @@
+name: shoper
+category: ecommerce
+version: 1.0.0
+display_name: "Shoper"
+description: "Polish e-commerce platform Shoper. Order, product, stock level and user synchronization."
+website_url: "https://www.shoper.pl"
+country: PL
+logo_url: /assets/logos/shoper.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - create_product
+  - update_product
+  - fetch_users
+  - manage_parcels
+events:
+  - order.created
+  - order.status_changed
+  - product.created
+  - product.updated
+  - user.created
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - stock.sync
+  - product.get
+  - product.create
+  - product.update
+  - user.fetch
+  - parcel.create
+  - parcel.update
+config_schema:
+  required:
+    - shop_url
+    - login
+    - password
+  optional:
+    - language_id
+    - scraping_enabled
+    - scraping_interval_seconds
+  field_types:
+    shop_url:
+      type: string
+      label: "URL sklepu Shoper"
+      placeholder: "https://myshop.shoparena.pl"
+    login:
+      type: string
+      label: "Login administratora"
+    password:
+      type: password
+      label: "Haslo administratora"
+    language_id:
+      type: string
+      label: "ID jezyka"
+      default: "pl_PL"
+    scraping_enabled:
+      type: boolean
+      label: "Automatyczny polling zamowien"
+      default: true
+health_endpoint: /health
+docs_url: /docs

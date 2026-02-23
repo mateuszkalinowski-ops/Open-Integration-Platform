@@ -1,0 +1,14 @@
+services:
+  courier-inpost-int-2025:
+    build: .
+    ports:
+      - "8003:8000"
+    env_file:
+      - .env
+    networks:
+      - courier-net
+    restart: unless-stopped
+
+networks:
+  courier-net:
+    driver: bridge

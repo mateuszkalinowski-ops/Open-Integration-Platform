@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: kafka
+  labels:
+    app.kubernetes.io/part-of: pinquark
+---
+# Strimzi Cluster Operator is installed via Helm:
+#
+#   helm repo add strimzi https://strimzi.io/charts/
+#   helm repo update
+#   helm install strimzi-kafka-operator strimzi/strimzi-kafka-operator \
+#     --namespace kafka \
+#     --set watchNamespaces="{kafka}" \
+#     --version 0.44.0
+#
+# After operator is running, apply kafka-cluster.yaml and kafka-topics.yaml

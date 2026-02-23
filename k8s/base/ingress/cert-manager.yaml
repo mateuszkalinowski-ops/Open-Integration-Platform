@@ -1,0 +1,48 @@
+# cert-manager is installed via Helm:
+#
+#   helm repo add jetstack https://charts.jetstack.io
+#   helm repo update
+#   helm install cert-manager jetstack/cert-manager \
+#     --namespace cert-manager \
+#     --create-namespace \
+#     --set crds.enabled=true \
+#     --version v1.16.0
+#
+# nginx-ingress controller is installed via Helm:
+#
+#   helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+#   helm repo update
+#   helm install ingress-nginx ingress-nginx/ingress-nginx \
+#     --namespace ingress-nginx \
+#     --create-namespace \
+#     --set controller.service.type=LoadBalancer
+
+---
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-uat
+spec:
+  acme:
+    server: https://acme-v02.api.letsencrypt.org/directory
+    email: admin@pinquark.com
+    privateKeySecretRef:
+      name: letsencrypt-uat-key
+    solvers:
+      - http01:
+          ingress:
+            class: nginx
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: pinquark-uat-wildcard
+  namespace: pinquark-uat
+spec:
+  secretName: pinquark-uat-tls
+  issuerRef:
+    name: letsencrypt-uat
+    kind: ClusterIssuer
+  dnsNames:
+    - "*.uat.pinquark.com"
+    - "uat.pinquark.com"

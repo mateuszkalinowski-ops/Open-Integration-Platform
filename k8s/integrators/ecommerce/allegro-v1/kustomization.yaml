@@ -1,0 +1,44 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pinquark-uat
+
+resources:
+  - ../../base
+
+namePrefix: allegro-
+
+commonLabels:
+  app.kubernetes.io/name: allegro-integrator
+  app.kubernetes.io/version: "1.0.0"
+  category: ecommerce
+  system: allegro
+
+patches:
+  - target:
+      kind: Deployment
+      name: integrator
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: registry.pinquark.com/integrations/ecommerce/allegro:1.0.0-uat
+      - op: add
+        path: /spec/template/spec/containers/0/env
+        value:
+          - name: ALLEGRO_SCRAPING_ENABLED
+            value: "true"
+          - name: ALLEGRO_SCRAPING_INTERVAL_SECONDS
+            value: "60"
+          - name: ALLEGRO_DEBUG
+            value: "false"
+          - name: DATABASE_URL
+            value: "sqlite+aiosqlite:///./data/allegro_integrator.db"
+
+configMapGenerator:
+  - name: integrator-files
+    behavior: create
+    files:
+      - accounts.yaml=config/accounts.yaml
+
+generatorOptions:
+  disableNameSuffixHash: true

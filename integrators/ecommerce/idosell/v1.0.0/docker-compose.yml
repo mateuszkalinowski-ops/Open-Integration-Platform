@@ -1,0 +1,71 @@
+services:
+  idosell-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idosell-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - idosell-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - IDOSELL_LOG_LEVEL=INFO
+      - IDOSELL_SCRAPING_ENABLED=true
+      - IDOSELL_SCRAPING_INTERVAL_SECONDS=120
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  idosell-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idosell-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - idosell-data-dev:/app/data
+    environment:
+      - IDOSELL_DEBUG=true
+      - IDOSELL_LOG_LEVEL=DEBUG
+      - IDOSELL_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/idosell_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: idosell-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - IDOSELL_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  idosell-data:
+  idosell-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

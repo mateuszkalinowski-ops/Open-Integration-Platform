@@ -1,0 +1,32 @@
+name: suus
+category: courier
+version: 1.0.0
+display_name: "SUUS"
+description: "Polish logistics company — domestic and international transport, freight forwarding, warehousing."
+website_url: "https://suus.com"
+country: PL
+logo_url: /assets/logos/suus.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+config_schema:
+  required:
+    - username
+    - password
+  optional:
+    - wsdl_url
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

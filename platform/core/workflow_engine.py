@@ -1,0 +1,939 @@
+"""Workflow Engine -- executes graph-based workflows (DAGs).
+
+Supports node types: trigger, action, condition, switch, think, transform,
+filter, delay, loop, merge, http_request, set_variable, response.
+
+The engine traverses the DAG starting from the trigger node, executing
+each node and routing data along edges based on node outputs.
+"""
+
+import asyncio
+import copy
+import operator
+import re
+import time
+import uuid
+from datetime import datetime, timezone
+from typing import Any, Callable, Coroutine
+
+import structlog
+from sqlalchemy import select
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from db.models import Workflow, WorkflowExecution
+
+logger = structlog.get_logger()
+
+OPERATOR_MAP: dict[str, Callable[[Any, Any], bool]] = {
+    "eq": operator.eq,
+    "neq": operator.ne,
+    "gt": operator.gt,
+    "lt": operator.lt,
+    "gte": operator.ge,
+    "lte": operator.le,
+}
+
+
+def _coerce_types(a: Any, b: Any) -> tuple[Any, Any]:
+    """Coerce two values to compatible types for comparison.
+
+    Handles the common case where one side is a number and the other
+    is a string representation of a number (e.g. AI returns int 1 but
+    the condition value is stored as string "1").
+    """
+    if type(a) is type(b):
+        return a, b
+    if isinstance(a, (int, float)) and isinstance(b, str):
+        try:
+            return a, type(a)(b)
+        except (ValueError, TypeError):
+            return str(a), b
+    if isinstance(b, (int, float)) and isinstance(a, str):
+        try:
+            return type(b)(a), b
+        except (ValueError, TypeError):
+            return a, str(b)
+    return str(a), str(b)
+
+
+class WorkflowContext:
+    """Mutable context passed through the workflow DAG."""
+
+    def __init__(self, trigger_data: dict[str, Any]) -> None:
+        self.data: dict[str, Any] = copy.deepcopy(trigger_data)
+        self.variables: dict[str, Any] = {}
+        self.node_outputs: dict[str, Any] = {}
+        self.node_results: list[dict[str, Any]] = []
+
+    def set_node_output(self, node_id: str, output: Any) -> None:
+        self.node_outputs[node_id] = output
+
+    def get_node_output(self, node_id: str) -> Any:
+        return self.node_outputs.get(node_id)
+
+    def snapshot(self) -> dict[str, Any]:
+        return {
+            "data": copy.deepcopy(self.data),
+            "variables": copy.deepcopy(self.variables),
+        }
+
+
+ExecuteActionFn = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
+
+
+class WorkflowEngine:
+    def __init__(self) -> None:
+        self._action_executor: ExecuteActionFn | None = None
+
+    def set_action_executor(self, fn: ExecuteActionFn) -> None:
+        self._action_executor = fn
+
+    async def get_workflows_for_event(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        event: str,
+    ) -> list[Workflow]:
+        result = await db.execute(
+            select(Workflow).where(
+                Workflow.tenant_id == tenant_id,
+                Workflow.trigger_connector == connector_name,
+                Workflow.trigger_event == event,
+                Workflow.is_enabled.is_(True),
+            )
+        )
+        return list(result.scalars().all())
+
+    async def execute_workflow(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        trigger_data: dict[str, Any],
+    ) -> WorkflowExecution:
+        start_time = time.monotonic()
+        ctx = WorkflowContext(trigger_data)
+
+        for var_name, var_def in (workflow.variables or {}).items():
+            ctx.variables[var_name] = var_def.get("default")
+
+        execution = WorkflowExecution(
+            workflow_id=workflow.id,
+            tenant_id=workflow.tenant_id,
+            status="running",
+            trigger_data=trigger_data,
+            workflow_nodes_snapshot=workflow.nodes,
+            workflow_edges_snapshot=workflow.edges,
+        )
+        db.add(execution)
+        await db.flush()
+
+        try:
+            graph = WorkflowGraph(workflow.nodes, workflow.edges)
+            trigger_node = graph.find_trigger()
+            if not trigger_node:
+                raise WorkflowError("No trigger node found in workflow")
+
+            ctx.set_node_output(trigger_node["id"], trigger_data)
+            ctx.data = copy.deepcopy(trigger_data)
+            ctx.node_results.append({
+                "node_id": trigger_node["id"],
+                "node_type": "trigger",
+                "label": trigger_node.get("label", trigger_node["id"]),
+                "status": "success",
+                "output": _safe_truncate(trigger_data),
+                "duration_ms": 0,
+            })
+
+            successors = graph.get_successors(trigger_node["id"])
+            await self._execute_nodes(db, graph, successors, ctx, workflow)
+
+            execution.status = "success"
+        except WorkflowError as exc:
+            execution.status = "failed"
+            execution.error = str(exc)
+            execution.error_node_id = getattr(exc, "node_id", None)
+        except Exception as exc:
+            execution.status = "failed"
+            execution.error = str(exc)
+
+        execution.node_results = ctx.node_results
+        execution.context_snapshot = ctx.snapshot()
+        execution.completed_at = datetime.now(timezone.utc)
+        execution.duration_ms = int((time.monotonic() - start_time) * 1000)
+
+        await db.flush()
+        await logger.ainfo(
+            "workflow_executed",
+            workflow_id=str(workflow.id),
+            workflow_name=workflow.name,
+            status=execution.status,
+            duration_ms=execution.duration_ms,
+            nodes_executed=len(ctx.node_results),
+        )
+        return execution
+
+    async def _execute_nodes(
+        self,
+        db: AsyncSession,
+        graph: "WorkflowGraph",
+        nodes: list[dict[str, Any]],
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int = 0,
+    ) -> None:
+        if depth > 200:
+            raise WorkflowError("Maximum workflow depth exceeded (possible cycle)")
+
+        for node in nodes:
+            await self._execute_single_node(db, graph, node, ctx, workflow, depth)
+
+    async def _execute_single_node(
+        self,
+        db: AsyncSession,
+        graph: "WorkflowGraph",
+        node: dict[str, Any],
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int,
+    ) -> None:
+        node_id = node["id"]
+        node_type = node["type"]
+        config = node.get("config", {})
+        node_start = time.monotonic()
+
+        result_entry: dict[str, Any] = {
+            "node_id": node_id,
+            "node_type": node_type,
+            "label": node.get("label", ""),
+            "status": "running",
+        }
+
+        try:
+            output: Any = None
+            next_handle: str | None = None
+
+            if node_type == "action":
+                output = await self._exec_action(config, ctx, workflow)
+            elif node_type == "think":
+                output = await self._exec_think(config, ctx, workflow)
+            elif node_type == "condition":
+                output, next_handle = self._exec_condition(config, ctx)
+            elif node_type == "switch":
+                output, next_handle = self._exec_switch(config, ctx)
+            elif node_type == "transform":
+                output = self._exec_transform(config, ctx)
+            elif node_type == "filter":
+                passed = self._exec_filter(config, ctx)
+                if not passed:
+                    result_entry["status"] = "filtered"
+                    result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+                    ctx.node_results.append(result_entry)
+                    return
+                output = ctx.data
+            elif node_type == "delay":
+                seconds = config.get("seconds", 0)
+                if 0 < seconds <= 60:
+                    await asyncio.sleep(seconds)
+                output = ctx.data
+            elif node_type == "loop":
+                await self._exec_loop(db, graph, node, config, ctx, workflow, depth)
+                result_entry["status"] = "success"
+                result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+                ctx.node_results.append(result_entry)
+                return
+            elif node_type == "http_request":
+                output = await self._exec_http_request(config, ctx)
+            elif node_type == "set_variable":
+                output = self._exec_set_variable(config, ctx)
+            elif node_type == "merge":
+                output = ctx.data
+            elif node_type == "response":
+                output = self._exec_response(config, ctx)
+                ctx.set_node_output(node_id, output)
+                result_entry["status"] = "success"
+                result_entry["output"] = _safe_truncate(output)
+                result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+                ctx.node_results.append(result_entry)
+                return
+
+            ctx.set_node_output(node_id, output)
+            if isinstance(output, dict):
+                ctx.data = {**ctx.data, **output}
+
+            result_entry["status"] = "success"
+            result_entry["output"] = _safe_truncate(output)
+            result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+            ctx.node_results.append(result_entry)
+
+            if next_handle is not None:
+                successors = graph.get_successors(node_id, handle=next_handle)
+            else:
+                successors = graph.get_successors(node_id)
+
+            if successors:
+                await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
+
+        except Exception as exc:
+            result_entry["status"] = "failed"
+            result_entry["error"] = str(exc)
+            result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+            ctx.node_results.append(result_entry)
+
+            on_error = config.get("on_error", workflow.on_error)
+            if on_error == "continue":
+                successors = graph.get_successors(node_id)
+                if successors:
+                    await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
+            else:
+                error = WorkflowError(f"Node '{node.get('label', node_id)}' failed: {exc}")
+                error.node_id = node_id  # type: ignore[attr-defined]
+                raise error from exc
+
+    # ── Node executors ──
+
+    async def _exec_action(
+        self, config: dict, ctx: WorkflowContext, workflow: Workflow
+    ) -> dict[str, Any]:
+        connector_name = config.get("connector_name", "")
+        action = config.get("action", "")
+        credential_name = config.get("credential_name", "default")
+        if not connector_name or not action:
+            raise WorkflowError("Action node missing connector_name or action")
+
+        payload = self._apply_field_mapping(config.get("field_mapping", []), ctx)
+
+        if self._action_executor:
+            return await self._action_executor(
+                connector_name=connector_name,
+                action=action,
+                payload=payload,
+                tenant_id=workflow.tenant_id,
+                credential_name=credential_name,
+            )
+        return {"dispatched": True, "connector": connector_name, "action": action, "payload": payload}
+
+    async def _exec_think(
+        self, config: dict, ctx: WorkflowContext, workflow: Workflow
+    ) -> dict[str, Any]:
+        """Execute a Think (AI Agent) node — sends prompt + data to ai-agent connector."""
+        import json as _json
+
+        action = config.get("action", "agent.analyze")
+        credential_name = config.get("credential_name", "default")
+        prompt = config.get("prompt", "")
+        temperature = config.get("temperature", 0.1)
+
+        output_schema_json = config.get("output_schema_json", "")
+        output_schema = None
+        if output_schema_json:
+            try:
+                output_schema = _json.loads(output_schema_json)
+            except _json.JSONDecodeError:
+                pass
+
+        if not prompt:
+            raise WorkflowError("Think node requires a prompt")
+
+        prompt = self._interpolate_string(prompt, ctx)
+
+        redact = config.get("redact_pii", True)
+        if redact:
+            send_data = await _redact_pii(
+                ctx.data, self._action_executor, workflow.tenant_id, credential_name
+            )
+        else:
+            send_data = ctx.data
+
+        payload: dict[str, Any] = {
+            "prompt": prompt,
+            "data": send_data,
+            "temperature": temperature,
+        }
+        if output_schema:
+            payload["output_schema"] = output_schema
+
+        if self._action_executor:
+            result = await self._action_executor(
+                connector_name="ai-agent",
+                action=action,
+                payload=payload,
+                tenant_id=workflow.tenant_id,
+                credential_name=credential_name,
+            )
+            if isinstance(result, dict) and "result" in result:
+                ai_output = result["result"]
+                if isinstance(ai_output, dict):
+                    ai_output["_confidence"] = result.get("confidence")
+                    ai_output["_analysis_id"] = result.get("analysis_id")
+                    ai_output["_model_used"] = result.get("model_used")
+                    return ai_output
+            return result
+
+        return {"dispatched": True, "connector": "ai-agent", "action": action, "prompt": prompt}
+
+    def _exec_condition(
+        self, config: dict, ctx: WorkflowContext
+    ) -> tuple[dict[str, Any], str]:
+        conditions = config.get("conditions", [])
+        logic = config.get("logic", "and")
+
+        results = [self._evaluate_condition(c, ctx) for c in conditions]
+
+        if logic == "or":
+            passed = any(results)
+        else:
+            passed = all(results)
+
+        handle = "true" if passed else "false"
+        return {"condition_result": passed, "handle": handle}, handle
+
+    def _exec_switch(
+        self, config: dict, ctx: WorkflowContext
+    ) -> tuple[dict[str, Any], str]:
+        field = config.get("field", "")
+        cases = config.get("cases", [])
+        default_handle = config.get("default_handle", "default")
+
+        value = self._resolve_value(field, ctx)
+
+        for case in cases:
+            if str(value) == str(case.get("value", "")):
+                handle = case.get("handle", str(case.get("value", "")))
+                return {"switch_value": value, "matched_case": handle}, handle
+
+        return {"switch_value": value, "matched_case": default_handle}, default_handle
+
+    def _exec_transform(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
+        mappings = config.get("mappings", [])
+        result = self._apply_field_mapping(mappings, ctx)
+
+        expressions = config.get("expressions", {})
+        for key, expr in expressions.items():
+            result[key] = self._evaluate_expression(expr, ctx)
+
+        return result
+
+    def _exec_filter(self, config: dict, ctx: WorkflowContext) -> bool:
+        conditions = config.get("conditions", [])
+        logic = config.get("logic", "and")
+        results = [self._evaluate_condition(c, ctx) for c in conditions]
+        return all(results) if logic == "and" else any(results)
+
+    async def _exec_loop(
+        self,
+        db: AsyncSession,
+        graph: "WorkflowGraph",
+        node: dict[str, Any],
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int,
+    ) -> None:
+        array_field = config.get("array_field", "")
+        item_var = config.get("item_variable", "item")
+        index_var = config.get("index_variable", "index")
+        max_iterations = min(config.get("max_iterations", 100), 1000)
+
+        array_data = self._resolve_value(array_field, ctx)
+        if not isinstance(array_data, list):
+            return
+
+        loop_body_nodes = graph.get_successors(node["id"])
+        loop_results: list[Any] = []
+
+        for i, item in enumerate(array_data[:max_iterations]):
+            ctx.variables[item_var] = item
+            ctx.variables[index_var] = i
+            if loop_body_nodes:
+                await self._execute_nodes(db, graph, loop_body_nodes, ctx, workflow, depth + 1)
+            loop_results.append(copy.deepcopy(ctx.variables.get(item_var)))
+
+        ctx.variables[f"{item_var}_results"] = loop_results
+
+    async def _exec_http_request(
+        self, config: dict, ctx: WorkflowContext
+    ) -> dict[str, Any]:
+        import httpx
+
+        url = self._interpolate_string(config.get("url", ""), ctx)
+        method = config.get("method", "GET").upper()
+        headers = {
+            k: self._interpolate_string(v, ctx)
+            for k, v in config.get("headers", {}).items()
+        }
+        body_template = config.get("body", {})
+        body = self._interpolate_dict(body_template, ctx) if body_template else None
+        timeout = min(config.get("timeout_seconds", 30), 60)
+
+        async with httpx.AsyncClient(timeout=timeout) as client:
+            response = await client.request(method, url, headers=headers, json=body)
+            try:
+                response_data = response.json()
+            except Exception:
+                response_data = {"text": response.text[:2000]}
+
+        return {
+            "status_code": response.status_code,
+            "body": response_data,
+            "headers": dict(response.headers),
+        }
+
+    def _exec_set_variable(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
+        variable_name = config.get("variable_name", "")
+        value_expr = config.get("value", "")
+
+        if isinstance(value_expr, str) and value_expr.startswith("{{") and value_expr.endswith("}}"):
+            resolved = self._resolve_value(value_expr[2:-2].strip(), ctx)
+        else:
+            resolved = value_expr
+
+        ctx.variables[variable_name] = resolved
+        return {"variable": variable_name, "value": resolved}
+
+    def _exec_response(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
+        body_template = config.get("body", {})
+        return self._interpolate_dict(body_template, ctx) if body_template else ctx.data
+
+    # ── Helpers ──
+
+    def _evaluate_condition(self, condition: dict, ctx: WorkflowContext) -> bool:
+        field = condition.get("field", "")
+        op = condition.get("operator", "eq")
+        expected = condition.get("value")
+
+        actual = self._resolve_value(field, ctx)
+
+        if op in OPERATOR_MAP:
+            try:
+                if OPERATOR_MAP[op](actual, expected):
+                    return True
+            except TypeError:
+                pass
+            actual_c, expected_c = _coerce_types(actual, expected)
+            try:
+                return OPERATOR_MAP[op](actual_c, expected_c)
+            except TypeError:
+                return False
+        elif op == "contains":
+            return expected in actual if actual else False
+        elif op == "not_contains":
+            return expected not in actual if actual else True
+        elif op == "starts_with":
+            return str(actual).startswith(str(expected)) if actual else False
+        elif op == "ends_with":
+            return str(actual).endswith(str(expected)) if actual else False
+        elif op == "exists":
+            return actual is not None
+        elif op == "not_exists":
+            return actual is None
+        elif op == "in":
+            return actual in (expected if isinstance(expected, list) else [expected])
+        elif op == "not_in":
+            return actual not in (expected if isinstance(expected, list) else [expected])
+        elif op == "regex":
+            return bool(re.search(str(expected), str(actual))) if actual is not None else False
+        elif op == "is_empty":
+            return not actual
+        elif op == "is_not_empty":
+            return bool(actual)
+        return False
+
+    def _resolve_value(self, path: str, ctx: WorkflowContext) -> Any:
+        if not path:
+            return None
+
+        if path.startswith("vars."):
+            var_path = path[5:]
+            return _get_nested(ctx.variables, var_path)
+        if path.startswith("nodes."):
+            parts = path[6:].split(".", 1)
+            node_id = parts[0]
+            node_output = ctx.get_node_output(node_id)
+            if len(parts) > 1 and isinstance(node_output, dict):
+                return _get_nested(node_output, parts[1])
+            return node_output
+
+        return _get_nested(ctx.data, path)
+
+    def _apply_field_mapping(
+        self, mappings: list[dict], ctx: WorkflowContext
+    ) -> dict[str, Any]:
+        result: dict[str, Any] = {}
+        body_text_extras: list[str] = []
+        subject_extras: list[str] = []
+
+        for m in mappings:
+            from_field = m.get("from", "")
+            to_field = m.get("to", "")
+            if not from_field or not to_field:
+                continue
+
+            if from_field == "__custom__":
+                value = m.get("from_custom", "")
+            else:
+                value = self._resolve_value(from_field, ctx)
+
+            if to_field == "__custom__":
+                to_field = m.get("to_custom", "")
+
+            if not to_field:
+                continue
+
+            transform = m.get("transform")
+            if transform and value is not None:
+                value = self._apply_transform(value, transform)
+            if value is not None:
+                is_concat = to_field in result
+                _set_nested(result, to_field, value)
+                if is_concat and isinstance(value, (str, int, float)):
+                    if to_field == "body_text":
+                        body_text_extras.append(str(value))
+                    elif to_field == "subject":
+                        subject_extras.append(str(value))
+
+        if body_text_extras and "body_text" in result:
+            original = result["body_text"]
+            for e in body_text_extras:
+                original = original.replace(f"{e} ", "", 1)
+            result["body_text"] = "\n\n".join(body_text_extras) + "\n\n---\n\n" + original
+
+        if body_text_extras and "body_html" in result and result["body_html"]:
+            extra_html = "".join(
+                f'<div style="background:#f0f4ff;border-left:4px solid #1565c0;'
+                f'padding:12px;margin-bottom:16px;font-family:sans-serif;">'
+                f'<strong>AI:</strong> {_html_escape(e)}</div>'
+                for e in body_text_extras
+            )
+            result["body_html"] = extra_html + result["body_html"]
+
+        if subject_extras and "subject" in result:
+            prefix = " | ".join(str(e) for e in subject_extras)
+            original_subject = result["subject"]
+            for e in subject_extras:
+                original_subject = original_subject.replace(f"{e} ", "", 1)
+            result["subject"] = f"[{prefix}] {original_subject.strip()}"
+
+        return result
+
+    def _apply_transform(self, value: Any, transform: dict) -> Any:
+        t = transform.get("type", "")
+        if t == "map":
+            return transform.get("values", {}).get(str(value), value)
+        elif t == "format":
+            return transform.get("template", "{}").format(value)
+        elif t == "uppercase":
+            return str(value).upper()
+        elif t == "lowercase":
+            return str(value).lower()
+        elif t == "to_int":
+            try:
+                return int(value)
+            except (ValueError, TypeError):
+                return value
+        elif t == "to_float":
+            try:
+                return float(value)
+            except (ValueError, TypeError):
+                return value
+        elif t == "to_string":
+            return str(value)
+        elif t == "default":
+            return value if value is not None else transform.get("default_value")
+        elif t == "concat":
+            separator = transform.get("separator", "")
+            parts = transform.get("parts", [])
+            return separator.join(str(p) for p in parts)
+        elif t == "split":
+            separator = transform.get("separator", ",")
+            return str(value).split(separator)
+        elif t == "trim":
+            return str(value).strip()
+        elif t == "replace":
+            old = transform.get("old", "")
+            new = transform.get("new", "")
+            return str(value).replace(old, new)
+        return value
+
+    def _evaluate_expression(self, expr: str, ctx: WorkflowContext) -> Any:
+        if not isinstance(expr, str):
+            return expr
+        return self._interpolate_string(expr, ctx)
+
+    def _interpolate_string(self, template: str, ctx: WorkflowContext) -> str:
+        def replacer(match: re.Match) -> str:  # type: ignore[type-arg]
+            path = match.group(1).strip()
+            val = self._resolve_value(path, ctx)
+            return str(val) if val is not None else ""
+
+        return re.sub(r"\{\{(.+?)\}\}", replacer, template)
+
+    def _interpolate_dict(self, template: dict | list | str | Any, ctx: WorkflowContext) -> Any:
+        if isinstance(template, dict):
+            return {k: self._interpolate_dict(v, ctx) for k, v in template.items()}
+        if isinstance(template, list):
+            return [self._interpolate_dict(item, ctx) for item in template]
+        if isinstance(template, str):
+            if template.startswith("{{") and template.endswith("}}"):
+                return self._resolve_value(template[2:-2].strip(), ctx)
+            if "{{" in template:
+                return self._interpolate_string(template, ctx)
+        return template
+
+    async def process_event(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        event: str,
+        event_data: dict[str, Any],
+    ) -> list[WorkflowExecution]:
+        workflows = await self.get_workflows_for_event(
+            db, tenant_id, connector_name, event
+        )
+        executions = []
+        for wf in workflows:
+            execution = await self.execute_workflow(db, wf, event_data)
+            executions.append(execution)
+        return executions
+
+
+_PII_PLACEHOLDER = "[RODO_REDACTED]"
+
+_EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
+_PESEL_RE = re.compile(r"\b\d{11}\b")
+_NIP_RE = re.compile(r"\b\d{3}[-]?\d{3}[-]?\d{2}[-]?\d{2}\b")
+_IBAN_RE = re.compile(
+    r"\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}\b"
+)
+_CREDIT_CARD_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
+_PHONE_RE = re.compile(
+    r"(?<!\d)(?:\+\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3}[\s.-]?\d{2,4}(?!\d)"
+)
+_IP_RE = re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
+
+_PII_CLASSIFY_PROMPT = (
+    "You are a GDPR/RODO compliance classifier. "
+    "Given the following JSON field paths, return ONLY a JSON array of paths "
+    "that may contain personal data (PII). "
+    "PII includes: names, surnames, emails, phones, addresses, "
+    "national IDs, bank accounts, birth dates, IP addresses, "
+    "login credentials, biometric data, health data. "
+    "Work in ANY language. Return [] if none found. "
+    "Respond with ONLY the JSON array, no explanation.\n\n"
+    "Field paths:\n{field_paths}"
+)
+
+
+def _collect_field_paths(data: Any, prefix: str = "", depth: int = 0) -> list[str]:
+    """Collect all leaf-level field paths from a nested dict/list."""
+    if depth > 15:
+        return []
+    paths: list[str] = []
+    if isinstance(data, dict):
+        for key in data:
+            p = f"{prefix}.{key}" if prefix else key
+            child = data[key]
+            if isinstance(child, (dict, list)):
+                paths.extend(_collect_field_paths(child, p, depth + 1))
+            else:
+                paths.append(p)
+    elif isinstance(data, list) and data:
+        paths.extend(_collect_field_paths(data[0], f"{prefix}[]", depth + 1))
+    return paths
+
+
+def _is_pii_value(value: Any) -> bool:
+    """Detect PII by universal value patterns (language-independent)."""
+    if not isinstance(value, str) or len(value) < 5 or len(value) > 500:
+        return False
+    if _EMAIL_RE.search(value):
+        return True
+    if _PESEL_RE.fullmatch(value.strip()):
+        return True
+    if _NIP_RE.fullmatch(value.strip().replace(" ", "")):
+        return True
+    if _IBAN_RE.search(value):
+        return True
+    if _IP_RE.fullmatch(value.strip()):
+        return True
+    v = re.sub(r"[\s\-]", "", value)
+    if _CREDIT_CARD_RE.fullmatch(v) and len(v) >= 13:
+        return True
+    return False
+
+
+def _redact_by_paths(data: Any, pii_paths: set[str], current: str = "", depth: int = 0) -> Any:
+    """Redact fields whose path is in the PII set, plus value-based detection."""
+    if depth > 20:
+        return _PII_PLACEHOLDER
+    if isinstance(data, dict):
+        result: dict[str, Any] = {}
+        for key, value in data.items():
+            p = f"{current}.{key}" if current else key
+            if p in pii_paths:
+                result[key] = [_PII_PLACEHOLDER] * len(value) if isinstance(value, list) else _PII_PLACEHOLDER
+            elif _is_pii_value(value):
+                result[key] = _PII_PLACEHOLDER
+            else:
+                result[key] = _redact_by_paths(value, pii_paths, p, depth + 1)
+        return result
+    if isinstance(data, list):
+        arr_path = f"{current}[]"
+        if arr_path in pii_paths:
+            return [_PII_PLACEHOLDER] * len(data)
+        return [_redact_by_paths(item, pii_paths, current, depth + 1) for item in data]
+    if isinstance(data, str) and _is_pii_value(data):
+        return _PII_PLACEHOLDER
+    return data
+
+
+async def _classify_pii_fields(
+    field_paths: list[str],
+    action_executor: ExecuteActionFn,
+    tenant_id: Any,
+    credential_name: str,
+) -> set[str]:
+    """Ask AI to classify which field paths contain PII. Only keys are sent, never values."""
+    if not field_paths:
+        return set()
+    import json as _json
+
+    prompt = _PII_CLASSIFY_PROMPT.format(field_paths=_json.dumps(field_paths))
+    try:
+        result = await action_executor(
+            connector_name="ai-agent",
+            action="agent.analyze",
+            payload={
+                "prompt": prompt,
+                "data": {"_task": "field_classification", "field_count": len(field_paths)},
+                "temperature": 0.0,
+                "output_schema": {"pii_fields": "string[]"},
+            },
+            tenant_id=tenant_id,
+            credential_name=credential_name,
+        )
+        ai_out = result
+        if isinstance(ai_out, dict) and "result" in ai_out:
+            ai_out = ai_out["result"]
+        pii_list: list[str] = []
+        if isinstance(ai_out, dict):
+            pii_list = ai_out.get("pii_fields", [])
+        elif isinstance(ai_out, list):
+            pii_list = ai_out
+        elif isinstance(ai_out, str):
+            pii_list = _json.loads(ai_out)
+        return {p for p in pii_list if isinstance(p, str) and p in set(field_paths)}
+    except Exception:
+        await logger.awarning("pii_classify_fallback", reason="AI classification failed, using value-only detection")
+        return set()
+
+
+async def _redact_pii(
+    data: Any,
+    action_executor: ExecuteActionFn | None,
+    tenant_id: Any,
+    credential_name: str,
+) -> Any:
+    """Two-layer PII redaction: AI classifies field names + regex detects value patterns."""
+    pii_paths: set[str] = set()
+    if action_executor:
+        field_paths = _collect_field_paths(data)
+        if field_paths:
+            pii_paths = await _classify_pii_fields(
+                field_paths, action_executor, tenant_id, credential_name
+            )
+    return _redact_by_paths(data, pii_paths)
+
+
+class WorkflowGraph:
+    """In-memory representation of a workflow graph for traversal."""
+
+    def __init__(self, nodes: list[dict], edges: list[dict]) -> None:
+        self._nodes = {n["id"]: n for n in nodes}
+        self._edges = edges
+        self._adjacency: dict[str, list[dict]] = {}
+        for edge in edges:
+            src = edge["source"]
+            if src not in self._adjacency:
+                self._adjacency[src] = []
+            self._adjacency[src].append(edge)
+
+    def find_trigger(self) -> dict[str, Any] | None:
+        for node in self._nodes.values():
+            if node.get("type") == "trigger":
+                return node
+        return None
+
+    def get_node(self, node_id: str) -> dict[str, Any] | None:
+        return self._nodes.get(node_id)
+
+    def get_successors(
+        self, node_id: str, handle: str | None = None
+    ) -> list[dict[str, Any]]:
+        edges = self._adjacency.get(node_id, [])
+        result = []
+        for edge in edges:
+            if handle is not None:
+                edge_handle = edge.get("sourceHandle", "default")
+                if edge_handle != handle:
+                    continue
+            target = self._nodes.get(edge["target"])
+            if target:
+                result.append(target)
+        return result
+
+
+class WorkflowError(Exception):
+    node_id: str | None = None
+
+
+def _get_nested(data: dict | Any, key: str) -> Any:
+    parts = key.split(".")
+    current = data
+    for part in parts:
+        if isinstance(current, dict):
+            current = current.get(part)
+        elif isinstance(current, list):
+            try:
+                current = current[int(part)]
+            except (ValueError, IndexError):
+                return None
+        else:
+            return None
+    return current
+
+
+def _set_nested(data: dict, key: str, value: Any, concat: bool = True) -> None:
+    parts = key.split(".")
+    current = data
+    for part in parts[:-1]:
+        if part not in current:
+            current[part] = {}
+        current = current[part]
+    final_key = parts[-1]
+    if concat and final_key in current:
+        existing = current[final_key]
+        if isinstance(existing, list):
+            if isinstance(value, list):
+                current[final_key] = existing + value
+            else:
+                current[final_key] = existing + [value]
+        else:
+            current[final_key] = f"{value} {existing}"
+    else:
+        current[final_key] = value
+
+
+def _safe_truncate(value: Any, max_len: int = 2000) -> Any:
+    if isinstance(value, str) and len(value) > max_len:
+        return value[:max_len] + "..."
+    if isinstance(value, dict):
+        s = str(value)
+        if len(s) > max_len:
+            return {"_truncated": True, "_preview": s[:max_len]}
+    return value
+
+
+def _html_escape(s: str) -> str:
+    return s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")

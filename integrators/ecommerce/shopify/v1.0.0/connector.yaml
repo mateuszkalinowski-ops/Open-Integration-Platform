@@ -1,0 +1,220 @@
+name: shopify
+category: ecommerce
+version: 1.0.0
+display_name: "Shopify"
+description: "Global e-commerce platform. Order sync, product management, inventory levels, fulfillments."
+website_url: "https://www.shopify.com"
+country: CA
+logo_url: /assets/logos/shopify.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - sync_products
+events:
+  - order.created
+  - order.status_changed
+  - order.fulfilled
+  - stock.updated
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - order.fulfill
+  - stock.sync
+  - product.get
+  - product.sync
+event_fields:
+  order.created:
+    - field: order_id
+      label: "Order ID"
+      type: string
+    - field: order_number
+      label: "Order number"
+      type: string
+    - field: buyer.email
+      label: "Buyer email"
+      type: string
+    - field: buyer.first_name
+      label: "Buyer first name"
+      type: string
+    - field: buyer.last_name
+      label: "Buyer last name"
+      type: string
+    - field: buyer.phone
+      label: "Buyer phone"
+      type: string
+    - field: delivery.address.street
+      label: "Shipping street"
+      type: string
+    - field: delivery.address.city
+      label: "Shipping city"
+      type: string
+    - field: delivery.address.zip_code
+      label: "Shipping zip code"
+      type: string
+    - field: delivery.address.country
+      label: "Shipping country"
+      type: string
+    - field: payment.amount
+      label: "Total price"
+      type: number
+    - field: payment.currency
+      label: "Currency"
+      type: string
+    - field: items
+      label: "Line items"
+      type: "object[]"
+    - field: note
+      label: "Order note"
+      type: string
+    - field: created_at
+      label: "Created at"
+      type: datetime
+  order.status_changed:
+    - field: order_id
+      label: "Order ID"
+      type: string
+    - field: status
+      label: "New status"
+      type: string
+    - field: previous_status
+      label: "Previous status"
+      type: string
+    - field: updated_at
+      label: "Updated at"
+      type: datetime
+  order.fulfilled:
+    - field: order_id
+      label: "Order ID"
+      type: string
+    - field: fulfillment_id
+      label: "Fulfillment ID"
+      type: string
+    - field: tracking_number
+      label: "Tracking number"
+      type: string
+    - field: tracking_company
+      label: "Tracking company"
+      type: string
+    - field: status
+      label: "Fulfillment status"
+      type: string
+  stock.updated:
+    - field: product_id
+      label: "Product ID"
+      type: string
+    - field: variant_id
+      label: "Variant ID"
+      type: string
+    - field: sku
+      label: "SKU"
+      type: string
+    - field: quantity
+      label: "Quantity"
+      type: integer
+    - field: updated_at
+      label: "Updated at"
+      type: datetime
+
+action_fields:
+  order.fetch:
+    - field: status
+      label: "Filter by status (open, closed, cancelled, any)"
+      type: string
+    - field: limit
+      label: "Limit results"
+      type: integer
+    - field: since_id
+      label: "Fetch orders after this ID"
+      type: string
+  order.get:
+    - field: order_id
+      label: "Order ID"
+      type: string
+      required: true
+  order.status_update:
+    - field: order_id
+      label: "Order ID"
+      type: string
+      required: true
+    - field: status
+      label: "New status"
+      type: string
+      required: true
+    - field: tracking_number
+      label: "Tracking number"
+      type: string
+    - field: tracking_company
+      label: "Shipping carrier"
+      type: string
+  order.fulfill:
+    - field: order_id
+      label: "Order ID"
+      type: string
+      required: true
+    - field: tracking_number
+      label: "Tracking number"
+      type: string
+    - field: tracking_company
+      label: "Shipping carrier"
+      type: string
+    - field: notify_customer
+      label: "Notify customer by email"
+      type: boolean
+  stock.sync:
+    - field: inventory_item_id
+      label: "Inventory item ID"
+      type: string
+      required: true
+    - field: location_id
+      label: "Location ID"
+      type: string
+      required: true
+    - field: quantity
+      label: "New quantity"
+      type: integer
+      required: true
+  product.get:
+    - field: product_id
+      label: "Product ID"
+      type: string
+      required: true
+  product.sync:
+    - field: products
+      label: "Products to sync"
+      type: "object[]"
+      required: true
+
+config_schema:
+  required:
+    - shop_url
+    - access_token
+  optional:
+    - api_version
+    - default_location_id
+    - default_carrier
+  field_types:
+    shop_url:
+      type: string
+      label: "Shop URL (e.g. my-store.myshopify.com)"
+    access_token:
+      type: string
+      label: "Admin API access token"
+      sensitive: true
+    api_version:
+      type: string
+      label: "Shopify API version"
+      default: "2024-07"
+    default_location_id:
+      type: string
+      label: "Default location ID for inventory"
+    default_carrier:
+      type: string
+      label: "Default shipping carrier name"
+      default: "Kurier"
+health_endpoint: /health
+docs_url: /docs

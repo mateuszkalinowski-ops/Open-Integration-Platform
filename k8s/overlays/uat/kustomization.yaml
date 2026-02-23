@@ -1,0 +1,32 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pinquark-uat
+
+resources:
+  # Base infrastructure
+  - ../../base
+
+  # E-commerce integrators
+  - ../../integrators/ecommerce/allegro-v1
+
+  # Courier integrators
+  - ../../integrators/courier/dhl-v1
+  - ../../integrators/courier/dpd-v1
+  - ../../integrators/courier/fedex-v1
+  - ../../integrators/courier/fedexpl-v1
+  - ../../integrators/courier/geis-v1
+  - ../../integrators/courier/gls-v1
+  - ../../integrators/courier/inpost-v3
+  - ../../integrators/courier/orlenpaczka-v1
+  - ../../integrators/courier/packeta-v1
+  - ../../integrators/courier/paxy-v1
+  - ../../integrators/courier/pocztapolska-v1
+  - ../../integrators/courier/schenker-v1
+  - ../../integrators/courier/sellasist-v1
+  - ../../integrators/courier/suus-v1
+  - ../../integrators/courier/ups-v1
+
+commonAnnotations:
+  environment: uat
+  managed-by: gitlab-ci

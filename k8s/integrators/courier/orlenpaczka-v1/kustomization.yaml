@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pinquark-uat
+
+resources:
+  - ../../base
+
+namePrefix: orlenpaczka-
+
+commonLabels:
+  app.kubernetes.io/name: orlenpaczka-integrator
+  app.kubernetes.io/version: "1.0.0"
+  category: courier
+  system: orlenpaczka
+
+patches:
+  - target:
+      kind: Deployment
+      name: integrator
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: registry.pinquark.com/integrations/courier/orlenpaczka:1.0.0-uat
+
+generatorOptions:
+  disableNameSuffixHash: true

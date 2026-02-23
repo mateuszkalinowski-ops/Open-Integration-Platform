@@ -1,0 +1,19 @@
+services:
+  ai-agent:
+    build: .
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    networks:
+      - ai-net
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+networks:
+  ai-net:
+    driver: bridge

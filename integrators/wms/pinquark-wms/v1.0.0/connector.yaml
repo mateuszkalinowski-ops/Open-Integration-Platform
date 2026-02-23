@@ -1,0 +1,932 @@
+name: pinquark-wms
+category: wms
+version: 1.0.0
+display_name: "Pinquark WMS"
+description: "Pinquark WMS warehouse management system — articles, documents, contractors, stock positions, batches."
+website_url: "https://pinquark.com"
+country: PL
+logo_url: /assets/logos/pinquark-wms.png
+interface: wms
+
+capabilities:
+  - get_articles
+  - create_article
+  - create_articles
+  - delete_article
+  - delete_articles
+  - get_articles_delete_commands
+  - get_batches
+  - create_batch
+  - create_batches
+  - get_documents
+  - create_document
+  - create_documents
+  - delete_document
+  - delete_documents
+  - get_documents_delete_commands
+  - get_positions
+  - create_position
+  - create_positions
+  - delete_position
+  - delete_positions
+  - get_positions_delete_commands
+  - get_contractors
+  - create_contractor
+  - create_contractors
+  - delete_contractor
+  - delete_contractors
+  - get_contractors_delete_commands
+  - get_feedbacks
+  - get_errors
+
+events:
+  - article.synced
+  - document.synced
+  - contractor.synced
+  - position.synced
+  - feedback.received
+  - error.received
+
+actions:
+  - article.create
+  - article.delete
+  - articles.create_list
+  - articles.delete_list
+  - article_batch.create
+  - article_batches.create_list
+  - document.create
+  - document.delete
+  - documents.create_wrapper
+  - documents.delete_list
+  - position.create
+  - position.delete
+  - positions.create_list
+  - positions.delete_list
+  - contractor.create
+  - contractor.delete
+  - contractors.create_list
+  - contractors.delete_list
+
+event_fields:
+  article.synced:
+    - field: erpId
+      label: "ID artykulu (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID artykulu (WMS)"
+      type: integer
+    - field: ean
+      label: "Kod EAN"
+      type: string
+    - field: name
+      label: "Nazwa artykulu"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: group
+      label: "Grupa"
+      type: string
+    - field: unit
+      label: "Jednostka miary"
+      type: string
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+  document.synced:
+    - field: erpId
+      label: "ID dokumentu (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID dokumentu (WMS)"
+      type: integer
+    - field: documentType
+      label: "Typ dokumentu"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+    - field: date
+      label: "Data dokumentu"
+      type: date
+    - field: dueDate
+      label: "Termin"
+      type: date
+    - field: contractor.name
+      label: "Kontrahent - nazwa"
+      type: string
+    - field: contractor.email
+      label: "Kontrahent - email"
+      type: string
+    - field: deliveryAddress.city
+      label: "Adres dostawy - miasto"
+      type: string
+    - field: deliveryAddress.street
+      label: "Adres dostawy - ulica"
+      type: string
+    - field: deliveryAddress.zipCode
+      label: "Adres dostawy - kod pocztowy"
+      type: string
+    - field: note
+      label: "Uwagi"
+      type: string
+    - field: priority
+      label: "Priorytet"
+      type: integer
+  contractor.synced:
+    - field: erpId
+      label: "ID kontrahenta (ERP)"
+      type: integer
+    - field: name
+      label: "Nazwa kontrahenta"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: email
+      label: "Email"
+      type: string
+    - field: phone
+      label: "Telefon"
+      type: string
+    - field: taxNumber
+      label: "NIP"
+      type: string
+    - field: address.city
+      label: "Miasto"
+      type: string
+    - field: address.street
+      label: "Ulica"
+      type: string
+    - field: address.zipCode
+      label: "Kod pocztowy"
+      type: string
+  position.synced:
+    - field: documentId
+      label: "ID dokumentu"
+      type: integer
+    - field: documentSource
+      label: "Zrodlo dokumentu"
+      type: string
+    - field: positions
+      label: "Lista pozycji"
+      type: "object[]"
+  feedback.received:
+    - field: action
+      label: "Akcja (SAVE/DELETE)"
+      type: string
+    - field: entity
+      label: "Typ encji"
+      type: string
+    - field: success
+      label: "Czy sukces"
+      type: boolean
+    - field: errors
+      label: "Bledy"
+      type: object
+  error.received:
+    - field: body
+      label: "Tresc bledu (JSON)"
+      type: string
+    - field: topic
+      label: "Temat Kafka"
+      type: string
+    - field: createdDate
+      label: "Data"
+      type: datetime
+
+action_fields:
+  article.create:
+    - field: erpId
+      label: "ID artykulu (ERP)"
+      type: integer
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+      required: true
+    - field: symbol
+      label: "Symbol"
+      type: string
+      required: true
+    - field: ean
+      label: "Kod EAN"
+      type: string
+    - field: group
+      label: "Grupa"
+      type: string
+    - field: unit
+      label: "Jednostka miary"
+      type: string
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+  article.delete:
+    - field: uniqueCode
+      label: "Unikalny kod artykulu"
+      type: string
+      required: true
+  document.create:
+    - field: erpId
+      label: "ID dokumentu (ERP)"
+      type: integer
+      required: true
+    - field: documentType
+      label: "Typ dokumentu"
+      type: string
+      required: true
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+      required: true
+    - field: contractor.erpId
+      label: "Kontrahent - ID ERP"
+      type: integer
+    - field: contractor.source
+      label: "Kontrahent - zrodlo"
+      type: string
+    - field: deliveryAddress.street
+      label: "Adres dostawy - ulica"
+      type: string
+    - field: deliveryAddress.city
+      label: "Adres dostawy - miasto"
+      type: string
+    - field: deliveryAddress.zipCode
+      label: "Adres dostawy - kod pocztowy"
+      type: string
+    - field: contact.firstName
+      label: "Kontakt - imie"
+      type: string
+    - field: contact.lastName
+      label: "Kontakt - nazwisko"
+      type: string
+    - field: contact.phone
+      label: "Kontakt - telefon"
+      type: string
+    - field: contact.email
+      label: "Kontakt - email"
+      type: string
+  document.delete:
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+      required: true
+    - field: uniqueCode
+      label: "Unikalny kod dokumentu"
+      type: string
+      required: true
+  contractor.create:
+    - field: erpId
+      label: "ID kontrahenta (ERP)"
+      type: integer
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+      required: true
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+      required: true
+    - field: email
+      label: "Email"
+      type: string
+    - field: phone
+      label: "Telefon"
+      type: string
+    - field: taxNumber
+      label: "NIP"
+      type: string
+    - field: address.street
+      label: "Ulica"
+      type: string
+    - field: address.city
+      label: "Miasto"
+      type: string
+    - field: address.zipCode
+      label: "Kod pocztowy"
+      type: string
+  contractor.delete:
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+      required: true
+    - field: uniqueCode
+      label: "Unikalny kod kontrahenta"
+      type: string
+      required: true
+
+config_schema:
+  required:
+    - api_url
+    - username
+    - password
+  optional: []
+
+health_endpoint: /health
+docs_url: /docs
+
+api_endpoints:
+  # --- Auth ---
+  - group: Authentication
+    method: POST
+    path: /auth/sign-in
+    summary: Login and obtain JWT tokens
+    description: "Authenticate with username and password. Returns an access token (valid 24h) and a refresh token (valid 7 days). All subsequent requests must include the header: Authorization: Bearer <accessToken>"
+    request_body:
+      - field: username
+        type: string
+        required: true
+        description: Login username
+      - field: password
+        type: string
+        required: true
+        description: Login password
+    response_body:
+      - field: accessToken
+        type: string
+        description: JWT access token (valid 24 hours)
+      - field: accessTokenExpirationDate
+        type: datetime
+        description: Access token expiration timestamp
+      - field: refreshToken
+        type: string
+        description: One-time use refresh token (valid 7 days)
+
+  - group: Authentication
+    method: POST
+    path: /auth/refresh-token
+    summary: Refresh access token
+    description: "Exchange a valid refresh token for a new access/refresh token pair. Refresh tokens are single-use — once used, a new one is issued."
+    request_body:
+      - field: refreshToken
+        type: string
+        required: true
+        description: Previously issued refresh token
+    response_body:
+      - field: accessToken
+        type: string
+        description: New JWT access token
+      - field: accessTokenExpirationDate
+        type: datetime
+        description: New expiration timestamp
+      - field: refreshToken
+        type: string
+        description: New refresh token
+
+  # --- Articles ---
+  - group: Articles
+    method: GET
+    path: /articles
+    summary: List all articles
+    description: "Returns all articles synced from ERP. Each article contains its EAN, symbol, name, group, unit, providers, images, units of measure, and custom attributes."
+    response_body:
+      - field: erpId
+        type: integer
+        description: Article identifier in ERP
+      - field: wmsId
+        type: integer
+        description: Article identifier in WMS
+      - field: ean
+        type: string
+        description: EAN barcode
+      - field: name
+        type: string
+        description: Article name
+      - field: symbol
+        type: string
+        description: Article symbol
+      - field: group
+        type: string
+        description: Article group
+      - field: type
+        type: string
+        description: Article type
+      - field: unit
+        type: string
+        description: Base unit of measure
+      - field: source
+        type: string
+        description: "Source system: ERP or WMS"
+      - field: state
+        type: integer
+        description: Article state
+      - field: attributes
+        type: Attribute[]
+        description: Generic attribute list (symbol, type, values)
+      - field: images
+        type: Image[]
+        description: Article images (path, default flag)
+      - field: providers
+        type: Provider[]
+        description: Supplier/provider info (code, name, unit, EAN)
+      - field: unitsOfMeasure
+        type: UnitOfMeasure[]
+        description: Unit conversions with dimensions (height, length, width, weight)
+
+  - group: Articles
+    method: GET
+    path: /articles/delete-commands
+    summary: Get articles marked for deletion
+    description: "Returns a list of article identifiers (uniqueCode) that should be deleted."
+    response_body:
+      - field: uniqueCode
+        type: string
+        description: Unique identifier of the article to delete
+
+  - group: Articles
+    method: POST
+    path: /articles
+    summary: Create a single article
+    description: "Create or update an article. If only erpId is provided in document positions, an existing article is referenced. Otherwise, provide all required fields to create a new article."
+    request_body:
+      - field: erpId
+        type: integer
+        required: true
+        description: ERP article ID
+      - field: name
+        type: string
+        required: true
+        description: Article name
+      - field: symbol
+        type: string
+        required: true
+        description: Article symbol
+      - field: ean
+        type: string
+        description: EAN barcode
+      - field: group
+        type: string
+        description: Article group
+      - field: unit
+        type: string
+        description: Base unit of measure
+      - field: source
+        type: string
+        description: "ERP or WMS"
+      - field: attributes
+        type: Attribute[]
+        description: Custom attributes
+      - field: unitsOfMeasure
+        type: UnitOfMeasure[]
+        description: Unit conversions
+
+  - group: Articles
+    method: POST
+    path: /articles/list
+    summary: Create multiple articles
+    description: "Batch create/update multiple articles. Request body is an array of article objects."
+
+  - group: Articles
+    method: POST
+    path: /articles/delete-commands
+    summary: Delete a single article
+    description: "Mark an article for deletion by uniqueCode."
+    request_body:
+      - field: uniqueCode
+        type: string
+        required: true
+        description: Unique identifier of the article
+
+  - group: Articles
+    method: POST
+    path: /articles/delete-commands/list
+    summary: Delete multiple articles
+    description: "Mark multiple articles for deletion. Request body is an array of delete commands."
+
+  # --- Article Batches ---
+  - group: Article Batches
+    method: GET
+    path: /article-batches
+    summary: List all article batches
+    description: "Returns all article batches with batch number, EAN, owner, validity date, and custom attributes."
+    response_body:
+      - field: batchNumber
+        type: string
+        description: Batch number
+      - field: eanCode
+        type: string
+        description: EAN code
+      - field: erpArticleId
+        type: integer
+        description: Related article ERP ID
+      - field: batchOwner
+        type: string
+        description: Batch owner name
+      - field: batchOwnerId
+        type: integer
+        description: Batch owner ID
+      - field: termValidity
+        type: date
+        description: Batch expiry date
+      - field: attributes
+        type: Attribute[]
+        description: Custom attributes
+
+  - group: Article Batches
+    method: POST
+    path: /article-batches
+    summary: Create a single batch
+    description: "Create an article batch with batch number, EAN, owner, validity date."
+    request_body:
+      - field: batchNumber
+        type: string
+        required: true
+        description: Batch number
+      - field: erpArticleId
+        type: integer
+        required: true
+        description: Related article ERP ID
+      - field: eanCode
+        type: string
+        description: EAN code
+      - field: batchOwner
+        type: string
+        description: Batch owner name
+      - field: termValidity
+        type: date
+        description: Expiry date
+
+  - group: Article Batches
+    method: POST
+    path: /article-batches/list
+    summary: Create multiple batches
+    description: "Batch create multiple article batches. Request body is an array."
+
+  # --- Documents ---
+  - group: Documents
+    method: GET
+    path: /documents
+    summary: List all documents
+    description: "Returns all documents with full detail: contractor, contact, delivery address, positions (with nested articles and batches), procedures, attributes, statuses, and more."
+    response_body:
+      - field: erpId
+        type: integer
+        description: ERP document ID
+      - field: wmsId
+        type: integer
+        description: WMS document ID
+      - field: documentType
+        type: string
+        description: Document type
+      - field: symbol
+        type: string
+        description: Document symbol
+      - field: source
+        type: string
+        description: "ERP or WMS"
+      - field: date
+        type: date
+        description: Document date
+      - field: dueDate
+        type: date
+        description: Due date
+      - field: erpCode
+        type: string
+        description: ERP document code
+      - field: erpStatusSymbol
+        type: string
+        description: ERP status symbol
+      - field: orderType
+        type: string
+        description: Order type
+      - field: contractor
+        type: Contractor
+        description: Full contractor data with address, attributes
+      - field: contact
+        type: Contact
+        description: Contact person details
+      - field: deliveryAddress
+        type: Address
+        description: Delivery address
+      - field: positions
+        type: Position[]
+        description: Document line items (article, batch, quantity, status)
+      - field: procedures
+        type: string[]
+        description: WMS procedures
+      - field: warehouseSymbol
+        type: string
+        description: Warehouse symbol
+      - field: priority
+        type: integer
+        description: Priority level
+      - field: note
+        type: string
+        description: Document notes
+
+  - group: Documents
+    method: GET
+    path: /documents/delete-commands
+    summary: Get documents marked for deletion
+    description: "Returns a list of document identifiers (source + uniqueCode) for deletion."
+    response_body:
+      - field: source
+        type: string
+        description: "ERP or WMS"
+      - field: uniqueCode
+        type: string
+        description: Unique document identifier
+
+  - group: Documents
+    method: POST
+    path: /documents
+    summary: Create a single document
+    description: "Create a document with contractor reference (erpId + source), positions, delivery address, contact, attributes, and procedures. When referencing existing articles in positions, provide only erpId in the article section."
+    request_body:
+      - field: erpId
+        type: integer
+        required: true
+        description: ERP document ID
+      - field: documentType
+        type: string
+        required: true
+        description: Document type
+      - field: source
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: contractor
+        type: object
+        description: "Contractor reference: { erpId, source }"
+      - field: positions
+        type: Position[]
+        description: Document line items
+      - field: deliveryAddress
+        type: Address
+        description: Delivery address
+      - field: contact
+        type: Contact
+        description: Contact person
+
+  - group: Documents
+    method: POST
+    path: /documents/wrappers
+    summary: Create multiple documents
+    description: "Batch create documents. Contains a 'continueOnFail' parameter: true = save valid documents even if some fail, false = rollback all on any error."
+    request_body:
+      - field: continueOnFail
+        type: boolean
+        required: true
+        description: "true = save valid docs on partial failure; false = rollback all"
+      - field: documents
+        type: Document[]
+        required: true
+        description: Array of documents to create
+
+  - group: Documents
+    method: POST
+    path: /documents/delete-commands
+    summary: Delete a single document
+    description: "Mark a document for deletion by source and uniqueCode."
+    request_body:
+      - field: source
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: uniqueCode
+        type: string
+        required: true
+        description: Unique document identifier
+
+  - group: Documents
+    method: POST
+    path: /documents/delete-commands/list
+    summary: Delete multiple documents
+    description: "Mark multiple documents for deletion."
+
+  # --- Positions ---
+  - group: Positions
+    method: GET
+    path: /positions
+    summary: List all positions
+    description: "Returns all document positions grouped by documentId and documentSource, each containing an array of position objects with article, batch, quantity, and attributes."
+    response_body:
+      - field: documentId
+        type: integer
+        description: Parent document ID
+      - field: documentSource
+        type: string
+        description: "ERP or WMS"
+      - field: positions
+        type: Position[]
+        description: Array of positions for this document
+
+  - group: Positions
+    method: GET
+    path: /positions/delete-commands
+    summary: Get positions marked for deletion
+    description: "Returns position delete commands with documentId, source, and uniqueCode."
+
+  - group: Positions
+    method: POST
+    path: /positions
+    summary: Create positions for a document
+    description: "Create one or more positions for a specific document. Provide documentId, documentSource, and an array of positions."
+    request_body:
+      - field: documentId
+        type: integer
+        required: true
+        description: Parent document ID
+      - field: documentSource
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: positions
+        type: Position[]
+        required: true
+        description: Array of position objects
+
+  - group: Positions
+    method: POST
+    path: /positions/list
+    summary: Create positions for multiple documents
+    description: "Batch create positions for multiple documents. Request body is an array of position wrapper objects."
+
+  - group: Positions
+    method: POST
+    path: /positions/delete-commands
+    summary: Delete a single position
+    description: "Mark a position for deletion."
+    request_body:
+      - field: documentId
+        type: integer
+        required: true
+        description: Parent document ID
+      - field: source
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: uniqueCode
+        type: string
+        required: true
+        description: Unique position identifier
+
+  - group: Positions
+    method: POST
+    path: /positions/delete-commands/list
+    summary: Delete multiple positions
+    description: "Mark multiple positions for deletion."
+
+  # --- Contractors ---
+  - group: Contractors
+    method: GET
+    path: /contractors
+    summary: List all contractors
+    description: "Returns all contractors with address, additional addresses, attributes, supplier info, and tax number."
+    response_body:
+      - field: erpId
+        type: integer
+        description: ERP contractor ID
+      - field: wmsId
+        type: integer
+        description: WMS contractor ID
+      - field: name
+        type: string
+        description: Contractor name
+      - field: symbol
+        type: string
+        description: Contractor symbol
+      - field: email
+        type: string
+        description: Email address
+      - field: phone
+        type: string
+        description: Phone number
+      - field: taxNumber
+        type: string
+        description: Tax/NIP number
+      - field: isSupplier
+        type: boolean
+        description: Is supplier flag
+      - field: supplierSymbol
+        type: string
+        description: Supplier symbol
+      - field: source
+        type: string
+        description: "ERP or WMS"
+      - field: address
+        type: Address
+        description: Primary address
+      - field: addresses
+        type: Address[]
+        description: Additional addresses
+      - field: attributes
+        type: Attribute[]
+        description: Custom attributes
+
+  - group: Contractors
+    method: GET
+    path: /contractors/delete-commands
+    summary: Get contractors marked for deletion
+    description: "Returns contractor delete commands with source and uniqueCode."
+
+  - group: Contractors
+    method: POST
+    path: /contractors
+    summary: Create a single contractor
+    description: "Create or update a contractor with address, attributes, and supplier info."
+    request_body:
+      - field: erpId
+        type: integer
+        required: true
+        description: ERP contractor ID
+      - field: name
+        type: string
+        required: true
+        description: Contractor name
+      - field: symbol
+        type: string
+        description: Contractor symbol
+      - field: source
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: address
+        type: Address
+        description: Primary address
+      - field: addresses
+        type: Address[]
+        description: Additional addresses
+      - field: taxNumber
+        type: string
+        description: Tax/NIP number
+      - field: isSupplier
+        type: boolean
+        description: Is supplier flag
+
+  - group: Contractors
+    method: POST
+    path: /contractors/list
+    summary: Create multiple contractors
+    description: "Batch create/update multiple contractors."
+
+  - group: Contractors
+    method: POST
+    path: /contractors/delete-commands
+    summary: Delete a single contractor
+    description: "Mark a contractor for deletion by source and uniqueCode."
+    request_body:
+      - field: source
+        type: string
+        required: true
+        description: "ERP or WMS"
+      - field: uniqueCode
+        type: string
+        required: true
+        description: Unique contractor identifier
+
+  - group: Contractors
+    method: POST
+    path: /contractors/delete-commands/list
+    summary: Delete multiple contractors
+    description: "Mark multiple contractors for deletion."
+
+  # --- Feedback ---
+  - group: Feedback
+    method: GET
+    path: /feedbacks
+    summary: Get operation feedback
+    description: "Returns feedback from WMS about previously submitted operations (SAVE/DELETE). Each entry indicates success/failure, the entity type (ARTICLE, CONTRACTOR, DOCUMENT), and any errors or response messages."
+    response_body:
+      - field: id
+        type: integer
+        description: Feedback entry ID
+      - field: action
+        type: string
+        description: "Action type: SAVE or DELETE"
+      - field: entity
+        type: string
+        description: "Entity type: ARTICLE, CONTRACTOR, DOCUMENT, etc."
+      - field: success
+        type: boolean
+        description: Whether the operation succeeded
+      - field: errors
+        type: object
+        description: Error details (key-value map)
+      - field: responseMessages
+        type: object
+        description: Response messages (key-value map)
+
+  # --- JSON Errors ---
+  - group: JSON Errors
+    method: GET
+    path: /errors
+    summary: Get JSON parsing errors
+    description: "Returns JSON errors encountered during data processing. Each entry contains the original JSON body, the Kafka topic where the error originated, and a timestamp."
+    response_body:
+      - field: body
+        type: string
+        description: Original JSON body that caused the error
+      - field: createdDate
+        type: datetime
+        description: Error timestamp
+      - field: topic
+        type: string
+        description: Kafka topic where the error originated

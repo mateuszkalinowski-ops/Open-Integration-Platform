@@ -1,0 +1,73 @@
+services:
+  allegro-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: allegro-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - allegro-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - ALLEGRO_LOG_LEVEL=INFO
+      - ALLEGRO_SCRAPING_ENABLED=true
+      - ALLEGRO_SCRAPING_INTERVAL_SECONDS=60
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  # Local development: standalone mode without Kafka
+  # For full platform with Kafka, use the root docker-compose.yml
+  allegro-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: allegro-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - allegro-data-dev:/app/data
+    environment:
+      - ALLEGRO_DEBUG=true
+      - ALLEGRO_LOG_LEVEL=DEBUG
+      - ALLEGRO_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/allegro_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: allegro-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - ALLEGRO_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  allegro-data:
+  allegro-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

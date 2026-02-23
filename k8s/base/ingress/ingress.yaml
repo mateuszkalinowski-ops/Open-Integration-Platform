@@ -1,0 +1,198 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: pinquark-integrators
+  namespace: pinquark-uat
+  labels:
+    app.kubernetes.io/part-of: pinquark
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-uat
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "60"
+    nginx.ingress.kubernetes.io/rate-limit: "100"
+    nginx.ingress.kubernetes.io/rate-limit-window: "1m"
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts:
+        - "*.uat.pinquark.com"
+        - "uat.pinquark.com"
+      secretName: pinquark-uat-tls
+  rules:
+    # E-commerce integrators
+    - host: allegro.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: allegro-integrator
+                port:
+                  number: 8000
+
+    # Courier integrators
+    - host: dhl.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dhl-integrator
+                port:
+                  number: 8000
+    - host: dpd.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dpd-integrator
+                port:
+                  number: 8000
+    - host: fedex.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fedex-integrator
+                port:
+                  number: 8000
+    - host: fedexpl.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: fedexpl-integrator
+                port:
+                  number: 8000
+    - host: geis.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: geis-integrator
+                port:
+                  number: 8000
+    - host: gls.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: gls-integrator
+                port:
+                  number: 8000
+    - host: inpost.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: inpost-integrator
+                port:
+                  number: 8000
+    - host: orlenpaczka.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: orlenpaczka-integrator
+                port:
+                  number: 8000
+    - host: packeta.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: packeta-integrator
+                port:
+                  number: 8000
+    - host: paxy.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: paxy-integrator
+                port:
+                  number: 8000
+    - host: pocztapolska.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: pocztapolska-integrator
+                port:
+                  number: 8000
+    - host: schenker.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: schenker-integrator
+                port:
+                  number: 8000
+    - host: sellasist.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: sellasist-integrator
+                port:
+                  number: 8000
+    - host: suus.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: suus-integrator
+                port:
+                  number: 8000
+    - host: ups.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: ups-integrator
+                port:
+                  number: 8000
+
+    # Monitoring
+    - host: grafana.uat.pinquark.com
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: kube-prometheus-stack-grafana
+                port:
+                  number: 80

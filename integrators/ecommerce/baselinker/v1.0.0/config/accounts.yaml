@@ -1,0 +1,6 @@
+accounts:
+  - name: default
+    api_token: "${BASELINKER_API_TOKEN}"
+    inventory_id: 0
+    warehouse_id: 0
+    environment: production

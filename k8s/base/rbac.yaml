@@ -1,0 +1,34 @@
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: pinquark-integrator
+  namespace: pinquark-uat
+  labels:
+    app.kubernetes.io/part-of: pinquark
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: integrator-role
+  namespace: pinquark-uat
+rules:
+  - apiGroups: [""]
+    resources: ["configmaps", "secrets"]
+    verbs: ["get", "list", "watch"]
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: integrator-role-binding
+  namespace: pinquark-uat
+subjects:
+  - kind: ServiceAccount
+    name: pinquark-integrator
+    namespace: pinquark-uat
+roleRef:
+  kind: Role
+  name: integrator-role
+  apiGroup: rbac.authorization.k8s.io

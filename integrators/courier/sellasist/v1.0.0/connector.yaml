@@ -1,0 +1,26 @@
+name: sellasist
+category: courier
+version: 1.0.0
+display_name: "SellAsist"
+description: "Multi-channel sales management platform — marketplace integration, courier shipping labels."
+website_url: "https://sellasist.pl"
+country: PL
+logo_url: /assets/logos/sellasist.svg
+interface: courier
+capabilities:
+  - get_label
+events: []
+actions:
+  - label.get
+config_schema:
+  required:
+    - api_key
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

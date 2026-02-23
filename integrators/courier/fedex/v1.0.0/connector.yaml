@@ -1,0 +1,35 @@
+name: fedex
+category: courier
+version: 1.0.0
+display_name: "FedEx"
+description: "Global courier services by FedEx — air, ground and freight shipping worldwide."
+website_url: "https://www.fedex.com"
+country: US
+logo_url: /assets/logos/fedex.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - cancel_shipment
+  - get_pickup_points
+  - get_shipment_status
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - shipment.cancel
+  - pickup_points.list
+config_schema:
+  required:
+    - client_id
+    - client_secret
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

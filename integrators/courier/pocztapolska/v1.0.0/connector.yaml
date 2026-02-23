@@ -1,0 +1,35 @@
+name: pocztapolska
+category: courier
+version: 1.0.0
+display_name: "Poczta Polska"
+description: "National postal operator. Domestic and international shipments, Paczka+, Pocztex, parcel lockers."
+website_url: "https://www.poczta-polska.pl"
+country: PL
+logo_url: /assets/logos/pocztapolska.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - get_pickup_points
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - pickup_points.list
+config_schema:
+  required:
+    - username
+    - password
+  optional:
+    - tracking_wsdl
+    - posting_wsdl
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

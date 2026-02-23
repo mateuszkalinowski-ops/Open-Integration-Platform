@@ -1,0 +1,26 @@
+services:
+  courier-sellasist:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: courier-sellasist
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    environment:
+      - SELLASIST_API_URL=${SELLASIST_API_URL:-https://login.sellasist.pl/api/v1}
+      - REST_INTEGRATION_TIMEOUT=${REST_INTEGRATION_TIMEOUT:-30}
+      - LOG_LEVEL=${LOG_LEVEL:-INFO}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+    networks:
+      - sellasist-net
+    restart: unless-stopped
+
+networks:
+  sellasist-net:
+    driver: bridge

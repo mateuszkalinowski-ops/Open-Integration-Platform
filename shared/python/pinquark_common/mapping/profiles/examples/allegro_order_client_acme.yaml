@@ -1,0 +1,80 @@
+# Client-specific mapping override: ACME company
+# Extends the default Allegro order mapping with custom field assignments.
+#
+# ACME stores their internal order number in a custom attribute
+# and uses different status symbols than the default.
+
+profile_id: "acme_allegro_order_inbound"
+client_id: "acme"
+system: "allegro"
+category: "ecommerce"
+entity: "order"
+direction: "inbound"
+version: "1.0.0"
+description: "ACME-specific: maps Allegro order to WMS Document with custom attributes"
+
+static_values:
+  source: "ECOMMERCE"
+  document_type: "ZK"
+  is_new: true
+  positions_changed: true
+  warehouse_symbol: "MAG-ACME-1"
+
+field_mappings:
+  - source_field: "id"
+    target_field: "symbol"
+    transform: "string"
+    required: true
+
+  - source_field: "buyer.id"
+    target_field: "contractor.erp_id"
+    transform: "string"
+
+  - source_field: "buyer.login"
+    target_field: "contractor.symbol"
+
+  - source_field: "buyer.email"
+    target_field: "contractor.email"
+
+  - source_field: "buyer.first_name"
+    target_field: "contractor.name"
+
+  # ACME-specific: delivery address uses different target fields
+  - source_field: "delivery.address.street"
+    target_field: "delivery_address.street"
+
+  - source_field: "delivery.address.city"
+    target_field: "delivery_address.city"
+
+  - source_field: "delivery.address.zip_code"
+    target_field: "delivery_address.code"
+
+  - source_field: "delivery.address.country_code"
+    target_field: "delivery_address.country"
+    default_value: "PL"
+
+  # ACME uses their own status codes
+  - source_field: "status"
+    target_field: "erp_status_symbol"
+    transform: "map_value"
+    value_map:
+      BOUGHT: "NEW"
+      FILLED_IN: "PENDING"
+      READY_FOR_PROCESSING: "APPROVED"
+      CANCELLED: "CANCELLED"
+    default_value: "NEW"
+
+  # ACME wants delivery method mapped to a specific symbol
+  - source_field: "delivery.method.name"
+    target_field: "delivery_method_symbol"
+    transform: "uppercase"
+
+  - source_field: "message_to_seller"
+    target_field: "note"
+    default_value: ""
+
+  # ACME stores total payment as a custom attribute
+  - source_field: "summary.total_to_pay.amount"
+    target_field: "commission_symbol"
+    transform: "string"
+    description: "ACME convention: commission_symbol holds total amount"

@@ -1,0 +1,6 @@
+accounts:
+  # - name: default
+  #   shop_url: my-store.myshopify.com
+  #   access_token: shpat_xxxxx
+  #   api_version: "2024-07"
+  #   default_location_id: ""

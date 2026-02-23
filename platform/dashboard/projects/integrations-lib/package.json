@@ -1,0 +1,21 @@
+{
+  "name": "@pinquark/integrations",
+  "version": "0.1.0",
+  "description": "Angular library for Open Integration Platform by Pinquark.com — components, services, and models for embedding integration management into any Angular app.",
+  "license": "Apache-2.0",
+  "peerDependencies": {
+    "@angular/common": "^19.0.0",
+    "@angular/core": "^19.0.0",
+    "@angular/forms": "^19.0.0",
+    "@angular/material": "^19.0.0"
+  },
+  "keywords": [
+    "angular",
+    "integration",
+    "pinquark",
+    "courier",
+    "ecommerce",
+    "erp",
+    "wms"
+  ]
+}

@@ -1,0 +1,71 @@
+services:
+  baselinker-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: baselinker-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - baselinker-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - BASELINKER_LOG_LEVEL=INFO
+      - BASELINKER_SCRAPING_ENABLED=true
+      - BASELINKER_SCRAPING_INTERVAL_SECONDS=120
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  baselinker-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: baselinker-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - baselinker-data-dev:/app/data
+    environment:
+      - BASELINKER_DEBUG=true
+      - BASELINKER_LOG_LEVEL=DEBUG
+      - BASELINKER_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/baselinker_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: baselinker-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - BASELINKER_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  baselinker-data:
+  baselinker-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

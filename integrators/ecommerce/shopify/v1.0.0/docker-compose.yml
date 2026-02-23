@@ -1,0 +1,71 @@
+services:
+  shopify-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopify-integrator
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - shopify-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - SHOPIFY_LOG_LEVEL=INFO
+      - SHOPIFY_SCRAPING_ENABLED=true
+      - SHOPIFY_SCRAPING_INTERVAL_SECONDS=60
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  shopify-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopify-integrator-dev
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - shopify-data-dev:/app/data
+    environment:
+      - SHOPIFY_DEBUG=true
+      - SHOPIFY_LOG_LEVEL=DEBUG
+      - SHOPIFY_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/shopify_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shopify-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - SHOPIFY_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  shopify-data:
+  shopify-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

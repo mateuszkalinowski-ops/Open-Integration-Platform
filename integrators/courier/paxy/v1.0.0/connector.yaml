@@ -1,0 +1,32 @@
+name: paxy
+category: courier
+version: 1.0.0
+display_name: "Paxy"
+description: "Polish urban courier — same-day delivery in major Polish cities."
+website_url: "https://paxy.pl"
+country: PL
+logo_url: /assets/logos/paxy.png
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - cancel_shipment
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - shipment.cancel
+config_schema:
+  required:
+    - api_key
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

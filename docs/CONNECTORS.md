@@ -1,0 +1,669 @@
+# Connector Configuration — Open Integration Platform by Pinquark.com
+
+Documentation of configuration parameters for all available connectors.
+Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the platform REST API or dashboard.
+
+> **Note**: This file is referenced from [`AGENTS.md`](../AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md). Update it whenever a connector is added or modified.
+
+## Table of Contents
+
+1. [Connector Overview](#connector-overview)
+2. [Couriers](#1-couriers)
+3. [E-commerce](#2-e-commerce)
+4. [WMS](#3-wms)
+5. [Other](#4-other)
+6. [Credential Management via API](#5-credential-management-via-api)
+
+---
+
+## Connector Overview
+
+| # | Connector | Category | Version | Protocol | Required Parameters |
+|---|----------|-----------|--------|----------|-------------------|
+| 1 | InPost | Courier | v3.0.0 | REST | `organization_id`, `access_token` |
+| 2 | DHL Parcel Poland | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
+| 3 | DHL Express | Courier | v1.0.0 | REST | `api_key`, `api_secret` |
+| 4 | DPD Poland | Courier | v1.0.0 | REST | `login`, `password`, `master_fid` |
+| 5 | GLS | Courier | v1.0.0 | REST | `username`, `password` |
+| 6 | FedEx | Courier | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret` |
+| 7 | FedEx Poland | Courier | v1.0.0 | REST | `api_key`, `client_id` |
+| 8 | UPS | Courier | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret`, `account_number` |
+| 9 | Poczta Polska | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
+| 10 | Orlen Paczka | Courier | v1.0.0 | REST | `partner_id`, `partner_key` |
+| 11 | Packeta | Courier | v1.0.0 | REST | `api_password` |
+| 12 | DB Schenker | Courier | v1.0.0 | REST | `username`, `password` |
+| 13 | SUUS | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
+| 14 | Paxy | Courier | v1.0.0 | REST | `api_key` |
+| 15 | SellAsist | Courier | v1.0.0 | REST | `api_key` |
+| 16 | Allegro | E-commerce | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret` |
+| 17 | Shoper | E-commerce | v1.0.0 | REST (OAuth2/Basic) | `shop_url`, `login`, `password` |
+| 18 | Shopify | E-commerce | v1.0.0 | REST (Access Token) | `shop_url`, `access_token` |
+| 19 | Pinquark WMS | WMS | v1.0.0 | REST (JWT) | `api_url`, `username`, `password` |
+| 20 | Email Client | Other | v1.0.0 | IMAP/SMTP | `imap_host`, `smtp_host`, `email_address`, `password`, (`username`) |
+| 21 | SkanujFakture | Other | v1.0.0 | REST (Basic Auth) | `login`, `password` |
+| 22 | IdoSell | E-commerce | v1.0.0 | REST (API Key / SHA-1 legacy) | `shop_url`, `api_key` or `login`+`password` |
+| 23 | BaseLinker | E-commerce | v1.0.0 | REST (API Token) | `api_token` |
+| 24 | Raben Group | Courier | v1.0.0 | REST (JWT) | `username`, `password` |
+
+---
+
+## 1. Couriers
+
+### InPost (v3.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `organization_id` | Yes | Organization ID in InPost |
+| `access_token` | Yes | ShipX API access token |
+| `sandbox_mode` | No | Test mode (default: false) |
+| `default_currency` | No | Default currency (default: PLN) |
+
+Environment variables:
+```bash
+APP_ENV=production
+INPOST_INT_2025_API_URL=https://api.inpost-group.com
+INPOST_INT_2025_SANDBOX_API_URL=https://stage-api.inpost-group.com
+```
+
+Versions: v1.0.0, v2.0.0, v3.0.0. Changes in v3.0.0: added `default_currency` parameter.
+
+---
+
+### DHL Parcel Poland (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | DHL24 login |
+| `password` | Yes | DHL24 password |
+| `account_number` | No | DHL account number |
+| `sap_number` | No | SAP number |
+| `sandbox_mode` | No | Test mode |
+
+Environment variables:
+```bash
+SOAP_TIMEOUT=30
+SOAP_OPERATION_TIMEOUT=600
+DHL_PROD_WSDL=wsdl/dhl_42.wsdl
+DHL_SANDBOX_WSDL=wsdl/sandbox_dhl_42.wsdl
+DHL_PROD_PARCELSHOP_URL=https://dhl24.com.pl/servicepoint
+DHL_SANDBOX_PARCELSHOP_URL=https://sandbox.dhl24.com.pl/servicepoint
+```
+
+Protocol: SOAP (WSDL).
+
+---
+
+### DHL Express (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_key` | Yes | MyDHL Express API key |
+| `api_secret` | Yes | API secret |
+| `sandbox_mode` | No | Test mode |
+
+Protocol: REST. Retry: exponential backoff (tenacity, max 3 attempts).
+
+---
+
+### DPD Poland (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `login` | Yes | DPD login |
+| `password` | Yes | Password |
+| `master_fid` | Yes | Customer Master FID |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### GLS (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | GLS login |
+| `password` | Yes | GLS password |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### FedEx (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `client_id` | Yes | OAuth2 Client ID |
+| `client_secret` | Yes | OAuth2 Client Secret |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### FedEx Poland (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_key` | Yes | FedEx PL API key |
+| `client_id` | Yes | Client ID |
+| `courier_number` | No | Courier number |
+| `account_number` | No | Account number |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### UPS (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `client_id` | Yes | OAuth2 Client ID |
+| `client_secret` | Yes | OAuth2 Client Secret |
+| `account_number` | Yes | UPS account number |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### Poczta Polska (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | e-Nadawca login |
+| `password` | Yes | Password |
+| `tracking_wsdl` | No | Tracking WSDL URL |
+| `posting_wsdl` | No | Posting WSDL URL |
+| `sandbox_mode` | No | Test mode |
+
+Protocol: SOAP (WSDL).
+
+---
+
+### Orlen Paczka (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `partner_id` | Yes | Partner ID |
+| `partner_key` | Yes | Partner key |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### Packeta / Zasilkovna (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_password` | Yes | API password |
+| `eshop` | No | Shop ID |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### DB Schenker (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | Login |
+| `password` | Yes | Password |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### SUUS (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | Login |
+| `password` | Yes | Password |
+| `wsdl_url` | No | Custom WSDL URL |
+| `sandbox_mode` | No | Test mode |
+
+Protocol: SOAP (WSDL).
+
+---
+
+### Paxy (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_key` | Yes | API key |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### SellAsist (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_key` | Yes | API key |
+| `sandbox_mode` | No | Test mode |
+
+---
+
+### Raben Group (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `username` | Yes | myRaben login / API username |
+| `password` | Yes | myRaben password / API password |
+| `customer_number` | No | Raben customer number |
+| `sandbox_mode` | No | Test mode |
+| `default_service_type` | No | Default service type (default: `cargo_classic`) |
+
+Environment variables:
+```bash
+REST_TIMEOUT=30
+RABEN_API_URL=https://myraben.com/api/v1
+RABEN_SANDBOX_API_URL=https://sandbox.myraben.com/api/v1
+```
+
+Service types: `cargo_classic` (24/48h), `cargo_premium`, `cargo_premium_08`, `cargo_premium_10`, `cargo_premium_12`, `cargo_premium_16`.
+
+Features:
+- Transport order creation (myOrder) for LTL/FTL freight
+- Shipment tracking with full event history (Track & Trace)
+- ETA (Estimated Time of Arrival) with +/- 2h window
+- Photo Confirming Delivery (PCD) retrieval
+- Shipping label generation (PDF/ZPL)
+- Complaint/claim submission (myClaim)
+- Additional services: tail lift, email notifications, COD
+- JWT-based authentication with automatic token refresh
+
+Protocol: REST (JWT Authentication).
+
+---
+
+## 2. E-commerce
+
+### Allegro (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `client_id` | Yes | OAuth2 Client ID from Allegro Developer |
+| `client_secret` | Yes | OAuth2 Client Secret |
+| `sandbox_mode` | No | Use allegrosandbox.pl instead of allegro.pl |
+| `api_url` | No | Custom API URL (default: `https://api.allegro.pl`) |
+| `auth_url` | No | Custom Auth URL (default: `https://allegro.pl/auth/oauth`) |
+
+Environment variables:
+```bash
+KAFKA_ENABLED=true                      # Publish orders to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+ALLEGRO_SCRAPING_ENABLED=true           # Order polling
+ALLEGRO_SCRAPING_INTERVAL_SECONDS=60    # How often to check for orders (seconds)
+```
+
+Allegro account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: sklep-glowny
+    client_id: "xxx"
+    client_secret: "yyy"
+    api_url: "https://api.allegro.pl"
+    auth_url: "https://allegro.pl/auth/oauth"
+    environment: production
+```
+
+Features:
+- Automatic order polling (every 60s by default)
+- Publishing orders to Kafka (`allegro.output.ecommerce.orders.save`)
+- Event deduplication per checkout form
+- Fetching EAN/SKU from offers
+- Rate limit handling (respects `Retry-After` header)
+- OAuth2 token auto-refresh
+
+### Shoper (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `shop_url` | Yes | Shoper shop URL (e.g. `https://myshop.shoparena.pl`) |
+| `login` | Yes | Shoper panel administrator login |
+| `password` | Yes | Administrator password |
+| `language_id` | No | Language ID (default: `pl_PL`) |
+
+Environment variables:
+```bash
+SHOPER_SCRAPING_ENABLED=true            # Automatic order/product/user polling
+SHOPER_SCRAPING_INTERVAL_SECONDS=300    # How often to check for new data (seconds)
+SHOPER_SCRAPE_ORDERS=true               # Order scraping
+SHOPER_SCRAPE_PRODUCTS=true             # Product scraping
+SHOPER_SCRAPE_USERS=true                # User scraping
+KAFKA_ENABLED=false                     # Publish to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+Shoper account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: moj-sklep
+    shop_url: "https://mojsklep.shoparena.pl"
+    login: "admin"
+    password: "${SHOPER_PASSWORD}"
+    language_id: "pl_PL"
+    environment: production
+```
+
+Features:
+- Automatic order polling (every 300s by default)
+- Product and user polling
+- Fetching order products via bulk API
+- Publishing to Kafka (`shoper.output.ecommerce.orders.save`, `shoper.output.ecommerce.products.save`, `shoper.output.ecommerce.users.save`)
+- Order status updates
+- Stock level synchronization
+- Parcel management (create, update)
+- Basic Auth → Bearer token authentication with automatic refresh
+- Multi-account Shoper support
+
+Protocol: REST (Basic Auth → Bearer Token).
+
+### Shopify (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `shop_url` | Yes | Shopify store URL (e.g. `my-store.myshopify.com`) |
+| `access_token` | Yes | Admin API access token (starts with `shpat_`) |
+| `api_version` | No | Shopify API version (default: `2024-07`) |
+| `default_location_id` | No | Default location ID for inventory sync |
+| `default_carrier` | No | Default shipping carrier name (default: `Kurier`) |
+
+Environment variables:
+```bash
+SHOPIFY_SCRAPING_ENABLED=true           # Automatic order polling
+SHOPIFY_SCRAPING_INTERVAL_SECONDS=60    # How often to check for orders (seconds)
+KAFKA_ENABLED=false                     # Publish orders to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+Shopify account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-store
+    shop_url: "my-store.myshopify.com"
+    access_token: "shpat_xxxxx"
+    api_version: "2024-07"
+    default_location_id: "12345678"
+    default_carrier: "Kurier"
+```
+
+Features:
+- Automatic order polling (every 60s by default)
+- Publishing orders to Kafka (`shopify.output.ecommerce.orders.save`)
+- Incremental order fetching via `since_id`
+- Product sync (create/update) via REST API
+- Inventory level sync via Inventory API
+- Fulfillment creation via Fulfillment Orders API (2023-01+)
+- Tracking number updates
+- Rate limit handling (respects `X-Shopify-Shop-Api-Call-Limit` header)
+- Multi-store support (multiple Shopify accounts)
+- Access token validation
+
+Protocol: REST (Admin API Access Token).
+
+### IdoSell (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `shop_url` | Yes | IdoSell panel URL (e.g. `https://client12345.idosell.com`) |
+| `api_key` | Conditional | Admin API key — required for `api_key` auth mode |
+| `login` | Conditional | Login — required for `legacy` auth mode |
+| `password` | Conditional | Password — required for `legacy` auth mode |
+| `auth_mode` | No | `api_key` (default) or `legacy` (SHA-1, Java-compatible) |
+| `api_version` | No | API version: `v6` (default) or `v7` |
+| `default_stock_id` | No | Default warehouse/stock ID (default: `1`) |
+| `default_currency` | No | Default currency (default: `PLN`) |
+
+**Authentication modes:**
+
+| Mode | URL pattern | Auth mechanism |
+|---|---|---|
+| `api_key` (default) | `/api/admin/{version}/` | `X-API-KEY` header (static key) |
+| `legacy` | `/admin/{version}/` | SHA-1 daily key in request body: `sha1(YYYYMMDD + sha1(password))` |
+
+The `legacy` mode is compatible with the existing Java implementation (`IdoAuth.java`).
+
+Environment variables:
+```bash
+IDOSELL_SCRAPING_ENABLED=true           # Automatic order/product polling
+IDOSELL_SCRAPING_INTERVAL_SECONDS=120   # How often to check for new data (seconds)
+KAFKA_ENABLED=false                     # Publish to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+IdoSell account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  # Modern auth (recommended for new setups):
+  - name: my-shop
+    shop_url: "https://client12345.idosell.com"
+    api_key: "${IDOSELL_API_KEY}"
+    auth_mode: "api_key"
+    api_version: "v6"
+    default_stock_id: 1
+    default_currency: "PLN"
+
+  # Legacy auth (compatible with Java implementation):
+  - name: legacy-shop
+    shop_url: "https://client12345.idosell.com"
+    login: "${IDOSELL_LOGIN}"
+    password: "${IDOSELL_PASSWORD}"
+    auth_mode: "legacy"
+    api_version: "v7"
+    default_stock_id: 1
+    default_currency: "PLN"
+```
+
+Features:
+- Dual auth mode: modern X-API-KEY and legacy SHA-1 (Java-compatible)
+- Automatic order polling (every 120s by default)
+- Product polling for modifications
+- Publishing to Kafka (`idosell.output.ecommerce.orders.save`, `idosell.output.ecommerce.products.save`)
+- Order status updates (24 IdoSell statuses mapped to 7 unified statuses)
+- Stock quantity synchronization
+- Parcel creation with tracking numbers
+- Multi-account IdoSell support
+- 0-based pagination handling
+
+Protocol: REST (API Key header or SHA-1 body auth).
+
+---
+
+### BaseLinker (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_token` | Yes | API token from BaseLinker panel (Account → My account → API) |
+| `inventory_id` | No | BaseLinker catalog/inventory ID for product operations (default: `0`) |
+| `warehouse_id` | No | Warehouse ID for stock operations (default: `0`) |
+| `scraping_enabled` | No | Enable background order polling (default: `true`) |
+| `scraping_interval_seconds` | No | Polling interval in seconds (default: `120`) |
+
+Environment Variables:
+
+| Variable | Description |
+|---|---|
+| `BASELINKER_API_TOKEN` | API token |
+| `BASELINKER_SCRAPING_ENABLED` | Enable scraping (default: `true`) |
+| `BASELINKER_SCRAPING_INTERVAL_SECONDS` | Polling interval (default: `120`) |
+| `KAFKA_ENABLED` | Enable Kafka publishing (default: `false`) |
+
+BaseLinker account configuration in `config/accounts.yaml`:
+
+```yaml
+accounts:
+  - name: default
+    api_token: "${BASELINKER_API_TOKEN}"
+    inventory_id: 1
+    warehouse_id: 1
+    environment: production
+```
+
+Features:
+- Single POST endpoint API (connector.php) with method-based dispatch
+- Rate limit handling (100 req/min with automatic backoff)
+- Order management with custom status mapping (keyword-based)
+- Product catalog sync via BaseLinker inventories
+- Bulk stock update (up to 1000 products per request)
+- Manual parcel registration (courier code + tracking number)
+- Journal-based change detection for efficient scraping
+- Multi-account support
+- Kafka event streaming for orders and products
+
+Protocol: REST (API Token via X-BLToken header).
+
+---
+
+## 3. WMS
+
+### Pinquark WMS (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_url` | Yes | WMS API URL (e.g. `https://wms.example.com`) |
+| `username` | Yes | WMS login |
+| `password` | Yes | WMS password |
+
+Features:
+- JWT authentication with automatic token refresh
+- Feedback-aware write: polling for processing confirmation from `/feedbacks`
+- Bulk operations: articles, documents, items, contractors, batches
+- Credential validation via Platform API (`POST /credentials/pinquark-wms/validate`)
+
+---
+
+## 4. Other
+
+### Email Client (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `imap_host` | Yes | IMAP server address (e.g. `imap.gmail.com`) |
+| `smtp_host` | Yes | SMTP server address (e.g. `smtp.gmail.com`) |
+| `email_address` | Yes | Account email address |
+| `password` | Yes | Password or App Password |
+| `username` | No | IMAP/SMTP login if different from email address (default: email_address) |
+| `imap_port` | No | IMAP port (default: 993) |
+| `smtp_port` | No | SMTP port (default: 587) |
+| `use_ssl` | No | SSL/TLS (default: true) |
+| `polling_folder` | No | IMAP folder for polling (default: INBOX) |
+| `polling_interval_seconds` | No | Polling interval in seconds (default: 60) |
+
+Environment variables:
+```bash
+EMAIL_POLLING_ENABLED=true                 # Automatic email polling
+EMAIL_POLLING_INTERVAL_SECONDS=60          # How often to check for new emails (seconds)
+EMAIL_POLLING_FOLDER=INBOX                 # IMAP folder for polling
+EMAIL_POLLING_MAX_EMAILS=50                # Max emails per polling cycle
+KAFKA_ENABLED=false                        # Publish to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+Email account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: moje-konto
+    email_address: "user@example.com"
+    username: ""  # optional, if IMAP/SMTP login != email_address
+    password: "${EMAIL_PASSWORD}"
+    imap_host: "imap.gmail.com"
+    imap_port: 993
+    smtp_host: "smtp.gmail.com"
+    smtp_port: 587
+    use_ssl: true
+    polling_folder: "INBOX"
+    environment: production
+```
+
+Features:
+- Automatic polling for new emails (every 60s by default)
+- Sending emails with HTML, attachments, and priority support
+- Publishing to Kafka (`email.output.other.emails.received`, `email.output.other.emails.sent`)
+- Listing IMAP folders
+- Marking as read, deleting emails
+- Multi-account email support
+- Prometheus metrics for IMAP/SMTP operations
+
+Protocol: IMAP4rev1 (RFC 3501) + SMTP (RFC 5321).
+
+---
+
+### SkanujFakture (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `login` | Yes | SkanujFakture account login (email) |
+| `password` | Yes | Account password |
+| `api_url` | No | API URL (default: `https://skanujfakture.pl:8443/SFApi`) |
+| `company_id` | No | Company ID (auto-detected if not provided) |
+| `polling_interval_seconds` | No | Polling interval for new documents (default: 300) |
+| `polling_status_filter` | No | Status filter for polling (default: `zeskanowany`) |
+
+Environment variables:
+```bash
+SF_POLLING_ENABLED=true                    # Automatic document polling
+SF_POLLING_INTERVAL_SECONDS=300            # How often to check for new documents (seconds)
+SF_POLLING_STATUS_FILTER=zeskanowany       # Status filter
+KAFKA_ENABLED=false                        # Publish to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+SkanujFakture account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: moja-firma
+    login: "user@example.com"
+    password: "${SF_PASSWORD}"
+    api_url: "https://skanujfakture.pl:8443/SFApi"
+    company_id: 147
+    environment: production
+```
+
+Features:
+- Document upload with automatic OCR (PDF, JPG, PNG)
+- Fetching scanned documents with details (contractor, amounts, VAT, line items)
+- Document update and deletion
+- Document attribute management
+- Accounting dictionaries (COST_TYPE, COST_CENTER, ATTRIBUTE)
+- KSeF integration — fetching XML/QR, sending FA3 invoices
+- Automatic polling for new documents (every 300s by default)
+- Publishing to Kafka (`skanujfakture.output.other.documents.scanned`)
+- Multi-account SkanujFakture support
+
+Protocol: REST (Basic Authentication).
+
+---
+
+## 5. Credential Management via API
+
+Integration credentials are managed through the platform REST API. Authentication: `X-API-Key` header.
+
+### 4.1 Endpoints
+
+| Method | Endpoint | Description | Notes |
+|--------|----------|------|-------|
+| `POST` | `/api/v1/credentials` | Save credentials | Body: `connector_name` + `credentials` object |
+| `GET` | `/api/v1/credentials/{connector}` | Retrieve credentials | Secrets are masked (`***`) |
+| `POST` | `/api/v1/credentials/{connector}/validate` | Validate credentials | Available for WMS connectors (JWT) |
+| `DELETE` | `/api/v1/credentials/{connector}` | Delete credentials | Irreversible |
+
+### 4.2 Usage Example
+
+```bash
+# Save InPost credentials
+curl -X POST https://api.pinquark.com/api/v1/credentials \
+  -H "X-API-Key: pk_live_xxx" \
+  -H "Content-Type: application/json" \
+  -d '{
+    "connector_name": "inpost",
+    "credentials": {
+      "organization_id": "123456",
+      "access_token": "abc..."
+    }
+  }'
+
+# Retrieve credentials (secrets masked)
+curl https://api.pinquark.com/api/v1/credentials/inpost \
+  -H "X-API-Key: pk_live_xxx"
+```
+
+### 4.3 Security
+
+| Aspect | Implementation |
+|--------|---------------|
+| Database encryption | AES-256-GCM (envelope encryption) |
+| Response masking | Keys containing `password`, `secret`, `token`, `key` → `***` |
+| Validation | Available for WMS connectors (JWT login) and Email (IMAP+SMTP test); others → `unsupported` status |
+| Tenant isolation | Row-Level Security in PostgreSQL |

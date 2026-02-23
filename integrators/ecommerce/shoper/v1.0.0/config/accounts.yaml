@@ -1,0 +1,7 @@
+accounts:
+  - name: sandbox
+    shop_url: "https://devshop.shoparena.pl"
+    login: "admin"
+    password: "${SHOPER_SANDBOX_PASSWORD}"
+    language_id: "pl_PL"
+    environment: sandbox

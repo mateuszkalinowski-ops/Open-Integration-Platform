@@ -1,0 +1,7 @@
+accounts:
+  - name: moja-firma
+    login: "user@example.com"
+    password: "${SF_PASSWORD}"
+    api_url: "https://skanujfakture.pl:8443/SFApi"
+    company_id: 147  # opcjonalnie — automatycznie wykrywane przy pollingu
+    environment: production

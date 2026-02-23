@@ -1,0 +1,33 @@
+name: fedexpl
+category: courier
+version: 1.0.0
+display_name: "FedEx Poland"
+description: "Domestic FedEx courier shipments in Poland. Shipping, tracking, labels."
+website_url: "https://www.fedex.com/pl-pl"
+country: PL
+logo_url: /assets/logos/fedexpl.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+config_schema:
+  required:
+    - api_key
+    - client_id
+  optional:
+    - courier_number
+    - account_number
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

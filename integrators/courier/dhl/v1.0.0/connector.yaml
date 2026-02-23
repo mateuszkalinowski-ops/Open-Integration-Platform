@@ -1,0 +1,37 @@
+name: dhl
+category: courier
+version: 1.0.0
+display_name: "DHL Parcel Poland"
+description: "Domestic and international DHL Parcel courier shipments in Poland. Shipping, tracking, pickup points."
+website_url: "https://www.dhl.com/pl-pl"
+country: PL
+logo_url: /assets/logos/dhl.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - cancel_shipment
+  - get_pickup_points
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - shipment.cancel
+  - pickup_points.list
+config_schema:
+  required:
+    - username
+    - password
+  optional:
+    - account_number
+    - sap_number
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

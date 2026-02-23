@@ -1,0 +1,215 @@
+# Kafka topics following AGENTS.md section 2.4 naming convention:
+# {system}.{direction}.{domain}.{entity}.{action}
+#
+# Partition strategy:
+#   - High-throughput data topics: 12-24 partitions
+#   - Error/DLQ topics: 3 partitions
+#   - All topics: 3 replicas for HA
+
+# --- E-commerce: Allegro ---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: allegro.output.ecommerce.orders.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: ecommerce
+    system: allegro
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    cleanup.policy: delete
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: allegro.input.ecommerce.orders.status
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: ecommerce
+    system: allegro
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: allegro.input.ecommerce.stock.sync
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: ecommerce
+    system: allegro
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: allegro.errors.ecommerce.orders.sync
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: ecommerce
+    system: allegro
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "2592000000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: allegro.dlq.ecommerce.orders.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: ecommerce
+    system: allegro
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "2592000000"
+    cleanup.policy: compact
+    min.insync.replicas: "2"
+
+# --- Courier: common topics ---
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: courier.output.courier.shipments.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: courier
+spec:
+  partitions: 24
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: courier.input.courier.shipments.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: courier
+spec:
+  partitions: 24
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: courier.output.courier.statuses.notify
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: courier
+spec:
+  partitions: 24
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: courier.errors.courier.shipments.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: courier
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "2592000000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: courier.dlq.courier.shipments.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: courier
+spec:
+  partitions: 3
+  replicas: 3
+  config:
+    retention.ms: "2592000000"
+    cleanup.policy: compact
+    min.insync.replicas: "2"
+
+# --- WMS inbound ---
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: wms.input.wms.documents.save
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: wms
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: wms.input.wms.articles.sync
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: wms
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"
+---
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: wms.input.wms.contractors.sync
+  namespace: kafka
+  labels:
+    strimzi.io/cluster: pinquark-kafka
+    category: wms
+spec:
+  partitions: 12
+  replicas: 3
+  config:
+    retention.ms: "604800000"
+    min.insync.replicas: "2"

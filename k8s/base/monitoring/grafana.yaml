@@ -1,0 +1,95 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-pinquark-dashboards
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: pinquark
+    grafana_dashboard: "true"
+data:
+  pinquark-overview.json: |
+    {
+      "annotations": { "list": [] },
+      "editable": true,
+      "fiscalYearStartMonth": 0,
+      "graphTooltip": 1,
+      "links": [],
+      "panels": [
+        {
+          "title": "Integrator Request Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(integrator_requests_total{namespace=\"pinquark-uat\"}[5m])) by (integrator)",
+              "legendFormat": "{{ integrator }}"
+            }
+          ]
+        },
+        {
+          "title": "Integrator Error Rate",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
+          "targets": [
+            {
+              "expr": "sum(rate(integrator_errors_total{namespace=\"pinquark-uat\"}[5m])) by (integrator)",
+              "legendFormat": "{{ integrator }}"
+            }
+          ]
+        },
+        {
+          "title": "p95 Response Time",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket{namespace=\"pinquark-uat\"}[5m])) by (le, integrator))",
+              "legendFormat": "{{ integrator }}"
+            }
+          ]
+        },
+        {
+          "title": "External API Call Duration",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum(rate(integrator_external_api_duration_seconds_bucket{namespace=\"pinquark-uat\"}[5m])) by (le, system, operation))",
+              "legendFormat": "{{ system }}/{{ operation }}"
+            }
+          ]
+        },
+        {
+          "title": "Kafka Messages Processed",
+          "type": "timeseries",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
+          "targets": [
+            {
+              "expr": "sum(rate(integrator_kafka_messages_processed_total{namespace=\"pinquark-uat\"}[5m])) by (topic, status)",
+              "legendFormat": "{{ topic }} ({{ status }})"
+            }
+          ]
+        },
+        {
+          "title": "Pod Health Status",
+          "type": "stat",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
+          "targets": [
+            {
+              "expr": "count(kube_pod_container_status_ready{namespace=\"pinquark-uat\"} == 1)",
+              "legendFormat": "Healthy"
+            },
+            {
+              "expr": "count(kube_pod_container_status_ready{namespace=\"pinquark-uat\"} == 0)",
+              "legendFormat": "Unhealthy"
+            }
+          ]
+        }
+      ],
+      "schemaVersion": 39,
+      "tags": ["pinquark", "integrators"],
+      "templating": { "list": [] },
+      "time": { "from": "now-1h", "to": "now" },
+      "title": "pinquark Integrators Overview",
+      "uid": "pinquark-overview"
+    }

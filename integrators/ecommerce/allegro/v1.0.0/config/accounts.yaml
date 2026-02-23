@@ -1,0 +1,28 @@
+# Allegro account configuration
+# Each account represents a separate Allegro seller account
+# One integrator container can handle multiple accounts simultaneously
+
+accounts:
+  # Sandbox account for development and testing
+  - name: sandbox
+    client_id: "YOUR_SANDBOX_CLIENT_ID"
+    client_secret: "YOUR_SANDBOX_CLIENT_SECRET"
+    api_url: "https://api.allegro.pl.allegrosandbox.pl"
+    auth_url: "https://allegro.pl.allegrosandbox.pl/auth/oauth"
+    environment: sandbox
+
+  # Production account example (uncomment and fill in)
+  # - name: production-shop
+  #   client_id: "YOUR_PRODUCTION_CLIENT_ID"
+  #   client_secret: "YOUR_PRODUCTION_CLIENT_SECRET"
+  #   api_url: "https://api.allegro.pl"
+  #   auth_url: "https://allegro.pl/auth/oauth"
+  #   environment: production
+
+  # Second production account example
+  # - name: second-shop
+  #   client_id: "ANOTHER_CLIENT_ID"
+  #   client_secret: "ANOTHER_CLIENT_SECRET"
+  #   api_url: "https://api.allegro.pl"
+  #   auth_url: "https://allegro.pl/auth/oauth"
+  #   environment: production

@@ -1,0 +1,13 @@
+accounts: []
+# Example:
+#  - name: my-email
+#    email_address: "user@example.com"
+#    username: ""  # optional — if IMAP/SMTP login differs from email_address
+#    password: "${EMAIL_PASSWORD}"
+#    imap_host: "imap.gmail.com"
+#    imap_port: 993
+#    smtp_host: "smtp.gmail.com"
+#    smtp_port: 587
+#    use_ssl: true
+#    polling_folder: "INBOX"
+#    environment: production

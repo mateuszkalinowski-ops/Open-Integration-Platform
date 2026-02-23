@@ -1,0 +1,56 @@
+name: baselinker
+category: ecommerce
+version: 1.0.0
+display_name: "BaseLinker"
+description: "BaseLinker — multi-channel e-commerce management platform. Order management, product catalog sync, stock levels, courier shipments, invoicing."
+website_url: "https://baselinker.com"
+country: PL
+logo_url: /assets/logos/baselinker.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - sync_products
+  - create_parcel
+events:
+  - order.created
+  - order.status_changed
+  - product.created
+  - product.updated
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - stock.sync
+  - product.get
+  - product.sync
+  - parcel.create
+config_schema:
+  required:
+    - api_token
+  optional:
+    - inventory_id
+    - warehouse_id
+    - scraping_enabled
+    - scraping_interval_seconds
+  field_types:
+    api_token:
+      type: password
+      label: "API Token (from BaseLinker panel)"
+    inventory_id:
+      type: integer
+      label: "Catalog/inventory ID"
+      default: 0
+    warehouse_id:
+      type: integer
+      label: "Warehouse ID"
+      default: 0
+    scraping_enabled:
+      type: boolean
+      label: "Automatic order polling"
+      default: true
+health_endpoint: /health
+docs_url: /docs

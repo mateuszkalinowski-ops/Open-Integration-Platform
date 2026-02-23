@@ -1,0 +1,3788 @@
+{
+  "mappings": {
+    "sources": [
+      {
+        "name": "IDOSELL",
+        "targets": [
+          {
+            "name": "ERP",
+            "entities": [
+              {
+                "name": "document_status",
+                "map": {
+                  "finished_ext": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "finished": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "new": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "complainted": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "payment_waiting": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "delivery_waiting": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "on_order": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed_fulfillment": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed_ready": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "ready": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "returned": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "wait_for_dispatch": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "suspended": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "joined": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "missing": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "lost": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "false": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "canceled": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "position_status",
+                "map": {
+                  "finished_ext": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "finished": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "new": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "complainted": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "payment_waiting": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "delivery_waiting": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "on_order": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed_fulfillment": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "packed_ready": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "ready": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "returned": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "wait_for_dispatch": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "suspended": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "joined": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "missing": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "lost": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "false": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "canceled": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "stocks_document_status",
+                "map": {
+                  "open": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "on_the_way": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "close": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "close_delivered": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "close_returned": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "stocks_position_status",
+                "map": {
+                  "open": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "on_the_way": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "close": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "close_delivered": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "close_returned": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "stocks_document_type",
+                "map": {
+                  "pz": {
+                    "translation": "ZA",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "ERP",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "document_type",
+                "map": {
+                  "DD": {
+                    "translation": "Dostawa",
+                    "activated": true
+                  },
+                  "KU": {
+                    "translation": "Remanent",
+                    "activated": true
+                  },
+                  "LP": {
+                    "translation": "List przewozowy",
+                    "activated": true
+                  },
+                  "MM": {
+                    "translation": "Przeniesenie",
+                    "activated": true
+                  },
+                  "PW": {
+                    "translation": "Produkcja - przyjęcie z produkcji",
+                    "activated": true
+                  },
+                  "RW": {
+                    "translation": "Produkcja - pobranie surowca",
+                    "activated": true
+                  },
+                  "WZ": {
+                    "translation": "Wydanie Zew.",
+                    "activated": true
+                  },
+                  "ZA": {
+                    "translation": "Przyjęcie",
+                    "activated": true
+                  },
+                  "ZK": {
+                    "translation": "Wydanie",
+                    "activated": true
+                  },
+                  "KU+": {
+                    "translation": "Remanent+",
+                    "activated": true
+                  },
+                  "KU-": {
+                    "translation": "Remanent-",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "document_status",
+                "map": {
+                  "NOWY": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "ROBOCZY": {
+                    "translation": "R",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "ANU",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY": {
+                    "translation": "ZAM",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "ZR",
+                    "activated": true
+                  },
+                  "DOKUMENT TYMCZASOWY": {
+                    "translation": "TMP",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "WR",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY RĘCZNIE": {
+                    "translation": "ZAMR",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY Z BRAKAMI": {
+                    "translation": "ZAMB",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY PRZEZ SYSTEM": {
+                    "translation": "ZAMS",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY CZĘŚCIOWO": {
+                    "translation": "ZRC",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "position_status",
+                "map": {
+                  "OCZEKUJE": {
+                    "translation": "O",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "A",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTA": {
+                    "translation": "X",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "Z",
+                    "activated": true
+                  },
+                  "DO WERYFIKACJI": {
+                    "translation": "DW",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "R",
+                    "activated": true
+                  },
+                  "ZREALIZOWANA CZĘŚCIOWO": {
+                    "translation": "ZC",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "IDOSELL",
+            "entities": [
+              {
+                "name": "document_status",
+                "map": {
+                  "NOWY": {
+                    "translation": "new",
+                    "activated": true
+                  },
+                  "ROBOCZY": {
+                    "translation": "new",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "canceled",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "ready",
+                    "activated": true
+                  },
+                  "DOKUMENT TYMCZASOWY": {
+                    "translation": "new",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "packed",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY RĘCZNIE": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY Z BRAKAMI": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY PRZEZ SYSTEM": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY CZĘŚCIOWO": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "position_status",
+                "map": {
+                  "OCZEKUJE": {
+                    "translation": "new",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "canceled",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTA": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  },
+                  "DO WERYFIKACJI": {
+                    "translation": "new",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "packed",
+                    "activated": true
+                  },
+                  "ZREALIZOWANA CZĘŚCIOWO": {
+                    "translation": "finished_ext",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Allegro",
+            "entities": [
+              {
+                "name": "document_status",
+                "map": {
+                  "NOWY": {
+                    "translation": "NEW",
+                    "activated": true
+                  },
+                  "ROBOCZY": {
+                    "translation": null,
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY": {
+                    "translation": "SENT",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "READY_FOR_SHIPMENT",
+                    "activated": true
+                  },
+                  "DOKUMENT TYMCZASOWY": {
+                    "translation": null,
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY RĘCZNIE": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY Z BRAKAMI": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY PRZEZ SYSTEM": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY CZĘŚCIOWO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "Woo",
+            "entities": [
+              {
+                "name": "document_status",
+                "map": {
+                  "NOWY": {
+                    "translation": "pending",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "processing",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY RĘCZNIE": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY Z BRAKAMI": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY PRZEZ SYSTEM": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY CZĘŚCIOWO": {
+                    "translation": "completed",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "cancelled",
+                    "activated": true
+                  },
+                  "ROBOCZY": {
+                    "translation": "on-hold",
+                    "activated": true
+                  },
+                  "DOKUMENT TYMCZASOWY": {
+                    "translation": "on-hold",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "WMS",
+        "targets": [
+          {
+            "name": "ERP",
+            "entities": [
+              {
+                "name": "document_type",
+                "map": {
+                  "DD": {
+                    "translation": "Dostawa",
+                    "activated": true
+                  },
+                  "KU": {
+                    "translation": "Remanent",
+                    "activated": true
+                  },
+                  "LP": {
+                    "translation": "List przewozowy",
+                    "activated": true
+                  },
+                  "MM": {
+                    "translation": "Przeniesenie",
+                    "activated": true
+                  },
+                  "PW": {
+                    "translation": "Produkcja - przyjęcie z produkcji",
+                    "activated": true
+                  },
+                  "RW": {
+                    "translation": "Produkcja - pobranie surowca",
+                    "activated": true
+                  },
+                  "WZ": {
+                    "translation": "Wydanie Zew.",
+                    "activated": true
+                  },
+                  "ZA": {
+                    "translation": "Przyjęcie",
+                    "activated": true
+                  },
+                  "ZK": {
+                    "translation": "Wydanie",
+                    "activated": true
+                  },
+                  "KU+": {
+                    "translation": "Remanent+",
+                    "activated": true
+                  },
+                  "KU-": {
+                    "translation": "Remanent-",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "document_status",
+                "map": {
+                  "NOWY": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "ROBOCZY": {
+                    "translation": "R",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "ANU",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY": {
+                    "translation": "ZAM",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "ZR",
+                    "activated": true
+                  },
+                  "DOKUMENT TYMCZASOWY": {
+                    "translation": "TMP",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "WR",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY RĘCZNIE": {
+                    "translation": "ZAMR",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY Z BRAKAMI": {
+                    "translation": "ZAMB",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTY PRZEZ SYSTEM": {
+                    "translation": "ZAMS",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY CZĘŚCIOWO": {
+                    "translation": "ZRC",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "position_status",
+                "map": {
+                  "OCZEKUJE": {
+                    "translation": "O",
+                    "activated": true
+                  },
+                  "ANULOWANY": {
+                    "translation": "A",
+                    "activated": true
+                  },
+                  "ZAMKNIĘTA": {
+                    "translation": "X",
+                    "activated": true
+                  },
+                  "ZREALIZOWANY": {
+                    "translation": "Z",
+                    "activated": true
+                  },
+                  "DO WERYFIKACJI": {
+                    "translation": "DW",
+                    "activated": true
+                  },
+                  "W TRAKCIE REALIZACJI": {
+                    "translation": "R",
+                    "activated": true
+                  },
+                  "ZREALIZOWANA CZĘŚCIOWO": {
+                    "translation": "ZC",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Allegro",
+        "targets": [
+          {
+            "name": "ERP",
+            "entities": [
+              {
+                "name": "document_status",
+                "map": {
+                  "BOUGHT": {
+                    "translation": null,
+                    "activated": true
+                  },
+                  "FILLED_IN": {
+                    "translation": null,
+                    "activated": true
+                  },
+                  "READY_FOR_PROCESSING": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "CANCELLED": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          },
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "PENDING": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "IN_TRANSIT": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "RELEASED_FOR_DELIVERY": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "AVAILABLE_FOR_PICKUP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "NOTICE_LEFT": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "ISSUE": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "DELIVERED": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "RETURNED": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Woo",
+        "targets": [
+          {
+            "name": "ERP",
+            "entities": [
+              {
+                "name": "position_status",
+                "map": {
+                  "pending": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "on-hold": {
+                    "translation": "OCZEKUJE",
+                    "activated": true
+                  },
+                  "processing": {
+                    "translation": "W TRAKCIE REALIZACJI",
+                    "activated": true
+                  },
+                  "completed": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "cancelled": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "failed": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "refunded": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "trash": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              },
+              {
+                "name": "document_status",
+                "map": {
+                  "pending": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "processing": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "on-hold": {
+                    "translation": "NOWY",
+                    "activated": true
+                  },
+                  "completed": {
+                    "translation": "ZREALIZOWANY",
+                    "activated": true
+                  },
+                  "cancelled": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "failed": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "refunded": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  },
+                  "trash": {
+                    "translation": "ANULOWANY",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "Fedex",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "OC": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "PU": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "AR": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "DP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "OD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "DL": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "dhl",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "Nowa": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "Zamówiony kurier": {
+                    "translation": "PAID",
+                    "activated": true
+                  },
+                  "AN": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AN_BO": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AN_RA": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AN_SAS": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AWI": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "AWI_CZAS": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "AWI_DP2": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AWI_ONU": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AWI_OZ": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AWI_ROD": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "AWI_SAS": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "BRG": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "BRG_SAS": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "CC": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "DOR": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_LOK": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_OTH": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_OWL": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_POC": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_RDZ": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOR_SAS": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DWP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "EDWP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "WEJPL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "WYJPL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "LK": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "LP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "OP": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_BWER": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_COD": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_DO": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_DOK": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_DUB": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_OTH": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_PLA": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_PNK": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_REZ": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_ROD": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_SAS": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_TNZ": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_UMO": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OP_USP": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "OWL": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_KP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_ONO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_PS_KP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_PS_ONO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_SP_KP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "OWL_SP_ONO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "PNK": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "PNPT": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "PO18": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "PPDOR": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "PSHOP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "REZ": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "SAS": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "SOB": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "SORT": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "SP_CN": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "SP_DOR": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "SP_DSP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "SP_DW": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "SP_DWP": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "SP_KP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "SP_KZW": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "SP_OP": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "SP_PU": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "SP_TO": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "SP_ZAM": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "SP_ZWR": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "TRM": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "TRM2": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ZA": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ZAIT": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ZWN": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "ZWR": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "ZWR_AN": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "ZWR_OP": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "ZWR_ZB": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "ZWR_ZT": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "ZWW": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "inpost",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "created": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "offers_prepared": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "offer_selected": {
+                    "translation": "PAID",
+                    "activated": true
+                  },
+                  "confirmed": {
+                    "translation": "PAID",
+                    "activated": true
+                  },
+                  "dispatched_by_sender": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "collected_from_sender": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "taken_by_courier": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "adopted_at_source_branch": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "sent_from_source_branch": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ready_to_pickup_from_pok": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "ready_to_pickup_from_pok_registered": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "oversized": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "adopted_at_sorting_center": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "sent_from_sorting_center": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "adopted_at_target_branch": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "out_for_delivery": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "ready_to_pickup": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "pickup_reminder_sent": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "delivered": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "pickup_time_expired": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "avizo": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "claimed": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "returned_to_sender": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "canceled": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "other": {
+                    "translation": "UNKNOWN",
+                    "activated": true
+                  },
+                  "dispatched_by_sender_to_pok": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "out_for_delivery_to_address": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "pickup_reminder_sent_address": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "rejected_by_receiver": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "undelivered_wrong_address": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_incomplete_address": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_unknown_receiver": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_cod_cash_receiver": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "taken_by_courier_from_pok": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "undelivered": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "return_pickup_confirmation_to_sender": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "ready_to_pickup_from_branch": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "delay_in_delivery": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "redirect_to_box": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "canceled_redirect_to_box": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "readdressed": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_no_mailbox": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_not_live_address": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "undelivered_lack_of_access_letterbox": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "missing": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "stack_in_customer_service_point": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "stack_parcel_pickup_time_expired": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "unstack_from_customer_service_point": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "courier_avizo_in_customer_service_point": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "taken_by_courier_from_customer_service_point": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "stack_in_box_machine": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "unstack_from_box_machine": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "stack_parcel_in_box_machine_pickup_time_expired": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "orlenpaczka",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "100": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "110": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "200": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "201": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "210": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "230": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "240": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "300": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "400": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "450": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "653": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "680": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "690": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "695": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "700": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "709": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "729": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "749": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "790": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "800": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "900": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "1000": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "1100": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "pocztapolska",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "A": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "B": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "C": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "D": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "E": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "EN_PP": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "EN_PU": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "G": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_A": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_A_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_ADR": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_ADRK": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_AK": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_AN_WYCOF": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_AP_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_APP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_APPK": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_AR_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_BRAKN": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "P_CZDKN": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_D": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_D_ZPO": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_DBR": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DBZ": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DDL_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DDLW_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DDOZ_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DDP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_DDP_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_DGP": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_DKAOD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_DOAC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DOAC_A": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DOAC_K": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_DS": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_KOD": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_KOD_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_KOL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_KWD": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_KWD_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_KZU_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_MD_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NAD": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "P_NAD_ZPO": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "P_ND": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "P_ND_ZPO": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "P_NDAC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NDAC_A": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NDAC_K": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NDB": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "P_NDB_ZPO": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "P_NDD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDD_ZPO": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDK": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDPD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDPJ": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDPZ_ZPO": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDZ": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "P_NDZ_ZPO": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDZAP": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDZC": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_NDZK": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "P_NDZKON": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NM_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NOWU": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NPAC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NPAC_A": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_NPAC_K": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_OWP": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OWU": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OWU_ZPO": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OWUK": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OWUWPP": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OWUWPW": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_OZTW_ZPO": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_PA": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_PA_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_PCP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PCWY": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PDLUC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PGP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PKN": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_PKP": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_POAC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_POAC_A": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_POAC_K": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_POOE": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_POOS": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_POWE": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_POWS": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_POZE": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_POZS": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_PWP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PZL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_PZL_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_R": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_R_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_RDML": {
+                    "translation": "PAID",
+                    "activated": true
+                  },
+                  "P_REJ": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "P_REJ_KN": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "P_REJ_KN1": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "P_ROZ_ZPO": {
+                    "translation": "PAID",
+                    "activated": true
+                  },
+                  "P_RUD": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "P_S": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_S_ZPO": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "P_SCP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_SDUNPK": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_SDUNPZPO": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_UDO_ZPO": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "P_UKEPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_URZ_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_USZ": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_USZ_ZPO": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WD_ZPO": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WDUNP": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_WEMAIL": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WEMAIL02": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_WEOC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WEPL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WFAX": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WM_ZPO": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WMU_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WN2": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WN3": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WP2": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WP3": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WPUCPP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WPUCWKP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WPUSH": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WRAP": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "P_WSEM": {
+                    "translation": "PROCESSING",
+                    "activated": false
+                  },
+                  "P_WSMS": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_WSMS02": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_WSSMS": {
+                    "translation": "PROCESSING",
+                    "activated": false
+                  },
+                  "P_WUPD": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_WVOICE": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WYCOF": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_WYOC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WYPL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_WZL": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "P_WZL_ZPO": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "P_WZOZ_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_Z": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZAG": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "P_ZAG_ZPO": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "P_ZDUN": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_ZDUN_ZPO": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "P_ZKK": {
+                    "translation": "PROCESSING",
+                    "activated": false
+                  },
+                  "P_ZKK_ZPO": {
+                    "translation": "PROCESSING",
+                    "activated": false
+                  },
+                  "P_ZNISZ": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "P_ZPD": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_ZPNA": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_ZPNP": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "P_ZPO": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "P_ZPUCPP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZPUCWKP": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZPWM": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZWC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZWMC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZZC": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "P_ZZPZ": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "dpd",
+        "targets": "WMS",
+        "entities": [
+          {
+            "name": "courier_status",
+            "map": {
+              "500059": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500068": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "500069": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "500093": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500200": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500300": {
+                "translation": "IN_DELIVERY",
+                "activated": true
+              },
+              "500320": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "500400": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500420": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500425": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500435": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500441": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500450": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500461": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500480": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500483": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500500": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500600": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500683": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500800": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500825": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500827": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500838": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500841": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500880": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500900": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "501000": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "501420": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501425": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501432": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501435": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501441": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501450": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501461": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501480": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501483": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501500": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "502000": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "030103": {
+                "translation": "CREATED",
+                "activated": true
+              },
+              "040101": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "040102": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "040200": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040201": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040202": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040203": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040204": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040205": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040206": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040207": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "040208": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040209": {
+                "translation": "PAID",
+                "activated": true
+              },
+              "040210": {
+                "translation": "REJECTED",
+                "activated": true
+              },
+              "040501": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040502": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040503": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040504": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040505": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040601": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040602": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040603": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040604": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "040605": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "050101": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "050102": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "110302": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "120100": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "120101": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "120102": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "120103": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "120104": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "123456": {
+                "translation": "AWAITING_PICKUP",
+                "activated": true
+              },
+              "150301": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "160101": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "160102": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "160103": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "160202": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "160501": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "160502": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "160503": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170101": {
+                "translation": "IN_DELIVERY",
+                "activated": true
+              },
+              "170102": {
+                "translation": "IN_DELIVERY",
+                "activated": true
+              },
+              "170205": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "170302": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170304": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170305": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170306": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170307": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170308": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170309": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170310": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "170501": {
+                "translation": "AWAITING_PICKUP",
+                "activated": true
+              },
+              "190101": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190102": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190103": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190104": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190105": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190201": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190202": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190203": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190204": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "190205": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "200201": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200202": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200203": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200204": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200205": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200206": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200300": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200301": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200302": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200303": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200304": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200305": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200306": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200307": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200308": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200309": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200310": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200400": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200401": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200402": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200403": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200404": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200405": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200406": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200408": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200409": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200410": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200411": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200412": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200413": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200414": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200415": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200416": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200500": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200501": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200502": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200503": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200504": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200505": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200601": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "200602": {
+                "translation": "AWAITING_PICKUP",
+                "activated": true
+              },
+              "200604": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "200700": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200701": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200702": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200703": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200704": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200705": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200706": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200708": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200709": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200710": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200711": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200712": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200713": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200714": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200715": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200716": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "200801": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "210109": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "210111": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "230101": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "230207": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "230208": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "230209": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "230210": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "230309": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "230310": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "230402": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "230403": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "230405": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "230506": {
+                "translation": "PICKUP_EXPIRED",
+                "activated": true
+              },
+              "240304": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "250301": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "260403": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "320201": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "320202": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "330135": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "330137": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "370101": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "370201": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "370202": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "370203": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "370204": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "370205": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "370206": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "410135": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "450101": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "450301": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450302": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450303": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450306": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450307": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450308": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450309": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450310": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450311": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450312": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "450401": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500011": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500015": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500019": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500037": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500042": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500046": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500072": {
+                "translation": "PAID",
+                "activated": true
+              },
+              "500085": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500100": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "500411": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500412": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500414": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500415": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500416": {
+                "translation": "REJECTED",
+                "activated": true
+              },
+              "500419": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500437": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500442": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500446": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500485": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500602": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500603": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500607": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500608": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500610": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500611": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500612": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500614": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500615": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500616": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500617": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500620": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500624": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500628": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500629": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500630": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500633": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500635": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500637": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500639": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500642": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500647": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500648": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500649": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500661": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500673": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500684": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500685": {
+                "translation": "RETURNED",
+                "activated": true
+              },
+              "500811": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "500885": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "501300": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "501304": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "501340": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "502300": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "511201": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "511701": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "511702": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "511703": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "511704": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "511801": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "511901": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "511902": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "511903": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "512001": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600101": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "600102": {
+                "translation": "AWAITING_PICKUP",
+                "activated": true
+              },
+              "600103": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "600104": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "600105": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "600106": {
+                "translation": "DISPATCHED",
+                "activated": true
+              },
+              "600401": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600402": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600403": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600404": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600405": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600406": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600411": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600412": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600413": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600414": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600415": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600416": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600501": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600502": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600503": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600504": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600505": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600601": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "600602": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "600701": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600702": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600703": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600704": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600705": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600706": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600711": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600712": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600713": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600714": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600715": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "600716": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "654321": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "700401": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "701701": {
+                "translation": "PROCESSING",
+                "activated": true
+              },
+              "701901": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "701902": {
+                "translation": "DELIVERED",
+                "activated": true
+              },
+              "702001": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "702102": {
+                "translation": "PROBLEM_WITH_DELIVERY",
+                "activated": true
+              },
+              "703201": {
+                "translation": "PROCESSING",
+                "activated": true
+              }
+            }
+          }
+        ]
+      },
+      {
+        "name": "schenker",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "ENT": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "COL": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "DET": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "MAN": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "ENM": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "CCL": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "CCF": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "DIS": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "PUP": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "DOT": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "DLV": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "TIN": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "NDL": {
+                    "translation": "PROBLEM_WITH_DELIVERY",
+                    "activated": true
+                  },
+                  "POD": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "baselinker",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "0": {
+                    "translation": "UNKNOWN",
+                    "activated": true
+                  },
+                  "1": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "2": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "3": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "4": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "5": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "6": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "7": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "8": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "9": {
+                    "translation": "MISSING",
+                    "activated": true
+                  },
+                  "10": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "11": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "paxy",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "pending": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "scanned": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "sent": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "transport": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "point": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "delivery": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "unclaimed": {
+                    "translation": "PICKUP_EXPIRED",
+                    "activated": true
+                  },
+                  "back": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "notAccepted": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "delivered": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "name": "packeta",
+        "targets": [
+          {
+            "name": "WMS",
+            "entities": [
+              {
+                "name": "courier_status",
+                "map": {
+                  "received data": {
+                    "translation": "CREATED",
+                    "activated": true
+                  },
+                  "arrived": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "prepared for departure": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "departed": {
+                    "translation": "DISPATCHED",
+                    "activated": true
+                  },
+                  "ready for pickup": {
+                    "translation": "AWAITING_PICKUP",
+                    "activated": true
+                  },
+                  "handed to carrier": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "delivered": {
+                    "translation": "DELIVERED",
+                    "activated": true
+                  },
+                  "posted back": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "returned": {
+                    "translation": "RETURNED",
+                    "activated": true
+                  },
+                  "cancelled": {
+                    "translation": "CANCELLED",
+                    "activated": true
+                  },
+                  "collected": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "customs": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "reverse packet arrived": {
+                    "translation": "PROCESSING",
+                    "activated": true
+                  },
+                  "delivery attempt": {
+                    "translation": "IN_DELIVERY",
+                    "activated": true
+                  },
+                  "rejected by recipient": {
+                    "translation": "REJECTED",
+                    "activated": true
+                  },
+                  "unknown": {
+                    "translation": "UNKNOWN",
+                    "activated": true
+                  }
+                }
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "oneToOne": [
+      {
+        "name": "units",
+        "mapList": [
+          {
+            "idoName": "sztuka",
+            "wmsName": "szt"
+          }
+        ]
+      }
+    ],
+    "attributes": [
+      {
+        "name": "article.color",
+        "mapList": [
+          {
+            "wmsName": "kolor",
+            "wooName": "color",
+            "type": "TEXT"
+          }
+        ]
+      }
+    ]
+  }
+}

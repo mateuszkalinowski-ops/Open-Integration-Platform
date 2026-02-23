@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" fill="none">
+  <!-- BaseLinker molecule/connector icon -->
+  <rect width="200" height="200" rx="24" fill="#fff"/>
+  <!-- Central node -->
+  <circle cx="75" cy="100" r="28" fill="#4B8BF5"/>
+  <!-- Top-right node -->
+  <circle cx="145" cy="55" r="18" fill="#4B8BF5"/>
+  <!-- Bottom-right node -->
+  <circle cx="145" cy="145" r="18" fill="#4B8BF5"/>
+  <!-- Connection lines -->
+  <line x1="97" y1="87" x2="130" y2="62" stroke="#4B8BF5" stroke-width="12" stroke-linecap="round"/>
+  <line x1="97" y1="113" x2="130" y2="138" stroke="#4B8BF5" stroke-width="12" stroke-linecap="round"/>
+  <!-- Inner white circles for hollow effect -->
+  <circle cx="75" cy="100" r="13" fill="#fff"/>
+  <circle cx="145" cy="55" r="7" fill="#fff"/>
+  <circle cx="145" cy="145" r="7" fill="#fff"/>
+</svg>

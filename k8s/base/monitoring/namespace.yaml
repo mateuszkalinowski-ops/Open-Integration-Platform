@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: monitoring
+  labels:
+    app.kubernetes.io/part-of: pinquark
+
+# Full monitoring stack is installed via Helm:
+#
+#   helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
+#   helm repo update
+#   helm install kube-prometheus-stack prometheus-community/kube-prometheus-stack \
+#     --namespace monitoring \
+#     --set prometheus.prometheusSpec.serviceMonitorSelectorNilUsesHelmValues=false \
+#     --set prometheus.prometheusSpec.podMonitorSelectorNilUsesHelmValues=false \
+#     --set grafana.adminPassword="${GRAFANA_ADMIN_PASSWORD}" \
+#     --values monitoring-values.yaml

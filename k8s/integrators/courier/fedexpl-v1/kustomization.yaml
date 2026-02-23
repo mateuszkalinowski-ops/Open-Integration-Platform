@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pinquark-uat
+
+resources:
+  - ../../base
+
+namePrefix: fedexpl-
+
+commonLabels:
+  app.kubernetes.io/name: fedexpl-integrator
+  app.kubernetes.io/version: "1.0.0"
+  category: courier
+  system: fedexpl
+
+patches:
+  - target:
+      kind: Deployment
+      name: integrator
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: registry.pinquark.com/integrations/courier/fedexpl:1.0.0-uat
+
+generatorOptions:
+  disableNameSuffixHash: true

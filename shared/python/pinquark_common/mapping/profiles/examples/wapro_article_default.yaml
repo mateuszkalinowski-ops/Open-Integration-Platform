@@ -1,0 +1,53 @@
+# Default mapping profile: WAPRO ERP Article -> Pinquark WMS Article
+# Demonstrates ERP-to-WMS article synchronization mapping.
+
+profile_id: "default_wapro_article_inbound"
+client_id: "__default__"
+system: "wapro"
+category: "erp"
+entity: "article"
+direction: "inbound"
+version: "1.0.0"
+description: "Maps WAPRO ERP article to WMS Article"
+
+static_values:
+  source: "ERP"
+
+field_mappings:
+  - source_field: "ID_ARTYKUL"
+    target_field: "erp_id"
+    transform: "string"
+    required: true
+
+  - source_field: "SYMBOL"
+    target_field: "symbol"
+    required: true
+
+  - source_field: "NAZWA"
+    target_field: "name"
+    required: true
+
+  - source_field: "JEDNOSTKA"
+    target_field: "unit"
+    default_value: "szt."
+
+  - source_field: "KOD_KRESKOWY"
+    target_field: "ean"
+    default_value: ""
+
+  - source_field: "GRUPA_NAZWA"
+    target_field: "group"
+
+  - source_field: "TYP"
+    target_field: "type"
+    transform: "map_value"
+    value_map:
+      "1": "TOWAR"
+      "2": "USLUGA"
+      "3": "OPAKOWANIE"
+    default_value: "TOWAR"
+
+  - source_field: "STAN"
+    target_field: "state"
+    transform: "decimal"
+    default_value: 0

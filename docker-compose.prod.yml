@@ -1,0 +1,233 @@
+services:
+  # --- Core Platform ---
+  platform:
+    build:
+      context: .
+      dockerfile: platform/Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      REDIS_URL: redis://redis:6379/0
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      CONNECTOR_DISCOVERY_PATH: /integrators
+      APP_ENV: production
+      LOG_LEVEL: INFO
+    volumes:
+      - ./integrators:/integrators:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  dashboard:
+    build:
+      context: ./platform/dashboard
+      dockerfile: Dockerfile
+    ports:
+      - "3000:80"
+    environment:
+      PINQUARK_API_URL: ""
+      PINQUARK_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  # --- Infrastructure ---
+  postgres:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: pinquark_platform
+      POSTGRES_USER: pinquark
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-pinquark}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pinquark -d pinquark_platform"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redisdata:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 5
+    restart: unless-stopped
+
+  # --- Connectors (add/remove as needed) ---
+  connector-inpost:
+    build:
+      context: ./integrators/courier/inpost/v3.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-dhl:
+    build:
+      context: ./integrators/courier/dhl/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-dpd:
+    build:
+      context: ./integrators/courier/dpd/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-allegro:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/allegro/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-shoper:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/shoper/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      SHOPER_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-shopify:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/shopify/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      SHOPIFY_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-idosell:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/idosell/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      IDOSELL_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-baselinker:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/baselinker/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      BASELINKER_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-pinquark-wms:
+    build:
+      context: ./integrators/wms/pinquark-wms/v1.0.0
+    environment:
+      WMS_APP_ENV: production
+      WMS_APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-email-client:
+    build:
+      context: .
+      dockerfile: integrators/other/email-client/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      EMAIL_POLLING_ENABLED: "true"
+      EMAIL_POLLING_INTERVAL_SECONDS: "60"
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_API_KEY: ${PINQUARK_CONNECTOR_API_KEY:-}
+      PLATFORM_EVENT_NOTIFY: "true"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-ai-agent:
+    build:
+      context: ./integrators/ai/agent/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-skanuj-fakture:
+    build:
+      context: .
+      dockerfile: integrators/other/skanuj-fakture/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-raben:
+    build:
+      context: ./integrators/courier/raben/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  redisdata:

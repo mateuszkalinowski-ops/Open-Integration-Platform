@@ -1,0 +1,19 @@
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: pinquark-integrators
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: pinquark
+spec:
+  namespaceSelector:
+    matchNames:
+      - pinquark-uat
+  selector:
+    matchLabels:
+      app.kubernetes.io/part-of: pinquark
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s

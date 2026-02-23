@@ -1,0 +1,71 @@
+# Default mapping profile: Allegro order -> Pinquark WMS Document
+# Used when no client-specific profile is found.
+#
+# Client-specific overrides go into separate files, e.g.:
+#   allegro_order_client_acme.yaml  (client_id: "acme")
+
+profile_id: "default_allegro_order_inbound"
+client_id: "__default__"
+system: "allegro"
+category: "ecommerce"
+entity: "order"
+direction: "inbound"
+version: "1.0.0"
+description: "Maps Allegro checkout form to WMS Document (ZK)"
+
+static_values:
+  source: "ECOMMERCE"
+  document_type: "ZK"
+  is_new: true
+  positions_changed: true
+
+field_mappings:
+  # Order ID -> document symbol
+  - source_field: "id"
+    target_field: "symbol"
+    transform: "string"
+    required: true
+
+  # Buyer -> contractor
+  - source_field: "buyer.id"
+    target_field: "contractor.erp_id"
+    transform: "string"
+
+  - source_field: "buyer.login"
+    target_field: "contractor.symbol"
+
+  - source_field: "buyer.email"
+    target_field: "contractor.email"
+
+  - source_field: "buyer.first_name"
+    target_field: "contractor.name"
+    description: "Concatenated with last_name by custom transform"
+
+  # Delivery address
+  - source_field: "delivery.address.street"
+    target_field: "delivery_address.street"
+
+  - source_field: "delivery.address.city"
+    target_field: "delivery_address.city"
+
+  - source_field: "delivery.address.zip_code"
+    target_field: "delivery_address.code"
+
+  - source_field: "delivery.address.country_code"
+    target_field: "delivery_address.country"
+
+  # Status mapping
+  - source_field: "status"
+    target_field: "erp_status_symbol"
+    transform: "map_value"
+    value_map:
+      BOUGHT: "NOWY"
+      FILLED_IN: "UZUPELNIONY"
+      READY_FOR_PROCESSING: "GOTOWY"
+      CANCELLED: "ANULOWANY"
+    default_value: "NOWY"
+
+  # Note
+  - source_field: "message_to_seller"
+    target_field: "note"
+    default_value: ""

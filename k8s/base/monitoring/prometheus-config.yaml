@@ -1,0 +1,39 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-pinquark-config
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: pinquark
+data:
+  pinquark-scrape.yaml: |
+    # Additional scrape config for pinquark integrators
+    # Applied via kube-prometheus-stack additionalScrapeConfigs
+    - job_name: pinquark-integrators
+      kubernetes_sd_configs:
+        - role: pod
+          namespaces:
+            names:
+              - pinquark-uat
+      relabel_configs:
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_scrape]
+          action: keep
+          regex: "true"
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_path]
+          action: replace
+          target_label: __metrics_path__
+          regex: (.+)
+        - source_labels: [__meta_kubernetes_pod_annotation_prometheus_io_port, __meta_kubernetes_pod_ip]
+          action: replace
+          target_label: __address__
+          regex: (.+);(.+)
+          replacement: $2:$1
+        - source_labels: [__meta_kubernetes_pod_label_app_kubernetes_io_name]
+          action: replace
+          target_label: integrator
+        - source_labels: [__meta_kubernetes_pod_label_category]
+          action: replace
+          target_label: category
+        - source_labels: [__meta_kubernetes_pod_label_system]
+          action: replace
+          target_label: system

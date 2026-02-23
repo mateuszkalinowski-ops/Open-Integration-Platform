@@ -1,0 +1,71 @@
+services:
+  shoper-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shoper-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - shoper-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - SHOPER_LOG_LEVEL=INFO
+      - SHOPER_SCRAPING_ENABLED=true
+      - SHOPER_SCRAPING_INTERVAL_SECONDS=300
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  shoper-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shoper-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - shoper-data-dev:/app/data
+    environment:
+      - SHOPER_DEBUG=true
+      - SHOPER_LOG_LEVEL=DEBUG
+      - SHOPER_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/shoper_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: shoper-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - SHOPER_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  shoper-data:
+  shoper-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

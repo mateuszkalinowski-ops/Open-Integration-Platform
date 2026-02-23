@@ -1,0 +1,33 @@
+name: schenker
+category: courier
+version: 1.0.0
+display_name: "DB Schenker"
+description: "International logistics and transport — pallet, part-load and full-load shipments across Europe."
+website_url: "https://www.dbschenker.com/pl-pl"
+country: DE
+logo_url: /assets/logos/schenker.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - cancel_shipment
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - shipment.cancel
+config_schema:
+  required:
+    - username
+    - password
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

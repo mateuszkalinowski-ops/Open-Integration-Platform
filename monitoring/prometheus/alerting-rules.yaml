@@ -1,0 +1,46 @@
+# Symlink / copy of k8s/base/monitoring/alerting-rules.yaml
+# This file is kept for local development reference.
+# See k8s/base/monitoring/alerting-rules.yaml for the Kubernetes PrometheusRule CR.
+#
+# For local Prometheus (docker-compose), use this as a standard alerting rules file:
+
+groups:
+  - name: pinquark.integrator.errors
+    rules:
+      - alert: IntegratorHighErrorRate
+        expr: |
+          (
+            sum(rate(integrator_errors_total[5m])) by (integrator)
+            /
+            sum(rate(integrator_requests_total[5m])) by (integrator)
+          ) > 0.05
+        for: 5m
+        labels:
+          severity: warning
+
+      - alert: IntegratorCriticalErrorRate
+        expr: |
+          (
+            sum(rate(integrator_errors_total[5m])) by (integrator)
+            /
+            sum(rate(integrator_requests_total[5m])) by (integrator)
+          ) > 0.20
+        for: 5m
+        labels:
+          severity: critical
+
+  - name: pinquark.integrator.latency
+    rules:
+      - alert: IntegratorHighLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket[5m])) by (le, integrator)) > 5
+        for: 5m
+        labels:
+          severity: warning
+
+      - alert: IntegratorCriticalLatency
+        expr: |
+          histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket[5m])) by (le, integrator)) > 15
+        for: 5m
+        labels:
+          severity: critical

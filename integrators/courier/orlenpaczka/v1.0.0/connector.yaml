@@ -1,0 +1,35 @@
+name: orlenpaczka
+category: courier
+version: 1.0.0
+display_name: "Orlen Paczka"
+description: "Parcel locker network and pickup points at Orlen stations. Affordable shipping across Poland."
+website_url: "https://orlenpaczka.pl"
+country: PL
+logo_url: /assets/logos/orlenpaczka.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - cancel_shipment
+  - get_pickup_points
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - shipment.cancel
+  - pickup_points.list
+config_schema:
+  required:
+    - partner_id
+    - partner_key
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

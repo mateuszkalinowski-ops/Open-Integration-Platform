@@ -1,0 +1,147 @@
+"""Allegro e-commerce integration — implements the EcommerceIntegration interface."""
+
+import logging
+from datetime import datetime
+from typing import Any
+
+from pinquark_common.interfaces.ecommerce import EcommerceIntegration
+from pinquark_common.schemas.common import SyncResult, SyncStatus
+from pinquark_common.schemas.ecommerce import (
+    Order,
+    OrdersPage,
+    OrderStatus,
+    Product,
+    StockItem,
+)
+from src.allegro.client import AllegroClient
+from src.allegro.mapper import (
+    map_checkout_to_order,
+    order_status_to_fulfillment,
+    extract_ean_from_parameters,
+)
+from src.allegro.schemas import AllegroCheckoutForm
+from src.services.account_manager import AccountManager
+
+logger = logging.getLogger(__name__)
+
+
+class AllegroIntegration(EcommerceIntegration):
+    """Full Allegro e-commerce integration supporting multiple accounts."""
+
+    def __init__(self, client: AllegroClient, account_manager: AccountManager):
+        self._client = client
+        self._accounts = account_manager
+
+    def _get_account(self, account_name: str):
+        account = self._accounts.get_account(account_name)
+        if not account:
+            raise ValueError(f"Account '{account_name}' not found")
+        return account
+
+    async def fetch_orders(
+        self,
+        account_name: str,
+        since: datetime | None = None,
+        page: int = 1,
+        page_size: int = 50,
+    ) -> OrdersPage:
+        account = self._get_account(account_name)
+        params: dict[str, Any] = {
+            "offset": (page - 1) * page_size,
+            "limit": page_size,
+        }
+        if since:
+            params["updatedAt.gte"] = since.isoformat()
+
+        resp = await self._client.get(
+            "order/checkout-forms",
+            account.name, account.client_id, account.client_secret,
+            account.api_url, account.auth_url,
+            params=params,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+
+        orders: list[Order] = []
+        for checkout_data in data.get("checkoutForms", []):
+            checkout = AllegroCheckoutForm.model_validate(checkout_data)
+            orders.append(map_checkout_to_order(checkout, account_name))
+
+        total = data.get("count", len(orders))
+        return OrdersPage(
+            orders=orders,
+            page=page,
+            total=total,
+            has_next=(page * page_size) < total,
+        )
+
+    async def get_order(self, account_name: str, order_id: str) -> Order:
+        account = self._get_account(account_name)
+        checkout_data = await self._client.get_checkout_form(
+            order_id, account.name, account.client_id, account.client_secret,
+            account.api_url, account.auth_url,
+        )
+        checkout = AllegroCheckoutForm.model_validate(checkout_data)
+        return map_checkout_to_order(checkout, account_name)
+
+    async def update_order_status(
+        self,
+        account_name: str,
+        order_id: str,
+        status: OrderStatus,
+    ) -> None:
+        account = self._get_account(account_name)
+        fulfillment = order_status_to_fulfillment(status)
+        await self._client.update_fulfillment_status(
+            order_id, fulfillment.value,
+            account.name, account.client_id, account.client_secret,
+            account.api_url, account.auth_url,
+        )
+        logger.info("Updated order=%s to status=%s (fulfillment=%s)", order_id, status, fulfillment)
+
+    async def sync_stock(
+        self,
+        account_name: str,
+        items: list[StockItem],
+    ) -> SyncResult:
+        account = self._get_account(account_name)
+        succeeded = 0
+        failed = 0
+        errors: list[dict[str, Any]] = []
+
+        for item in items:
+            try:
+                await self._client.update_offer_stock(
+                    item.product_id or item.sku,
+                    int(item.quantity),
+                    account.name, account.client_id, account.client_secret,
+                    account.api_url, account.auth_url,
+                )
+                succeeded += 1
+            except Exception as exc:
+                failed += 1
+                errors.append({"sku": item.sku, "error": str(exc)})
+                logger.warning("Stock sync failed for sku=%s: %s", item.sku, exc)
+
+        status = SyncStatus.SUCCESS if failed == 0 else (SyncStatus.PARTIAL if succeeded > 0 else SyncStatus.FAILED)
+        return SyncResult(
+            status=status,
+            total=len(items),
+            succeeded=succeeded,
+            failed=failed,
+            errors=errors,
+        )
+
+    async def get_product(self, account_name: str, product_id: str) -> Product:
+        account = self._get_account(account_name)
+        offer_data = await self._client.get_offer(
+            product_id, account.name, account.client_id, account.client_secret,
+            account.api_url, account.auth_url,
+        )
+        ean = extract_ean_from_parameters(offer_data.get("parameters", []))
+        return Product(
+            external_id=offer_data["id"],
+            sku=offer_data.get("external", {}).get("id", "") if offer_data.get("external") else "",
+            ean=ean,
+            name=offer_data.get("name", ""),
+        )

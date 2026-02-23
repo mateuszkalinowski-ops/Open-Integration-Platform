@@ -1,0 +1,71 @@
+services:
+  email-client-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: email-client-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - email-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - EMAIL_LOG_LEVEL=INFO
+      - EMAIL_POLLING_ENABLED=true
+      - EMAIL_POLLING_INTERVAL_SECONDS=60
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  email-client-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: email-client-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - email-data-dev:/app/data
+    environment:
+      - EMAIL_DEBUG=true
+      - EMAIL_LOG_LEVEL=DEBUG
+      - EMAIL_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/email_client_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: email-client-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - EMAIL_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  email-data:
+  email-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

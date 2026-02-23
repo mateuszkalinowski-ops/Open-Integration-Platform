@@ -1,0 +1,21 @@
+accounts:
+  # Modern auth mode (X-API-KEY header):
+  - name: default
+    shop_url: "https://client12345.idosell.com"
+    api_key: "${IDOSELL_API_KEY}"
+    auth_mode: "api_key"
+    api_version: "v6"
+    default_stock_id: 1
+    default_currency: "PLN"
+    environment: production
+
+  # Legacy auth mode (SHA-1 daily key, compatible with Java implementation):
+  # - name: legacy-account
+  #   shop_url: "https://client12345.idosell.com"
+  #   login: "${IDOSELL_LOGIN}"
+  #   password: "${IDOSELL_PASSWORD}"
+  #   auth_mode: "legacy"
+  #   api_version: "v7"
+  #   default_stock_id: 1
+  #   default_currency: "PLN"
+  #   environment: production

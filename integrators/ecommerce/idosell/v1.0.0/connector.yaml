@@ -1,0 +1,81 @@
+name: idosell
+category: ecommerce
+version: 1.0.0
+display_name: "IdoSell"
+description: "IdoSell (formerly IAI-Shop) — Polish e-commerce SaaS platform. Order management, product sync, stock levels, parcel tracking."
+website_url: "https://www.idosell.com"
+country: PL
+logo_url: /assets/logos/idosell.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - sync_products
+  - create_parcel
+events:
+  - order.created
+  - order.status_changed
+  - product.created
+  - product.updated
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - stock.sync
+  - product.get
+  - product.sync
+  - parcel.create
+config_schema:
+  required:
+    - shop_url
+  optional:
+    - api_key
+    - login
+    - password
+    - auth_mode
+    - api_version
+    - default_stock_id
+    - default_currency
+    - scraping_enabled
+    - scraping_interval_seconds
+  field_types:
+    shop_url:
+      type: string
+      label: "Adres panelu IdoSell"
+      placeholder: "https://client12345.idosell.com"
+    api_key:
+      type: password
+      label: "Klucz API (Admin Panel) — for api_key mode"
+    login:
+      type: string
+      label: "Login — for legacy mode"
+    password:
+      type: password
+      label: "Hasło — for legacy mode"
+    auth_mode:
+      type: enum
+      label: "Tryb uwierzytelniania"
+      default: "api_key"
+      values: ["api_key", "legacy"]
+    api_version:
+      type: string
+      label: "Wersja API"
+      default: "v6"
+      description: "v6 (modern + api_key) or v7 (legacy + SHA-1)"
+    default_stock_id:
+      type: integer
+      label: "Domyślny magazyn (stock_id)"
+      default: 1
+    default_currency:
+      type: string
+      label: "Domyślna waluta"
+      default: "PLN"
+    scraping_enabled:
+      type: boolean
+      label: "Automatyczny polling zamówień"
+      default: true
+health_endpoint: /health
+docs_url: /docs

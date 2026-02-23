@@ -1,0 +1,34 @@
+name: dpd
+category: courier
+version: 1.0.0
+display_name: "DPD Poland"
+description: "Domestic and international DPD courier shipments. DPD Pickup point network, parcel tracking."
+website_url: "https://www.dpd.com.pl"
+country: PL
+logo_url: /assets/logos/dpd.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - generate_protocol
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - protocol.generate
+config_schema:
+  required:
+    - login
+    - password
+    - master_fid
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

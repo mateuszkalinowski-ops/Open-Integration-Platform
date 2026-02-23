@@ -1,0 +1,27 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: pinquark-uat
+
+resources:
+  - ../../base
+
+namePrefix: fedex-
+
+commonLabels:
+  app.kubernetes.io/name: fedex-integrator
+  app.kubernetes.io/version: "1.0.0"
+  category: courier
+  system: fedex
+
+patches:
+  - target:
+      kind: Deployment
+      name: integrator
+    patch: |
+      - op: replace
+        path: /spec/template/spec/containers/0/image
+        value: registry.pinquark.com/integrations/courier/fedex:1.0.0-uat
+
+generatorOptions:
+  disableNameSuffixHash: true

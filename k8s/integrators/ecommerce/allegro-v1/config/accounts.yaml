@@ -1,0 +1,7 @@
+accounts:
+  - name: sandbox
+    client_id: "${ALLEGRO_CLIENT_ID}"
+    client_secret: "${ALLEGRO_CLIENT_SECRET}"
+    api_url: "https://api.allegro.pl.allegrosandbox.pl"
+    auth_url: "https://allegro.pl.allegrosandbox.pl/auth/oauth"
+    environment: sandbox

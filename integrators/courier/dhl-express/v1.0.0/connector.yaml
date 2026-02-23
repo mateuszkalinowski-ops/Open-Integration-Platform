@@ -1,0 +1,33 @@
+name: dhl-express
+category: courier
+version: 1.0.0
+display_name: "DHL Express"
+description: "International express shipping by DHL Express — fast door-to-door delivery worldwide."
+website_url: "https://www.dhl.com/pl-pl/home/express.html"
+country: DE
+logo_url: /assets/logos/dhl-express.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+  - get_pickup_points
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+  - pickup_points.list
+config_schema:
+  required:
+    - api_key
+    - api_secret
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs

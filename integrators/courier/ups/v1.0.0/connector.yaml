@@ -1,0 +1,32 @@
+name: ups
+category: courier
+version: 1.0.0
+display_name: "UPS"
+description: "Global courier and logistics services by UPS. Air, ground and international shipping."
+website_url: "https://www.ups.com/pl"
+country: US
+logo_url: /assets/logos/ups.svg
+interface: courier
+capabilities:
+  - create_shipment
+  - get_label
+  - get_shipment_status
+events:
+  - shipment.status_changed
+actions:
+  - shipment.create
+  - label.get
+config_schema:
+  required:
+    - client_id
+    - client_secret
+    - account_number
+  optional:
+    - sandbox_mode
+  field_types:
+    sandbox_mode:
+      type: boolean
+      label: "Tryb sandbox"
+      default: false
+health_endpoint: /health
+docs_url: /docs
