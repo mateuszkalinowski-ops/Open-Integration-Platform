@@ -55,6 +55,41 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 
 **Every system is an equal peer.** Connectors act as both **source** (emit events) and **destination** (receive actions). The Flow Engine connects any source event to any destination action.
 
+## Screenshots
+
+<table>
+  <tr>
+    <td><a href="./docs/Screenshots/connectors-list.png"><img src="./docs/Screenshots/connectors-list.png" alt="Connectors list" width="260"/></a></td>
+    <td><a href="./docs/Screenshots/connector.png"><img src="./docs/Screenshots/connector.png" alt="Connector details" width="260"/></a></td>
+    <td><a href="./docs/Screenshots/credentials.png"><img src="./docs/Screenshots/credentials.png" alt="Credentials management" width="260"/></a></td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">Connectors</td>
+    <td style="text-align:center;">Connector Details</td>
+    <td style="text-align:center;">Credentials</td>
+  </tr>
+  <tr>
+    <td><a href="./docs/Screenshots/workflow-list.png"><img src="./docs/Screenshots/workflow-list.png" alt="Workflow list" width="260"/></a></td>
+    <td><a href="./docs/Screenshots/workflow.png"><img src="./docs/Screenshots/workflow.png" alt="Workflow editor" width="260"/></a></td>
+    <td><a href="./docs/Screenshots/operation-log.png"><img src="./docs/Screenshots/operation-log.png" alt="Operation log" width="260"/></a></td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">Flows &amp; Workflows</td>
+    <td style="text-align:center;">Workflow Editor</td>
+    <td style="text-align:center;">Operation Log</td>
+  </tr>
+  <tr>
+    <td><a href="./docs/Screenshots/operation-log-details.png"><img src="./docs/Screenshots/operation-log-details.png" alt="Operation log details" width="260"/></a></td>
+    <td></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td style="text-align:center;">Execution Details</td>
+    <td></td>
+    <td></td>
+  </tr>
+</table>
+
 ## Quick Start
 
 ### Self-hosted (Docker Compose)

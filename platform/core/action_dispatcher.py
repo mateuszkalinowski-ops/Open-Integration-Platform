@@ -408,17 +408,30 @@ async def dispatch_action(
         tenant_id=str(tenant_id),
     )
 
-    use_multipart = action in _MULTIPART_ACTIONS and "file" in body
+    requires_file = action in _MULTIPART_ACTIONS
+
+    if requires_file and "file" not in body:
+        raise ValueError(
+            f"Action '{action}' on connector '{connector_name}' requires a file "
+            f"attachment, but no 'file' field was found in the payload. "
+            f"Ensure that the source node provides a file (e.g. an email "
+            f"attachment) and that the field mapping maps it to the 'file' field."
+        )
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-        if use_multipart:
+        if requires_file:
             file_result = _extract_file_from_payload(body)
             if file_result:
                 file_bytes, filename = file_result
                 files = {"file": (filename, file_bytes)}
                 response = await client.post(url, files=files, params=query_params)
             else:
-                response = await client.post(url, json=body, params=query_params)
+                raise ValueError(
+                    f"Action '{action}' on connector '{connector_name}' requires a "
+                    f"file attachment, but the provided 'file' field could not be "
+                    f"decoded. Expected a base64-encoded string or an object with "
+                    f"'content_base64' and 'filename' keys."
+                )
         elif route.method == "GET":
             response = await client.get(url, params=query_params)
         elif route.method == "POST":
