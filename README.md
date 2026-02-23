@@ -175,40 +175,21 @@ flows:
 
 Flows are configured via the dashboard UI or REST API. Default field mappings ship with each connector; tenants can override them.
 
-## Available Connectors
+## Connectors — 28 and growing
 
-### Courier (18 connectors)
+Every connector is a self-contained microservice with its own API, versioning, and documentation. Browse them all in the [dashboard](#screenshots) or via the REST API.
 
-| Connector | Status | Capabilities |
-|-----------|--------|-------------|
-| InPost | Production (v3) | Shipments, labels, tracking, pickup points, protocols |
-| DHL | Production | Shipments, labels, tracking |
-| DHL Express | Production | Shipments, labels, tracking |
-| DPD | Production | Shipments, labels, tracking |
-| FedEx | Production | Shipments, labels, tracking |
-| FedEx PL | Production | Shipments, labels, tracking |
-| GLS | Production | Shipments, labels, tracking |
-| UPS | Production | Shipments, labels, tracking |
-| Poczta Polska | Production | Shipments, labels, tracking |
-| Orlen Paczka | Production | Shipments, labels, tracking |
-| Packeta | Production | Shipments, labels, tracking |
-| Paxy | Production | Shipments, labels, tracking |
-| Schenker | Production | Shipments, labels, tracking |
-| Geis | Production | Shipments, labels, tracking |
-| SUUS | Production | Shipments, labels, tracking |
-| SellAsist | Production | Shipments, labels, tracking |
+| Category | # | Connectors |
+|----------|---|------------|
+| **Courier** | 18 | InPost (v1–v3) · DHL · DHL Express · DPD · FedEx · FedEx PL · GLS · UPS · Poczta Polska · Orlen Paczka · Packeta · Paxy · Raben Group · DB Schenker · Geis · SUUS · SellAsist |
+| **E-commerce** | 6 | Allegro · BaseLinker · Shopify · WooCommerce · Shoper · IdoSell |
+| **WMS** | 1 | Pinquark WMS |
+| **AI** | 1 | AI Agent (Gemini) — risk analysis, courier recommendations, data extraction |
+| **Other** | 2 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) |
 
-### E-commerce (1 connector)
-
-| Connector | Status | Capabilities |
-|-----------|--------|-------------|
-| Allegro | Production | Orders, stock sync, price sync, status updates |
-
-### Coming Soon
-
-- Shopify, WooCommerce, Shoper, IdoSell, PrestaShop, BaseLinker
-- WAPRO, Comarch ERP, SAP, Subiekt GT
-- Pinquark WMS (native connector)
+> **Coming soon:** PrestaShop, WAPRO, Comarch ERP, SAP, Subiekt GT, and more.
+>
+> See [docs/CONNECTORS.md](docs/CONNECTORS.md) for full configuration reference.
 
 ## Project Structure
 
