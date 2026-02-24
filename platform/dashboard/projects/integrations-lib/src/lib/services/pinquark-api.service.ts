@@ -20,6 +20,8 @@ import {
   WorkflowUpdateRequest,
   WorkflowExecution as WorkflowExecutionModel,
   WorkflowExecutionDetail,
+  AiGenerateRequest,
+  AiGenerateResponse,
 } from '../models';
 
 export interface PinquarkConfig {
@@ -288,6 +290,12 @@ export class PinquarkApiService {
 
   getWorkflowExecutionDetail(executionId: string): Observable<WorkflowExecutionDetail> {
     return this.http.get<WorkflowExecutionDetail>(`${this.apiUrl}/api/v1/workflow-executions/${executionId}`, {
+      headers: this.headers,
+    });
+  }
+
+  aiGenerateWorkflow(body: AiGenerateRequest): Observable<AiGenerateResponse> {
+    return this.http.post<AiGenerateResponse>(`${this.apiUrl}/api/v1/workflows/ai-generate`, body, {
       headers: this.headers,
     });
   }

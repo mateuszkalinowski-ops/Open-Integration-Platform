@@ -250,6 +250,29 @@ class WorkflowTestRequest(BaseModel):
     trigger_data: dict[str, Any] = Field(default_factory=dict)
 
 
+class AiChatMessage(BaseModel):
+    role: str  # "user" or "assistant"
+    content: str
+
+
+class WorkflowAiGenerateRequest(BaseModel):
+    prompt: str
+    model: str = "gemini"  # "gemini" or "opus"
+    api_key: str
+    conversation: list[AiChatMessage] = Field(default_factory=list)
+    current_nodes: list[dict[str, Any]] = Field(default_factory=list)
+    current_edges: list[dict[str, Any]] = Field(default_factory=list)
+    connectors: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class WorkflowAiGenerateResponse(BaseModel):
+    message: str
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
+    name: str | None = None
+    description: str | None = None
+
+
 # --- Execution Detail (GDPR-aware) ---
 
 

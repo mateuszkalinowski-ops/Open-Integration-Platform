@@ -21,6 +21,7 @@ import {
   PinquarkApiService,
   WorkflowCanvasComponent,
   WorkflowNodeConfigComponent,
+  WorkflowAiChatComponent,
   Connector,
   Workflow,
   WorkflowNode,
@@ -50,6 +51,7 @@ import {
     ClipboardModule,
     WorkflowCanvasComponent,
     WorkflowNodeConfigComponent,
+    WorkflowAiChatComponent,
   ],
   template: `
     <div class="wb">
@@ -78,6 +80,9 @@ import {
               {{ workflow.is_enabled ? 'Active' : 'Inactive' }}
             </mat-slide-toggle>
           }
+          <button mat-stroked-button (click)="openAiChat()" matTooltip="AI workflow generator" class="wb__ai-btn">
+            <mat-icon>psychology</mat-icon> AI Agent
+          </button>
           <button mat-stroked-button (click)="openTestPanel()" matTooltip="Test workflow with sample data">
             <mat-icon>science</mat-icon> Test
           </button>
@@ -285,6 +290,22 @@ import {
                       </div>
                     </div>
                   }
+                </div>
+              </mat-tab>
+
+              <!-- AI Agent Tab -->
+              <mat-tab>
+                <ng-template mat-tab-label>
+                  <mat-icon class="wb__ai-tab-icon">psychology</mat-icon>
+                  AI Agent
+                </ng-template>
+                <div class="wb__ai-tab">
+                  <pinquark-workflow-ai-chat
+                    [nodes]="nodes"
+                    [edges]="edges"
+                    [connectors]="connectors"
+                    (workflowGenerated)="onAiWorkflowGenerated($event)"
+                  ></pinquark-workflow-ai-chat>
                 </div>
               </mat-tab>
             </mat-tab-group>
@@ -506,6 +527,25 @@ import {
       margin-top: 8px;
     }
     .wb__api-hint strong { color: #1976d2; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
+
+    .wb__ai-btn {
+      background: linear-gradient(135deg, #6a1b9a, #1565c0) !important;
+      color: #fff !important;
+      border: none !important;
+    }
+    .wb__ai-tab-icon {
+      margin-right: 4px;
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      vertical-align: middle;
+      color: #6a1b9a;
+    }
+    .wb__ai-tab {
+      height: calc(100vh - 240px);
+      display: flex;
+      flex-direction: column;
+    }
   `],
 })
 export class WorkflowBuilderPage implements OnInit, OnDestroy {
@@ -702,6 +742,31 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   openTestPanel(): void {
     this.showRightPanel = true;
     this.rightTabIndex = 1;
+  }
+
+  openAiChat(): void {
+    this.showRightPanel = true;
+    this.rightTabIndex = 3;
+    if (this.panelWidth < 420) {
+      this.panelWidth = 420;
+    }
+  }
+
+  onAiWorkflowGenerated(event: {
+    nodes: WorkflowNode[];
+    edges: WorkflowEdge[];
+    name?: string;
+    description?: string;
+  }): void {
+    this.nodes = event.nodes;
+    this.edges = event.edges;
+    if (event.name) {
+      this.workflowName = event.name;
+    }
+    if (event.description) {
+      this.workflowDescription = event.description;
+    }
+    setTimeout(() => this.canvas?.fitView(), 100);
   }
 
   save(): void {

@@ -329,3 +329,33 @@ export const TRANSFORM_TYPES = [
   { value: 'split', label: 'Split String' },
   { value: 'concat', label: 'Concatenate' },
 ];
+
+export type AiModelType = 'gemini' | 'opus';
+
+export interface AiChatMessage {
+  role: 'user' | 'assistant';
+  content: string;
+}
+
+export interface AiGenerateRequest {
+  prompt: string;
+  model: AiModelType;
+  api_key: string;
+  conversation: AiChatMessage[];
+  current_nodes: Record<string, unknown>[];
+  current_edges: Record<string, unknown>[];
+  connectors: Record<string, unknown>[];
+}
+
+export interface AiGenerateResponse {
+  message: string;
+  nodes?: WorkflowNode[];
+  edges?: WorkflowEdge[];
+  name?: string;
+  description?: string;
+}
+
+export const AI_MODELS = [
+  { value: 'gemini' as AiModelType, label: 'Google Gemini 2.5 Flash' },
+  { value: 'opus' as AiModelType, label: 'Anthropic Claude Opus 4.6' },
+];

@@ -12,6 +12,7 @@ export { FlowDesignerComponent } from './lib/components/flow-designer/flow-desig
 export { OperationLogComponent } from './lib/components/operation-log/operation-log.component';
 export { WorkflowCanvasComponent } from './lib/components/workflow-canvas/workflow-canvas.component';
 export { WorkflowNodeConfigComponent } from './lib/components/workflow-node-config/workflow-node-config.component';
+export { WorkflowAiChatComponent } from './lib/components/workflow-ai-chat/workflow-ai-chat.component';
 export { SwaggerUiComponent } from './lib/components/swagger-ui/swagger-ui.component';
 
 // Models

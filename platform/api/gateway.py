@@ -32,6 +32,8 @@ from api.schemas import (
     HealthResponse,
     TenantCreate,
     TenantResponse,
+    WorkflowAiGenerateRequest,
+    WorkflowAiGenerateResponse,
     WorkflowCreate,
     WorkflowExecutionDetailResponse,
     WorkflowExecutionResponse,
@@ -1649,6 +1651,218 @@ async def get_flow_execution_detail(
         source_connector=flow.source_connector if flow else None,
         destination_connector=flow.destination_connector if flow else None,
         gdpr_meta=redacted.get("_gdpr", {}),
+    )
+
+
+# --- AI Workflow Generation ---
+
+_WORKFLOW_AI_SYSTEM_PROMPT = """\
+You are an integration workflow designer for the Open Integration Platform by Pinquark.com.
+Your task is to create workflow definitions based on user descriptions.
+
+A workflow consists of NODES (processing steps) and EDGES (connections between them).
+
+## Available Node Types
+
+- **trigger**: Starting point — listens for a connector event.
+  Config: { connector_name, event, credential_name?, filter? }
+- **action**: Execute an action on a connector.
+  Config: { connector_name, action, credential_name?, field_mapping: [{from, to}], on_error: "stop"|"continue" }
+- **condition**: If/else branching. Outputs: "true" / "false".
+  Config: { conditions: [{field, operator, value}], logic: "and"|"or" }
+  Operators: eq, neq, gt, lt, gte, lte, contains, not_contains, starts_with, ends_with, exists, not_exists, in, not_in, regex, is_empty, is_not_empty
+- **switch**: Multi-branch routing based on field value. Outputs: one handle per case + default.
+  Config: { field, cases: [{value, handle}], default_handle: "default" }
+- **transform**: Map and transform data fields.
+  Config: { mappings: [{from, to, transform?}], expressions: {} }
+- **filter**: Pass data only if conditions met.
+  Config: { conditions: [{field, operator, value}], logic: "and"|"or" }
+- **think**: AI Agent — analyze data with a prompt.
+  Config: { connector_name: "ai-agent", action: "agent.analyze", prompt, output_schema_json?, temperature?, redact_pii? }
+- **delay**: Wait for specified duration.
+  Config: { seconds: number }
+- **loop**: Iterate over an array.
+  Config: { array_field, item_variable: "item", index_variable: "index", max_iterations: 100 }
+- **merge**: Merge multiple branches.
+  Config: { strategy: "wait_all" }
+- **parallel**: Execute branches in parallel. Outputs: "branch" / "done".
+  Config: {}
+- **aggregate**: Aggregate parallel results.
+  Config: { strategy: "cheapest"|"most_expensive"|"concat", field? }
+- **http_request**: Make an arbitrary HTTP call.
+  Config: { url, method: "GET"|"POST"|"PUT"|"DELETE", headers: {}, body: {}, timeout_seconds: 30 }
+- **set_variable**: Set a variable in context.
+  Config: { variable_name, value }
+- **response**: End workflow and return response.
+  Config: { body: {} }
+
+## Edge Structure
+{ id: "edge_<unique>", source: "<node_id>", target: "<node_id>", sourceHandle: "default", label: "" }
+For condition nodes, sourceHandle is "true" or "false".
+For switch nodes, sourceHandle matches the case handle.
+
+## Node Position Layout
+Place nodes top-to-bottom. Start trigger at (0, 0), next nodes at (0, 150), then (0, 300), etc.
+For branches (condition/switch), offset horizontally: left branch at (-200, y), right at (200, y).
+
+## Response Format
+ALWAYS respond with valid JSON wrapped in ```json fences:
+```json
+{
+  "message": "Human-readable explanation of what the workflow does",
+  "name": "Workflow name",
+  "description": "Brief workflow description",
+  "nodes": [ ... ],
+  "edges": [ ... ]
+}
+```
+
+If the user asks a question or clarification (not a workflow request), respond with just a message:
+```json
+{
+  "message": "Your helpful response here"
+}
+```
+
+## Rules
+- Every workflow MUST start with exactly one trigger node.
+- Node IDs: use "node_1", "node_2", etc.
+- Edge IDs: use "edge_1", "edge_2", etc.
+- Use the connectors provided in the context — match connector_name and event/action from their capabilities.
+- If the user's request is vague, ask clarifying questions.
+- Field references use dot notation: "order.buyer.name", "data.status", etc.
+- For field_mapping in action nodes, map from trigger/previous node output fields to the action's expected fields.
+"""
+
+
+async def _call_gemini(api_key: str, messages: list[dict], system_prompt: str) -> str:
+    contents = []
+    for msg in messages:
+        role = "user" if msg["role"] == "user" else "model"
+        contents.append({"role": role, "parts": [{"text": msg["content"]}]})
+
+    body = {
+        "system_instruction": {"parts": [{"text": system_prompt}]},
+        "contents": contents,
+        "generationConfig": {"temperature": 0.3, "maxOutputTokens": 8192},
+    }
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=120, write=10, pool=10)) as client:
+        resp = await client.post(
+            "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent",
+            params={"key": api_key},
+            json=body,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        candidates = data.get("candidates", [])
+        if candidates:
+            parts = candidates[0].get("content", {}).get("parts", [])
+            if parts:
+                return parts[0].get("text", "")
+    return '{"message": "No response from Gemini"}'
+
+
+async def _call_opus(api_key: str, messages: list[dict], system_prompt: str) -> str:
+    api_messages = []
+    for msg in messages:
+        api_messages.append({"role": msg["role"], "content": msg["content"]})
+
+    body = {
+        "model": "claude-opus-4-20250514",
+        "max_tokens": 8192,
+        "system": system_prompt,
+        "messages": api_messages,
+    }
+
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=120, write=10, pool=10)) as client:
+        resp = await client.post(
+            "https://api.anthropic.com/v1/messages",
+            headers={
+                "x-api-key": api_key,
+                "anthropic-version": "2023-06-01",
+                "content-type": "application/json",
+            },
+            json=body,
+        )
+        resp.raise_for_status()
+        data = resp.json()
+        content_blocks = data.get("content", [])
+        for block in content_blocks:
+            if block.get("type") == "text":
+                return block.get("text", "")
+    return '{"message": "No response from Claude"}'
+
+
+def _parse_ai_response(raw_text: str) -> dict:
+    import json
+    import re
+
+    json_match = re.search(r"```(?:json)?\s*\n?(.*?)\n?```", raw_text, re.DOTALL)
+    if json_match:
+        try:
+            return json.loads(json_match.group(1).strip())
+        except json.JSONDecodeError:
+            pass
+
+    try:
+        return json.loads(raw_text.strip())
+    except json.JSONDecodeError:
+        return {"message": raw_text.strip()}
+
+
+@app.post(
+    "/api/v1/workflows/ai-generate",
+    response_model=WorkflowAiGenerateResponse,
+    tags=["workflows"],
+)
+async def ai_generate_workflow(body: WorkflowAiGenerateRequest) -> WorkflowAiGenerateResponse:
+    connector_context = ""
+    if body.connectors:
+        lines = []
+        for c in body.connectors:
+            lines.append(
+                f"- **{c.get('display_name', c.get('name', ''))}** ({c.get('name', '')}): "
+                f"category={c.get('category', '')}, "
+                f"events={c.get('events', [])}, "
+                f"actions={c.get('actions', [])}"
+            )
+        connector_context = "\n\n## Available Connectors\n" + "\n".join(lines)
+
+    current_state = ""
+    if body.current_nodes:
+        import json
+        current_state = (
+            "\n\n## Current Workflow State\n"
+            f"Nodes: {json.dumps(body.current_nodes, indent=2)}\n"
+            f"Edges: {json.dumps(body.current_edges, indent=2)}"
+        )
+
+    system_prompt = _WORKFLOW_AI_SYSTEM_PROMPT + connector_context + current_state
+
+    messages = [{"role": m.role, "content": m.content} for m in body.conversation]
+    messages.append({"role": "user", "content": body.prompt})
+
+    try:
+        if body.model == "opus":
+            raw_response = await _call_opus(body.api_key, messages, system_prompt)
+        else:
+            raw_response = await _call_gemini(body.api_key, messages, system_prompt)
+    except httpx.HTTPStatusError as exc:
+        raise HTTPException(
+            status_code=502,
+            detail=f"AI API error: HTTP {exc.response.status_code} — {exc.response.text[:200]}",
+        )
+    except Exception as exc:
+        raise HTTPException(status_code=502, detail=f"AI API error: {exc}")
+
+    parsed = _parse_ai_response(raw_response)
+    return WorkflowAiGenerateResponse(
+        message=parsed.get("message", ""),
+        nodes=parsed.get("nodes"),
+        edges=parsed.get("edges"),
+        name=parsed.get("name"),
+        description=parsed.get("description"),
     )
 
 
