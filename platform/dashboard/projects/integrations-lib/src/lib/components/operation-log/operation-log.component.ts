@@ -12,7 +12,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
-import { forkJoin, of } from 'rxjs';
+import { forkJoin, of, catchError } from 'rxjs';
 
 import { Flow, FlowExecution, FlowExecutionDetail, WorkflowExecutionDetail, WorkflowNodeResultDetail } from '../../models';
 import { Workflow, WorkflowExecution, WorkflowNode, WorkflowNodeResult } from '../../models/workflow.model';
@@ -119,6 +119,24 @@ interface UnifiedExecution {
           </mat-form-field>
         </div>
 
+        @if (initialLoading) {
+          <div class="operation-log__initial-loading">
+            <mat-spinner diameter="40"></mat-spinner>
+            <span>Loading operation log...</span>
+          </div>
+        }
+
+        @if (loadError && !initialLoading) {
+          <div class="operation-log__error-banner">
+            <mat-icon>error_outline</mat-icon>
+            <span>{{ loadError }}</span>
+            <button mat-stroked-button (click)="loadAll()">
+              <mat-icon>refresh</mat-icon> Retry
+            </button>
+          </div>
+        }
+
+        @if (!initialLoading) {
         <table mat-table [dataSource]="filteredUnified" class="operation-log__table">
           <ng-container matColumnDef="type">
             <th mat-header-cell *matHeaderCellDef>Type</th>
@@ -178,7 +196,7 @@ interface UnifiedExecution {
           </tr>
         </table>
 
-        @if (filteredUnified.length === 0 && !loadingMore) {
+        @if (filteredUnified.length === 0 && !loadingMore && !loadError) {
           <p class="operation-log__empty">No executions matching the selected filters.</p>
         }
 
@@ -191,6 +209,7 @@ interface UnifiedExecution {
 
         @if (!hasMore && filteredUnified.length > 0) {
           <p class="operation-log__end-of-list">All executions loaded</p>
+        }
         }
       </div>
 
@@ -519,6 +538,35 @@ interface UnifiedExecution {
     .operation-log__table { width: 100%; }
     .operation-log--detail-open .operation-log__table {
       font-size: 13px;
+    }
+    .operation-log__initial-loading {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      padding: 64px 0;
+      color: rgba(0, 0, 0, 0.54);
+      font-size: 14px;
+    }
+    .operation-log__error-banner {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      background: #fce4ec;
+      border: 1px solid #ef9a9a;
+      border-radius: 8px;
+      padding: 12px 16px;
+      margin-bottom: 16px;
+      color: #c62828;
+      font-size: 14px;
+    }
+    .operation-log__error-banner mat-icon {
+      color: #c62828;
+      flex-shrink: 0;
+    }
+    .operation-log__error-banner span {
+      flex: 1;
     }
     .operation-log__empty {
       color: rgba(0, 0, 0, 0.54);
@@ -923,6 +971,8 @@ export class OperationLogComponent implements OnInit, OnDestroy {
   expandedNodes = new Set<string>();
   collapsedSections = new Set<string>();
 
+  initialLoading = true;
+  loadError: string | null = null;
   loadingMore = false;
   hasMore = true;
   private readonly PAGE_SIZE = 30;
@@ -998,6 +1048,7 @@ export class OperationLogComponent implements OnInit, OnDestroy {
     this.flowExecHasMore = true;
     this.wfExecHasMore = true;
     this.hasMore = true;
+    this.loadError = null;
     this.loadExecutions();
   }
 
@@ -1009,10 +1060,12 @@ export class OperationLogComponent implements OnInit, OnDestroy {
     this.flowExecHasMore = true;
     this.wfExecHasMore = true;
     this.hasMore = true;
+    this.initialLoading = true;
+    this.loadError = null;
 
     forkJoin({
-      flows: this.api.listFlows(),
-      workflows: this.api.listWorkflows(),
+      flows: this.api.listFlows().pipe(catchError(() => of([] as Flow[]))),
+      workflows: this.api.listWorkflows().pipe(catchError(() => of([] as Workflow[]))),
     }).subscribe(({ flows, workflows }: { flows: Flow[]; workflows: Workflow[] }) => {
       this.flows = flows;
       this.workflows = workflows;
@@ -1043,10 +1096,10 @@ export class OperationLogComponent implements OnInit, OnDestroy {
 
     forkJoin({
       flowExecs: this.flowExecHasMore
-        ? this.api.listFlowExecutions({ flow_id: this.filter?.flow_id, limit: this.PAGE_SIZE, offset: this.flowExecOffset, ...dateParams })
+        ? this.api.listFlowExecutions({ flow_id: this.filter?.flow_id, limit: this.PAGE_SIZE, offset: this.flowExecOffset, ...dateParams }).pipe(catchError(() => of([] as FlowExecution[])))
         : of([] as FlowExecution[]),
       wfExecs: this.wfExecHasMore
-        ? this.api.listWorkflowExecutions({ workflow_id: this.filter?.workflow_id, limit: this.PAGE_SIZE, offset: this.wfExecOffset, ...dateParams })
+        ? this.api.listWorkflowExecutions({ workflow_id: this.filter?.workflow_id, limit: this.PAGE_SIZE, offset: this.wfExecOffset, ...dateParams }).pipe(catchError(() => of([] as WorkflowExecution[])))
         : of([] as WorkflowExecution[]),
     }).subscribe({
       next: ({ flowExecs, wfExecs }: { flowExecs: FlowExecution[]; wfExecs: WorkflowExecution[] }) => {
@@ -1071,11 +1124,14 @@ export class OperationLogComponent implements OnInit, OnDestroy {
 
         this.applyFilters();
         this.loadingMore = false;
+        this.initialLoading = false;
         this.attachScrollListener();
       },
       error: () => {
         this.loadingMore = false;
+        this.initialLoading = false;
         this.hasMore = false;
+        this.loadError = 'Failed to load executions. Check the API connection and try again.';
       },
     });
   }

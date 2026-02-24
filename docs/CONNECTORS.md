@@ -12,7 +12,8 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 3. [E-commerce](#2-e-commerce)
 4. [WMS](#3-wms)
 5. [Other](#4-other)
-6. [Credential Management via API](#5-credential-management-via-api)
+6. [AI](#5-ai)
+7. [Credential Management via API](#6-credential-management-via-api)
 
 ---
 
@@ -47,6 +48,9 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 25 | WooCommerce | E-commerce | v1.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
 | 26 | Slack | Other | v1.0.0 | REST (Bot Token) | `bot_token` |
 | 27 | BulkGate | Other | v1.0.0 | REST (API Token) | `application_id`, `application_token` |
+| 28 | Amazon | E-commerce | v1.0.0 | REST (OAuth2 / LWA) | `client_id`, `client_secret`, `refresh_token`, `marketplace_id` |
+| 29 | Geis | Courier | v1.0.0 | SOAP (WSDL) | `customer_code`, `password` |
+| 30 | AI Agent | AI | v1.0.0 | REST (Google Gemini) | `gemini_api_key` |
 
 ---
 
@@ -267,6 +271,32 @@ Features:
 - JWT-based authentication with automatic token refresh
 
 Protocol: REST (JWT Authentication).
+
+---
+
+### Geis (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `customer_code` | Yes | Geis customer code |
+| `password` | Yes | Geis API password |
+| `default_language` | No | Default language (default: `PL`) |
+| `sandbox_mode` | No | Use sandbox environment (default: `false`) |
+
+Environment variables:
+```bash
+SOAP_TIMEOUT=30
+GEIS_API_URL=https://geis-api-url/service.svc?wsdl
+```
+
+Features:
+- Pallet and parcel shipment creation (domestic and international)
+- Shipping label generation
+- Shipment status tracking
+- Shipment cancellation
+- Shipment details retrieval
+
+Protocol: SOAP (WSDL).
 
 ---
 
@@ -553,6 +583,53 @@ Protocol: REST (API Key / OAuth 1.0a).
 
 ---
 
+### Amazon (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `client_id` | Yes | LWA application client ID |
+| `client_secret` | Yes | LWA application client secret |
+| `refresh_token` | Yes | Seller authorization refresh token (does not expire) |
+| `marketplace_id` | Yes | Amazon Marketplace ID (e.g. `A1PA6795UKMFR9` for Germany) |
+| `region` | No | SP-API region: `na`, `eu`, `fe` (default: `eu`) |
+| `sandbox_mode` | No | Use sandbox endpoints (default: false) |
+
+Environment variables:
+```bash
+AMAZON_LOG_LEVEL=INFO
+AMAZON_SCRAPING_ENABLED=true
+AMAZON_SCRAPING_INTERVAL_SECONDS=300
+```
+
+Amazon account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-seller
+    client_id: "amzn1.application-oa2-client.xxxx"
+    client_secret: "your-client-secret"
+    refresh_token: "Atzr|XXXX"
+    marketplace_id: "A1PA6795UKMFR9"
+    region: "eu"
+    sandbox_mode: false
+    environment: production
+```
+
+Features:
+- Order management (fetch, get details, get items, acknowledge, ship, cancel)
+- Status updates via Feeds API (POST_ORDER_ACKNOWLEDGEMENT_DATA, POST_ORDER_FULFILLMENT_DATA)
+- Product catalog (search by keyword/identifier, get by ASIN)
+- Stock synchronization via Feeds API (POST_INVENTORY_AVAILABILITY_DATA)
+- Reports API (create, get status, download)
+- Feed status tracking
+- Background order scraper with configurable interval
+- Multi-account support (multiple sellers/marketplaces)
+- LWA OAuth2 with automatic token refresh
+- All global Amazon marketplaces supported (US, EU, FE regions)
+
+Protocol: REST (Amazon SP-API with LWA OAuth2 authentication).
+
+---
+
 ## 3. WMS
 
 ### Pinquark WMS (v1.0.0)
@@ -762,11 +839,53 @@ Protocol: REST (BulkGate HTTP API, Application ID + Token authentication).
 
 ---
 
-## 5. Credential Management via API
+## 5. AI
+
+### AI Agent (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `gemini_api_key` | Yes | Google Gemini API Key |
+| `model_name` | No | AI model to use (default: `gemini-2.5-flash`). Options: `gemini-2.5-flash`, `gemini-2.5-flash-lite`, `gemini-2.5-pro` |
+| `default_temperature` | No | Model temperature 0.0–1.0 (default: `0.1`) |
+| `max_tokens` | No | Max response tokens (default: `2048`) |
+| `risk_threshold_high` | No | Risk score threshold for HIGH level 0–100 (default: `60`) |
+| `risk_threshold_critical` | No | Risk score threshold for CRITICAL level 0–100 (default: `85`) |
+
+Environment variables:
+```bash
+AI_GEMINI_API_KEY=your-gemini-api-key
+AI_MODEL_NAME=gemini-2.5-flash
+AI_DEFAULT_TEMPERATURE=0.1
+AI_MAX_TOKENS=2048
+AI_RISK_THRESHOLD_HIGH=60
+AI_RISK_THRESHOLD_CRITICAL=85
+AI_AVAILABLE_COURIERS=inpost,dhl,dpd,gls,fedex,ups,pocztapolska,orlenpaczka
+```
+
+Built-in analysis templates:
+- **Order risk analysis** (`agent.analyze_risk`) — evaluates order fraud risk based on order data and customer history
+- **Courier recommendation** (`agent.recommend_courier`) — recommends optimal courier based on order parameters, destination, and preferences (cost/speed/reliability)
+- **Data extraction** (`agent.extract_data`) — extracts structured data from text (emails, invoices, addresses)
+- **Priority classification** (`agent.classify_priority`) — classifies order priority based on SLA rules and customer tier
+- **Universal analysis** (`agent.analyze`) — accepts custom prompt and data, returns structured response per provided schema
+
+Features:
+- Google Gemini-powered AI analysis with configurable models
+- Structured JSON output with schema enforcement
+- Confidence scoring and token usage tracking
+- Configurable risk thresholds for automated decision-making
+- Event emission on analysis completion, risk flags, and courier recommendations
+
+Protocol: REST (Google Gemini API with API Key authentication).
+
+---
+
+## 6. Credential Management via API
 
 Integration credentials are managed through the platform REST API. Authentication: `X-API-Key` header.
 
-### 4.1 Endpoints
+### 6.1 Endpoints
 
 | Method | Endpoint | Description | Notes |
 |--------|----------|------|-------|
@@ -775,7 +894,7 @@ Integration credentials are managed through the platform REST API. Authenticatio
 | `POST` | `/api/v1/credentials/{connector}/validate` | Validate credentials | Available for WMS connectors (JWT) |
 | `DELETE` | `/api/v1/credentials/{connector}` | Delete credentials | Irreversible |
 
-### 4.2 Usage Example
+### 6.2 Usage Example
 
 ```bash
 # Save InPost credentials
@@ -795,7 +914,7 @@ curl https://api.pinquark.com/api/v1/credentials/inpost \
   -H "X-API-Key: pk_live_xxx"
 ```
 
-### 4.3 Security
+### 6.3 Security
 
 | Aspect | Implementation |
 |--------|---------------|

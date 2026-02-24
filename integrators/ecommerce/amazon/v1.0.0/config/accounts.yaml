@@ -1,0 +1,13 @@
+# Amazon SP-API account configurations
+# Copy this file and fill in real credentials for each account.
+# NEVER commit real credentials to version control.
+
+accounts: []
+  # - name: default
+  #   client_id: "amzn1.application-oa2-client.xxxx"
+  #   client_secret: "your-client-secret"
+  #   refresh_token: "Atzr|XXXX"
+  #   marketplace_id: "A1PA6795UKMFR9"
+  #   region: "eu"
+  #   sandbox_mode: false
+  #   environment: production

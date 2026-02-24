@@ -384,6 +384,30 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-amazon:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/amazon/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      AMAZON_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-bulkgate:
+    build:
+      context: ./integrators/other/bulkgate/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
     name: pinquark_pgdata

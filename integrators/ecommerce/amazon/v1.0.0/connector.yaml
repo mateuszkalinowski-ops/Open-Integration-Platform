@@ -1,0 +1,75 @@
+name: amazon
+category: ecommerce
+version: 1.0.0
+display_name: "Amazon"
+description: "Amazon Selling Partner API — order management, product catalog, inventory sync, fulfillment, feeds, reports."
+website_url: "https://sellercentral.amazon.com"
+country: US
+logo_url: /assets/logos/amazon.svg
+interface: ecommerce
+capabilities:
+  - fetch_orders
+  - get_order
+  - update_order_status
+  - sync_stock
+  - get_product
+  - search_products
+  - acknowledge_order
+  - confirm_shipment
+  - create_report
+  - get_report
+events:
+  - order.created
+  - order.status_changed
+  - order.cancelled
+  - inventory.changed
+actions:
+  - order.fetch
+  - order.get
+  - order.status_update
+  - order.acknowledge
+  - shipment.confirm
+  - stock.sync
+  - product.get
+  - product.search
+  - report.create
+  - report.get
+config_schema:
+  required:
+    - client_id
+    - client_secret
+    - refresh_token
+    - marketplace_id
+  optional:
+    - region
+    - sandbox_mode
+    - scraping_enabled
+    - scraping_interval_seconds
+  field_types:
+    client_id:
+      type: string
+      label: "LWA Client ID"
+    client_secret:
+      type: password
+      label: "LWA Client Secret"
+    refresh_token:
+      type: password
+      label: "Seller Refresh Token"
+    marketplace_id:
+      type: string
+      label: "Amazon Marketplace ID (e.g. ATVPDKIKX0DER for US)"
+    region:
+      type: select
+      label: "SP-API Region"
+      options: ["na", "eu", "fe"]
+      default: "eu"
+    sandbox_mode:
+      type: boolean
+      label: "Use sandbox endpoints"
+      default: false
+    scraping_enabled:
+      type: boolean
+      label: "Automatic order polling"
+      default: true
+health_endpoint: /health
+docs_url: /docs
