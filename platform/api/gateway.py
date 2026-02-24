@@ -40,7 +40,7 @@ from api.schemas import (
     WorkflowUpdate,
 )
 from config import settings
-from core.action_dispatcher import dispatch_action, _ensure_email_account, _resolve_service_url
+from core.action_dispatcher import dispatch_action, _ensure_email_account, _ensure_ftp_sftp_account, _resolve_service_url
 from core.pii_redactor import redact_execution_detail
 from core.connector_registry import ConnectorRegistry
 from core.credential_vault import CredentialVault
@@ -1190,6 +1190,95 @@ async def _validate_ecommerce_credentials(creds: dict[str, str], connector_name:
 
 
 # ---------------------------------------------------------------------------
+# File-transfer (FTP/SFTP) credential validator
+# ---------------------------------------------------------------------------
+
+
+async def _validate_file_transfer_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
+    """Validate FTP/SFTP credentials by provisioning an account and testing the connection."""
+    fail = _missing_fields(creds, ["host", "username", "password"], "FTP/SFTP")
+    if fail:
+        return fail
+
+    protocol = creds.get("protocol", "sftp")
+    if protocol not in ("ftp", "sftp"):
+        return {"status": "failed", "message": f"Unsupported protocol '{protocol}'. Must be 'ftp' or 'sftp'."}
+
+    default_port = 22 if protocol == "sftp" else 21
+    try:
+        port = int(creds.get("port", str(default_port)))
+    except ValueError:
+        return {"status": "failed", "message": f"Invalid port value: {creds.get('port')}"}
+
+    base_url = _resolve_service_url(connector_name or "ftp-sftp")
+    start = time.monotonic()
+
+    try:
+        account_name = await _ensure_ftp_sftp_account(base_url, creds)
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "message": f"Failed to provision FTP/SFTP account on connector: {exc}",
+            "response_time_ms": int((time.monotonic() - start) * 1000),
+        }
+
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=20, write=10, pool=10)) as client:
+            resp = await client.post(f"{base_url}/auth/{account_name}/test")
+    except httpx.ConnectError:
+        return {
+            "status": "failed",
+            "message": "Cannot reach FTP/SFTP connector service",
+            "response_time_ms": int((time.monotonic() - start) * 1000),
+        }
+    except Exception as exc:
+        return {
+            "status": "failed",
+            "message": f"Connection test request failed: {exc}",
+            "response_time_ms": int((time.monotonic() - start) * 1000),
+        }
+
+    elapsed_ms = int((time.monotonic() - start) * 1000)
+
+    if resp.status_code >= 500:
+        return {
+            "status": "failed",
+            "message": f"FTP/SFTP connector returned server error (HTTP {resp.status_code})",
+            "response_time_ms": elapsed_ms,
+        }
+
+    try:
+        data = resp.json()
+    except Exception:
+        data = {}
+
+    conn_status = data.get("status", "unknown")
+
+    if resp.status_code >= 400 or conn_status in ("disconnected", "error", "failed"):
+        detail = data.get("detail", data.get("server_banner", ""))
+        return {
+            "status": "failed",
+            "message": f"FTP/SFTP connection failed ({protocol}://{creds['host']}:{port})"
+                       + (f" — {detail}" if detail else ""),
+            "response_time_ms": elapsed_ms,
+            "details": data,
+        }
+
+    parts = [f"protocol={protocol}", f"host={creds['host']}:{port}"]
+    if data.get("current_directory"):
+        parts.append(f"cwd={data['current_directory']}")
+    if data.get("server_banner"):
+        parts.append(f"banner={data['server_banner'][:60]}")
+
+    return {
+        "status": "success",
+        "message": f"FTP/SFTP connection successful ({', '.join(parts)})",
+        "response_time_ms": elapsed_ms,
+        "details": data,
+    }
+
+
+# ---------------------------------------------------------------------------
 
 
 _INTERFACE_VALIDATORS: dict[str, Any] = {
@@ -1199,6 +1288,7 @@ _INTERFACE_VALIDATORS: dict[str, Any] = {
     "invoice-ocr": _validate_invoice_ocr_credentials,
     "courier": _validate_courier_credentials,
     "ecommerce": _validate_ecommerce_credentials,
+    "file_transfer": _validate_file_transfer_credentials,
 }
 
 

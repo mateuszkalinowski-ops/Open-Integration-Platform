@@ -271,6 +271,43 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "services.list": ActionRoute(method="GET", path="/services", query_from_payload=["api_token"]),
         "company.get": ActionRoute(method="GET", path="/company/{company_id}", query_from_payload=["api_token"]),
     },
+    "ftp-sftp": {
+        "file.upload": ActionRoute(
+            method="POST",
+            path="/files/upload",
+            query_from_payload=["account_name"],
+        ),
+        "file.download": ActionRoute(
+            method="GET",
+            path="/files/download",
+            query_from_payload=["account_name", "remote_path"],
+        ),
+        "file.list": ActionRoute(
+            method="GET",
+            path="/files",
+            query_from_payload=["account_name", "remote_path", "pattern"],
+        ),
+        "file.delete": ActionRoute(
+            method="DELETE",
+            path="/files",
+            query_from_payload=["account_name"],
+        ),
+        "file.move": ActionRoute(
+            method="POST",
+            path="/files/move",
+            query_from_payload=["account_name"],
+        ),
+        "directory.create": ActionRoute(
+            method="POST",
+            path="/directories",
+            query_from_payload=["account_name"],
+        ),
+        "directory.list": ActionRoute(
+            method="GET",
+            path="/directories",
+            query_from_payload=["account_name", "remote_path"],
+        ),
+    },
     "skanuj-fakture": {
         "document.upload": ActionRoute(
             method="POST",
@@ -352,6 +389,7 @@ _CONNECTOR_SERVICE_NAMES: dict[str, str] = {
     "shopify": "connector-shopify",
     "pinquark-wms": "connector-pinquark-wms",
     "ai-agent": "connector-ai-agent",
+    "ftp-sftp": "connector-ftp-sftp",
     "skanuj-fakture": "connector-skanuj-fakture",
     "raben": "connector-raben",
     "fxcouriers": "connector-fxcouriers",
@@ -490,6 +528,43 @@ async def _ensure_skanuj_fakture_account(
     return account_name
 
 
+async def _ensure_ftp_sftp_account(
+    base_url: str, credentials: dict[str, str]
+) -> str:
+    """Ensure an FTP/SFTP account exists on the connector, creating it if needed."""
+    account_name = credentials.get("account_name", "default")
+    async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
+        resp = await client.get(f"{base_url}/accounts")
+        existing = resp.json() if resp.status_code == 200 else []
+        for acc in existing:
+            if acc.get("name") == account_name:
+                return account_name
+
+        account_payload = {
+            "name": account_name,
+            "host": credentials.get("host", ""),
+            "protocol": credentials.get("protocol", "sftp"),
+            "port": int(credentials.get("port", "0")),
+            "username": credentials.get("username", ""),
+            "password": credentials.get("password", ""),
+            "private_key": credentials.get("private_key", ""),
+            "passive_mode": credentials.get("passive_mode", "true").lower() in ("true", "1", "yes"),
+            "base_path": credentials.get("base_path", "/"),
+            "environment": credentials.get("environment", "production"),
+        }
+        resp = await client.post(f"{base_url}/accounts", json=account_payload)
+        if resp.status_code < 300:
+            await logger.ainfo("ftp_sftp_account_provisioned", account=account_name)
+        else:
+            await logger.awarning(
+                "ftp_sftp_account_provision_failed",
+                account=account_name,
+                status=resp.status_code,
+                body=resp.text[:200],
+            )
+    return account_name
+
+
 def _extract_file_from_payload(body: dict[str, Any]) -> tuple[bytes, str] | None:
     """Extract file data from payload — handles attachment objects and raw base64."""
     file_data = body.pop("file", None)
@@ -549,6 +624,9 @@ async def dispatch_action(
                 }
         elif connector_name == "skanuj-fakture":
             account_name = await _ensure_skanuj_fakture_account(base_url, credentials)
+            payload["account_name"] = account_name
+        elif connector_name == "ftp-sftp":
+            account_name = await _ensure_ftp_sftp_account(base_url, credentials)
             payload["account_name"] = account_name
         elif "account_name" not in payload:
             account_name = credentials.get("account_name", "default")
