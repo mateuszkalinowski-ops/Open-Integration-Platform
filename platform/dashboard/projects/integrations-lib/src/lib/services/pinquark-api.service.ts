@@ -22,6 +22,13 @@ import {
   WorkflowExecutionDetail,
   AiGenerateRequest,
   AiGenerateResponse,
+  SchedulerStatus,
+  SchedulerUpdate,
+  VerificationErrorsResponse,
+  VerificationLatestResponse,
+  VerificationRunDetail,
+  VerificationRunResponse,
+  VerificationRunsResponse,
 } from '../models';
 
 export interface PinquarkConfig {
@@ -296,6 +303,73 @@ export class PinquarkApiService {
 
   aiGenerateWorkflow(body: AiGenerateRequest): Observable<AiGenerateResponse> {
     return this.http.post<AiGenerateResponse>(`${this.apiUrl}/api/v1/workflows/ai-generate`, body, {
+      headers: this.headers,
+    });
+  }
+
+  // --- Verification ---
+
+  verificationRunAll(): Observable<VerificationRunResponse> {
+    return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run`, {}, {
+      headers: this.headers,
+    });
+  }
+
+  verificationRunSingle(connectorName: string): Observable<VerificationRunResponse> {
+    return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run/${connectorName}`, {}, {
+      headers: this.headers,
+    });
+  }
+
+  verificationSchedulerStatus(): Observable<SchedulerStatus> {
+    return this.http.get<SchedulerStatus>(`${this.apiUrl}/api/verification/scheduler`, {
+      headers: this.headers,
+    });
+  }
+
+  verificationSchedulerUpdate(body: SchedulerUpdate): Observable<SchedulerStatus> {
+    return this.http.put<SchedulerStatus>(`${this.apiUrl}/api/verification/scheduler`, body, {
+      headers: this.headers,
+    });
+  }
+
+  verificationListRuns(page = 1, pageSize = 20): Observable<VerificationRunsResponse> {
+    const params = new HttpParams()
+      .set('page', page.toString())
+      .set('page_size', pageSize.toString());
+    return this.http.get<VerificationRunsResponse>(`${this.apiUrl}/api/verification/runs`, {
+      headers: this.headers,
+      params,
+    });
+  }
+
+  verificationGetRun(runId: string): Observable<VerificationRunDetail> {
+    return this.http.get<VerificationRunDetail>(`${this.apiUrl}/api/verification/runs/${runId}`, {
+      headers: this.headers,
+    });
+  }
+
+  verificationListErrors(params?: {
+    connector_name?: string;
+    date_from?: string;
+    date_to?: string;
+    page?: number;
+    page_size?: number;
+  }): Observable<VerificationErrorsResponse> {
+    let httpParams = new HttpParams();
+    if (params?.connector_name) httpParams = httpParams.set('connector_name', params.connector_name);
+    if (params?.date_from) httpParams = httpParams.set('date_from', params.date_from);
+    if (params?.date_to) httpParams = httpParams.set('date_to', params.date_to);
+    if (params?.page) httpParams = httpParams.set('page', params.page.toString());
+    if (params?.page_size) httpParams = httpParams.set('page_size', params.page_size.toString());
+    return this.http.get<VerificationErrorsResponse>(`${this.apiUrl}/api/verification/errors`, {
+      headers: this.headers,
+      params: httpParams,
+    });
+  }
+
+  verificationLatest(): Observable<VerificationLatestResponse> {
+    return this.http.get<VerificationLatestResponse>(`${this.apiUrl}/api/verification/reports/latest`, {
       headers: this.headers,
     });
   }

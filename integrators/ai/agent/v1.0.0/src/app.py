@@ -10,8 +10,9 @@ from __future__ import annotations
 
 import logging
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
+from google import genai
 
 from src import ai_engine
 from src.config import settings
@@ -56,6 +57,31 @@ async def readiness():
     }
     status = "healthy" if all(v == "ok" for v in checks.values()) else "degraded"
     return {"status": status, "checks": checks, "model": settings.model_name}
+
+
+# ── Connection status ────────────────────────────────────────────
+
+@app.get("/connection/{account_name}/status")
+async def connection_status(
+    account_name: str,
+    gemini_api_key: str = Query("", description="API key override (falls back to env var)"),
+):
+    """Validate the Gemini API key by listing available models."""
+    api_key = gemini_api_key or settings.gemini_api_key
+    if not api_key:
+        return {"connected": False, "error": "No Gemini API key configured"}
+    try:
+        client = genai.Client(api_key=api_key)
+        models = list(client.models.list())
+        return {
+            "connected": True,
+            "account_name": account_name,
+            "model": settings.model_name,
+            "available_models": len(models),
+        }
+    except Exception as exc:
+        logger.warning("Gemini connection check failed: %s", exc)
+        return {"connected": False, "error": str(exc)}
 
 
 # ── PRIMARY: Generic prompt-based analysis ──────────────────────

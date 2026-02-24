@@ -6,12 +6,20 @@ import logging
 from contextlib import asynccontextmanager
 from typing import AsyncGenerator
 
+import httpx
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.integration import DhlExpressError, DhlExpressIntegration
-from src.schemas import CreateShipmentRequest, PickupRequest, RateProduct, RateRequest, StandardizedRateResponse
+from src.schemas import (
+    CreateShipmentRequest,
+    PickupRequest,
+    RateProduct,
+    RateRequest,
+    StandardizedRateResponse,
+)
+
 
 logging.basicConfig(
     level=settings.log_level,
@@ -51,6 +59,41 @@ async def readiness() -> dict:
     checks = {"api_configured": "ok" if integration.is_configured else "missing_credentials"}
     status = "healthy" if all(v == "ok" for v in checks.values()) else "degraded"
     return {"status": status, "checks": checks}
+
+
+@app.get("/connection/{account_name}/status")
+async def connection_status(
+    account_name: str,
+    api_key: str = Query("", description="API key override"),
+    api_secret: str = Query("", description="API secret override"),
+    sandbox_mode: bool = Query(False, description="Use sandbox API URL"),
+) -> dict:
+    key = api_key or settings.dhl_express_api_key
+    secret = api_secret or settings.dhl_express_api_secret
+    if not key or not secret:
+        return {"connected": False, "error": "No DHL Express API credentials configured"}
+    import base64 as _b64
+    auth_value = _b64.b64encode(f"{key}:{secret}".encode()).decode()
+    base_url = (
+        settings.dhl_express_base_url if sandbox_mode else settings.api_base_url
+    ).rstrip("/")
+    try:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as c:
+            r = await c.get(
+                f"{base_url}/address-validate",
+                params={"countryCode": "PL", "postalCode": "00-001", "cityName": "Warszawa", "type": "delivery"},
+                headers={"Authorization": f"Basic {auth_value}", "Accept": "application/json"},
+            )
+        if r.status_code == 401:
+            return {"connected": False, "error": "Invalid API credentials (401)"}
+        return {
+            "connected": True,
+            "account_name": account_name,
+            "api_base": base_url,
+        }
+    except Exception as exc:
+        logger.warning("DHL Express connection check failed: %s", exc)
+        return {"connected": False, "error": str(exc)}
 
 
 # ------------------------------------------------------------------

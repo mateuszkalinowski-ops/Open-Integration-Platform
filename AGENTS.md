@@ -470,51 +470,267 @@ The implementation agent is responsible for building new integrators. Before wri
 6. **Create documentation** — `README.md` with setup instructions, API mapping, configuration reference
 7. **Create sandbox accounts** — Register sandbox/test accounts with external system if required, document credentials storage location
 
-### 6.2 Verification Agent
+### 6.2 Verification & Maintenance Agent
 
-The verification agent runs on the UAT environment after deployment:
+The verification agent (`platform/verification-agent/`) is a single FastAPI microservice that combines continuous health monitoring with deep functional verification of every connector. It runs on a configurable schedule (default: every 7 days) and can also be triggered on-demand via the dashboard or API.
 
-1. **Health check** — Verify the integrator container is running and healthy
-2. **Endpoint verification** — Test every documented API endpoint with valid and invalid inputs
-3. **Authentication flow** — Verify OAuth flows, token refresh, credential validation
-4. **Data integrity** — Verify data mapping accuracy (WMS format ↔ external system format)
-5. **Error handling** — Test timeout, rate limiting, invalid credentials, malformed responses
-6. **Performance baseline** — Response time thresholds per endpoint
-7. **Generate report** — Structured JSON report with pass/fail per check
+#### 6.2.1 Architecture
 
-Feedback format:
+```
+platform/verification-agent/
+├── Dockerfile
+├── requirements.txt
+├── pyproject.toml
+└── src/
+    ├── main.py                  # FastAPI app + APScheduler
+    ├── config.py                # Pydantic settings
+    ├── db.py                    # SQLAlchemy models (verification_reports, verification_settings)
+    ├── discovery.py             # Connector discovery (connector.yaml + DB instances)
+    ├── credential_vault.py      # AES-256-GCM credential decryption
+    ├── runner.py                # Orchestrates 3-tier verification run
+    ├── reporter.py              # Persists results to PostgreSQL
+    ├── api/
+    │   └── routes.py            # REST API: trigger runs, scheduler, reports, errors
+    └── checks/
+        ├── common.py            # Shared utilities (result, get_check, req_check, PDF_STUB)
+        ├── base.py              # Tier 1: health, readiness, docs
+        ├── auth.py              # Tier 2: credentials, auth status, connection status
+        ├── functional.py        # Tier 3 dispatcher — routes to per-category module
+        ├── courier/             # Tier 3: Courier connector tests
+        │   ├── __init__.py
+        │   └── generic.py       #   Fallback for couriers without a dedicated file
+        ├── ecommerce/           # Tier 3: E-commerce connector tests
+        │   ├── __init__.py
+        │   └── generic.py       #   Fallback for e-commerce without a dedicated file
+        ├── erp/                 # Tier 3: ERP connector tests
+        │   └── __init__.py
+        ├── automation/          # Tier 3: Automation connector tests
+        │   └── __init__.py
+        └── other/               # Tier 3: Other connector tests
+            ├── __init__.py
+            ├── skanuj_fakture.py  # SkanujFakture (20+ endpoints, full CRUD cycle)
+            └── account_based.py   # Email, FTP/SFTP (generic account-based)
+```
+
+The directory layout mirrors `integrators/` categories. Each category folder contains:
+
+- **`generic.py`** — fallback tests for connectors without a dedicated file (tests common endpoints based on `connector.yaml` capabilities)
+- **`{connector_name}.py`** — connector-specific tests that exercise all documented endpoints
+
+#### 6.2.2 Three-tier verification
+
+Every connector goes through all three tiers in sequence. If a tier fails critically, subsequent tiers may be skipped.
+
+**Tier 1 — Infrastructure (all connectors, no credentials needed)**
+
+| Check | Endpoint | Pass condition |
+| --- | --- | --- |
+| Health | `GET /health` | HTTP 200, `status: "healthy"` |
+| Readiness | `GET /readiness` | HTTP 200, all dependency checks pass |
+| API docs | `GET /docs` | HTTP 200, Swagger/OpenAPI UI reachable |
+
+**Tier 2 — Authentication (requires credentials from Credential Vault)**
+
+| Check | Endpoint | Pass condition |
+| --- | --- | --- |
+| Account provisioning | `POST /accounts` | Account created or already exists |
+| Auth status | `GET /auth/{account}/status` | `authenticated: true` |
+| Connection status | `GET /connection/{account}/status` | `connected: true` |
+
+**Tier 3 — Functional smoke tests (per-connector, requires credentials)**
+
+Each connector has its own test module in `checks/`. Tests exercise all documented endpoints, including:
+
+- **Read-only endpoints** — listing, searching, fetching details
+- **Write+cleanup cycles** — upload a test resource, exercise per-resource endpoints, delete it afterward
+- **Error paths** — expected 404s for missing data (e.g., KSeF for non-KSeF documents) are accepted as PASS
+- **Performance** — every check records `response_time_ms`
+
+#### 6.2.3 Scheduling & triggers
+
+| Mode | How | Description |
+| --- | --- | --- |
+| Scheduled | APScheduler `IntervalTrigger` | Runs every `VERIFICATION_INTERVAL_DAYS` (default: 7). Configurable via API or dashboard. |
+| On-demand (all) | `POST /api/verification/run` | Verifies all discovered connectors. |
+| On-demand (single) | `POST /api/verification/run?connector_filter={name}` | Verifies a single connector. |
+| Dashboard | Verification page toggle + "Run now" button | UI controls for scheduler enable/disable and manual triggers. |
+
+#### 6.2.4 Maintenance responsibilities
+
+The agent also covers continuous maintenance tasks previously described as a separate "Maintenance Agent":
+
+1. **Health monitoring** — Scheduled runs verify all deployed connectors are alive and functional
+2. **Regression detection** — Functional tests catch external API changes that break integrations
+3. **Performance tracking** — Response time baselines stored per check, regressions visible in reports
+4. **Alerting** — Failed checks generate structured error reports visible in the dashboard with filtering and drill-down
+5. **Dependency health** — Tier 1 readiness checks verify database, Kafka, and external API connectivity
+
+#### 6.2.5 Report format
+
+Results are persisted to the `verification_reports` table and exposed via the API. Each report follows this structure:
 
 ```json
 {
-  "integrator": "courier/dhl/v1.0.0",
-  "timestamp": "2026-02-20T12:00:00Z",
+  "integrator": "other/skanuj-fakture/v1.0.0",
+  "timestamp": "2026-02-24T12:00:00Z",
   "status": "FAIL",
   "checks": [
     {
-      "name": "create_shipment",
+      "name": "list_companies",
       "status": "PASS",
-      "response_time_ms": 450
+      "response_time_ms": 340
     },
     {
-      "name": "get_label_pdf",
+      "name": "upload_document",
+      "status": "PASS",
+      "response_time_ms": 1200
+    },
+    {
+      "name": "get_ksef_xml",
+      "status": "SKIP",
+      "response_time_ms": 85,
+      "error": "Endpoint not found (404)"
+    },
+    {
+      "name": "get_document_file",
       "status": "FAIL",
-      "error": "Expected Content-Type application/pdf, got text/html",
-      "suggestion": "Check DHL API response parsing in get_label() method"
+      "error": "HTTP 500: Internal Server Error",
+      "suggestion": "Check file retrieval logic in get_document_file() method"
     }
   ],
-  "iteration": 2,
-  "max_iterations": 5
+  "summary": {
+    "total": 20,
+    "passed": 16,
+    "failed": 2,
+    "skipped": 2
+  }
 }
 ```
 
-### 6.3 Maintenance Agent
+Check statuses:
 
-The maintenance agent runs continuously:
+| Status | Meaning |
+| --- | --- |
+| `PASS` | Endpoint responded correctly within thresholds |
+| `FAIL` | Unexpected status code, timeout, or exception |
+| `SKIP` | Check not applicable (e.g., no credentials, expected 404, capability not supported) |
 
-1. **Monitor API changes** — Periodically check external system API documentation for breaking changes
-2. **Update integrators** — When API changes are detected, create a new version with the update
-3. **Dependency updates** — Weekly check for dependency vulnerabilities, create update PRs
-4. **Health monitoring** — Continuously monitor all deployed integrators, alert on failures
+#### 6.2.6 Adding tests for a new connector
+
+When a new connector is implemented, a corresponding Tier 3 test file MUST be created. Follow these steps:
+
+**Step 1 — Create the test file in the correct category folder**
+
+Place the file under the matching category directory:
+
+```
+checks/{category}/{connector_name}.py
+
+Examples:
+  checks/courier/inpost.py
+  checks/ecommerce/allegro.py
+  checks/erp/wapro.py
+  checks/other/skanuj_fakture.py
+```
+
+Use underscores for connector names (e.g., `skanuj_fakture.py`, `base_linker.py`).
+
+The file MUST export a single `run()` function:
+
+```python
+"""Tier 3 functional checks — {ConnectorDisplayName} connector."""
+
+from typing import Any
+
+import httpx
+
+from src.checks.common import get_check, req_check, result
+from src.discovery import VerificationTarget
+
+
+async def run(
+    client: httpx.AsyncClient,
+    target: VerificationTarget,
+) -> list[dict[str, Any]]:
+    results: list[dict[str, Any]] = []
+    base = target.base_url
+    account = (target.credentials or {}).get("account_name", "verification-agent")
+    # ... test all endpoints ...
+    return results
+```
+
+If a category folder does not exist yet, create it with an `__init__.py`:
+
+```python
+"""Tier 3 checks — {Category} connector category."""
+```
+
+Each category folder may also contain a `generic.py` — a fallback module that tests common endpoints for connectors that don't have a dedicated file. Connector-specific files always take priority.
+
+**Step 2 — Test every endpoint from `connector.yaml`**
+
+Cross-reference the connector's `connector.yaml` to ensure every documented capability, action, and endpoint is covered. For each endpoint:
+
+- **Read-only endpoints** — use `get_check()` to verify HTTP 200 and measure response time
+- **Write endpoints** — use `req_check()` with a full cycle: create → verify → cleanup. Always delete test data afterward.
+- **Endpoints that may legitimately fail** — pass `accept_statuses=(200, 404)` when a 404 is expected behavior (e.g., KSeF data for non-KSeF documents)
+
+Available utilities from `checks/common.py`:
+
+| Function | Purpose |
+| --- | --- |
+| `result(name, status, ms, error?, suggestion?)` | Build a check result dict |
+| `get_check(client, url, name, params?)` | Execute GET, return check result |
+| `req_check(client, method, url, name, *, params?, json_body?, files?, accept_statuses?)` | Execute any HTTP method, return `(check_result, response)` |
+| `PDF_STUB` | Minimal valid PDF bytes for upload tests |
+
+**Step 3 — Register in the dispatcher**
+
+Add the connector to `platform/verification-agent/src/checks/functional.py`. The dispatcher uses three registries, checked in order:
+
+```python
+from src.checks.{category} import {connector_name} as {category}_{connector_name}
+
+# 1. Connector-specific (highest priority — matches by connector name)
+_CONNECTOR_REGISTRY: dict[str, Any] = {
+    "new-connector": category_new_connector,
+    # ...
+}
+
+# 2. Interface-based (matches by connector.yaml `interface` field)
+_INTERFACE_REGISTRY: dict[str, Any] = { ... }
+
+# 3. Category-based fallback (matches by connector.yaml `category` field)
+_CATEGORY_REGISTRY: dict[str, Any] = { ... }
+```
+
+For a connector-specific test file, add an entry to `_CONNECTOR_REGISTRY`. For a generic category fallback, add to `_CATEGORY_REGISTRY`.
+
+**Step 4 — Test checklist**
+
+Every connector test file SHOULD cover:
+
+- [ ] `list_accounts` — verify account listing works
+- [ ] All read-only listing endpoints (companies, documents, orders, products, etc.)
+- [ ] All detail/get endpoints with a valid resource ID
+- [ ] At least one full write cycle (create → read → update → delete) with cleanup
+- [ ] Authentication-dependent endpoints with the provisioned account
+- [ ] Error cases where applicable (expected 404s, invalid IDs)
+- [ ] All endpoint variants (e.g., `/documents` vs `/documents/simple`, upload v1 vs v2)
+
+**Naming conventions for checks:**
+
+- Use descriptive snake_case names: `list_companies`, `upload_document`, `get_document_file`
+- Prefix variants: `list_dictionaries_CATEGORY`, `upload_document_v2`
+- Suffix cleanup steps: `delete_documents_cleanup`, `delete_v2_cleanup`
+
+**Step 5 — Rebuild and verify**
+
+```bash
+docker compose -f docker-compose.prod.yml build verification-agent
+docker compose -f docker-compose.prod.yml up -d verification-agent
+curl -X POST "http://localhost:18080/api/verification/run?connector_filter={name}"
+```
 
 ---
 

@@ -1,8 +1,10 @@
 """FastAPI routes for SkanujFakture integrator."""
 
 import base64
+import logging
 from typing import Any
 
+import httpx
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field
 
@@ -15,7 +17,19 @@ from src.skanuj_fakture.schemas import (
     InvoiceType,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter()
+
+
+def _forward_http_error(exc: httpx.HTTPStatusError) -> HTTPException:
+    """Convert an external API HTTP error into an appropriate FastAPI HTTPException."""
+    status = exc.response.status_code
+    try:
+        detail = exc.response.json()
+    except Exception:
+        detail = exc.response.text[:500] or f"External API returned {status}"
+    return HTTPException(status_code=status, detail=detail)
 
 
 @router.get("/health")
@@ -103,7 +117,10 @@ async def list_companies(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
-    return await app_state.integration.get_companies(account_name)
+    try:
+        return await app_state.integration.get_companies(account_name)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.get("/companies/{company_id}/entities")
@@ -112,7 +129,10 @@ async def list_company_entities(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
-    return await app_state.integration.get_company_entities(account_name, company_id)
+    try:
+        return await app_state.integration.get_company_entities(account_name, company_id)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 # -- Documents -----------------------------------------------------------------
@@ -128,10 +148,13 @@ async def upload_document(
 ) -> dict[str, Any]:
     _require_account(account_name)
     content = await file.read()
-    return await app_state.integration.upload_document(
-        account_name, company_id, content, file.filename or "document.pdf",
-        single_document=single_document, sale=sale,
-    )
+    try:
+        return await app_state.integration.upload_document(
+            account_name, company_id, content, file.filename or "document.pdf",
+            single_document=single_document, sale=sale,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.post("/companies/{company_id}/documents/v2")
@@ -145,11 +168,14 @@ async def upload_document_v2(
 ) -> dict[str, Any]:
     _require_account(account_name)
     content = await file.read()
-    return await app_state.integration.upload_document_v2(
-        account_name, company_id, content, file.filename or "document.pdf",
-        single_document=single_document, invoice_type=invoice_type.value,
-        company_entity_id=company_entity_id,
-    )
+    try:
+        return await app_state.integration.upload_document_v2(
+            account_name, company_id, content, file.filename or "document.pdf",
+            single_document=single_document, invoice_type=invoice_type.value,
+            company_entity_id=company_entity_id,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.get("/companies/{company_id}/documents")
@@ -161,10 +187,13 @@ async def list_documents(
     check_document_ids: list[int] | None = Query(None, description="Filter by document IDs"),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
-    return await app_state.integration.get_documents(
-        account_name, company_id, document_statuses=document_statuses,
-        is_sale=is_sale, check_document_ids=check_document_ids,
-    )
+    try:
+        return await app_state.integration.get_documents(
+            account_name, company_id, document_statuses=document_statuses,
+            is_sale=is_sale, check_document_ids=check_document_ids,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.get("/companies/{company_id}/documents/simple")
@@ -174,9 +203,12 @@ async def list_documents_simple(
     document_statuses: list[str] | None = Query(None),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
-    return await app_state.integration.get_documents_simple(
-        account_name, company_id, document_statuses=document_statuses,
-    )
+    try:
+        return await app_state.integration.get_documents_simple(
+            account_name, company_id, document_statuses=document_statuses,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 class DocumentUpdateRequest(BaseModel):
@@ -191,9 +223,12 @@ async def update_document(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.update_document(
-        account_name, company_id, document_id, body.data,
-    )
+    try:
+        return await app_state.integration.update_document(
+            account_name, company_id, document_id, body.data,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 class DeleteDocumentsRequest(BaseModel):
@@ -209,9 +244,12 @@ async def delete_documents(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.delete_documents(
-        account_name, company_id, check_document_ids=body.check_document_ids,
-    )
+    try:
+        return await app_state.integration.delete_documents(
+            account_name, company_id, check_document_ids=body.check_document_ids,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.get("/companies/{company_id}/documents/{document_id}/file")
@@ -221,7 +259,10 @@ async def get_document_file(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, str]:
     _require_account(account_name)
-    file_bytes = await app_state.integration.get_document_file(account_name, company_id, document_id)
+    try:
+        file_bytes = await app_state.integration.get_document_file(account_name, company_id, document_id)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
     return {"content_base64": base64.b64encode(file_bytes).decode(), "document_id": str(document_id)}
 
 
@@ -232,7 +273,10 @@ async def get_document_image(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, str]:
     _require_account(account_name)
-    image_bytes = await app_state.integration.get_document_image(account_name, company_id, document_id)
+    try:
+        image_bytes = await app_state.integration.get_document_image(account_name, company_id, document_id)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
     return {"content_base64": base64.b64encode(image_bytes).decode(), "document_id": str(document_id)}
 
 
@@ -254,9 +298,12 @@ async def edit_attributes(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.edit_attributes(
-        account_name, company_id, document_id, body.attributes, status_id=body.status_id,
-    )
+    try:
+        return await app_state.integration.edit_attributes(
+            account_name, company_id, document_id, body.attributes, status_id=body.status_id,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.delete("/companies/{company_id}/documents/{document_id}/attributes")
@@ -266,7 +313,10 @@ async def delete_attributes(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.delete_attributes(account_name, company_id, document_id)
+    try:
+        return await app_state.integration.delete_attributes(account_name, company_id, document_id)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 # -- Dictionaries (dekretacja) -------------------------------------------------
@@ -279,7 +329,10 @@ async def list_dictionaries(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
-    return await app_state.integration.get_dictionaries(account_name, company_id, dict_type.value)
+    try:
+        return await app_state.integration.get_dictionaries(account_name, company_id, dict_type.value)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 class DictionaryItemsRequest(BaseModel):
@@ -294,9 +347,12 @@ async def add_dictionary_items(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.add_dictionary_items(
-        account_name, company_id, dict_type.value, body.items,
-    )
+    try:
+        return await app_state.integration.add_dictionary_items(
+            account_name, company_id, dict_type.value, body.items,
+        )
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 # -- KSeF ----------------------------------------------------------------------
@@ -310,7 +366,10 @@ async def get_ksef_xml(
     as_json: bool = Query(False, description="Return as JSON instead of XML"),
 ) -> Any:
     _require_account(account_name)
-    return await app_state.integration.get_ksef_xml(account_name, company_id, document_id, as_json=as_json)
+    try:
+        return await app_state.integration.get_ksef_xml(account_name, company_id, document_id, as_json=as_json)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 @router.get("/companies/{company_id}/documents/{document_id}/ksef-qr")
@@ -320,7 +379,10 @@ async def get_ksef_qr(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, str]:
     _require_account(account_name)
-    qr_bytes = await app_state.integration.get_ksef_qr(account_name, company_id, document_id)
+    try:
+        qr_bytes = await app_state.integration.get_ksef_qr(account_name, company_id, document_id)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
     return {"content_base64": base64.b64encode(qr_bytes).decode(), "document_id": str(document_id)}
 
 
@@ -335,7 +397,10 @@ async def send_ksef_invoice(
     account_name: str = Query(..., description="SkanujFakture account name"),
 ) -> dict[str, Any]:
     _require_account(account_name)
-    return await app_state.integration.send_ksef_invoice(account_name, company_id, body.invoice_data)
+    try:
+        return await app_state.integration.send_ksef_invoice(account_name, company_id, body.invoice_data)
+    except httpx.HTTPStatusError as exc:
+        raise _forward_http_error(exc)
 
 
 # -- Helpers -------------------------------------------------------------------

@@ -43,6 +43,10 @@ import { MatButtonModule } from '@angular/material/button';
             <mat-icon matListItemIcon>receipt_long</mat-icon>
             <span matListItemTitle>Operation Log</span>
           </a>
+          <a mat-list-item routerLink="/verification" routerLinkActive="active">
+            <mat-icon matListItemIcon>verified</mat-icon>
+            <span matListItemTitle>Verification</span>
+          </a>
           <a mat-list-item routerLink="/settings" routerLinkActive="active">
             <mat-icon matListItemIcon>settings</mat-icon>
             <span matListItemTitle>Settings</span>

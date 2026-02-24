@@ -329,7 +329,7 @@ services:
     environment:
       APP_ENV: production
       APP_PORT: 8000
-      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      AI_GEMINI_API_KEY: ${GEMINI_API_KEY:-}
     depends_on:
       - platform
     restart: unless-stopped
@@ -446,6 +446,30 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+
+  # --- Verification Agent ---
+  verification-agent:
+    build:
+      context: .
+      dockerfile: platform/verification-agent/Dockerfile
+    environment:
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      VERIFICATION_INTERVAL_DAYS: 7
+      VERIFICATION_TIMEOUT_SECONDS: 60
+      CONNECTOR_DISCOVERY_PATH: /integrators
+      LOG_LEVEL: INFO
+    volumes:
+      - ./integrators:/integrators:ro
+    depends_on:
+      - platform
+      - postgres
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
 volumes:
   pgdata:

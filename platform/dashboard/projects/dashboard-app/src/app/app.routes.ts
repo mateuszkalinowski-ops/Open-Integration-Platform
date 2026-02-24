@@ -28,6 +28,11 @@ export const routes: Routes = [
       import('./pages/logs/logs.page').then(m => m.LogsPage),
   },
   {
+    path: 'verification',
+    loadComponent: () =>
+      import('./pages/verification/verification.page').then(m => m.VerificationPage),
+  },
+  {
     path: 'settings',
     loadComponent: () =>
       import('./pages/settings/settings.page').then(m => m.SettingsPage),

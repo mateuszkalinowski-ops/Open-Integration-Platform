@@ -239,3 +239,37 @@ class WorkflowExecution(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     workflow: Mapped["Workflow"] = relationship(back_populates="executions")
+
+
+class VerificationReport(Base):
+    """Result of a single connector verification within a run."""
+
+    __tablename__ = "verification_reports"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    run_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False, index=True)
+    connector_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
+    connector_version: Mapped[str] = mapped_column(String(20), nullable=False)
+    connector_category: Mapped[str] = mapped_column(String(50), nullable=False)
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True
+    )
+    status: Mapped[str] = mapped_column(String(20), nullable=False)
+    checks: Mapped[list] = mapped_column(JSONB, default=list)
+    summary: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class VerificationSettings(Base):
+    """Singleton row storing scheduler configuration for the verification agent."""
+
+    __tablename__ = "verification_settings"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    interval_days: Mapped[int] = mapped_column(Integer, default=7)
+    last_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    next_run_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )

@@ -13,6 +13,13 @@ logger = logging.getLogger(__name__)
 DEFAULT_TIMEOUT = httpx.Timeout(settings.api_timeout, connect=30.0)
 
 
+def _safe_json(response: httpx.Response) -> dict[str, Any]:
+    """Parse JSON from response, returning a status dict when body is empty."""
+    if not response.content:
+        return {"status": "ok", "http_status": response.status_code}
+    return response.json()
+
+
 class SkanujFaktureClient:
     """Async HTTP client wrapping the SkanujFakture REST API.
 
@@ -210,7 +217,7 @@ class SkanujFaktureClient:
             params["documentStatuses"] = document_statuses
         response = await self._client.delete(f"/companies/{company_id}/documents", params=params)
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     async def get_document_file(self, company_id: int, document_id: int) -> bytes:
         """GET /companies/{companyId}/documents/{documentId}/file — original file bytes."""
@@ -242,7 +249,7 @@ class SkanujFaktureClient:
             json=body,
         )
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     async def delete_attributes(self, company_id: int, document_id: int) -> dict[str, Any]:
         """DELETE /companies/{companyId}/documents/{documentId}/attributes."""
@@ -250,7 +257,7 @@ class SkanujFaktureClient:
             f"/companies/{company_id}/documents/{document_id}/attributes",
         )
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     # -- Dictionaries (dekretacja) -----------------------------------------------
 
@@ -276,7 +283,7 @@ class SkanujFaktureClient:
             json=items,
         )
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     async def update_dictionary_items(
         self,
@@ -291,7 +298,7 @@ class SkanujFaktureClient:
             json=items,
         )
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     async def delete_dictionary_items(
         self,
@@ -299,12 +306,13 @@ class SkanujFaktureClient:
         item_ids: list[int],
     ) -> dict[str, Any]:
         """DELETE /companies/{companyId}/decrets."""
-        response = await self._client.delete(
+        response = await self._client.request(
+            "DELETE",
             f"/companies/{company_id}/decrets",
             json=item_ids,
         )
         response.raise_for_status()
-        return response.json()
+        return _safe_json(response)
 
     # -- KSeF -------------------------------------------------------------------
 

@@ -245,7 +245,7 @@ class CompanyResponse(BaseModel):
 class UploadResult(BaseModel):
     documents: int = 0
     uploaded_documents: int = Field(default=0, alias="uploadedDocuments")
-    documents_id_list: list[int] = Field(default_factory=list, alias="documentsIdList")
+    documents_id_list: list[int] = Field(default_factory=list, alias="documentIdList")
 
     model_config = {"populate_by_name": True}
 

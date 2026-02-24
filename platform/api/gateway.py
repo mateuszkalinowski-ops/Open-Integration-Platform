@@ -2206,3 +2206,79 @@ async def get_workflow_execution_detail(
         trigger_event=workflow.trigger_event if workflow else None,
         gdpr_meta=redacted.get("_gdpr", {}),
     )
+
+
+# --- Verification Agent Proxy ---
+
+
+_VERIFICATION_AGENT_URL = "http://verification-agent:8000"
+
+
+async def _proxy_verification(method: str, path: str, body: Any = None, params: dict | None = None) -> Any:
+    """Forward requests to the verification-agent microservice."""
+    url = f"{_VERIFICATION_AGENT_URL}{path}"
+    async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=120, write=10, pool=10)) as client:
+        try:
+            resp = await client.request(method, url, json=body, params=params)
+            resp.raise_for_status()
+            return resp.json()
+        except httpx.ConnectError:
+            raise HTTPException(status_code=503, detail="Verification agent is not reachable")
+        except httpx.HTTPStatusError as exc:
+            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500])
+
+
+@app.post("/api/verification/run", tags=["verification"])
+async def verification_run_all() -> Any:
+    return await _proxy_verification("POST", "/run")
+
+
+@app.post("/api/verification/run/{connector_name}", tags=["verification"])
+async def verification_run_single(connector_name: str) -> Any:
+    return await _proxy_verification("POST", f"/run/{connector_name}")
+
+
+@app.get("/api/verification/scheduler", tags=["verification"])
+async def verification_scheduler_status() -> Any:
+    return await _proxy_verification("GET", "/scheduler/status")
+
+
+@app.put("/api/verification/scheduler", tags=["verification"])
+async def verification_scheduler_update(body: dict[str, Any]) -> Any:
+    return await _proxy_verification("PUT", "/scheduler", body=body)
+
+
+@app.get("/api/verification/runs", tags=["verification"])
+async def verification_list_runs(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+) -> Any:
+    return await _proxy_verification("GET", "/runs", params={"page": str(page), "page_size": str(page_size)})
+
+
+@app.get("/api/verification/runs/{run_id}", tags=["verification"])
+async def verification_get_run(run_id: str) -> Any:
+    return await _proxy_verification("GET", f"/runs/{run_id}")
+
+
+@app.get("/api/verification/errors", tags=["verification"])
+async def verification_list_errors(
+    connector_name: str | None = Query(None),
+    date_from: str | None = Query(None),
+    date_to: str | None = Query(None),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=200),
+) -> Any:
+    params: dict[str, str] = {"page": str(page), "page_size": str(page_size)}
+    if connector_name:
+        params["connector_name"] = connector_name
+    if date_from:
+        params["date_from"] = date_from
+    if date_to:
+        params["date_to"] = date_to
+    return await _proxy_verification("GET", "/errors", params=params)
+
+
+@app.get("/api/verification/reports/latest", tags=["verification"])
+async def verification_latest_reports() -> Any:
+    return await _proxy_verification("GET", "/reports/latest")
