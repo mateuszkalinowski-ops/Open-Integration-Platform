@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.woocommerce.client import WooCommerceClient
@@ -129,6 +130,38 @@ class WooCommerceIntegration(EcommerceIntegration):
         raw = await self._client.get_product(int(product_id), account_name)
         woo_product = WooProduct.model_validate(raw)
         return map_woo_product_to_product(woo_product)
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        self._get_account(account_name)
+
+        raw_products = await self._client.list_products(
+            account_name=account_name,
+            per_page=page_size,
+            page=page,
+            search=query or None,
+        )
+
+        products: list[Product] = []
+        for raw in raw_products:
+            woo_product = WooProduct.model_validate(raw)
+            product = map_woo_product_to_product(woo_product)
+            product.attributes["source"] = "woocommerce"
+            products.append(product)
+
+        has_next = len(raw_products) >= page_size
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=len(products) if not has_next else page * page_size + 1,
+            has_next=has_next,
+            source="woocommerce",
+        )
 
     async def sync_products(
         self,

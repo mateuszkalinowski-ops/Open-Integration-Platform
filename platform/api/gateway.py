@@ -1390,13 +1390,14 @@ async def internal_trigger_event(
     """Internal event endpoint for connector-to-platform communication.
 
     No API key required — trusted within the Docker network.
-    Uses the first active tenant for processing.
+    Processes the event for ALL active tenants so every tenant's
+    matching flows/workflows are triggered regardless of DB row order.
     """
     result = await db.execute(
-        select(Tenant).where(Tenant.is_active.is_(True)).limit(1)
+        select(Tenant).where(Tenant.is_active.is_(True))
     )
-    tenant = result.scalar_one_or_none()
-    if not tenant:
+    tenants = list(result.scalars().all())
+    if not tenants:
         raise HTTPException(status_code=500, detail="No active tenant")
 
     async def execute_action_for_flow(
@@ -1421,22 +1422,28 @@ async def internal_trigger_event(
             credentials=credentials,
         )
 
-    flow_executions = await flow_engine.process_event(
-        db=db,
-        tenant_id=tenant.id,
-        connector_name=body.connector_name,
-        event=body.event,
-        event_data=body.data,
-        execute_action_fn=execute_action_for_flow,
-    )
+    all_flow_executions: list[FlowExecution] = []
+    all_workflow_executions: list[WorkflowExecution] = []
 
-    workflow_executions = await workflow_engine.process_event(
-        db=db,
-        tenant_id=tenant.id,
-        connector_name=body.connector_name,
-        event=body.event,
-        event_data=body.data,
-    )
+    for tenant in tenants:
+        flow_executions = await flow_engine.process_event(
+            db=db,
+            tenant_id=tenant.id,
+            connector_name=body.connector_name,
+            event=body.event,
+            event_data=body.data,
+            execute_action_fn=execute_action_for_flow,
+        )
+        all_flow_executions.extend(flow_executions)
+
+        workflow_executions = await workflow_engine.process_event(
+            db=db,
+            tenant_id=tenant.id,
+            connector_name=body.connector_name,
+            event=body.event,
+            event_data=body.data,
+        )
+        all_workflow_executions.extend(workflow_executions)
 
     await db.commit()
 
@@ -1444,15 +1451,16 @@ async def internal_trigger_event(
         "Internal event processed",
         connector=body.connector_name,
         event_name=body.event,
-        flows_triggered=len(flow_executions),
-        workflows_triggered=len(workflow_executions),
+        tenants_checked=len(tenants),
+        flows_triggered=len(all_flow_executions),
+        workflows_triggered=len(all_workflow_executions),
     )
 
     return {
         "event": body.event,
         "connector": body.connector_name,
-        "flows_triggered": len(flow_executions),
-        "workflows_triggered": len(workflow_executions),
+        "flows_triggered": len(all_flow_executions),
+        "workflows_triggered": len(all_workflow_executions),
     }
 
 

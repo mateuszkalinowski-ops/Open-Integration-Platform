@@ -13,6 +13,7 @@ capabilities:
   - update_order_status
   - sync_stock
   - get_product
+  - search_products
   - sync_products
   - create_parcel
 events:
@@ -26,6 +27,7 @@ actions:
   - order.status_update
   - stock.sync
   - product.get
+  - product.search
   - product.sync
   - parcel.create
 config_schema:

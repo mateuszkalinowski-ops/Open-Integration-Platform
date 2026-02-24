@@ -100,6 +100,14 @@ class Product(BaseModel):
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
+class ProductsPage(BaseModel):
+    products: list[Product]
+    page: int = 1
+    total: int = 0
+    has_next: bool = False
+    source: str = ""
+
+
 class PriceUpdate(BaseModel):
     product_id: str
     price: float

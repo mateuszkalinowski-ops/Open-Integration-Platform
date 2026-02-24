@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.shopify.client import ShopifyClient
@@ -199,6 +200,32 @@ class ShopifyIntegration(EcommerceIntegration):
         raw = await self._client.get_product(product_id, account)
         shopify_product = ShopifyProduct.model_validate(raw.get("product", raw))
         return map_shopify_product_to_product(shopify_product)
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        account = self._get_account(account_name)
+        raw = await self._client.get_products(account, limit=page_size, title=query or None)
+        response = ShopifyProductsResponse.model_validate(raw)
+
+        products: list[Product] = []
+        for sp in response.products:
+            product = map_shopify_product_to_product(sp)
+            product.attributes["source"] = "shopify"
+            products.append(product)
+
+        total = len(products)
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=total,
+            has_next=total >= page_size,
+            source="shopify",
+        )
 
     async def sync_products(
         self,

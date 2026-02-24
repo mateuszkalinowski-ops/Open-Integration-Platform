@@ -6,6 +6,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     PriceUpdate,
     StockItem,
 )
@@ -65,6 +66,16 @@ class EcommerceIntegration(ABC):
     async def get_product(self, account_name: str, product_id: str) -> Product:
         """Get a single product by its external ID."""
         raise NotImplementedError("get_product not supported by this integration")
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        """Search products by name, SKU, or keyword."""
+        raise NotImplementedError("search_products not supported by this integration")
 
     async def sync_prices(
         self,

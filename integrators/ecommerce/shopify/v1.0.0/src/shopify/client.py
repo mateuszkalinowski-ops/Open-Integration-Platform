@@ -271,10 +271,13 @@ class ShopifyClient:
         account: ShopifyAccountConfig,
         limit: int = 50,
         since_id: str | None = None,
+        title: str | None = None,
     ) -> dict:
         params: dict[str, Any] = {"limit": min(limit, 250)}
         if since_id:
             params["since_id"] = since_id
+        if title:
+            params["title"] = title
         resp = await self.get("products.json", account, params=params)
         resp.raise_for_status()
         return resp.json()

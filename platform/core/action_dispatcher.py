@@ -72,6 +72,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "order.status_update": ActionRoute(method="PATCH", path="/orders/{order_id}/status"),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync"),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}"),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
     },
     "shoper": {
         "order.fetch": ActionRoute(method="GET", path="/orders", query_from_payload=["account_name"]),
@@ -79,6 +80,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "order.status_update": ActionRoute(method="PUT", path="/orders/{order_id}/status", query_from_payload=["account_name"]),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
     },
     "idosell": {
         "order.fetch": ActionRoute(method="GET", path="/orders", query_from_payload=["account_name"]),
@@ -86,6 +88,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "order.status_update": ActionRoute(method="PUT", path="/orders/{order_id}/status", query_from_payload=["account_name"]),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
         "parcel.create": ActionRoute(method="POST", path="/parcels", query_from_payload=["account_name"]),
     },
     "pinquark-wms": {
@@ -103,12 +106,21 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "agent.classify_priority": ActionRoute(method="POST", path="/analyze/priority"),
         "agent.extract_data": ActionRoute(method="POST", path="/analyze/extract"),
     },
+    "amazon": {
+        "order.fetch": ActionRoute(method="GET", path="/orders", query_from_payload=["account_name"]),
+        "order.get": ActionRoute(method="GET", path="/orders/{order_id}", query_from_payload=["account_name"]),
+        "order.status_update": ActionRoute(method="PUT", path="/orders/{order_id}/status", query_from_payload=["account_name"]),
+        "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
+        "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
+    },
     "baselinker": {
         "order.fetch": ActionRoute(method="GET", path="/orders", query_from_payload=["account_name"]),
         "order.get": ActionRoute(method="GET", path="/orders/{order_id}", query_from_payload=["account_name"]),
         "order.status_update": ActionRoute(method="PUT", path="/orders/{order_id}/status", query_from_payload=["account_name"]),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
         "parcel.create": ActionRoute(method="POST", path="/parcels", query_from_payload=["account_name"]),
     },
     "dhl": {
@@ -203,6 +215,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "order.status_update": ActionRoute(method="PUT", path="/orders/{order_id}/status", query_from_payload=["account_name"]),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
         "products.sync": ActionRoute(method="POST", path="/products/sync", query_from_payload=["account_name"]),
     },
     "shopify": {
@@ -212,6 +225,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "order.fulfill": ActionRoute(method="POST", path="/orders/{order_id}/fulfill", query_from_payload=["account_name"]),
         "stock.sync": ActionRoute(method="POST", path="/stock/sync", query_from_payload=["account_name"]),
         "product.get": ActionRoute(method="GET", path="/products/{product_id}", query_from_payload=["account_name"]),
+        "product.search": ActionRoute(method="GET", path="/products/search", query_from_payload=["account_name", "query", "page", "page_size"]),
         "products.sync": ActionRoute(method="POST", path="/products/sync", query_from_payload=["account_name"]),
     },
     "dhl-express": {
@@ -308,6 +322,7 @@ _CONNECTOR_SERVICE_NAMES: dict[str, str] = {
     "suus": "connector-suus",
     "ups": "connector-ups",
     "allegro": "connector-allegro",
+    "amazon": "connector-amazon",
     "shoper": "connector-shoper",
     "idosell": "connector-idosell",
     "baselinker": "connector-baselinker",

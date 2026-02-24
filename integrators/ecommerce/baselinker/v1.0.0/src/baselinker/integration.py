@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.config import BaseLinkerAccountConfig
@@ -162,6 +163,44 @@ class BaseLinkerIntegration(EcommerceIntegration):
             raise ValueError(f"Product '{product_id}' not found")
 
         return map_bl_product_to_product(product_id, data, account.warehouse_id)
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        account = self._get_account(account_name)
+        inv_id = account.inventory_id
+        if not inv_id:
+            raise ValueError("inventory_id not configured")
+
+        resp = await self._client.get_inventory_products_list(account, inv_id, page=page)
+        raw_products = resp.get("products", {})
+
+        product_ids = list(raw_products.keys())
+        if not product_ids:
+            return ProductsPage(products=[], page=page, total=0, has_next=False, source="baselinker")
+
+        data_resp = await self._client.get_inventory_products_data(account, inv_id, [int(pid) for pid in product_ids[:page_size]])
+        products_data = data_resp.get("products", {})
+
+        products: list[Product] = []
+        for pid, pdata in products_data.items():
+            product = map_bl_product_to_product(pid, pdata, account.warehouse_id)
+            if query and query.lower() not in product.name.lower():
+                continue
+            product.attributes["source"] = "baselinker"
+            products.append(product)
+
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=len(products),
+            has_next=len(raw_products) >= 1000,
+            source="baselinker",
+        )
 
     async def create_parcel(
         self,

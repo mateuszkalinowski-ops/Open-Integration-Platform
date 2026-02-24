@@ -9,6 +9,8 @@ export type WorkflowNodeType =
   | 'delay'
   | 'loop'
   | 'merge'
+  | 'parallel'
+  | 'aggregate'
   | 'http_request'
   | 'set_variable'
   | 'response';
@@ -243,6 +245,26 @@ export const NODE_TYPE_DEFINITIONS: NodeTypeDefinition[] = [
     category: 'flow',
     handles: { inputs: ['default'], outputs: ['default'] },
     description: 'Merge multiple branches together',
+  },
+  {
+    type: 'parallel',
+    label: 'Parallel',
+    icon: 'fork_right',
+    color: '#ff6f00',
+    category: 'flow',
+    handles: { inputs: ['default'], outputs: ['branch', 'done'] },
+    description:
+      'Execute multiple branches in parallel (scatter-gather) and collect results. Use "branch" handle for parallel branches, "done" for continuation.',
+  },
+  {
+    type: 'aggregate',
+    label: 'Aggregate',
+    icon: 'compare_arrows',
+    color: '#1b5e20',
+    category: 'data',
+    handles: { inputs: ['default'], outputs: ['default'] },
+    description:
+      'Aggregate parallel results — find cheapest, most expensive, or concatenate',
   },
   {
     type: 'http_request',

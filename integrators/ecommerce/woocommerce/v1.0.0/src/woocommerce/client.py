@@ -170,11 +170,14 @@ class WooCommerceClient:
         per_page: int = 100,
         page: int = 1,
         sku: str | None = None,
+        search: str | None = None,
         modified_after: str | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"per_page": per_page, "page": page}
         if sku:
             params["sku"] = sku
+        if search:
+            params["search"] = search
         if modified_after:
             params["modified_after"] = modified_after
 

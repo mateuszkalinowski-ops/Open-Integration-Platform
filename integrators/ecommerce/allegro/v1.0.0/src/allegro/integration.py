@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.allegro.client import AllegroClient
@@ -144,4 +145,50 @@ class AllegroIntegration(EcommerceIntegration):
             sku=offer_data.get("external", {}).get("id", "") if offer_data.get("external") else "",
             ean=ean,
             name=offer_data.get("name", ""),
+        )
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        account = self._get_account(account_name)
+        offset = (page - 1) * page_size
+
+        data = await self._client.search_offers(
+            phrase=query,
+            account_name=account.name,
+            client_id=account.client_id,
+            client_secret=account.client_secret,
+            api_url=account.api_url,
+            auth_url=account.auth_url,
+            limit=page_size,
+            offset=offset,
+        )
+
+        items = data.get("items", {})
+        promoted = items.get("promoted", [])
+        regular = items.get("regular", [])
+        all_offers = promoted + regular
+
+        products: list[Product] = []
+        for offer in all_offers:
+            price_data = offer.get("sellingMode", {}).get("price", {})
+            products.append(Product(
+                external_id=offer.get("id", ""),
+                name=offer.get("name", ""),
+                price=float(price_data.get("amount", 0)),
+                currency=price_data.get("currency", "PLN"),
+                attributes={"url": offer.get("url", ""), "source": "allegro"},
+            ))
+
+        total = data.get("searchMeta", {}).get("totalCount", len(products))
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=total,
+            has_next=(offset + page_size) < total,
+            source="allegro",
         )

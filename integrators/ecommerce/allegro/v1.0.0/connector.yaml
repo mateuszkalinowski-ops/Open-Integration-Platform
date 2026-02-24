@@ -13,6 +13,7 @@ capabilities:
   - update_order_status
   - sync_stock
   - get_product
+  - search_products
 events:
   - order.created
   - order.status_changed
@@ -23,6 +24,7 @@ actions:
   - order.status_update
   - stock.sync
   - product.get
+  - product.search
 event_fields:
   order.created:
     - field: order_id

@@ -153,6 +153,17 @@ async def get_product(
     return await app_state.integration.get_product(account_name, product_id)
 
 
+@router.get("/products/search")
+async def search_products(
+    query: str = Query("", description="Search phrase"),
+    account_name: str = Query(..., description="IdoSell account name"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=100),
+):
+    _require_account(account_name)
+    return await app_state.integration.search_products(account_name, query, page, page_size)
+
+
 class ParcelCreateRequest(BaseModel):
     order_serial_number: int
     courier_id: int

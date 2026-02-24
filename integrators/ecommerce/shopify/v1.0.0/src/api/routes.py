@@ -192,6 +192,17 @@ async def get_product(
     return await app_state.integration.get_product(account_name, product_id)
 
 
+@router.get("/products/search")
+async def search_products(
+    query: str = Query("", description="Search by product title"),
+    account_name: str = Query(..., description="Shopify account name"),
+    page: int = Query(1, ge=1),
+    page_size: int = Query(50, ge=1, le=250),
+):
+    _require_auth(account_name)
+    return await app_state.integration.search_products(account_name, query, page, page_size)
+
+
 class ProductSyncRequest(BaseModel):
     products: list[Product]
 

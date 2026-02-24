@@ -51,6 +51,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 28 | Amazon | E-commerce | v1.0.0 | REST (OAuth2 / LWA) | `client_id`, `client_secret`, `refresh_token`, `marketplace_id` |
 | 29 | Geis | Courier | v1.0.0 | SOAP (WSDL) | `customer_code`, `password` |
 | 30 | AI Agent | AI | v1.0.0 | REST (Google Gemini) | `gemini_api_key` |
+| 31 | Apilo | E-commerce | v1.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
 
 ---
 
@@ -336,6 +337,7 @@ Features:
 - Publishing orders to Kafka (`allegro.output.ecommerce.orders.save`)
 - Event deduplication per checkout form
 - Fetching EAN/SKU from offers
+- **Product search** via `/offers/listing` endpoint (search by phrase, category, sort by price)
 - Rate limit handling (respects `Retry-After` header)
 - OAuth2 token auto-refresh
 
@@ -378,6 +380,7 @@ Features:
 - Order status updates
 - Stock level synchronization
 - Parcel management (create, update)
+- **Product search** via REST API with name filters (`LIKE` on `translations.name`)
 - Basic Auth → Bearer token authentication with automatic refresh
 - Multi-account Shoper support
 
@@ -420,6 +423,7 @@ Features:
 - Inventory level sync via Inventory API
 - Fulfillment creation via Fulfillment Orders API (2023-01+)
 - Tracking number updates
+- **Product search** by title via Admin API (`GET /products.json?title=...`)
 - Rate limit handling (respects `X-Shopify-Shop-Api-Call-Limit` header)
 - Multi-store support (multiple Shopify accounts)
 - Access token validation
@@ -488,6 +492,7 @@ Features:
 - Stock quantity synchronization
 - Parcel creation with tracking numbers
 - Multi-account IdoSell support
+- **Product search** via `/products/products/search` endpoint
 - 0-based pagination handling
 
 Protocol: REST (API Key header or SHA-1 body auth).
@@ -533,6 +538,7 @@ Features:
 - Manual parcel registration (courier code + tracking number)
 - Journal-based change detection for efficient scraping
 - Multi-account support
+- **Product search** via `getInventoryProductsList` + `getInventoryProductsData` with name filtering
 - Kafka event streaming for orders and products
 
 Protocol: REST (API Token via X-BLToken header).
@@ -576,6 +582,7 @@ Features:
 - Stock level synchronization by product ID or SKU lookup
 - Product sync (create/update)
 - API key authentication: Basic Auth (HTTPS) or OAuth 1.0a HMAC-SHA256 (HTTP)
+- **Product search** via WooCommerce REST API (`GET /products?search=...`)
 - Multi-store support (multiple WooCommerce accounts per instance)
 - Rate limit handling (respects `Retry-After` header)
 
@@ -627,6 +634,54 @@ Features:
 - All global Amazon marketplaces supported (US, EU, FE regions)
 
 Protocol: REST (Amazon SP-API with LWA OAuth2 authentication).
+
+---
+
+### Apilo (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `client_id` | Yes | OAuth2 Client ID (from Apilo Admin > API) |
+| `client_secret` | Yes | OAuth2 Client Secret |
+| `authorization_code` | Yes* | Initial authorization code for token exchange |
+| `refresh_token` | No | Refresh token (if already obtained; alternative to authorization_code) |
+| `base_url` | No | Apilo instance URL (default: `https://app.apilo.com`) |
+
+*Required for initial token exchange; can be omitted if `refresh_token` is provided.
+
+Environment variables:
+```bash
+APILO_LOG_LEVEL=INFO
+APILO_SCRAPING_ENABLED=true
+APILO_SCRAPING_INTERVAL_SECONDS=300
+APILO_RATE_LIMIT_RPM=150
+```
+
+Apilo account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-store
+    client_id: "your-client-id"
+    client_secret: "your-client-secret"
+    authorization_code: "your-auth-code"
+    base_url: "https://app.apilo.com"
+    environment: production
+```
+
+Features:
+- Order management (list, get, create, update status, add payments/notes/tags/shipments/documents)
+- Product catalog (list, search, get, create, update, patch, delete)
+- Shipment management (create via Shipping API, track, confirm pickup)
+- Finance document management (list, create, delete accounting documents)
+- Category and attribute management
+- Media upload (PDF, images)
+- Background order scraper with configurable polling interval
+- Multi-account support (via YAML or environment variables)
+- OAuth2 with automatic token refresh (access tokens valid 21 days)
+- Rate limiting compliance (150 req/min)
+- Reference maps (statuses, payment types, carriers, platforms, tags)
+
+Protocol: REST (Apilo REST API v2 with OAuth2 Basic Auth token exchange).
 
 ---
 

@@ -499,6 +499,42 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             </mat-form-field>
           }
 
+          <!-- PARALLEL -->
+          @if (node.type === 'parallel') {
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Timeout (seconds)</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['timeout_seconds']" (ngModelChange)="emitChange()" min="1" max="120" />
+              <mat-hint>Max time to wait for all branches to complete</mat-hint>
+            </mat-form-field>
+            <p class="wnc__hint">
+              Connect multiple action nodes as successors. Each branch executes simultaneously.
+              Results are collected into <code>parallel_results</code> variable for the Aggregate node.
+            </p>
+          }
+
+          <!-- AGGREGATE -->
+          @if (node.type === 'aggregate') {
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Aggregation Strategy</mat-label>
+              <mat-select [(ngModel)]="cfg['strategy']" (ngModelChange)="emitChange()">
+                <mat-option value="min_price">Cheapest (Min Price)</mat-option>
+                <mat-option value="max_price">Most Expensive (Max Price)</mat-option>
+                <mat-option value="concat">Concatenate All</mat-option>
+                <mat-option value="first">First Result</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Price Field</mat-label>
+              <input matInput [(ngModel)]="cfg['price_field']" (ngModelChange)="emitChange()" placeholder="price" />
+              <mat-hint>Field name containing the price value in product objects</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Source Variable</mat-label>
+              <input matInput [(ngModel)]="cfg['source_variable']" (ngModelChange)="emitChange()" placeholder="parallel_results" />
+              <mat-hint>Variable containing parallel branch results</mat-hint>
+            </mat-form-field>
+          }
+
           <!-- RESPONSE -->
           @if (node.type === 'response') {
             <mat-form-field appearance="outline" class="wnc__field">

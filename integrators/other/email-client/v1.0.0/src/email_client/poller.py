@@ -107,6 +107,7 @@ class EmailPoller:
             await self._save_timestamp(account.name, "emails", now_str)
             return
 
+        all_notified = True
         for email_msg in page.emails:
             email_data = email_msg.model_dump(mode="json")
             email_data["account_name"] = account.name
@@ -118,13 +119,15 @@ class EmailPoller:
                     key=email_msg.message_id or "",
                 )
 
-            await self._notify_platform("email.received", email_data)
+            if not await self._notify_platform("email.received", email_data):
+                all_notified = False
 
         logger.info(
-            "Polled %d new emails for account=%s folder=%s",
-            len(page.emails), account.name, folder,
+            "Polled %d new emails for account=%s folder=%s notified=%s",
+            len(page.emails), account.name, folder, all_notified,
         )
-        await self._save_timestamp(account.name, "emails", now_str)
+        if all_notified:
+            await self._save_timestamp(account.name, "emails", now_str)
 
     def _get_last_timestamp(self, account_name: str, entity: str) -> str | None:
         return self._last_timestamps.get(account_name, {}).get(entity)
@@ -133,9 +136,10 @@ class EmailPoller:
         self._last_timestamps.setdefault(account_name, {})[entity] = timestamp
         await self._state.save_timestamp(account_name, entity, timestamp)
 
-    async def _notify_platform(self, event: str, data: dict) -> None:
+    async def _notify_platform(self, event: str, data: dict) -> bool:
+        """Notify the platform about an event. Returns True on success."""
         if not self._http_client:
-            return
+            return True
         try:
             url = f"{settings.platform_api_url}/internal/events"
             headers: dict[str, str] = {}
@@ -152,7 +156,9 @@ class EmailPoller:
             )
             if resp.status_code < 300:
                 logger.debug("Platform notified: event=%s status=%d", event, resp.status_code)
-            else:
-                logger.warning("Platform notify failed: event=%s status=%d body=%s", event, resp.status_code, resp.text[:200])
+                return True
+            logger.warning("Platform notify failed: event=%s status=%d body=%s", event, resp.status_code, resp.text[:200])
+            return False
         except Exception:
             logger.exception("Failed to notify platform about event=%s", event)
+            return False

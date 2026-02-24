@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.config import IdoSellAccountConfig, settings
@@ -155,6 +156,37 @@ class IdoSellIntegration(EcommerceIntegration):
 
         ido_product = IdoSellProduct.model_validate(results[0])
         return map_idosell_product_to_product(ido_product)
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        account = self._get_account(account_name)
+        ido_page = page - 1
+
+        data = await self._client.search_products(account, page=ido_page, limit=page_size)
+        results = data.get("results", [])
+
+        products: list[Product] = []
+        for prod_data in results:
+            ido_product = IdoSellProduct.model_validate(prod_data)
+            product = map_idosell_product_to_product(ido_product)
+            if query and query.lower() not in product.name.lower():
+                continue
+            product.attributes["source"] = "idosell"
+            products.append(product)
+
+        total = data.get("resultsNumberAll", len(products))
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=total,
+            has_next=page < data.get("resultsNumberPage", 1),
+            source="idosell",
+        )
 
     async def sync_products(
         self,

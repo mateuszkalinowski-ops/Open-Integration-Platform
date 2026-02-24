@@ -210,6 +210,35 @@ class AllegroClient:
         resp.raise_for_status()
         return resp.json()
 
+    async def search_offers(
+        self,
+        phrase: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        limit: int = 50,
+        offset: int = 0,
+        category_id: str | None = None,
+        sort: str = "price_asc",
+    ) -> dict:
+        params: dict[str, Any] = {
+            "phrase": phrase,
+            "limit": min(limit, 60),
+            "offset": offset,
+            "sort": sort,
+        }
+        if category_id:
+            params["category.id"] = category_id
+        resp = await self.get(
+            "offers/listing",
+            account_name, client_id, client_secret, api_url, auth_url,
+            params=params,
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     async def update_offer_stock(
         self,
         offer_id: str,

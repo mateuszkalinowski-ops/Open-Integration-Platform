@@ -397,6 +397,19 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-apilo:
+    build:
+      context: .
+      dockerfile: integrators/ecommerce/apilo/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      APILO_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
   connector-bulkgate:
     build:
       context: ./integrators/other/bulkgate/v1.0.0

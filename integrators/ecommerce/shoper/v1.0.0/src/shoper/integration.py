@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrdersPage,
     OrderStatus,
     Product,
+    ProductsPage,
     StockItem,
 )
 from src.config import ShoperAccountConfig
@@ -152,6 +153,44 @@ class ShoperIntegration(EcommerceIntegration):
         account = self._get_account(account_name)
         product_data = await self._client.get_one("products", int(product_id), *self._creds(account))
         return map_shoper_product_to_product(product_data, account.language_id)
+
+    async def search_products(
+        self,
+        account_name: str,
+        query: str = "",
+        page: int = 1,
+        page_size: int = 50,
+    ) -> ProductsPage:
+        account = self._get_account(account_name)
+        import json as _json
+
+        filters: dict[str, dict[str, Any]] = {}
+        if query:
+            filters["translations.name"] = {"LIKE": f"%{query}%"}
+
+        params: dict[str, Any] = {"page": page, "limit": page_size}
+        if filters:
+            params["filters"] = _json.dumps(filters)
+
+        resp = await self._client.get("products", *self._creds(account), params=params)
+        resp.raise_for_status()
+        data = resp.json()
+
+        product_list = data.get("list", [])
+        products: list[Product] = []
+        for pd in product_list:
+            product = map_shoper_product_to_product(pd, account.language_id)
+            product.attributes["source"] = "shoper"
+            products.append(product)
+
+        total = data.get("count", len(products))
+        return ProductsPage(
+            products=products,
+            page=page,
+            total=total,
+            has_next=page < data.get("pages", 1),
+            source="shoper",
+        )
 
     async def create_parcel(
         self,

@@ -1,0 +1,71 @@
+services:
+  apilo-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apilo-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - apilo-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - APILO_LOG_LEVEL=INFO
+      - APILO_SCRAPING_ENABLED=true
+      - APILO_SCRAPING_INTERVAL_SECONDS=300
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  apilo-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apilo-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - apilo-data-dev:/app/data
+    environment:
+      - APILO_DEBUG=true
+      - APILO_LOG_LEVEL=DEBUG
+      - APILO_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/apilo_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: apilo-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - APILO_SCRAPING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  apilo-data:
+  apilo-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

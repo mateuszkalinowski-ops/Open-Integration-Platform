@@ -1,7 +1,8 @@
 """Workflow Engine -- executes graph-based workflows (DAGs).
 
 Supports node types: trigger, action, condition, switch, think, transform,
-filter, delay, loop, merge, http_request, set_variable, response.
+filter, delay, loop, merge, parallel, aggregate, http_request, set_variable,
+response.
 
 The engine traverses the DAG starting from the trigger node, executing
 each node and routing data along edges based on node outputs.
@@ -248,6 +249,11 @@ class WorkflowEngine:
                 output = self._exec_set_variable(config, ctx)
             elif node_type == "merge":
                 output = ctx.data
+            elif node_type == "parallel":
+                output = await self._exec_parallel(db, graph, node, config, ctx, workflow, depth)
+                next_handle = "done"
+            elif node_type == "aggregate":
+                output = self._exec_aggregate(config, ctx)
             elif node_type == "response":
                 output = self._exec_response(config, ctx)
                 ctx.set_node_output(node_id, output)
@@ -450,6 +456,117 @@ class WorkflowEngine:
             loop_results.append(copy.deepcopy(ctx.variables.get(item_var)))
 
         ctx.variables[f"{item_var}_results"] = loop_results
+
+    async def _exec_parallel(
+        self,
+        db: AsyncSession,
+        graph: "WorkflowGraph",
+        node: dict[str, Any],
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int,
+    ) -> dict[str, Any]:
+        """Execute all successor branches in parallel (scatter-gather).
+
+        Each successor gets a copy of the current context. Results are
+        collected into ``ctx.variables["parallel_results"]`` keyed by
+        node id so downstream aggregate nodes can compare them.
+        """
+        successors = graph.get_successors(node["id"], handle="branch")
+        if not successors:
+            return {"parallel_branches": 0, "results": {}}
+
+        timeout = min(config.get("timeout_seconds", 60), 120)
+
+        async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any]:
+            branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
+            branch_ctx.variables = copy.deepcopy(ctx.variables)
+            branch_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
+
+            try:
+                await self._execute_single_node(db, graph, branch_node, branch_ctx, workflow, depth + 1)
+                output = branch_ctx.get_node_output(branch_node["id"])
+                ctx.node_results.extend(branch_ctx.node_results)
+                return branch_node["id"], output
+            except Exception as exc:
+                ctx.node_results.extend(branch_ctx.node_results)
+                return branch_node["id"], {"error": str(exc)}
+
+        tasks = [asyncio.create_task(_run_branch(s)) for s in successors]
+
+        try:
+            done = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout)
+        except asyncio.TimeoutError:
+            for t in tasks:
+                t.cancel()
+            raise WorkflowError(f"Parallel node timed out after {timeout}s")
+
+        results: dict[str, Any] = {}
+        for item in done:
+            if isinstance(item, tuple):
+                node_id, output = item
+                results[node_id] = output
+                ctx.set_node_output(node_id, output)
+
+        ctx.variables["parallel_results"] = results
+        return {"parallel_branches": len(successors), "results": results}
+
+    def _exec_aggregate(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
+        """Aggregate results from parallel branches.
+
+        Supports strategies: min_price, max_price, first, concat.
+        """
+        strategy = config.get("strategy", "min_price")
+        source_var = config.get("source_variable", "parallel_results")
+        price_field = config.get("price_field", "price")
+        name_field = config.get("name_field", "name")
+
+        parallel_results: dict[str, Any] = ctx.variables.get(source_var, {})
+        if not parallel_results:
+            return {"aggregated": [], "winner": None}
+
+        flat_products: list[dict[str, Any]] = []
+        for branch_id, branch_output in parallel_results.items():
+            if isinstance(branch_output, dict):
+                products = branch_output.get("products", [])
+                if isinstance(products, list):
+                    for p in products:
+                        if isinstance(p, dict):
+                            p["_branch_id"] = branch_id
+                            p["_source"] = p.get("attributes", {}).get("source", branch_id)
+                            flat_products.append(p)
+
+        if not flat_products:
+            return {"aggregated": [], "winner": None}
+
+        if strategy == "min_price":
+            valid = [p for p in flat_products if isinstance(p.get(price_field), (int, float)) and p[price_field] > 0]
+            if valid:
+                valid.sort(key=lambda p: p[price_field])
+                return {
+                    "aggregated": valid,
+                    "winner": valid[0],
+                    "cheapest_price": valid[0][price_field],
+                    "cheapest_source": valid[0].get("_source", ""),
+                    "cheapest_name": valid[0].get(name_field, ""),
+                    "total_results": len(valid),
+                }
+        elif strategy == "max_price":
+            valid = [p for p in flat_products if isinstance(p.get(price_field), (int, float)) and p[price_field] > 0]
+            if valid:
+                valid.sort(key=lambda p: p[price_field], reverse=True)
+                return {
+                    "aggregated": valid,
+                    "winner": valid[0],
+                    "highest_price": valid[0][price_field],
+                    "highest_source": valid[0].get("_source", ""),
+                    "total_results": len(valid),
+                }
+        elif strategy == "concat":
+            return {"aggregated": flat_products, "winner": None, "total_results": len(flat_products)}
+
+        return {"aggregated": flat_products, "winner": flat_products[0] if flat_products else None, "total_results": len(flat_products)}
 
     async def _exec_http_request(
         self, config: dict, ctx: WorkflowContext
@@ -691,8 +808,16 @@ class WorkflowEngine:
         workflows = await self.get_workflows_for_event(
             db, tenant_id, connector_name, event
         )
-        executions = []
+        event_account = event_data.get("account_name")
+        matched: list[Workflow] = []
         for wf in workflows:
+            trigger_cred = _get_trigger_credential(wf.nodes)
+            if trigger_cred and event_account and trigger_cred != event_account:
+                continue
+            matched.append(wf)
+
+        executions = []
+        for wf in matched:
             execution = await self.execute_workflow(db, wf, event_data)
             executions.append(execution)
         return executions
@@ -844,6 +969,16 @@ async def _redact_pii(
                 field_paths, action_executor, tenant_id, credential_name
             )
     return _redact_by_paths(data, pii_paths)
+
+
+def _get_trigger_credential(nodes: list[dict]) -> str | None:
+    """Extract credential_name from the trigger node config."""
+    for node in nodes:
+        if node.get("type") == "trigger":
+            cred = node.get("config", {}).get("credential_name")
+            if cred and cred != "default":
+                return cred
+    return None
 
 
 class WorkflowGraph:

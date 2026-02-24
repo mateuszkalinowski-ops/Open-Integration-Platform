@@ -1,0 +1,12 @@
+# Apilo account configurations
+# Copy this file and fill in real credentials for each account.
+# NEVER commit real credentials to version control.
+
+accounts: []
+  # - name: default
+  #   client_id: "your-client-id"
+  #   client_secret: "your-client-secret"
+  #   authorization_code: "your-authorization-code"
+  #   refresh_token: ""
+  #   base_url: "https://app.apilo.com"
+  #   environment: production
