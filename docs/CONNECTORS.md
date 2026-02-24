@@ -53,6 +53,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 30 | AI Agent | AI | v1.0.0 | REST (Google Gemini) | `gemini_api_key` |
 | 31 | Apilo | E-commerce | v1.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
+| 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 
 ---
 
@@ -976,6 +977,74 @@ Features:
 - Coverage: 200+ countries
 
 Protocol: REST (BulkGate HTTP API, Application ID + Token authentication).
+
+---
+
+### FTP / SFTP (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `host` | Yes | Server hostname or IP address |
+| `protocol` | Yes | Protocol: `ftp` or `sftp` |
+| `port` | No | Port (default: 21 for FTP, 22 for SFTP) |
+| `username` | No | Login username |
+| `password` | No | Login password |
+| `private_key` | No | SSH private key in PEM format (SFTP only) |
+| `passive_mode` | No | Use passive mode for FTP (default: `true`) |
+| `base_path` | No | Base directory on server (default: `/`) |
+| `polling_enabled` | No | Enable background polling for new files (default: `false`) |
+| `polling_path` | No | Directory to poll for new files (default: `/`) |
+| `polling_interval_seconds` | No | Polling interval in seconds (default: `300`) |
+
+Environment variables:
+```bash
+FTP_LOG_LEVEL=INFO
+FTP_POLLING_ENABLED=false
+FTP_POLLING_INTERVAL_SECONDS=300
+FTP_POLLING_PATH=/
+FTP_CONNECT_TIMEOUT=15.0
+FTP_OPERATION_TIMEOUT=60.0
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+FTP/SFTP account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-sftp-server
+    host: sftp.example.com
+    protocol: sftp
+    port: 22
+    username: "${SFTP_USERNAME}"
+    password: "${SFTP_PASSWORD}"
+    base_path: /data/exchange
+    environment: production
+
+  - name: legacy-ftp
+    host: ftp.legacy.example.com
+    protocol: ftp
+    port: 21
+    username: "${FTP_USERNAME}"
+    password: "${FTP_PASSWORD}"
+    passive_mode: true
+    base_path: /
+    environment: production
+```
+
+Features:
+- Dual protocol: FTP (aioftp) and SFTP (asyncssh) via unified API
+- File operations: upload (base64), download (base64), list, delete, move/rename
+- Directory operations: create, list (filtered)
+- Glob pattern filtering for file listing (e.g., `*.csv`, `report_*`)
+- Background polling for new files with SQLite state persistence
+- Publishing to Kafka (`ftp-sftp.output.other.files.new`, `ftp-sftp.output.other.files.uploaded`, `ftp-sftp.output.other.files.deleted`)
+- Platform event notification for Flow Engine integration
+- Multi-account FTP/SFTP support
+- Connection testing / validation
+- Base path configuration per account
+- Prometheus metrics for file operations
+
+Protocol: FTP (RFC 959) / SFTP (SSH File Transfer Protocol).
 
 ---
 

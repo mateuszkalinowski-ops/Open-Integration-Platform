@@ -28,7 +28,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 | Courier    | 19 (including 3 InPost versions) | InPost, DHL, DPD, GLS, FedEx, UPS, Poczta Polska, Orlen Paczka, Schenker, Geis, Paxy, Packeta, SUUS, SellAsist, Raben |
 | E-commerce | 3                                | Allegro, Shoper, IdoSell                                                                                              |
 | WMS        | 1                                | Pinquark WMS                                                                                                          |
-| Other      | 2                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR)                                                                 |
+| Other      | 3                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer)                                       |
 
 
 ### Technology stack
@@ -620,7 +620,7 @@ Configuration in `k8s/integrators/base/`:
 
 ## 7. Integration configuration
 
-Detailed documentation of configuration parameters for all 24 connectors (16 couriers, Allegro, Shoper, Shopify, IdoSell, Pinquark WMS, Email Client, SkanujFakture) and credentials management via API can be found in a separate file:
+Detailed documentation of configuration parameters for all 25 connectors (16 couriers, Allegro, Shoper, Shopify, IdoSell, Pinquark WMS, Email Client, SkanujFakture, FTP/SFTP) and credentials management via API can be found in a separate file:
 
 **[CONNECTORS.md](CONNECTORS.md)**
 

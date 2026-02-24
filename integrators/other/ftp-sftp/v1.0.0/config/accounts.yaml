@@ -1,0 +1,28 @@
+# FTP/SFTP Integrator — Account Configuration
+#
+# Define one or more FTP/SFTP server connections.
+# Credentials should be provided via environment variables for production.
+#
+# Example:
+#
+# accounts:
+#   - name: my-sftp-server
+#     host: sftp.example.com
+#     protocol: sftp
+#     port: 22
+#     username: ${SFTP_USERNAME}
+#     password: ${SFTP_PASSWORD}
+#     base_path: /data/exchange
+#     environment: production
+#
+#   - name: legacy-ftp
+#     host: ftp.legacy.example.com
+#     protocol: ftp
+#     port: 21
+#     username: ${FTP_USERNAME}
+#     password: ${FTP_PASSWORD}
+#     passive_mode: true
+#     base_path: /
+#     environment: production
+
+accounts: []

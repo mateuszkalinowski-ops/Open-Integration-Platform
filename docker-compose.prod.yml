@@ -432,6 +432,21 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-ftp-sftp:
+    build:
+      context: .
+      dockerfile: integrators/other/ftp-sftp/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      FTP_POLLING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
     name: pinquark_pgdata
