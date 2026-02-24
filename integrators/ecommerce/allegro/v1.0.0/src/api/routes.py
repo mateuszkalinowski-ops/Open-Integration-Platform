@@ -1,9 +1,10 @@
 """FastAPI routes for Allegro integrator."""
 
+import base64
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, UploadFile, File, Form
 from pydantic import BaseModel, Field
 
 from pinquark_common.schemas.common import ErrorResponse, ErrorDetail
@@ -158,6 +159,75 @@ async def update_order_status(
     _require_auth(account_name)
     await app_state.integration.update_order_status(account_name, order_id, body.status)
     return {"status": "updated", "order_id": order_id, "new_status": body.status}
+
+
+# --- Invoice ---
+
+
+class InvoiceUploadJsonRequest(BaseModel):
+    """Accept invoice as base64 when called from the platform action dispatcher."""
+    invoice_base64: str
+    filename: str = "invoice.pdf"
+    invoice_number: str = ""
+
+
+@router.put("/orders/{order_id}/invoice")
+async def upload_invoice_multipart(
+    order_id: str,
+    account_name: str = Query(..., description="Allegro account name"),
+    invoice_number: str = Query("", description="Invoice number (e.g. FV 01/2026)"),
+    file: UploadFile = File(...),
+):
+    """Upload an invoice PDF to an Allegro order (multipart form).
+
+    Two-step Allegro API flow:
+    1. POST /order/checkout-forms/{id}/invoices — create metadata
+    2. PUT  /order/checkout-forms/{id}/invoices/{invoiceId}/file — upload binary PDF
+    """
+    _require_auth(account_name)
+    contents = await file.read()
+    if len(contents) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Invoice file exceeds 8 MB limit")
+    result = await app_state.integration.upload_invoice(
+        account_name, order_id, contents,
+        file.filename or "invoice.pdf", invoice_number,
+    )
+    return {"status": "uploaded", "order_id": order_id, **result}
+
+
+@router.post("/orders/{order_id}/invoice")
+async def upload_invoice_json(
+    order_id: str,
+    body: InvoiceUploadJsonRequest,
+    account_name: str = Query(..., description="Allegro account name"),
+):
+    """Upload an invoice PDF to an Allegro order (base64 JSON body).
+
+    Two-step Allegro API flow:
+    1. POST /order/checkout-forms/{id}/invoices — create metadata
+    2. PUT  /order/checkout-forms/{id}/invoices/{invoiceId}/file — upload binary PDF
+    """
+    _require_auth(account_name)
+    try:
+        contents = base64.b64decode(body.invoice_base64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64: {exc}") from exc
+    if len(contents) > 8 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Invoice file exceeds 8 MB limit")
+    result = await app_state.integration.upload_invoice(
+        account_name, order_id, contents, body.filename, body.invoice_number,
+    )
+    return {"status": "uploaded", "order_id": order_id, **result}
+
+
+@router.get("/orders/{order_id}/invoices")
+async def get_order_invoices(
+    order_id: str,
+    account_name: str = Query(..., description="Allegro account name"),
+):
+    """Get invoice details for an Allegro order (GET /order/checkout-forms/{id}/invoices)."""
+    _require_auth(account_name)
+    return await app_state.integration.get_order_invoices(account_name, order_id)
 
 
 # --- Stock ---

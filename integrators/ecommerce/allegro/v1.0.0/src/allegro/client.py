@@ -260,3 +260,114 @@ class AllegroClient:
             },
         )
         resp.raise_for_status()
+
+    async def create_invoice_metadata(
+        self,
+        checkout_form_id: str,
+        invoice_number: str,
+        invoice_filename: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+    ) -> dict:
+        """Step 1: Create invoice metadata on an Allegro order.
+
+        POST /order/checkout-forms/{id}/invoices
+        Body: {"invoiceNumber": "...", "file": {"name": "invoice.pdf"}}
+        Returns: {"id": "<invoiceId>"}
+        """
+        resp = await self.post(
+            f"order/checkout-forms/{checkout_form_id}/invoices",
+            account_name, client_id, client_secret, api_url, auth_url,
+            json_data={
+                "invoiceNumber": invoice_number,
+                "file": {"name": invoice_filename},
+            },
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def upload_invoice_file(
+        self,
+        checkout_form_id: str,
+        invoice_id: str,
+        invoice_file: bytes,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+    ) -> None:
+        """Step 2: Upload the binary invoice file to an existing invoice entry.
+
+        PUT /order/checkout-forms/{id}/invoices/{invoiceId}/file
+        Content-Type: application/pdf
+        Body: raw PDF bytes
+        """
+        http_client = self._get_http_client(api_url)
+
+        for attempt in range(settings.max_retries):
+            access_token = await self._auth.get_access_token(
+                account_name, client_id, client_secret, auth_url,
+            )
+
+            start = time.monotonic()
+            resp = await http_client.put(
+                f"order/checkout-forms/{checkout_form_id}/invoices/{invoice_id}/file",
+                headers={
+                    "Authorization": f"Bearer {access_token}",
+                    "Content-Type": "application/pdf",
+                },
+                content=invoice_file,
+            )
+            duration = time.monotonic() - start
+
+            metrics["external_api_calls_total"].labels(
+                system="allegro", operation="upload_invoice_file", status=resp.status_code,
+            ).inc()
+            metrics["external_api_duration"].labels(
+                system="allegro", operation="upload_invoice_file",
+            ).observe(duration)
+
+            if resp.status_code == 401:
+                logger.warning("Allegro 401 on invoice file upload attempt %d", attempt + 1)
+                try:
+                    await self._auth.refresh_token(account_name, client_id, client_secret, auth_url)
+                except Exception:
+                    if attempt == settings.max_retries - 1:
+                        raise
+                continue
+
+            if resp.status_code == 429:
+                retry_after = int(resp.headers.get("Retry-After", "5"))
+                logger.warning("Allegro rate limited on invoice file upload, waiting %ds", retry_after)
+                import asyncio
+                await asyncio.sleep(retry_after)
+                continue
+
+            resp.raise_for_status()
+            return
+
+        raise AllegroApiError(401, f"Invoice file upload failed after {settings.max_retries} retries")
+
+    async def get_order_invoices(
+        self,
+        checkout_form_id: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+    ) -> dict:
+        """Get invoice details for an order.
+
+        GET /order/checkout-forms/{id}/invoices
+        """
+        resp = await self.get(
+            f"order/checkout-forms/{checkout_form_id}/invoices",
+            account_name, client_id, client_secret, api_url, auth_url,
+        )
+        resp.raise_for_status()
+        return resp.json()

@@ -231,3 +231,85 @@ class WooCommerceClient:
         resp = await self.get("system_status", account_name)
         resp.raise_for_status()
         return resp.json()
+
+    async def create_order_note(
+        self,
+        order_id: int,
+        account_name: str,
+        note: str,
+        customer_note: bool = False,
+    ) -> dict[str, Any]:
+        """Add a note to an order."""
+        resp = await self.post(
+            f"orders/{order_id}/notes",
+            account_name,
+            json_data={"note": note, "customer_note": customer_note},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    async def upload_media(
+        self,
+        account_name: str,
+        file_bytes: bytes,
+        filename: str,
+        mime_type: str = "application/pdf",
+    ) -> dict[str, Any]:
+        """Upload a file via the WordPress REST media endpoint (wp/v2/media).
+
+        Returns the created media object including 'id' and 'source_url'.
+        This requires the WooCommerce user to have upload_files capability.
+        """
+        base_url = self._auth.get_base_url(account_name)
+        wp_base = base_url.rsplit("/wp-json/", 1)[0] + "/wp-json/wp/v2"
+        basic_auth = self._auth.get_basic_auth(account_name)
+
+        if wp_base not in self._clients:
+            self._clients[wp_base] = httpx.AsyncClient(
+                base_url=wp_base,
+                timeout=httpx.Timeout(
+                    connect=settings.http_connect_timeout,
+                    read=settings.http_read_timeout,
+                    write=settings.http_connect_timeout,
+                    pool=settings.http_connect_timeout,
+                ),
+            )
+
+        client = self._clients[wp_base]
+        headers = {
+            "Content-Disposition": f'attachment; filename="{filename}"',
+            "Content-Type": mime_type,
+        }
+
+        start = time.monotonic()
+        resp = await client.post(
+            "media",
+            headers=headers,
+            content=file_bytes,
+            auth=basic_auth,
+        )
+        duration = time.monotonic() - start
+
+        metrics["external_api_calls_total"].labels(
+            system="woocommerce", operation="upload_media", status=resp.status_code,
+        ).inc()
+        metrics["external_api_duration"].labels(
+            system="woocommerce", operation="upload_media",
+        ).observe(duration)
+
+        resp.raise_for_status()
+        return resp.json()
+
+    async def update_order_meta(
+        self,
+        order_id: int,
+        account_name: str,
+        meta_key: str,
+        meta_value: str,
+    ) -> dict[str, Any]:
+        """Add or update a meta field on an order."""
+        return await self.update_order(
+            order_id,
+            account_name,
+            {"meta_data": [{"key": meta_key, "value": meta_value}]},
+        )

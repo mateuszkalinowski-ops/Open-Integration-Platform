@@ -14,6 +14,7 @@ capabilities:
   - sync_stock
   - get_product
   - search_products
+  - upload_invoice
 events:
   - order.created
   - order.status_changed
@@ -22,6 +23,8 @@ actions:
   - order.fetch
   - order.get
   - order.status_update
+  - order.invoice_upload
+  - order.invoices_get
   - stock.sync
   - product.get
   - product.search
@@ -144,6 +147,27 @@ action_fields:
     - field: quantity
       label: "Nowa ilosc"
       type: integer
+      required: true
+  order.invoice_upload:
+    - field: order_id
+      label: "ID zamowienia (checkout form)"
+      type: string
+      required: true
+    - field: invoice_base64
+      label: "Faktura PDF (base64)"
+      type: string
+      required: true
+    - field: invoice_number
+      label: "Numer faktury (np. FV 01/2026)"
+      type: string
+      required: true
+    - field: filename
+      label: "Nazwa pliku"
+      type: string
+  order.invoices_get:
+    - field: order_id
+      label: "ID zamowienia (checkout form)"
+      type: string
       required: true
   product.get:
     - field: product_id
