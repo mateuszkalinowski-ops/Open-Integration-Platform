@@ -12,6 +12,8 @@ from src.schemas import (
     CreateShipmentRequest,
     LabelRequest,
     LoginRequest,
+    RateRequest,
+    StandardizedRateResponse,
     StatusRequest,
     UploadDocumentRequest,
 )
@@ -91,6 +93,25 @@ async def get_status(waybill: str, request: StatusRequest):
     except Exception as exc:
         logger.exception("Failed to get UPS shipment status")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates via UPS Rating API."""
+    try:
+        result, status_code = await integration.get_rates(request)
+        if status_code != HTTPStatus.OK:
+            return StandardizedRateResponse(
+                source="ups",
+                raw={"error": str(result), "status_code": status_code},
+            ).model_dump()
+        return result
+    except Exception as exc:
+        logger.exception("Failed to get UPS rates")
+        return StandardizedRateResponse(
+            source="ups",
+            raw={"error": str(exc)},
+        ).model_dump()
 
 
 @app.post("/upload-documents")

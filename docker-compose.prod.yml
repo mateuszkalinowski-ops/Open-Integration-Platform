@@ -421,6 +421,17 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-fxcouriers:
+    build:
+      context: ./integrators/courier/fxcouriers/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      FXCOURIERS_API_URL: https://fxcouriers.kuriersystem.pl/api/rest
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
     name: pinquark_pgdata

@@ -28,6 +28,7 @@ class ConnectorManifest:
     api_endpoints: list[dict] = field(default_factory=list)
     event_fields: dict[str, list[dict]] = field(default_factory=dict)
     action_fields: dict[str, list[dict]] = field(default_factory=dict)
+    output_fields: dict[str, list[dict]] = field(default_factory=dict)
     health_endpoint: str = "/health"
     docs_url: str = "/docs"
     path: str = ""
@@ -80,6 +81,7 @@ class ConnectorRegistry:
             api_endpoints=data.get("api_endpoints", []),
             event_fields=data.get("event_fields", {}),
             action_fields=data.get("action_fields", {}),
+            output_fields=data.get("output_fields", {}),
             health_endpoint=data.get("health_endpoint", "/health"),
             docs_url=data.get("docs_url", "/docs"),
             path=str(path.parent),

@@ -229,6 +229,7 @@ async def list_connectors(
             api_endpoints=c.api_endpoints,
             event_fields=c.event_fields,
             action_fields=c.action_fields,
+            output_fields=c.output_fields,
         )
         for c in results
     ]
@@ -277,6 +278,7 @@ async def get_connector(category: str, name: str) -> ConnectorResponse:
         api_endpoints=connector.api_endpoints,
         event_fields=connector.event_fields,
         action_fields=connector.action_fields,
+        output_fields=connector.output_fields,
     )
 
 

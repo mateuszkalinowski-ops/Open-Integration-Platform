@@ -29,8 +29,11 @@ from src.schemas import (
     CreateOrderResponse,
     CreateShipmentRequest,
     Parcel,
+    RateProduct,
+    RateRequest,
     ShipmentParty,
     ShipmentPartyResponse,
+    StandardizedRateResponse,
     UpsCredentials,
     UpsExtras,
 )
@@ -289,6 +292,125 @@ class UpsIntegration:
 
         response = await self._client.post(url, json=payload, headers=headers)
         return response.json(), response.status_code
+
+    # ------------------------------------------------------------------
+    # Rating
+    # ------------------------------------------------------------------
+
+    @retry_with_refresh_token
+    async def get_rates(
+        self,
+        credentials: UpsCredentials,
+        request: Any = None,
+    ) -> tuple[Any, int]:
+        """Retrieve shipping rates via the UPS Rating API.
+
+        https://developer.ups.com/api/reference?loc=en_PL#operation/Rate
+        """
+        if request is None:
+            return {"error": "No rate request provided"}, HTTPStatus.BAD_REQUEST
+
+        payload = {
+            "RateRequest": {
+                "Request": {
+                    "RequestOption": "Shop",
+                    "SubVersion": "2205",
+                },
+                "Shipment": {
+                    "Shipper": {
+                        "Address": {
+                            "PostalCode": request.sender_postal_code,
+                            "City": request.sender_city,
+                            "CountryCode": request.sender_country_code,
+                        },
+                        "ShipperNumber": credentials.shipper_number,
+                    },
+                    "ShipTo": {
+                        "Address": {
+                            "PostalCode": request.receiver_postal_code,
+                            "City": request.receiver_city,
+                            "CountryCode": request.receiver_country_code,
+                        },
+                    },
+                    "ShipFrom": {
+                        "Address": {
+                            "PostalCode": request.sender_postal_code,
+                            "City": request.sender_city,
+                            "CountryCode": request.sender_country_code,
+                        },
+                    },
+                    "Package": {
+                        "PackagingType": {"Code": "02"},
+                        "Dimensions": {
+                            "UnitOfMeasurement": {"Code": "CM"},
+                            "Length": str(int(request.length)) if request.length else "1",
+                            "Width": str(int(request.width)) if request.width else "1",
+                            "Height": str(int(request.height)) if request.height else "1",
+                        },
+                        "PackageWeight": {
+                            "UnitOfMeasurement": {"Code": "KGS"},
+                            "Weight": str(round(request.weight, 1)) if request.weight else "1",
+                        },
+                    },
+                },
+            },
+        }
+
+        url = f"{settings.base_url}/api/rating/{settings.ups_api_version}/Shop"
+        headers = self._auth_headers(credentials)
+
+        response = await self._client.post(url, json=payload, headers=headers)
+
+        if response.status_code != HTTPStatus.OK:
+            return await _format_rest_error_response(response)
+
+        raw = response.json()
+        return self._normalize_rate_response(raw).model_dump(), HTTPStatus.OK
+
+    @staticmethod
+    def _normalize_rate_response(raw: dict) -> StandardizedRateResponse:
+        products: list[RateProduct] = []
+        rated_shipments = raw.get("RateResponse", {}).get("RatedShipment", [])
+        if isinstance(rated_shipments, dict):
+            rated_shipments = [rated_shipments]
+
+        service_names = {
+            "01": "UPS Next Day Air", "02": "UPS 2nd Day Air",
+            "03": "UPS Ground", "07": "UPS Worldwide Express",
+            "08": "UPS Worldwide Expedited", "11": "UPS Standard",
+            "12": "UPS 3 Day Select", "14": "UPS Next Day Air Early",
+            "54": "UPS Worldwide Express Plus", "65": "UPS Saver",
+            "70": "UPS Access Point Economy", "71": "UPS Worldwide Express Freight Midday",
+            "72": "UPS Worldwide Economy", "74": "UPS Express 12:00",
+            "75": "UPS Heavy Goods",
+        }
+
+        for shipment in rated_shipments:
+            service_code = shipment.get("Service", {}).get("Code", "")
+            total = shipment.get("TotalCharges", {})
+            price = float(total.get("MonetaryValue", 0))
+            currency = total.get("CurrencyCode", "PLN")
+            name = service_names.get(service_code, f"UPS Service {service_code}")
+
+            days = None
+            if guaranteed := shipment.get("GuaranteedDelivery", {}):
+                try:
+                    days = int(guaranteed.get("BusinessDaysInTransit", 0))
+                except (ValueError, TypeError):
+                    pass
+
+            products.append(RateProduct(
+                name=name,
+                price=price,
+                currency=currency,
+                delivery_days=days,
+                attributes={
+                    "source": "ups",
+                    "service_code": service_code,
+                },
+            ))
+
+        return StandardizedRateResponse(products=products, source="ups", raw=raw)
 
     # ------------------------------------------------------------------
     # Private — auth helpers

@@ -7,7 +7,14 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.integration import GlsIntegration
-from src.schemas import CreateShipmentRequest, GlsCredentials, LabelRequest
+from src.schemas import (
+    CreateShipmentRequest,
+    GlsCredentials,
+    LabelRequest,
+    RateProduct,
+    RateRequest,
+    StandardizedRateResponse,
+)
 
 logging.basicConfig(
     level=settings.log_level,
@@ -69,6 +76,113 @@ async def get_tracking(
         raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates for price comparison workflows.
+
+    GLS SOAP API does not expose a dedicated pricing endpoint.
+    Rates are estimated from published weight-based pricing tiers.
+    """
+    try:
+        is_domestic = request.sender_country_code == request.receiver_country_code == "PL"
+        products = _calculate_gls_rates(
+            weight=request.weight,
+            length=request.length,
+            width=request.width,
+            height=request.height,
+            is_domestic=is_domestic,
+        )
+        return StandardizedRateResponse(
+            products=products,
+            source="gls",
+            raw={"method": "pricing_table", "weight": request.weight},
+        ).model_dump()
+    except Exception as exc:
+        logger.exception("Failed to calculate GLS rates")
+        return StandardizedRateResponse(
+            source="gls",
+            raw={"error": str(exc)},
+        ).model_dump()
+
+
+def _calculate_gls_rates(
+    weight: float,
+    length: float,
+    width: float,
+    height: float,
+    is_domestic: bool,
+) -> list[RateProduct]:
+    """Estimate GLS rates from published weight/size tiers."""
+    volume_weight = (length * width * height) / 5000
+    billable = max(weight, volume_weight)
+    products: list[RateProduct] = []
+
+    if is_domestic:
+        if billable <= 2:
+            base = 10.50
+        elif billable <= 5:
+            base = 12.50
+        elif billable <= 10:
+            base = 14.50
+        elif billable <= 20:
+            base = 17.50
+        elif billable <= 31.5:
+            base = 21.00
+        elif billable <= 40:
+            base = 28.00
+        else:
+            base = 28.00 + (billable - 40) * 0.9
+
+        products.append(RateProduct(
+            name="GLS Business Parcel",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=2,
+            attributes={"source": "gls", "service": "business_parcel"},
+        ))
+        products.append(RateProduct(
+            name="GLS ShopDelivery",
+            price=round(base * 0.82, 2),
+            currency="PLN",
+            delivery_days=3,
+            attributes={"source": "gls", "service": "shop_delivery"},
+        ))
+        if billable <= 31.5:
+            products.append(RateProduct(
+                name="GLS 10:00",
+                price=round(base * 2.3, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "gls", "service": "guarantee_1000"},
+            ))
+            products.append(RateProduct(
+                name="GLS 12:00",
+                price=round(base * 1.9, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "gls", "service": "guarantee_1200"},
+            ))
+    else:
+        if billable <= 5:
+            base = 50.00
+        elif billable <= 10:
+            base = 60.00
+        elif billable <= 20:
+            base = 75.00
+        else:
+            base = 75.00 + (billable - 20) * 2.8
+
+        products.append(RateProduct(
+            name="GLS EuroBusinessParcel",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=5,
+            attributes={"source": "gls", "service": "euro_business_parcel"},
+        ))
+
+    return products
 
 
 @app.post("/labels")

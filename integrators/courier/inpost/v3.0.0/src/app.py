@@ -14,7 +14,10 @@ from src.schemas import (
     PickupHoursRequest,
     PickupRequest,
     PointsQuery,
+    RateProduct,
+    RateRequest,
     ReturnsShipmentRequest,
+    StandardizedRateResponse,
 )
 
 logging.basicConfig(
@@ -218,6 +221,115 @@ async def get_pickup_hours(request: PickupHoursRequest):
         raise
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates for price comparison workflows.
+
+    InPost International API does not expose a dedicated pricing endpoint.
+    Rates are derived from published weight/size-based pricing tables.
+    """
+    try:
+        products = _calculate_inpost_rates(
+            weight=request.weight,
+            length=request.length,
+            width=request.width,
+            height=request.height,
+            sender_country=request.sender_country_code,
+            receiver_country=request.receiver_country_code,
+        )
+        return StandardizedRateResponse(
+            products=products,
+            source="inpost",
+            raw={"method": "pricing_table", "weight": request.weight},
+        ).model_dump()
+    except Exception as exc:
+        logger.exception("Failed to calculate InPost rates")
+        return StandardizedRateResponse(
+            source="inpost",
+            raw={"error": str(exc)},
+        ).model_dump()
+
+
+def _calculate_inpost_rates(
+    weight: float,
+    length: float,
+    width: float,
+    height: float,
+    sender_country: str,
+    receiver_country: str,
+) -> list[RateProduct]:
+    """Estimate InPost rates from published weight/size tiers.
+
+    These are approximate net prices (PLN) for the most common domestic
+    services. Real prices depend on the customer's contract — this provides
+    a reasonable baseline for comparison workflows.
+    """
+    is_domestic = sender_country == receiver_country == "PL"
+    products: list[RateProduct] = []
+
+    volume_weight = (length * width * height) / 5000
+    billable = max(weight, volume_weight)
+
+    if is_domestic:
+        if billable <= 25 and max(length, width, height) <= 41:
+            products.append(RateProduct(
+                name="InPost Paczkomat (A)",
+                price=12.99,
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "inpost", "service": "paczkomat", "size": "A"},
+            ))
+        if billable <= 25 and max(length, width, height) <= 64:
+            products.append(RateProduct(
+                name="InPost Paczkomat (B)",
+                price=13.99,
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "inpost", "service": "paczkomat", "size": "B"},
+            ))
+        if billable <= 25:
+            products.append(RateProduct(
+                name="InPost Paczkomat (C)",
+                price=15.49,
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "inpost", "service": "paczkomat", "size": "C"},
+            ))
+        if billable <= 30:
+            products.append(RateProduct(
+                name="InPost Kurier Standard",
+                price=14.99,
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "inpost", "service": "courier_standard"},
+            ))
+            products.append(RateProduct(
+                name="InPost Kurier Express",
+                price=19.99,
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "inpost", "service": "courier_express"},
+            ))
+    else:
+        if billable <= 30:
+            products.append(RateProduct(
+                name="InPost International Standard",
+                price=39.99,
+                currency="PLN",
+                delivery_days=5,
+                attributes={"source": "inpost", "service": "international_standard"},
+            ))
+            products.append(RateProduct(
+                name="InPost International Express",
+                price=59.99,
+                currency="PLN",
+                delivery_days=3,
+                attributes={"source": "inpost", "service": "international_express"},
+            ))
+
+    return products
 
 
 @app.post("/returns", status_code=201)

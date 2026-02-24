@@ -65,6 +65,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "shipment.cancel": ActionRoute(method="POST", path="/shipments/{shipment_id}/cancel"),
         "pickup_points.list": ActionRoute(method="GET", path="/pickup-points"),
         "return.create": ActionRoute(method="POST", path="/returns"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "allegro": {
         "order.fetch": ActionRoute(method="GET", path="/orders"),
@@ -129,12 +130,14 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "shipment.cancel": ActionRoute(method="DELETE", path="/shipments/{waybill_number}"),
         "label.get": ActionRoute(method="POST", path="/labels"),
         "points.list": ActionRoute(method="GET", path="/points"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "dpd": {
         "shipment.create": ActionRoute(method="POST", path="/shipments"),
         "shipment.status": ActionRoute(method="GET", path="/shipments/{waybill_number}/status"),
         "label.get": ActionRoute(method="POST", path="/labels"),
         "protocol.get": ActionRoute(method="POST", path="/protocol"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "fedex": {
         "shipment.create": ActionRoute(method="POST", path="/shipments"),
@@ -142,6 +145,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "label.get": ActionRoute(method="POST", path="/labels"),
         "tracking.get": ActionRoute(method="GET", path="/tracking/{tracking_number}"),
         "points.list": ActionRoute(method="POST", path="/points"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "fedexpl": {
         "shipment.create": ActionRoute(method="POST", path="/shipments"),
@@ -160,6 +164,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "shipment.create": ActionRoute(method="POST", path="/shipments"),
         "shipment.status": ActionRoute(method="GET", path="/shipments/{waybill_number}/status"),
         "label.get": ActionRoute(method="POST", path="/labels"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "orlenpaczka": {
         "shipment.create": ActionRoute(method="POST", path="/shipments"),
@@ -208,6 +213,7 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "shipment.status": ActionRoute(method="POST", path="/shipments/{waybill}/status"),
         "label.get": ActionRoute(method="POST", path="/labels"),
         "documents.upload": ActionRoute(method="POST", path="/upload-documents"),
+        "rates.get": ActionRoute(method="POST", path="/rates"),
     },
     "woocommerce": {
         "order.fetch": ActionRoute(method="GET", path="/orders", query_from_payload=["account_name", "since", "page", "per_page"]),
@@ -233,7 +239,8 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "shipment.status": ActionRoute(method="GET", path="/shipments/{tracking_number}/status"),
         "label.get": ActionRoute(method="GET", path="/shipments/{tracking_number}/label"),
         "documents.get": ActionRoute(method="GET", path="/shipments/{tracking_number}/documents"),
-        "rates.get": ActionRoute(method="POST", path="/rates"),
+        "rates.get": ActionRoute(method="POST", path="/rates/standardized"),
+        "rates.raw": ActionRoute(method="POST", path="/rates"),
         "pickup.create": ActionRoute(method="POST", path="/pickups"),
         "pickup.cancel": ActionRoute(method="DELETE", path="/pickups/{dispatch_confirmation_number}"),
         "address.validate": ActionRoute(method="GET", path="/address-validate", query_from_payload=["countryCode", "postalCode", "cityName"]),
@@ -248,6 +255,21 @@ _ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
         "label.get": ActionRoute(method="POST", path="/labels"),
         "claim.create": ActionRoute(method="POST", path="/claims"),
         "delivery_confirmation.get": ActionRoute(method="GET", path="/deliveries/{waybill_number}/confirmation"),
+    },
+    "fxcouriers": {
+        "shipment.create": ActionRoute(method="POST", path="/shipments"),
+        "shipment.status": ActionRoute(method="GET", path="/shipments/{order_id}/status", query_from_payload=["api_token"]),
+        "shipment.get": ActionRoute(method="GET", path="/shipments/{order_id}", query_from_payload=["api_token"]),
+        "shipment.find_by_number": ActionRoute(method="GET", path="/shipments/by-number/{order_number}", query_from_payload=["api_token"]),
+        "shipment.cancel": ActionRoute(method="DELETE", path="/shipments/{order_id}", query_from_payload=["api_token"]),
+        "shipment.list": ActionRoute(method="GET", path="/shipments", query_from_payload=["api_token", "since", "offset", "company_id"]),
+        "tracking.get": ActionRoute(method="GET", path="/tracking/{order_id}", query_from_payload=["api_token"]),
+        "label.get": ActionRoute(method="POST", path="/labels"),
+        "pickup.create": ActionRoute(method="POST", path="/pickups"),
+        "pickup.get": ActionRoute(method="GET", path="/pickups/{order_id}", query_from_payload=["api_token"]),
+        "pickup.cancel": ActionRoute(method="DELETE", path="/pickups/{order_id}", query_from_payload=["api_token"]),
+        "services.list": ActionRoute(method="GET", path="/services", query_from_payload=["api_token"]),
+        "company.get": ActionRoute(method="GET", path="/company/{company_id}", query_from_payload=["api_token"]),
     },
     "skanuj-fakture": {
         "document.upload": ActionRoute(
@@ -332,6 +354,7 @@ _CONNECTOR_SERVICE_NAMES: dict[str, str] = {
     "ai-agent": "connector-ai-agent",
     "skanuj-fakture": "connector-skanuj-fakture",
     "raben": "connector-raben",
+    "fxcouriers": "connector-fxcouriers",
 }
 
 
@@ -517,6 +540,13 @@ async def dispatch_action(
                 "gemini_api_key": credentials.get("gemini_api_key", ""),
                 "model_name": credentials.get("model_name", "gemini-2.5-flash"),
             }
+        elif connector_name == "fxcouriers":
+            payload["api_token"] = credentials.get("api_token", "")
+            if "credentials" not in payload:
+                payload["credentials"] = {
+                    "api_token": credentials.get("api_token", ""),
+                    "company_id": credentials.get("company_id"),
+                }
         elif connector_name == "skanuj-fakture":
             account_name = await _ensure_skanuj_fakture_account(base_url, credentials)
             payload["account_name"] = account_name

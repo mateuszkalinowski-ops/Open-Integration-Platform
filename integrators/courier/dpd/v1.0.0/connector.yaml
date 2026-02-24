@@ -12,12 +12,14 @@ capabilities:
   - get_label
   - get_shipment_status
   - generate_protocol
+  - get_rates
 events:
   - shipment.status_changed
 actions:
   - shipment.create
   - label.get
   - protocol.generate
+  - rates.get
 config_schema:
   required:
     - login

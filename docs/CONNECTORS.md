@@ -52,6 +52,64 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 29 | Geis | Courier | v1.0.0 | SOAP (WSDL) | `customer_code`, `password` |
 | 30 | AI Agent | AI | v1.0.0 | REST (Google Gemini) | `gemini_api_key` |
 | 31 | Apilo | E-commerce | v1.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
+| 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
+
+---
+
+## Standardized Rate Comparison (rates.get)
+
+All major courier connectors expose a `rates.get` action that returns shipping rates in a standardized format. This enables the **shipping price comparison workflow** via the Workflow Engine's `parallel` + `aggregate` nodes.
+
+### Standardized Response Format
+
+```json
+{
+  "products": [
+    {
+      "name": "Service Name",
+      "price": 15.99,
+      "currency": "PLN",
+      "delivery_days": 2,
+      "delivery_date": "",
+      "attributes": {
+        "source": "connector-name",
+        "service": "service_code"
+      }
+    }
+  ],
+  "source": "connector-name",
+  "raw": {}
+}
+```
+
+### Standardized Request Payload
+
+```json
+{
+  "senderPostalCode": "00-001",
+  "senderCountryCode": "PL",
+  "receiverPostalCode": "30-001",
+  "receiverCountryCode": "PL",
+  "weight": 5.0,
+  "length": 30,
+  "width": 20,
+  "height": 15
+}
+```
+
+### Connector Rate Sources
+
+| Connector | Rate Method | Notes |
+|-----------|-----------|-------|
+| DHL Express | **Live API** (`POST /rates/standardized`) | Real-time pricing from MyDHL Express Rating API |
+| UPS | **Live API** (`POST /rates`) | Real-time pricing from UPS Rating API (Shop mode) |
+| FedEx | **Live API** (`POST /rates`) | Real-time pricing from FedEx Rate API |
+| InPost | Pricing table (`POST /rates`) | Estimated from published weight/size tiers |
+| DHL Parcel Poland | Pricing table (`POST /rates`) | Estimated from published weight/size tiers |
+| DPD | Pricing table (`POST /rates`) | Estimated from published weight/size tiers |
+| GLS | Pricing table (`POST /rates`) | Estimated from published weight/size tiers |
+
+Connectors with "Pricing table" method return approximate baseline rates. Actual contract prices may differ — override via per-tenant field mappings or a custom `transform` node in the workflow.
 
 ---
 
@@ -298,6 +356,33 @@ Features:
 - Shipment details retrieval
 
 Protocol: SOAP (WSDL).
+
+---
+
+### FX Couriers (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `api_token` | Yes | Bearer API token (provided by FX Couriers sales representative) |
+| `company_id` | No | Company ID for multi-company accounts |
+
+Environment variables:
+```bash
+REST_TIMEOUT=30
+FXCOURIERS_API_URL=https://fxcouriers.kuriersystem.pl/api/rest
+```
+
+Features:
+- Transport order creation and management
+- Shipping label generation (PDF)
+- Shipment pickup scheduling with time windows
+- Order tracking and status monitoring
+- Service and package configuration retrieval
+- Company info management
+- Additional services: insurance (UBEZPIECZENIE), COD (POBRANIE), fuel surcharge (OPLATA_PALIWOWA)
+- Bearer token authentication (static token, no OAuth flow)
+
+Protocol: REST (Bearer Token Authentication).
 
 ---
 

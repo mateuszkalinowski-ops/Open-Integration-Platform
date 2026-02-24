@@ -1074,6 +1074,32 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       }
     }
 
+    const actionNodes = this.allNodes.filter(
+      n => n.type === 'action' && n.id !== this.node?.id,
+    );
+    for (const an of actionNodes) {
+      const connectorName = an.config['connector_name'] as string;
+      const actionName = an.config['action'] as string;
+      if (!connectorName || !actionName) continue;
+
+      const c = this.connectors.find(cn => cn.name === connectorName);
+      const outFields = c?.output_fields?.[actionName] ?? [];
+      if (outFields.length === 0) continue;
+
+      const displayLabel = an.label || `${connectorName}/${actionName}`;
+      for (const f of outFields) {
+        const fieldPath = `nodes.${an.id}.${f.field}`;
+        if (!seen.has(fieldPath)) {
+          seen.add(fieldPath);
+          fields.push({
+            field: fieldPath,
+            label: `[${displayLabel}] ${f.label}`,
+            type: f.type,
+          });
+        }
+      }
+    }
+
     const thinkNodes = this.allNodes.filter(
       n => n.type === 'think' && n.id !== this.node?.id,
     );

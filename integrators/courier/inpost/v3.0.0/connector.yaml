@@ -17,6 +17,7 @@ capabilities:
   - create_pickup_order
   - get_pickup_cutoff_time
   - get_return_label
+  - get_rates
 events:
   - shipment.status_changed
   - shipment.created
@@ -28,6 +29,7 @@ actions:
   - return.create
   - pickup_order.create
   - return_label.get
+  - rates.get
 event_fields:
   shipment.status_changed:
     - field: shipment_id

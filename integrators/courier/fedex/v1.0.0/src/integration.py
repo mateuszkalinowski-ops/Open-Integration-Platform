@@ -20,7 +20,7 @@ from http import HTTPStatus
 import httpx
 
 from src.config import settings
-from src.schemas import FedexCredentials
+from src.schemas import FedexCredentials, RateProduct, StandardizedRateResponse
 
 logger = logging.getLogger("courier-fedex")
 
@@ -480,6 +480,112 @@ class FedexIntegration:
             points[fedex_point["locationId"]] = point
 
         return points, response.status_code
+
+    # ------------------------------------------------------------------
+    # Rating
+    # ------------------------------------------------------------------
+
+    async def get_rates(
+        self,
+        credentials: FedexCredentials,
+        request: object,
+    ) -> tuple[dict | str, int]:
+        """Retrieve shipping rates via FedEx Rate API (/rate/v1/rates/quotes)."""
+        access_token = await self._get_oauth_token(
+            credentials.client_id, credentials.client_secret,
+        )
+        if not access_token:
+            return "FedEx token acquisition failed", HTTPStatus.BAD_REQUEST
+
+        payload = {
+            "accountNumber": {"value": getattr(request, "account_id", "")},
+            "requestedShipment": {
+                "shipper": {
+                    "address": {
+                        "postalCode": getattr(request, "sender_postal_code", ""),
+                        "city": getattr(request, "sender_city", ""),
+                        "countryCode": getattr(request, "sender_country_code", "PL"),
+                    },
+                },
+                "recipient": {
+                    "address": {
+                        "postalCode": getattr(request, "receiver_postal_code", ""),
+                        "city": getattr(request, "receiver_city", ""),
+                        "countryCode": getattr(request, "receiver_country_code", "PL"),
+                    },
+                },
+                "pickupType": "DROPOFF_AT_FEDEX_LOCATION",
+                "rateRequestType": ["LIST", "ACCOUNT"],
+                "requestedPackageLineItems": [
+                    {
+                        "weight": {
+                            "units": "KG",
+                            "value": getattr(request, "weight", 1),
+                        },
+                        "dimensions": {
+                            "length": int(getattr(request, "length", 1)),
+                            "width": int(getattr(request, "width", 1)),
+                            "height": int(getattr(request, "height", 1)),
+                            "units": "CM",
+                        },
+                    },
+                ],
+            },
+        }
+
+        async with httpx.AsyncClient(timeout=settings.rest_timeout) as client:
+            response = await client.post(
+                f"{settings.fedex_api_url}rate/v1/rates/quotes",
+                headers=self._get_headers(access_token),
+                json=payload,
+            )
+
+        if response.status_code != HTTPStatus.OK:
+            return self._pack_errors(response)
+
+        raw = response.json()
+        return self._normalize_rate_response(raw).model_dump(), HTTPStatus.OK
+
+    @staticmethod
+    def _normalize_rate_response(raw: dict) -> StandardizedRateResponse:
+        products: list[RateProduct] = []
+        rate_details = raw.get("output", {}).get("rateReplyDetails", [])
+
+        for detail in rate_details:
+            service_type = detail.get("serviceType", "")
+            service_name = detail.get("serviceName", service_type)
+
+            rated = detail.get("ratedShipmentDetails", [])
+            if not rated:
+                continue
+
+            charges = rated[0].get("totalNetCharge", 0)
+            currency = rated[0].get("currency", "PLN")
+            if isinstance(charges, str):
+                charges = float(charges)
+
+            transit_days = None
+            if transit := detail.get("commit", {}):
+                if date_detail := transit.get("dateDetail", {}):
+                    transit_days_str = date_detail.get("dayCount")
+                    if transit_days_str:
+                        try:
+                            transit_days = int(transit_days_str)
+                        except (ValueError, TypeError):
+                            pass
+
+            products.append(RateProduct(
+                name=service_name,
+                price=float(charges),
+                currency=currency,
+                delivery_days=transit_days,
+                attributes={
+                    "source": "fedex",
+                    "service_type": service_type,
+                },
+            ))
+
+        return StandardizedRateResponse(products=products, source="fedex", raw=raw)
 
     # ------------------------------------------------------------------
     # Tracking

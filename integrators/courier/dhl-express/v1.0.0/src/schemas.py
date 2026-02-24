@@ -147,14 +147,14 @@ class CreateShipmentRequest(BaseModel):
 # ---------------------------------------------------------------------------
 
 class RateRequest(BaseModel):
-    shipper_country_code: str = Field(..., alias="shipperCountryCode")
+    shipper_country_code: str = Field("PL", alias="shipperCountryCode")
     shipper_postal_code: str = Field("", alias="shipperPostalCode")
     shipper_city: str = Field("", alias="shipperCity")
-    receiver_country_code: str = Field(..., alias="receiverCountryCode")
+    receiver_country_code: str = Field("PL", alias="receiverCountryCode")
     receiver_postal_code: str = Field("", alias="receiverPostalCode")
     receiver_city: str = Field("", alias="receiverCity")
-    planned_shipping_date: str = Field(..., alias="plannedShippingDate")
-    weight: float
+    planned_shipping_date: str = Field("", alias="plannedShippingDate")
+    weight: float = 0
     length: float = 0
     width: float = 0
     height: float = 0
@@ -189,3 +189,22 @@ class TrackingQuery(BaseModel):
     tracking_number: str
     tracking_view: str = "all-checkpoints"
     level_of_detail: str = "all"
+
+
+# ---------------------------------------------------------------------------
+# Standardized rate response (used by shipping price comparison workflow)
+# ---------------------------------------------------------------------------
+
+class RateProduct(BaseModel):
+    name: str
+    price: float
+    currency: str = "PLN"
+    delivery_days: int | None = None
+    delivery_date: str = ""
+    attributes: dict = Field(default_factory=dict)
+
+
+class StandardizedRateResponse(BaseModel):
+    products: list[RateProduct] = Field(default_factory=list)
+    source: str = ""
+    raw: dict = Field(default_factory=dict)

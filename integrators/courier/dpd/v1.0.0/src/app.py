@@ -13,6 +13,9 @@ from src.schemas import (
     DpdInfoCredentials,
     LabelRequest,
     ProtocolRequest,
+    RateProduct,
+    RateRequest,
+    StandardizedRateResponse,
 )
 
 logging.basicConfig(
@@ -100,6 +103,111 @@ async def get_label(request: LabelRequest):
     except Exception as exc:
         logger.exception("Failed to get DPD label")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates for price comparison workflows.
+
+    DPD SOAP API does not expose a public rating endpoint.
+    Rates are estimated from published weight-based pricing tiers.
+    """
+    try:
+        is_domestic = request.sender_country_code == request.receiver_country_code == "PL"
+        products = _calculate_dpd_rates(
+            weight=request.weight,
+            length=request.length,
+            width=request.width,
+            height=request.height,
+            is_domestic=is_domestic,
+        )
+        return StandardizedRateResponse(
+            products=products,
+            source="dpd",
+            raw={"method": "pricing_table", "weight": request.weight},
+        ).model_dump()
+    except Exception as exc:
+        logger.exception("Failed to calculate DPD rates")
+        return StandardizedRateResponse(
+            source="dpd",
+            raw={"error": str(exc)},
+        ).model_dump()
+
+
+def _calculate_dpd_rates(
+    weight: float,
+    length: float,
+    width: float,
+    height: float,
+    is_domestic: bool,
+) -> list[RateProduct]:
+    """Estimate DPD rates from published weight/size tiers."""
+    volume_weight = (length * width * height) / 5000
+    billable = max(weight, volume_weight)
+    products: list[RateProduct] = []
+
+    if is_domestic:
+        if billable <= 1:
+            base = 11.50
+        elif billable <= 5:
+            base = 13.50
+        elif billable <= 10:
+            base = 15.50
+        elif billable <= 20:
+            base = 18.50
+        elif billable <= 31.5:
+            base = 22.00
+        else:
+            base = 22.00 + (billable - 31.5) * 0.8
+
+        products.append(RateProduct(
+            name="DPD Classic",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=2,
+            attributes={"source": "dpd", "service": "classic"},
+        ))
+        products.append(RateProduct(
+            name="DPD Pickup",
+            price=round(base * 0.85, 2),
+            currency="PLN",
+            delivery_days=3,
+            attributes={"source": "dpd", "service": "pickup"},
+        ))
+        if billable <= 31.5:
+            products.append(RateProduct(
+                name="DPD 9:30",
+                price=round(base * 2.2, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "dpd", "service": "guarantee_0930"},
+            ))
+            products.append(RateProduct(
+                name="DPD 12:00",
+                price=round(base * 1.8, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "dpd", "service": "guarantee_1200"},
+            ))
+    else:
+        if billable <= 5:
+            base = 45.00
+        elif billable <= 10:
+            base = 55.00
+        elif billable <= 20:
+            base = 70.00
+        else:
+            base = 70.00 + (billable - 20) * 2.5
+
+        products.append(RateProduct(
+            name="DPD Classic International",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=5,
+            attributes={"source": "dpd", "service": "classic_international"},
+        ))
+
+    return products
 
 
 @app.post("/protocol")

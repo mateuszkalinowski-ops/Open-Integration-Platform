@@ -15,6 +15,7 @@ export interface Connector {
   api_endpoints: ApiEndpoint[];
   event_fields: Record<string, ConnectorFieldDef[]>;
   action_fields: Record<string, ConnectorFieldDef[]>;
+  output_fields: Record<string, ConnectorFieldDef[]>;
 }
 
 export const COUNTRY_FLAG_MAP: Record<string, string> = {

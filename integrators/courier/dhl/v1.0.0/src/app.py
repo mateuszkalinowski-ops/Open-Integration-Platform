@@ -7,7 +7,14 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.integration import DhlIntegration
-from src.schemas import CreateShipmentRequest, DhlCredentials, LabelRequest
+from src.schemas import (
+    CreateShipmentRequest,
+    DhlCredentials,
+    LabelRequest,
+    RateProduct,
+    RateRequest,
+    StandardizedRateResponse,
+)
 
 logging.basicConfig(
     level=settings.log_level,
@@ -87,6 +94,111 @@ async def get_label(request: LabelRequest):
     except Exception as exc:
         logger.exception("Failed to get DHL label")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates for price comparison workflows.
+
+    DHL Parcel Poland SOAP API does not expose a public rating endpoint.
+    Rates are estimated from published weight-based pricing tiers.
+    """
+    try:
+        is_domestic = request.sender_country_code == request.receiver_country_code == "PL"
+        products = _calculate_dhl_rates(
+            weight=request.weight,
+            length=request.length,
+            width=request.width,
+            height=request.height,
+            is_domestic=is_domestic,
+        )
+        return StandardizedRateResponse(
+            products=products,
+            source="dhl",
+            raw={"method": "pricing_table", "weight": request.weight},
+        ).model_dump()
+    except Exception as exc:
+        logger.exception("Failed to calculate DHL Parcel rates")
+        return StandardizedRateResponse(
+            source="dhl",
+            raw={"error": str(exc)},
+        ).model_dump()
+
+
+def _calculate_dhl_rates(
+    weight: float,
+    length: float,
+    width: float,
+    height: float,
+    is_domestic: bool,
+) -> list[RateProduct]:
+    """Estimate DHL Parcel Poland rates from published weight/size tiers."""
+    volume_weight = (length * width * height) / 5000
+    billable = max(weight, volume_weight)
+    products: list[RateProduct] = []
+
+    if is_domestic:
+        if billable <= 1:
+            base = 11.00
+        elif billable <= 5:
+            base = 13.00
+        elif billable <= 10:
+            base = 15.00
+        elif billable <= 20:
+            base = 18.00
+        elif billable <= 31.5:
+            base = 21.50
+        else:
+            base = 21.50 + (billable - 31.5) * 0.85
+
+        products.append(RateProduct(
+            name="DHL Parcel Standard",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=2,
+            attributes={"source": "dhl", "service": "standard"},
+        ))
+        products.append(RateProduct(
+            name="DHL Parcel Connect",
+            price=round(base * 0.88, 2),
+            currency="PLN",
+            delivery_days=3,
+            attributes={"source": "dhl", "service": "parcel_connect"},
+        ))
+        if billable <= 31.5:
+            products.append(RateProduct(
+                name="DHL Parcel 9:00",
+                price=round(base * 2.1, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "dhl", "service": "guarantee_0900"},
+            ))
+            products.append(RateProduct(
+                name="DHL Parcel 12:00",
+                price=round(base * 1.7, 2),
+                currency="PLN",
+                delivery_days=1,
+                attributes={"source": "dhl", "service": "guarantee_1200"},
+            ))
+    else:
+        if billable <= 5:
+            base = 48.00
+        elif billable <= 10:
+            base = 58.00
+        elif billable <= 20:
+            base = 72.00
+        else:
+            base = 72.00 + (billable - 20) * 2.5
+
+        products.append(RateProduct(
+            name="DHL Parcel International",
+            price=round(base, 2),
+            currency="PLN",
+            delivery_days=5,
+            attributes={"source": "dhl", "service": "international"},
+        ))
+
+    return products
 
 
 @app.delete("/shipments/{waybill_number}")

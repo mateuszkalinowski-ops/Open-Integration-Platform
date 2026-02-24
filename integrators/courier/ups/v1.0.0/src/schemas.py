@@ -177,3 +177,38 @@ class CreateOrderResponse(BaseModel):
     order_status: str = Field(default="CREATED", alias="orderStatus")
 
     model_config = {"populate_by_name": True}
+
+
+# ---------------------------------------------------------------------------
+# Rate request / standardized response (for shipping price comparison)
+# ---------------------------------------------------------------------------
+
+class RateRequest(BaseModel):
+    credentials: UpsCredentials | None = None
+    sender_postal_code: str = Field("", alias="senderPostalCode")
+    sender_city: str = Field("", alias="senderCity")
+    sender_country_code: str = Field("PL", alias="senderCountryCode")
+    receiver_postal_code: str = Field("", alias="receiverPostalCode")
+    receiver_city: str = Field("", alias="receiverCity")
+    receiver_country_code: str = Field("PL", alias="receiverCountryCode")
+    weight: float = 0
+    length: float = 0
+    width: float = 0
+    height: float = 0
+
+    model_config = {"populate_by_name": True}
+
+
+class RateProduct(BaseModel):
+    name: str
+    price: float
+    currency: str = "PLN"
+    delivery_days: int | None = None
+    delivery_date: str = ""
+    attributes: dict = Field(default_factory=dict)
+
+
+class StandardizedRateResponse(BaseModel):
+    products: list[RateProduct] = Field(default_factory=list)
+    source: str = ""
+    raw: dict = Field(default_factory=dict)

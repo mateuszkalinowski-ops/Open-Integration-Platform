@@ -13,6 +13,7 @@ capabilities:
   - get_shipment_status
   - cancel_shipment
   - get_pickup_points
+  - get_rates
 events:
   - shipment.status_changed
 actions:
@@ -20,6 +21,7 @@ actions:
   - label.get
   - shipment.cancel
   - pickup_points.list
+  - rates.get
 config_schema:
   required:
     - username

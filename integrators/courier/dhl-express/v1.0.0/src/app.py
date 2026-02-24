@@ -11,7 +11,7 @@ from fastapi.responses import JSONResponse
 
 from src.config import settings
 from src.integration import DhlExpressError, DhlExpressIntegration
-from src.schemas import CreateShipmentRequest, PickupRequest, RateRequest
+from src.schemas import CreateShipmentRequest, PickupRequest, RateProduct, RateRequest, StandardizedRateResponse
 
 logging.basicConfig(
     level=settings.log_level,
@@ -136,6 +136,83 @@ async def get_rates(request: RateRequest) -> dict:
         raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
     except Exception as exc:
         raise HTTPException(status_code=500, detail=str(exc)) from exc
+
+
+@app.post("/rates/standardized")
+async def get_rates_standardized(request: RateRequest) -> dict:
+    """Return shipping rates in the standardized format for price comparison workflows."""
+    payload = {
+        "customerDetails": {
+            "shipperDetails": {
+                "postalCode": request.shipper_postal_code,
+                "cityName": request.shipper_city,
+                "countryCode": request.shipper_country_code,
+            },
+            "receiverDetails": {
+                "postalCode": request.receiver_postal_code,
+                "cityName": request.receiver_city,
+                "countryCode": request.receiver_country_code,
+            },
+        },
+        "plannedShippingDateAndTime": request.planned_shipping_date,
+        "unitOfMeasurement": request.unit_of_measurement,
+        "isCustomsDeclarable": request.is_customs_declarable,
+        "packages": [
+            {
+                "weight": request.weight,
+                "dimensions": {
+                    "length": request.length,
+                    "width": request.width,
+                    "height": request.height,
+                },
+            },
+        ],
+    }
+    try:
+        raw_result, _ = await integration.get_rates(payload)
+        return _normalize_dhl_express_rates(raw_result).model_dump()
+    except DhlExpressError as exc:
+        return StandardizedRateResponse(
+            source="dhl-express",
+            raw={"error": str(exc.detail), "status_code": exc.status_code},
+        ).model_dump()
+    except Exception as exc:
+        return StandardizedRateResponse(
+            source="dhl-express",
+            raw={"error": str(exc)},
+        ).model_dump()
+
+
+def _normalize_dhl_express_rates(raw: dict) -> StandardizedRateResponse:
+    products: list[RateProduct] = []
+    for exchange in raw.get("products", []):
+        price = 0.0
+        currency = "USD"
+        for charge in exchange.get("totalPrice", []):
+            if charge.get("priceCurrency"):
+                currency = charge["priceCurrency"]
+                price = float(charge.get("price", 0))
+                break
+
+        delivery_date = ""
+        delivery_days = None
+        if delivery := exchange.get("deliveryCapabilities", {}):
+            delivery_date = delivery.get("estimatedDeliveryDateAndTime", "")
+
+        products.append(RateProduct(
+            name=exchange.get("productName", exchange.get("productCode", "unknown")),
+            price=price,
+            currency=currency,
+            delivery_days=delivery_days,
+            delivery_date=delivery_date,
+            attributes={
+                "source": "dhl-express",
+                "product_code": exchange.get("productCode", ""),
+                "weight_unit": exchange.get("weight", {}).get("unitOfMeasurement", ""),
+            },
+        ))
+
+    return StandardizedRateResponse(products=products, source="dhl-express", raw=raw)
 
 
 @app.get("/products")

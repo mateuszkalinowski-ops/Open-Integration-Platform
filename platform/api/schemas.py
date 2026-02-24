@@ -55,6 +55,7 @@ class ConnectorResponse(BaseModel):
     api_endpoints: list[dict] = Field(default_factory=list)
     event_fields: dict[str, list[dict]] = Field(default_factory=dict)
     action_fields: dict[str, list[dict]] = Field(default_factory=dict)
+    output_fields: dict[str, list[dict]] = Field(default_factory=dict)
 
 
 class ConnectorInstanceCreate(BaseModel):

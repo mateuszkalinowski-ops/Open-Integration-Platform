@@ -13,6 +13,8 @@ from src.schemas import (
     FedexCredentials,
     LabelRequest,
     PointsRequest,
+    RateRequest,
+    StandardizedRateResponse,
 )
 
 logging.basicConfig(
@@ -76,6 +78,27 @@ async def get_label(request: LabelRequest):
     except Exception as exc:
         logger.exception("Failed to get FedEx label")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+@app.post("/rates")
+async def get_rates(request: RateRequest):
+    """Return standardized shipping rates via FedEx Rate API."""
+    try:
+        result, status_code = await integration.get_rates(
+            request.credentials, request,
+        )
+        if status_code != 200:
+            return StandardizedRateResponse(
+                source="fedex",
+                raw={"error": str(result), "status_code": status_code},
+            ).model_dump()
+        return result
+    except Exception as exc:
+        logger.exception("Failed to get FedEx rates")
+        return StandardizedRateResponse(
+            source="fedex",
+            raw={"error": str(exc)},
+        ).model_dump()
 
 
 @app.post("/points")
