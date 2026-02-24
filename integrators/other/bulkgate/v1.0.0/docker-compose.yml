@@ -1,0 +1,24 @@
+services:
+  bulkgate-sms:
+    build: .
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    networks:
+      - other-net
+    restart: unless-stopped
+
+  test-runner:
+    build: .
+    command: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    env_file:
+      - .env
+    networks:
+      - other-net
+    profiles:
+      - test
+
+networks:
+  other-net:
+    driver: bridge

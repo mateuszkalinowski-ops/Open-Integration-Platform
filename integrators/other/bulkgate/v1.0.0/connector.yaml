@@ -1,0 +1,172 @@
+name: bulkgate
+category: other
+version: 1.0.0
+display_name: "BulkGate SMS Gateway"
+description: "BulkGate SMS Gateway integration — transactional SMS, bulk/promotional SMS, multi-channel messaging (Viber, WhatsApp, RCS), credit balance, delivery reports via webhook."
+website_url: "https://www.bulkgate.com"
+country: CZ
+logo_url: /assets/logos/bulkgate.svg
+interface: sms_gateway
+capabilities:
+  - send_transactional_sms
+  - send_promotional_sms
+  - send_advanced_sms
+  - check_credit_balance
+  - receive_delivery_reports
+events:
+  - sms.delivery_report
+  - sms.incoming
+actions:
+  - sms.send_transactional
+  - sms.send_promotional
+  - sms.send_advanced
+  - account.check_balance
+event_fields:
+  sms.delivery_report:
+    - field: sms_id
+      label: "SMS message ID"
+      type: string
+    - field: number
+      label: "Recipient number"
+      type: string
+    - field: status
+      label: "Delivery status"
+      type: string
+    - field: timestamp
+      label: "Status timestamp"
+      type: datetime
+  sms.incoming:
+    - field: sender
+      label: "Sender number"
+      type: string
+    - field: text
+      label: "Message text"
+      type: string
+    - field: timestamp
+      label: "Received at"
+      type: datetime
+
+action_fields:
+  sms.send_transactional:
+    - field: number
+      label: "Recipient phone number"
+      type: string
+      required: true
+    - field: text
+      label: "Message text (max 612 chars)"
+      type: string
+      required: true
+    - field: sender_id
+      label: "Sender ID type"
+      type: select
+      options: [gSystem, gShort, gText, gOwn, gProfile]
+    - field: sender_id_value
+      label: "Sender ID value"
+      type: string
+    - field: unicode
+      label: "Unicode SMS"
+      type: boolean
+    - field: country
+      label: "Country code (ISO 3166-1 alpha-2)"
+      type: string
+    - field: schedule
+      label: "Scheduled send time (ISO 8601)"
+      type: datetime
+  sms.send_promotional:
+    - field: numbers
+      label: "Recipient numbers (semicolon separated)"
+      type: string
+      required: true
+    - field: text
+      label: "Message text (max 612 chars)"
+      type: string
+      required: true
+    - field: sender_id
+      label: "Sender ID type"
+      type: select
+      options: [gSystem, gShort, gText, gOwn, gProfile]
+    - field: sender_id_value
+      label: "Sender ID value"
+      type: string
+    - field: unicode
+      label: "Unicode SMS"
+      type: boolean
+    - field: country
+      label: "Country code (ISO 3166-1 alpha-2)"
+      type: string
+    - field: schedule
+      label: "Scheduled send time (ISO 8601)"
+      type: datetime
+    - field: duplicates_check
+      label: "Remove duplicate messages"
+      type: boolean
+  sms.send_advanced:
+    - field: number
+      label: "Recipient number(s)"
+      type: "string[]"
+      required: true
+    - field: text
+      label: "Message text with variable placeholders"
+      type: string
+      required: true
+    - field: variables
+      label: "Template variables"
+      type: object
+    - field: channel
+      label: "Multi-channel cascade config"
+      type: object
+    - field: country
+      label: "Country code (ISO 3166-1 alpha-2)"
+      type: string
+    - field: schedule
+      label: "Scheduled send time (ISO 8601)"
+      type: datetime
+  account.check_balance:
+    - field: (none)
+      label: "No additional fields required"
+      type: string
+
+config_schema:
+  required:
+    - application_id
+    - application_token
+  optional:
+    - sender_id
+    - sender_id_value
+    - default_country
+    - unicode
+    - webhook_url
+  field_types:
+    sender_id:
+      type: select
+      label: "Default sender ID type"
+      default: gSystem
+      options:
+        - value: gSystem
+          label: "System number"
+        - value: gShort
+          label: "Short Code"
+        - value: gText
+          label: "Text sender"
+        - value: gOwn
+          label: "Own Number"
+        - value: gProfile
+          label: "BulkGate Profile ID"
+    sender_id_value:
+      type: string
+      label: "Default sender ID value"
+      default: ""
+    default_country:
+      type: string
+      label: "Default country code (ISO 3166-1 alpha-2)"
+      default: ""
+    unicode:
+      type: boolean
+      label: "Enable Unicode SMS by default"
+      default: false
+    webhook_url:
+      type: string
+      label: "Delivery report webhook URL"
+      default: ""
+health_endpoint: /health
+docs_url: /docs

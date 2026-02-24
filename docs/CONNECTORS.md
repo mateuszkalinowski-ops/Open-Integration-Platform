@@ -45,6 +45,8 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 23 | BaseLinker | E-commerce | v1.0.0 | REST (API Token) | `api_token` |
 | 24 | Raben Group | Courier | v1.0.0 | REST (JWT) | `username`, `password` |
 | 25 | WooCommerce | E-commerce | v1.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
+| 26 | Slack | Other | v1.0.0 | REST (Bot Token) | `bot_token` |
+| 27 | BulkGate | Other | v1.0.0 | REST (API Token) | `application_id`, `application_token` |
 
 ---
 
@@ -668,6 +670,95 @@ Features:
 - Multi-account SkanujFakture support
 
 Protocol: REST (Basic Authentication).
+
+---
+
+### Slack (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `bot_token` | Yes | Bot User OAuth Token (`xoxb-...`) |
+| `app_token` | No | App-Level Token for Socket Mode (`xapp-...`) |
+| `default_channel` | No | Default channel for sending messages (default: `general`) |
+
+Environment variables:
+```bash
+SLACK_POLLING_ENABLED=true                 # Automatic message polling
+SLACK_POLLING_INTERVAL_SECONDS=30          # How often to check for new messages (seconds)
+KAFKA_ENABLED=false                        # Publish to Kafka
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+Slack account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: my-workspace
+    bot_token: "xoxb-your-bot-token"
+    app_token: "xapp-your-app-token"  # optional
+    default_channel: "general"
+    environment: production
+```
+
+Features:
+- Sending messages to channels and threads (Block Kit support)
+- Fetching channel message history with time range filtering
+- Listing channels (public, private, IM, MPIM)
+- File uploads to channels
+- Adding emoji reactions to messages
+- Automatic polling for new messages (every 30s by default)
+- Publishing to Kafka (`slack.output.other.messages.received`)
+- Multi-workspace support
+- User name resolution with caching
+- Prometheus metrics for Slack API operations
+
+Protocol: REST (Slack Web API, Bearer Token authentication).
+
+### BulkGate SMS Gateway (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `application_id` | Yes | BulkGate Application ID |
+| `application_token` | Yes | BulkGate Application Token |
+| `sender_id` | No | Default sender ID type (default: `gSystem`) |
+| `sender_id_value` | No | Default sender ID value |
+| `default_country` | No | Default country code (ISO 3166-1 alpha-2) |
+| `unicode` | No | Enable Unicode SMS by default (default: `false`) |
+| `webhook_url` | No | Delivery report webhook URL |
+
+Environment variables:
+```bash
+APP_ENV=production
+BULKGATE_API_URL=https://portal.bulkgate.com
+REST_TIMEOUT=30
+```
+
+BulkGate account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: main-sms
+    application_id: "12345"
+    application_token: "your-token"
+    sender_id: "gText"
+    sender_id_value: "MyCompany"
+    default_country: "CZ"
+    unicode: false
+    environment: production
+```
+
+Features:
+- Transactional SMS (single recipient, high priority)
+- Promotional/Bulk SMS (multiple recipients)
+- Advanced transactional SMS with template variables and multi-channel cascade (SMS → Viber)
+- Credit balance checking
+- Delivery report webhooks
+- Incoming SMS webhooks (replies)
+- Sender ID types: system number, short code, text sender, own number, BulkGate profile
+- Scheduled sending (ISO 8601 / unix timestamp)
+- Unicode SMS support
+- Duplicate message prevention
+- Coverage: 200+ countries
+
+Protocol: REST (BulkGate HTTP API, Application ID + Token authentication).
 
 ---
 

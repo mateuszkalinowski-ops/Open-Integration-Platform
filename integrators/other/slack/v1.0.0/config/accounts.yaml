@@ -1,0 +1,11 @@
+# Slack workspace account configuration
+# Each account represents a separate Slack workspace / bot
+# One integrator container can handle multiple workspaces simultaneously
+
+accounts: []
+# Example:
+#  - name: my-workspace
+#    bot_token: "xoxb-your-bot-token"
+#    app_token: "xapp-your-app-token"  # optional, for Socket Mode
+#    default_channel: "general"
+#    environment: production

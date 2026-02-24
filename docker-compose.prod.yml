@@ -371,6 +371,19 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-slack:
+    build:
+      context: .
+      dockerfile: integrators/other/slack/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      SLACK_POLLING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
     name: pinquark_pgdata

@@ -1,0 +1,71 @@
+services:
+  slack-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slack-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - slack-data:/app/data
+    env_file:
+      - .env
+    environment:
+      - SLACK_LOG_LEVEL=INFO
+      - SLACK_POLLING_ENABLED=true
+      - SLACK_POLLING_INTERVAL_SECONDS=30
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  slack-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slack-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - slack-data-dev:/app/data
+    environment:
+      - SLACK_DEBUG=true
+      - SLACK_LOG_LEVEL=DEBUG
+      - SLACK_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/slack_dev.db
+      - DATABASE_ENCRYPTION_KEY=
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: slack-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - DATABASE_ENCRYPTION_KEY=
+      - SLACK_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  slack-data:
+  slack-data-dev:
+
+networks:
+  integrations:
+    driver: bridge

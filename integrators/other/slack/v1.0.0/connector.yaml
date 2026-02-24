@@ -1,0 +1,180 @@
+name: slack
+category: other
+version: 1.0.0
+display_name: "Slack"
+description: "Slack messaging platform. Send messages, receive notifications, manage channels, and integrate workflows."
+website_url: "https://slack.com"
+country: US
+logo_url: /assets/logos/slack.svg
+interface: messaging
+capabilities:
+  - send_message
+  - list_channels
+  - get_channel_history
+  - upload_file
+  - add_reaction
+events:
+  - message.received
+  - message.sent
+  - reaction.added
+actions:
+  - message.send
+  - message.fetch
+  - channel.list
+  - file.upload
+  - reaction.add
+event_fields:
+  message.received:
+    - field: channel_id
+      label: "ID kanalu"
+      type: string
+    - field: channel_name
+      label: "Nazwa kanalu"
+      type: string
+    - field: user_id
+      label: "ID uzytkownika"
+      type: string
+    - field: user_name
+      label: "Nazwa uzytkownika"
+      type: string
+    - field: text
+      label: "Tresc wiadomosci"
+      type: string
+    - field: timestamp
+      label: "Znacznik czasu"
+      type: string
+    - field: thread_ts
+      label: "ID watku"
+      type: string
+    - field: has_attachments
+      label: "Czy ma zalaczniki"
+      type: boolean
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+  message.sent:
+    - field: channel_id
+      label: "ID kanalu"
+      type: string
+    - field: text
+      label: "Tresc wiadomosci"
+      type: string
+    - field: timestamp
+      label: "Znacznik czasu"
+      type: string
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+  reaction.added:
+    - field: channel_id
+      label: "ID kanalu"
+      type: string
+    - field: reaction
+      label: "Emoji reakcji"
+      type: string
+    - field: user_id
+      label: "ID uzytkownika"
+      type: string
+    - field: message_ts
+      label: "Znacznik czasu wiadomosci"
+      type: string
+
+action_fields:
+  message.send:
+    - field: channel
+      label: "Kanal lub ID kanalu"
+      type: string
+      required: true
+    - field: text
+      label: "Tresc wiadomosci"
+      type: string
+      required: true
+    - field: thread_ts
+      label: "ID watku (odpowiedz w watku)"
+      type: string
+    - field: blocks
+      label: "Bloki Slack (JSON)"
+      type: "object[]"
+    - field: unfurl_links
+      label: "Rozwin linki"
+      type: boolean
+  message.fetch:
+    - field: channel
+      label: "ID kanalu"
+      type: string
+      required: true
+    - field: limit
+      label: "Limit wiadomosci"
+      type: integer
+    - field: oldest
+      label: "Od znacznika czasu"
+      type: string
+    - field: latest
+      label: "Do znacznika czasu"
+      type: string
+  channel.list:
+    - field: types
+      label: "Typy kanalow (public_channel, private_channel, im, mpim)"
+      type: string
+    - field: limit
+      label: "Limit wynikow"
+      type: integer
+  file.upload:
+    - field: channels
+      label: "Kanaly docelowe (lista ID)"
+      type: "string[]"
+      required: true
+    - field: filename
+      label: "Nazwa pliku"
+      type: string
+      required: true
+    - field: content
+      label: "Zawartosc pliku (base64)"
+      type: string
+      required: true
+    - field: title
+      label: "Tytul pliku"
+      type: string
+    - field: initial_comment
+      label: "Komentarz"
+      type: string
+  reaction.add:
+    - field: channel
+      label: "ID kanalu"
+      type: string
+      required: true
+    - field: timestamp
+      label: "Znacznik czasu wiadomosci"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa emoji (bez dwukropkow)"
+      type: string
+      required: true
+
+config_schema:
+  required:
+    - bot_token
+  optional:
+    - app_token
+    - default_channel
+    - polling_enabled
+  field_types:
+    bot_token:
+      type: password
+      label: "Bot User OAuth Token (xoxb-...)"
+      placeholder: "xoxb-..."
+    app_token:
+      type: password
+      label: "App-Level Token (xapp-...) — dla Socket Mode"
+      placeholder: "xapp-..."
+    default_channel:
+      type: string
+      label: "Domyslny kanal"
+      default: "general"
+    polling_enabled:
+      type: boolean
+      label: "Polling nowych wiadomosci"
+      default: true
+health_endpoint: /health
+docs_url: /docs

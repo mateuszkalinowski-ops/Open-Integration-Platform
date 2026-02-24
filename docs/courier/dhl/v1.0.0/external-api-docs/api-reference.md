@@ -1,97 +1,197 @@
-# DHL24 WebAPI v2 — API Reference
+# DHL24 WebAPI v2 — Full API Reference
 
-Source: https://dhl24.com.pl/en/webapi2/doc.html
+> Source: https://dhl24.com.pl/en/webapi2/doc.html
+> WSDL Production: https://dhl24.com.pl/webapi2 (v4.20.58)
+> WSDL Sandbox: https://sandbox.dhl24.com.pl/webapi2
+> Fetched: 2026-02-24
 
-## WSDL
-- Production: https://dhl24.com.pl/webapi2 (v4.20.58)
-- Sandbox: https://sandbox.dhl24.com.pl/webapi2
+## Overview
 
-## Structures
+DHL24 WebAPI v2 is a **SOAP-based** web service enabling integration of DHL24
+shipping features into external software. The service is described via WSDL.
 
-### AuthData
-Authorization structure required in every request:
-- `username` (string) — Login
-- `password` (string) — Password
+The connector uses two separate SOAP APIs:
+1. **DHL24 WebAPI v2** — standard courier shipments (domestic, international)
+2. **Parcelshop Manager WebAPI** — service point (parcelshop) shipments
 
-### Address
-- `name` (string) — Recipient name
-- `postalCode` (string) — Postal code
-- `city` (string) — City
-- `street` (string) — Street
-- `houseNumber` (string) — Building number
-- `apartmentNumber` (string, optional) — Apartment number
-- `contactPerson` (string) — Contact person name
-- `contactPhone` (string) — Phone number
-- `contactEmail` (string) — Email address
+## Authentication
 
-### PieceDefinition
-- `type` (string) — Package type: PACKAGE, ENVELOPE, PALETTE
-- `width` (int) — Width in cm
-- `height` (int) — Height in cm
-- `length` (int) — Length in cm
-- `weight` (float) — Weight in kg
-- `quantity` (int) — Number of parcels
-- `nonStandard` (bool) — Non-standard flag
+Every SOAP call requires an `AuthData` structure:
 
-### ServiceDefinition
-- `product` (string) — DHL product type (AH, PR, DZ, DW, etc.)
-- `deliveryToNeighbour` (bool)
-- `deliveryOnSaturday` (bool)
-- `pickUpOnSaturday` (bool)
-- `collectOnDelivery` (bool) — COD
-- `collectOnDeliveryValue` (decimal)
-- `collectOnDeliveryForm` (string) — CASH/BANK_TRANSFER
-- `collectOnDeliveryReference` (string)
-- `insurance` (bool)
-- `insuranceValue` (decimal)
-- `selfCollect` (bool) — Pickup at DHL point
-- `deliveryEvening` (bool)
-- `deliveryToLM` (bool)
-- `returnOnDelivery` (bool)
-- `proofOfDelivery` (bool)
-- `predeliveryInformation` (bool)
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `username` | string | Yes | Login credential |
+| `password` | string | Yes | Password credential |
 
-### PaymentData
-- `paymentMethod` (string) — BANK_TRANSFER/CASH
-- `payerType` (string) — SHIPPER/RECEIVER/USER
-- `accountNumber` (string) — DHL account number
+Credentials are obtained from the DHL24 portal. Sandbox and production use
+separate credential sets.
 
-## Methods
+## Environments
+
+| Environment | DHL24 WebAPI WSDL | Parcelshop WebAPI WSDL |
+|-------------|-------------------|----------------------|
+| Production | `https://dhl24.com.pl/webapi2` | `https://dhl24.com.pl/servicepoint` |
+| Sandbox | `https://sandbox.dhl24.com.pl/webapi2` | `https://sandbox.dhl24.com.pl/servicepoint` |
+
+---
+
+## DHL24 WebAPI v2 — Methods
 
 ### createShipments
-Creates 1-3 shipments.
-- **Input**: AuthData + array of ShipmentFullData
-- **Output**: Array of ShipmentBasicData (waybill number, label data)
+
+Creates 1–3 shipments in a single call. Can optionally book a courier pickup.
+
+**Input:** `AuthData` + array of `ShipmentFullData`
+**Output:** Array of `ShipmentBasicData` (waybill number, label data)
+
+### createShipment (grouping method)
+
+Creates a shipment and optionally books a courier in one request.
+
+**Input:** `AuthData` + `ShipmentData` (see detailed docs in `createShipment.md`)
+**Output:** `ShipmentResponse` with label and dispatch info
 
 ### bookCourier
-Books courier pickup for created shipments.
-- **Input**: AuthData, pickupDate, pickupTimeFrom, pickupTimeTo, additionalInfo, shipmentIdList
+
+Books courier pickup for already created shipments.
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `pickupDate` | date | Yes | Pickup date (YYYY-MM-DD) |
+| `pickupTimeFrom` | string | Yes | Start time (HH:MM) |
+| `pickupTimeTo` | string | Yes | End time (HH:MM) |
+| `additionalInfo` | string | No | Additional info for courier |
+| `shipmentIdList` | array | Yes | List of shipment IDs |
+| `courierWithLabel` | bool | No | Courier brings labels |
+
+**Output:** Array of dispatch notification numbers
 
 ### deleteShipments
-Deletes shipments by waybill numbers.
+
+Deletes/cancels shipments by waybill number.
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `shipment` | object | Yes | `shipmentIdentificationNumber` + `dispatchIdentificationNumber` |
+
+**Output:** `{ result: bool, error: string? }`
 
 ### getLabels
-Retrieves labels for shipments.
-- **Input**: AuthData + ItemToPrint array (shipmentId, labelType)
-- **labelType**: BLP (label), ZBLP (return label)
-- **Output**: PDF bytes
+
+Retrieves shipping labels.
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `itemsToPrint` | array | Yes | Array of `{ shipmentId, labelType }` |
+
+**Label types:**
+
+| Value | Description |
+|-------|-------------|
+| `LP` | Consignment note |
+| `BLP` | BLP label (PDF) |
+| `LBLP` | LBLP label (PDF A4) |
+| `ZBLP` | BLP label for Zebra printers (ZPL) |
+| `ZBLP300` | BLP 300dpi for Zebra printers |
+
+**Output:** Array of `{ shipmentId, labelType, labelMimeType, labelData (base64) }`
 
 ### getTrackAndTraceInfo
-Gets tracking events for a shipment.
-- **Input**: AuthData, shipmentId
+
+Downloads delivery process history and current status.
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `shipmentId` | string | Yes | Shipment ID (waybill number) |
+
+**Output:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `shipmentId` | string | Shipment ID |
+| `receivedBy` | string | Person who collected the parcel |
+| `events` | array | Array of `ShipmentEvent` objects |
+
+**ShipmentEvent:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Event status description |
+| `terminal` | string | Terminal/location name |
+| `timestamp` | datetime | Event date and time |
 
 ### getNearestServicepoints
-Finds DHL service/pickup points.
-- **Input**: AuthData, postcode, city, paymentPointsOnly
+
+Finds nearby DHL service/pickup points.
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `country` | string(2) | Yes | Country code (e.g. PL) |
+| `postcode` | string | Yes | Postal code (without dash) |
+| `city` | string | No | City name |
+| `radius` | int | No | Search radius in meters (default 500) |
+
+**Output:** Array of service point objects with name, address, coordinates,
+opening hours, and capabilities.
 
 ### getPostalCodeServices
-Checks available services for a postal code.
 
-### getReturnParams
-Gets return shipment parameters.
+Checks available DHL services for a given postal code.
+
+**Input:** `AuthData` + postal code
+**Output:** List of available service types
+
+### getMyShipments / getMyShipmentsCount
+
+Retrieves list of created shipments with filtering (date range, pagination).
+
+**Input:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `authData` | AuthData | Yes | Authorization |
+| `createdFrom` | date | Yes | Start date |
+| `createdTo` | date | Yes | End date |
+| `offset` | int | No | Pagination offset (100 per page) |
+
+**Output:** Array of shipment objects with details
 
 ### cancelCourierBooking
-Cancels a courier booking.
 
-### getMyShipments
-Retrieves shipments list with filtering options.
+Cancels a previously booked courier pickup.
+
+### getReturnParams
+
+Gets parameters for creating return shipments.
+
+### getVersion
+
+Returns the current WebAPI version string.
+
+---
+
+## Error Handling
+
+SOAP errors are returned as `Fault` objects. Common error codes:
+
+| Code | Description |
+|------|-------------|
+| `100` | Authentication error (invalid credentials) |
+| Other | Application-specific errors with descriptive messages |
+
+HTTP-level errors (connection, timeout) are raised as `TransportError`.
