@@ -1,8 +1,9 @@
 """FastAPI routes for WooCommerce integrator."""
 
+import base64
 from datetime import datetime
 
-from fastapi import APIRouter, HTTPException, Query
+from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel
 
 from pinquark_common.schemas.ecommerce import (
@@ -143,6 +144,54 @@ async def update_order_status(
     _require_auth(account_name)
     await app_state.integration.update_order_status(account_name, order_id, body.status)
     return {"status": "updated", "order_id": order_id, "new_status": body.status}
+
+
+# --- Invoice ---
+
+
+class InvoiceUploadJsonRequest(BaseModel):
+    """Accept invoice as base64 when called from the platform action dispatcher."""
+    invoice_base64: str
+    filename: str = "invoice.pdf"
+    customer_note: bool = False
+
+
+@router.put("/orders/{order_id}/invoice")
+async def upload_invoice_multipart(
+    order_id: str,
+    account_name: str = Query(..., description="WooCommerce account name"),
+    file: UploadFile = File(...),
+    customer_note: bool = Query(False, description="Send invoice link as customer-visible note"),
+):
+    """Upload an invoice PDF and attach it to a WooCommerce order (multipart form)."""
+    _require_auth(account_name)
+    contents = await file.read()
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
+    result = await app_state.integration.upload_invoice(
+        account_name, order_id, contents, file.filename or "invoice.pdf", customer_note,
+    )
+    return {"status": "uploaded", "order_id": order_id, **result}
+
+
+@router.post("/orders/{order_id}/invoice")
+async def upload_invoice_json(
+    order_id: str,
+    body: InvoiceUploadJsonRequest,
+    account_name: str = Query(..., description="WooCommerce account name"),
+):
+    """Upload an invoice PDF and attach it to a WooCommerce order (base64 JSON body)."""
+    _require_auth(account_name)
+    try:
+        contents = base64.b64decode(body.invoice_base64)
+    except Exception as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid base64: {exc}") from exc
+    if len(contents) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
+    result = await app_state.integration.upload_invoice(
+        account_name, order_id, contents, body.filename, body.customer_note,
+    )
+    return {"status": "uploaded", "order_id": order_id, **result}
 
 
 # --- Stock ---

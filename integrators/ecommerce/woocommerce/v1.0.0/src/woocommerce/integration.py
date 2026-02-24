@@ -163,6 +163,48 @@ class WooCommerceIntegration(EcommerceIntegration):
             source="woocommerce",
         )
 
+    async def upload_invoice(
+        self,
+        account_name: str,
+        order_id: str,
+        invoice_file: bytes,
+        invoice_filename: str = "invoice.pdf",
+        customer_note: bool = False,
+    ) -> dict[str, Any]:
+        """Upload an invoice PDF and attach it to a WooCommerce order.
+
+        1. Uploads the PDF via wp/v2/media
+        2. Stores the media URL as order meta (_invoice_url)
+        3. Adds an order note with a link to the invoice
+        """
+        self._get_account(account_name)
+        oid = int(order_id)
+
+        media = await self._client.upload_media(
+            account_name, invoice_file, invoice_filename,
+        )
+        media_url = media.get("source_url", "")
+        media_id = media.get("id", "")
+
+        await self._client.update_order_meta(
+            oid, account_name, "_invoice_url", media_url,
+        )
+        await self._client.update_order_meta(
+            oid, account_name, "_invoice_media_id", str(media_id),
+        )
+
+        note_text = f"Faktura: {invoice_filename} — {media_url}"
+        await self._client.create_order_note(
+            oid, account_name, note_text, customer_note=customer_note,
+        )
+
+        logger.info("Uploaded invoice=%s for order=%s, media_id=%s", invoice_filename, order_id, media_id)
+        return {
+            "media_id": media_id,
+            "media_url": media_url,
+            "filename": invoice_filename,
+        }
+
     async def sync_products(
         self,
         account_name: str,

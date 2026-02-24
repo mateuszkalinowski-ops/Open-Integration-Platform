@@ -147,6 +147,46 @@ class AllegroIntegration(EcommerceIntegration):
             name=offer_data.get("name", ""),
         )
 
+    async def upload_invoice(
+        self,
+        account_name: str,
+        order_id: str,
+        invoice_file: bytes,
+        invoice_filename: str = "invoice.pdf",
+        invoice_number: str = "",
+    ) -> dict:
+        """Upload an invoice PDF to an Allegro order (two-step process).
+
+        Step 1: POST metadata (invoiceNumber + file name) → returns invoiceId
+        Step 2: PUT binary PDF to /invoices/{invoiceId}/file
+        """
+        account = self._get_account(account_name)
+        auth_args = (account.name, account.client_id, account.client_secret,
+                     account.api_url, account.auth_url)
+
+        meta = await self._client.create_invoice_metadata(
+            order_id, invoice_number or invoice_filename, invoice_filename, *auth_args,
+        )
+        invoice_id = meta["id"]
+
+        await self._client.upload_invoice_file(
+            order_id, invoice_id, invoice_file, *auth_args,
+        )
+
+        logger.info(
+            "Uploaded invoice=%s (id=%s) for order=%s",
+            invoice_filename, invoice_id, order_id,
+        )
+        return {"invoice_id": invoice_id, "filename": invoice_filename}
+
+    async def get_order_invoices(self, account_name: str, order_id: str) -> dict:
+        """Retrieve invoice details for an Allegro order."""
+        account = self._get_account(account_name)
+        return await self._client.get_order_invoices(
+            order_id, account.name, account.client_id, account.client_secret,
+            account.api_url, account.auth_url,
+        )
+
     async def search_products(
         self,
         account_name: str,

@@ -15,6 +15,7 @@ capabilities:
   - get_product
   - search_products
   - sync_products
+  - upload_invoice
 events:
   - order.created
   - order.status_changed
@@ -24,6 +25,7 @@ actions:
   - order.fetch
   - order.get
   - order.status_update
+  - order.invoice_upload
   - stock.sync
   - product.get
   - product.search
@@ -160,6 +162,21 @@ action_fields:
       label: "ID produktu"
       type: string
       required: true
+  order.invoice_upload:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+      required: true
+    - field: invoice_base64
+      label: "Faktura PDF (base64)"
+      type: string
+      required: true
+    - field: filename
+      label: "Nazwa pliku"
+      type: string
+    - field: customer_note
+      label: "Wyslij jako notatke klienta"
+      type: boolean
   product.sync:
     - field: products
       label: "Lista produktow"
