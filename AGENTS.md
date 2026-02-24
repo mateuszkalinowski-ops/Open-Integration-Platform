@@ -1,6 +1,6 @@
 # Open Integration Platform by Pinquark.com — Agent Guidelines
 
-This document governs all agent activity across the Open Integration Platform by Pinquark.com. Every agent (implementation, verification, maintenance) MUST read and follow these rules before writing any code, building any Docker image, or deploying to any environment. Use only English language for implementation and documentation.
+This document governs all agent activity across the Open Integration Platform by Pinquark.com. Every agent (implementation, verification, maintenance) MUST read and follow these rules before writing any code, building any Docker image, or deploying to any environment. Use only English language for implementation and documentation. For every connector download logo and setup proper origin country (don't use global). Create validator for every connector.
 
 ---
 
@@ -437,7 +437,7 @@ Examples:
 | `uat`                                      | UAT testing             | UAT environment (auto)       |
 | `dev`                                      | Active development      | Dev environment (auto)       |
 | `feature/`*                                | New features            | — (PR only)                  |
-| `hotfix/*`                                 | Urgent production fixes | UAT → Production             |
+| `hotfix/`*                                 | Urgent production fixes | UAT → Production             |
 | `integrator/{category}/{system}/{version}` | New integrator work     | Dev → UAT                    |
 
 
