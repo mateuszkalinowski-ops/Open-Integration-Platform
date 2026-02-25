@@ -73,7 +73,27 @@ services:
     restart: unless-stopped
 
   # --- Connectors (add/remove as needed) ---
-  connector-inpost:
+  connector-inpost-v1:
+    build:
+      context: ./integrators/courier/inpost/v1.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-inpost-v2:
+    build:
+      context: ./integrators/courier/inpost/v2.0.0
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-inpost-v3:
     build:
       context: ./integrators/courier/inpost/v3.0.0
     environment:

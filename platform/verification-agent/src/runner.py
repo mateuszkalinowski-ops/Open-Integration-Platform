@@ -8,6 +8,7 @@ from typing import Any
 
 import httpx
 
+from src.checks.api_version import check_api_version
 from src.checks.base import run_tier1, TIMEOUT
 from src.checks.auth import run_tier2
 from src.checks.functional import run_tier3
@@ -28,6 +29,7 @@ def is_running() -> bool:
 
 async def run_verification(
     connector_filter: str | None = None,
+    version_filter: str | None = None,
 ) -> dict[str, Any]:
     """Execute a full verification run. Returns summary."""
     global _running
@@ -52,6 +54,8 @@ async def run_verification(
 
             if connector_filter:
                 targets = [t for t in targets if t.manifest.name == connector_filter]
+            if version_filter:
+                targets = [t for t in targets if t.manifest.version == version_filter]
 
             if not targets:
                 logger.warning("No verification targets found")
@@ -80,6 +84,10 @@ async def run_verification(
 
                     tier1 = await run_tier1(client, target)
                     checks.extend(tier1)
+
+                    version_check = await check_api_version(client, target)
+                    if version_check:
+                        checks.append(version_check)
 
                     health_ok = any(c["name"] == "health" and c["status"] == "PASS" for c in tier1)
 

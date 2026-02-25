@@ -1,9 +1,12 @@
 export interface VerificationCheck {
   name: string;
-  status: 'PASS' | 'FAIL' | 'SKIP';
+  status: 'PASS' | 'FAIL' | 'SKIP' | 'WARN';
   response_time_ms: number;
   error?: string;
   suggestion?: string;
+  current_api_version?: string;
+  latest_api_version?: string;
+  docs_url?: string;
 }
 
 export interface VerificationSummary {

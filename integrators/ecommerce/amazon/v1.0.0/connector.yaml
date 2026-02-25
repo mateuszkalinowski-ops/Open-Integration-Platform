@@ -1,6 +1,6 @@
 name: amazon
 category: ecommerce
-version: 1.0.0
+version: 2024-11-01
 display_name: "Amazon"
 description: "Amazon Selling Partner API — order management, product catalog, inventory sync, fulfillment, feeds, reports."
 website_url: "https://sellercentral.amazon.com"
@@ -73,3 +73,9 @@ config_schema:
       default: true
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "2024-11-01"
+  check_url: "https://developer-docs.amazon.com/sp-api/page/release-notes"
+  check_type: html
+  version_field: "v(\\d{4}-\\d{2}-\\d{2})"
+  docs_url: "https://developer-docs.amazon.com/sp-api/docs"

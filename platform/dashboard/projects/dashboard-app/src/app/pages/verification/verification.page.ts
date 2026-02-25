@@ -144,7 +144,7 @@ import {
             <ng-container matColumnDef="connector_name">
               <th mat-header-cell *matHeaderCellDef mat-sort-header>Connector</th>
               <td mat-cell *matCellDef="let row">
-                @if (isChecking(row.connector_name)) {
+                @if (isChecking(rowKey(row))) {
                   <mat-icon class="checking-spinner">sync</mat-icon>
                 }
                 <strong>{{ row.connector_name }}</strong>
@@ -179,13 +179,13 @@ import {
             <ng-container matColumnDef="actions">
               <th mat-header-cell *matHeaderCellDef></th>
               <td mat-cell *matCellDef="let row">
-                <button mat-icon-button (click)="$event.stopPropagation(); runSingle(row.connector_name)"
+                <button mat-icon-button (click)="$event.stopPropagation(); runSingle(row.connector_name, row.connector_version)"
                         matTooltip="Run verification" [disabled]="isRunning">
                   <mat-icon>refresh</mat-icon>
                 </button>
-                <button mat-icon-button (click)="$event.stopPropagation(); toggleRowExpand(row.connector_name)"
+                <button mat-icon-button (click)="$event.stopPropagation(); toggleRowExpand(rowKey(row))"
                         matTooltip="Show checks">
-                  <mat-icon>{{ expandedRow === row.connector_name ? 'expand_less' : 'expand_more' }}</mat-icon>
+                  <mat-icon>{{ expandedRow === rowKey(row) ? 'expand_less' : 'expand_more' }}</mat-icon>
                 </button>
               </td>
             </ng-container>
@@ -194,9 +194,9 @@ import {
             <ng-container matColumnDef="expandedDetail">
               <td mat-cell *matCellDef="let row" [attr.colspan]="connectorColumns.length">
                 <div class="detail-expand"
-                     [class.detail-expand--collapsed]="expandedRow !== row.connector_name"
-                     [class.detail-expand--expanded]="expandedRow === row.connector_name">
-                  @if (expandedRow === row.connector_name && row.checks?.length) {
+                     [class.detail-expand--collapsed]="expandedRow !== rowKey(row)"
+                     [class.detail-expand--expanded]="expandedRow === rowKey(row)">
+                  @if (expandedRow === rowKey(row) && row.checks?.length) {
                     <div class="detail-expand__content">
                       <table mat-table [dataSource]="row.checks" class="full-width checks-table">
                         <ng-container matColumnDef="name">
@@ -229,8 +229,8 @@ import {
             <tr mat-header-row *matHeaderRowDef="connectorColumns"></tr>
             <tr mat-row *matRowDef="let row; columns: connectorColumns;"
                 class="connector-row"
-                [class.expanded-row]="expandedRow === row.connector_name"
-                (click)="toggleRowExpand(row.connector_name)"></tr>
+                [class.expanded-row]="expandedRow === rowKey(row)"
+                (click)="toggleRowExpand(rowKey(row))"></tr>
             <tr mat-row *matRowDef="let row; columns: ['expandedDetail']"
                 class="detail-row"></tr>
           </table>
@@ -282,6 +282,7 @@ import {
     .status-pass { background: #e8f5e9; color: #2e7d32; }
     .status-fail { background: #ffebee; color: #c62828; }
     .status-partial { background: #fff3e0; color: #e65100; }
+    .status-warn { background: #fff8e1; color: #f57f17; }
     .status-skip { background: #f5f5f5; color: #757575; }
 
     .version-badge {
@@ -422,12 +423,13 @@ export class VerificationPage implements OnInit {
     });
   }
 
-  runSingle(connectorName: string): void {
+  runSingle(connectorName: string, version?: string): void {
     this.isRunning = true;
-    this.checkingConnector = connectorName;
-    this.api.verificationRunSingle(connectorName).subscribe({
+    this.checkingConnector = version ? `${connectorName}@${version}` : connectorName;
+    this.api.verificationRunSingle(connectorName, version).subscribe({
       next: (_res: VerificationRunResponse) => {
-        this.snackBar.open(`Verifying ${connectorName}...`, 'OK', { duration: 3000 });
+        const label = version ? `${connectorName} v${version}` : connectorName;
+        this.snackBar.open(`Verifying ${label}...`, 'OK', { duration: 3000 });
         this.pollUntilDone();
       },
       error: (err: { error?: { detail?: string } }) => {
@@ -438,9 +440,10 @@ export class VerificationPage implements OnInit {
     });
   }
 
-  isChecking(connectorName: string): boolean {
+  isChecking(key: string): boolean {
     if (!this.isRunning) return false;
-    return this.checkingConnector === null || this.checkingConnector === connectorName;
+    if (this.checkingConnector === null) return true;
+    return this.checkingConnector === key;
   }
 
   private pollUntilDone(): void {
@@ -468,8 +471,12 @@ export class VerificationPage implements OnInit {
     this.sortedConnectors = filtered;
   }
 
-  toggleRowExpand(connectorName: string): void {
-    this.expandedRow = this.expandedRow === connectorName ? null : connectorName;
+  rowKey(row: VerificationConnectorResult): string {
+    return `${row.connector_name}@${row.connector_version}`;
+  }
+
+  toggleRowExpand(key: string): void {
+    this.expandedRow = this.expandedRow === key ? null : key;
   }
 
   sortData(sort: Sort): void {

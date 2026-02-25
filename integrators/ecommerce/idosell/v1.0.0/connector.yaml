@@ -1,6 +1,6 @@
 name: idosell
 category: ecommerce
-version: 1.0.0
+version: 6.0.0
 display_name: "IdoSell"
 description: "IdoSell (formerly IAI-Shop) — Polish e-commerce SaaS platform. Order management, product sync, stock levels, parcel tracking."
 website_url: "https://www.idosell.com"
@@ -81,3 +81,9 @@ config_schema:
       default: true
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "6.0.0"
+  check_url: "https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/"
+  check_type: html
+  version_field: "v(\\d+\\.\\d+)"
+  docs_url: "https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/"

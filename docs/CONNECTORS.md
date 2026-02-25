@@ -22,36 +22,36 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | # | Connector | Category | Version | Protocol | Required Parameters |
 |---|----------|-----------|--------|----------|-------------------|
 | 1 | InPost | Courier | v3.0.0 | REST | `organization_id`, `access_token` |
-| 2 | DHL Parcel Poland | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
-| 3 | DHL Express | Courier | v1.0.0 | REST | `api_key`, `api_secret` |
-| 4 | DPD Poland | Courier | v1.0.0 | REST | `login`, `password`, `master_fid` |
+| 2 | DHL Parcel Poland | Courier | v1.4.0 | SOAP (WSDL) | `username`, `password` |
+| 3 | DHL Express | Courier | v3.2.0 | REST | `api_key`, `api_secret` |
+| 4 | DPD Poland | Courier | v2024-04 | REST | `login`, `password`, `master_fid` |
 | 5 | GLS | Courier | v1.0.0 | REST | `username`, `password` |
 | 6 | FedEx | Courier | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret` |
 | 7 | FedEx Poland | Courier | v1.0.0 | REST | `api_key`, `client_id` |
 | 8 | UPS | Courier | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret`, `account_number` |
-| 9 | Poczta Polska | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
+| 9 | Poczta Polska | Courier | v17.0.0 | SOAP (WSDL) | `username`, `password` |
 | 10 | Orlen Paczka | Courier | v1.0.0 | REST | `partner_id`, `partner_key` |
-| 11 | Packeta | Courier | v1.0.0 | REST | `api_password` |
+| 11 | Packeta | Courier | v6.3.0 | REST | `api_password` |
 | 12 | DB Schenker | Courier | v1.0.0 | REST | `username`, `password` |
 | 13 | SUUS | Courier | v1.0.0 | SOAP (WSDL) | `username`, `password` |
 | 14 | Paxy | Courier | v1.0.0 | REST | `api_key` |
-| 15 | SellAsist | Courier | v1.0.0 | REST | `api_key` |
-| 16 | Allegro | E-commerce | v1.0.0 | REST (OAuth2) | `client_id`, `client_secret` |
+| 15 | SellAsist | Courier | v1.90.7 | REST | `api_key` |
+| 16 | Allegro | E-commerce | v2025 | REST (OAuth2) | `client_id`, `client_secret` |
 | 17 | Shoper | E-commerce | v1.0.0 | REST (OAuth2/Basic) | `shop_url`, `login`, `password` |
-| 18 | Shopify | E-commerce | v1.0.0 | REST (Access Token) | `shop_url`, `access_token` |
+| 18 | Shopify | E-commerce | v2024-07 | REST (Access Token) | `shop_url`, `access_token` |
 | 19 | Pinquark WMS | WMS | v1.0.0 | REST (JWT) | `api_url`, `username`, `password` |
 | 20 | Email Client | Other | v1.0.0 | IMAP/SMTP | `imap_host`, `smtp_host`, `email_address`, `password`, (`username`) |
 | 21 | SkanujFakture | Other | v1.0.0 | REST (Basic Auth) | `login`, `password` |
-| 22 | IdoSell | E-commerce | v1.0.0 | REST (API Key / SHA-1 legacy) | `shop_url`, `api_key` or `login`+`password` |
+| 22 | IdoSell | E-commerce | v6.0.0 | REST (API Key / SHA-1 legacy) | `shop_url`, `api_key` or `login`+`password` |
 | 23 | BaseLinker | E-commerce | v1.0.0 | REST (API Token) | `api_token` |
 | 24 | Raben Group | Courier | v1.0.0 | REST (JWT) | `username`, `password` |
-| 25 | WooCommerce | E-commerce | v1.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
+| 25 | WooCommerce | E-commerce | v3.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
 | 26 | Slack | Other | v1.0.0 | REST (Bot Token) | `bot_token` |
-| 27 | BulkGate | Other | v1.0.0 | REST (API Token) | `application_id`, `application_token` |
-| 28 | Amazon | E-commerce | v1.0.0 | REST (OAuth2 / LWA) | `client_id`, `client_secret`, `refresh_token`, `marketplace_id` |
+| 27 | BulkGate | Other | v2.0.0 | REST (API Token) | `application_id`, `application_token` |
+| 28 | Amazon | E-commerce | v2024-11-01 | REST (OAuth2 / LWA) | `client_id`, `client_secret`, `refresh_token`, `marketplace_id` |
 | 29 | Geis | Courier | v1.0.0 | SOAP (WSDL) | `customer_code`, `password` |
 | 30 | AI Agent | AI | v1.0.0 | REST (Google Gemini) | `gemini_api_key` |
-| 31 | Apilo | E-commerce | v1.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
+| 31 | Apilo | E-commerce | v2.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 
@@ -136,7 +136,7 @@ Versions: v1.0.0, v2.0.0, v3.0.0. Changes in v3.0.0: added `default_currency` pa
 
 ---
 
-### DHL Parcel Poland (v1.0.0)
+### DHL Parcel Poland (v1.4.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -160,7 +160,7 @@ Protocol: SOAP (WSDL).
 
 ---
 
-### DHL Express (v1.0.0)
+### DHL Express (v3.2.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -172,7 +172,7 @@ Protocol: REST. Retry: exponential backoff (tenacity, max 3 attempts).
 
 ---
 
-### DPD Poland (v1.0.0)
+### DPD Poland (v2024-04)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -226,7 +226,7 @@ Protocol: REST. Retry: exponential backoff (tenacity, max 3 attempts).
 
 ---
 
-### Poczta Polska (v1.0.0)
+### Poczta Polska (v17.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -250,7 +250,7 @@ Protocol: SOAP (WSDL).
 
 ---
 
-### Packeta / Zasilkovna (v1.0.0)
+### Packeta / Zasilkovna (v6.3.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -292,7 +292,7 @@ Protocol: SOAP (WSDL).
 
 ---
 
-### SellAsist (v1.0.0)
+### SellAsist (v1.90.7)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -389,7 +389,7 @@ Protocol: REST (Bearer Token Authentication).
 
 ## 2. E-commerce
 
-### Allegro (v1.0.0)
+### Allegro (v2025)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -472,7 +472,7 @@ Features:
 
 Protocol: REST (Basic Auth → Bearer Token).
 
-### Shopify (v1.0.0)
+### Shopify (v2024-07)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -516,7 +516,7 @@ Features:
 
 Protocol: REST (Admin API Access Token).
 
-### IdoSell (v1.0.0)
+### IdoSell (v6.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -631,7 +631,7 @@ Protocol: REST (API Token via X-BLToken header).
 
 ---
 
-### WooCommerce (v1.0.0)
+### WooCommerce (v3.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -676,7 +676,7 @@ Protocol: REST (API Key / OAuth 1.0a).
 
 ---
 
-### Amazon (v1.0.0)
+### Amazon (v2024-11-01)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -723,7 +723,7 @@ Protocol: REST (Amazon SP-API with LWA OAuth2 authentication).
 
 ---
 
-### Apilo (v1.0.0)
+### Apilo (v2.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
@@ -931,7 +931,7 @@ Features:
 
 Protocol: REST (Slack Web API, Bearer Token authentication).
 
-### BulkGate SMS Gateway (v1.0.0)
+### BulkGate SMS Gateway (v2.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|

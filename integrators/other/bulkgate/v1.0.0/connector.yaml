@@ -1,6 +1,6 @@
 name: bulkgate
 category: other
-version: 1.0.0
+version: 2.0.0
 display_name: "BulkGate SMS Gateway"
 description: "BulkGate SMS Gateway integration — transactional SMS, bulk/promotional SMS, multi-channel messaging (Viber, WhatsApp, RCS), credit balance, delivery reports via webhook."
 website_url: "https://www.bulkgate.com"
@@ -170,3 +170,9 @@ config_schema:
       default: ""
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "2.0.0"
+  check_url: "https://help.bulkgate.com/docs/en/http-advanced-transactional-v2.html"
+  check_type: html
+  version_field: "v(\\d+\\.\\d+)"
+  docs_url: "https://www.bulkgate.com/en/developers/"

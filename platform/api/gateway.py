@@ -2234,8 +2234,9 @@ async def verification_run_all() -> Any:
 
 
 @app.post("/api/verification/run/{connector_name}", tags=["verification"])
-async def verification_run_single(connector_name: str) -> Any:
-    return await _proxy_verification("POST", f"/run/{connector_name}")
+async def verification_run_single(connector_name: str, version: str | None = Query(None)) -> Any:
+    params = {"version": version} if version else None
+    return await _proxy_verification("POST", f"/run/{connector_name}", params=params)
 
 
 @app.get("/api/verification/scheduler", tags=["verification"])

@@ -188,3 +188,9 @@ config_schema:
           label: CZK
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "shipping/v2"
+  check_url: "https://developers.inpost-group.com/versioning"
+  check_type: html
+  version_field: "shipping/(v\\d+)"
+  docs_url: "https://developers.inpost-group.com/shipping"

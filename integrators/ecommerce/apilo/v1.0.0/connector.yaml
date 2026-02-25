@@ -1,6 +1,6 @@
 name: apilo
 category: ecommerce
-version: 1.0.0
+version: 2.0.0
 display_name: "Apilo"
 description: "Apilo multi-channel e-commerce platform — order management, product catalog, warehouse, shipments, finance documents."
 website_url: "https://apilo.com"
@@ -81,3 +81,9 @@ config_schema:
       default: true
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "2.0.0.5"
+  check_url: "https://developer.apilo.com/uploads/apilo/swagger.json"
+  check_type: openapi
+  version_field: "info.version"
+  docs_url: "https://developer.apilo.com/api/"

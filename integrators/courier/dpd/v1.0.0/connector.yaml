@@ -1,6 +1,6 @@
 name: dpd
 category: courier
-version: 1.0.0
+version: 2024-04
 display_name: "DPD Poland"
 description: "Domestic and international DPD courier shipments. DPD Pickup point network, parcel tracking."
 website_url: "https://www.dpd.com.pl"
@@ -34,3 +34,9 @@ config_schema:
       default: false
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "2024-04"
+  check_url: "https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/"
+  check_type: html
+  version_field: "(\\d{4}-\\d{2})"
+  docs_url: "https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/"

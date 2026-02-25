@@ -45,12 +45,15 @@ async def trigger_run() -> RunResponse:
 
 
 @router.post("/run/{connector_name}", response_model=RunResponse)
-async def trigger_single_run(connector_name: str) -> RunResponse:
-    """Trigger verification for a single connector."""
+async def trigger_single_run(
+    connector_name: str,
+    version: str | None = Query(None, description="Specific version to test"),
+) -> RunResponse:
+    """Trigger verification for a single connector (optionally a specific version)."""
     if is_running():
         raise HTTPException(status_code=409, detail="A verification run is already in progress")
     run_id = str(uuid.uuid4())
-    asyncio.create_task(run_verification(connector_filter=connector_name))
+    asyncio.create_task(run_verification(connector_filter=connector_name, version_filter=version))
     return RunResponse(run_id=run_id, status="started")
 
 
@@ -244,14 +247,25 @@ async def list_errors(
 
 @router.get("/reports/latest")
 async def latest_reports() -> dict[str, Any]:
-    """Get the most recent report for each connector (across all runs)."""
+    """Get the most recent report for each connector+version (across all runs).
+
+    Only returns reports for versions that still exist in the current manifests,
+    so outdated versions (e.g. after a version field change) are excluded.
+    """
+    from src.discovery import discover_manifests
+
+    active_versions: set[tuple[str, str]] = set()
+    for m in discover_manifests():
+        active_versions.add((m.name, m.version))
+
     async with async_session_factory() as db:
         latest_per_connector = (
             select(
                 VerificationReport.connector_name,
+                VerificationReport.connector_version,
                 func.max(VerificationReport.created_at).label("max_created"),
             )
-            .group_by(VerificationReport.connector_name)
+            .group_by(VerificationReport.connector_name, VerificationReport.connector_version)
             .subquery()
         )
 
@@ -260,12 +274,18 @@ async def latest_reports() -> dict[str, Any]:
             .join(
                 latest_per_connector,
                 (VerificationReport.connector_name == latest_per_connector.c.connector_name)
+                & (VerificationReport.connector_version == latest_per_connector.c.connector_version)
                 & (VerificationReport.created_at == latest_per_connector.c.max_created),
             )
-            .order_by(VerificationReport.connector_name)
+            .order_by(VerificationReport.connector_name, VerificationReport.connector_version)
         )
         result = await db.execute(q)
         reports = result.scalars().all()
+
+        reports = [
+            r for r in reports
+            if (r.connector_name, r.connector_version) in active_versions
+        ]
 
         if not reports:
             return {"connectors": [], "run_id": None, "created_at": None}

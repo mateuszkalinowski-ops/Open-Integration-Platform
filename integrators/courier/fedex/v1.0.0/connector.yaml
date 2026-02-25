@@ -35,3 +35,9 @@ config_schema:
       default: false
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "1.0.0"
+  check_url: "https://developer.fedex.com/api/en-us/catalog.html"
+  check_type: html
+  version_field: "version[:\\s]+(\\d+\\.\\d+)"
+  docs_url: "https://developer.fedex.com/api/en-us/catalog.html"

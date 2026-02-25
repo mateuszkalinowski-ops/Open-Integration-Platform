@@ -52,6 +52,16 @@ _CONNECTOR_SERVICE_NAMES: dict[str, str] = {
 
 
 @dataclass
+class ApiVersionCheck:
+    """Describes how to check the external API for newer versions."""
+    current_api_version: str
+    check_url: str
+    check_type: str = "openapi"  # openapi | json | html
+    version_field: str = "info.version"
+    docs_url: str = ""
+
+
+@dataclass
 class ConnectorManifest:
     name: str
     category: str
@@ -65,6 +75,7 @@ class ConnectorManifest:
     health_endpoint: str = "/health"
     docs_url: str = "/docs"
     config_schema: dict = field(default_factory=dict)
+    api_version_check: ApiVersionCheck | None = None
 
 
 @dataclass
@@ -77,8 +88,19 @@ class VerificationTarget:
     is_deployed: bool = True
 
 
-def resolve_service_url(connector_name: str) -> str:
-    service = _CONNECTOR_SERVICE_NAMES.get(connector_name, f"connector-{connector_name}")
+def resolve_service_url(connector_name: str, version: str | None = None, version_count: int = 1) -> str:
+    """Resolve Docker service URL for a connector.
+
+    When multiple versions of the same connector exist, the service name
+    includes the major version suffix: ``connector-inpost-v3``.
+    Single-version connectors keep the plain name for backward compat.
+    """
+    base = _CONNECTOR_SERVICE_NAMES.get(connector_name, f"connector-{connector_name}")
+    if version_count > 1 and version:
+        major = version.split(".")[0]
+        service = f"{base}-v{major}"
+    else:
+        service = base
     return f"http://{service}:{settings.default_connector_port}"
 
 
@@ -95,6 +117,17 @@ def discover_manifests() -> list[ConnectorManifest]:
         try:
             with open(manifest_path) as f:
                 data = yaml.safe_load(f)
+            avc_data = data.get("api_version_check")
+            avc = None
+            if avc_data and isinstance(avc_data, dict):
+                avc = ApiVersionCheck(
+                    current_api_version=str(avc_data.get("current_api_version", "")),
+                    check_url=avc_data.get("check_url", ""),
+                    check_type=avc_data.get("check_type", "openapi"),
+                    version_field=avc_data.get("version_field", "info.version"),
+                    docs_url=avc_data.get("docs_url", ""),
+                )
+
             manifests.append(ConnectorManifest(
                 name=data["name"],
                 category=data["category"],
@@ -108,6 +141,7 @@ def discover_manifests() -> list[ConnectorManifest]:
                 health_endpoint=data.get("health_endpoint", "/health"),
                 docs_url=data.get("docs_url", "/docs"),
                 config_schema=data.get("config_schema", {}),
+                api_version_check=avc,
             ))
         except Exception as exc:
             logger.warning("Failed to load manifest %s: %s", manifest_path, exc)
@@ -116,9 +150,12 @@ def discover_manifests() -> list[ConnectorManifest]:
 
 
 async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
-    """Build list of verification targets from manifests + DB instances."""
+    """Build list of verification targets from manifests + DB instances.
+
+    All discovered versions of a connector are included so that each
+    deployed version is verified independently.
+    """
     manifests = discover_manifests()
-    seen_connectors: set[str] = set()
     targets: list[VerificationTarget] = []
 
     result = await db.execute(
@@ -126,22 +163,23 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
     )
     instances = {row.connector_name: row for row in result.scalars().all()}
 
-    latest_manifests: dict[str, ConnectorManifest] = {}
+    versions_per_connector: dict[str, list[ConnectorManifest]] = {}
     for m in manifests:
-        key = m.name
-        if key not in latest_manifests or m.version > latest_manifests[key].version:
-            latest_manifests[key] = m
+        versions_per_connector.setdefault(m.name, []).append(m)
 
-    for name, manifest in latest_manifests.items():
-        base_url = resolve_service_url(name)
+    for name, versions in versions_per_connector.items():
+        versions.sort(key=lambda m: m.version)
         instance = instances.get(name)
         tenant_id = str(instance.tenant_id) if instance else None
 
-        targets.append(VerificationTarget(
-            manifest=manifest,
-            base_url=base_url,
-            tenant_id=tenant_id,
-        ))
-        seen_connectors.add(name)
+        for manifest in versions:
+            base_url = resolve_service_url(
+                name, version=manifest.version, version_count=len(versions),
+            )
+            targets.append(VerificationTarget(
+                manifest=manifest,
+                base_url=base_url,
+                tenant_id=tenant_id,
+            ))
 
     return targets

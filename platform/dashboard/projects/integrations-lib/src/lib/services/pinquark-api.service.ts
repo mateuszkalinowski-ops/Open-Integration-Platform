@@ -315,8 +315,9 @@ export class PinquarkApiService {
     });
   }
 
-  verificationRunSingle(connectorName: string): Observable<VerificationRunResponse> {
-    return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run/${connectorName}`, {}, {
+  verificationRunSingle(connectorName: string, version?: string): Observable<VerificationRunResponse> {
+    const params = version ? `?version=${encodeURIComponent(version)}` : '';
+    return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run/${connectorName}${params}`, {}, {
       headers: this.headers,
     });
   }

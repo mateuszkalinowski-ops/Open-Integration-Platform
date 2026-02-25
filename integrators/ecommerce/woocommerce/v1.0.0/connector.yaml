@@ -1,6 +1,6 @@
 name: woocommerce
 category: ecommerce
-version: 1.0.0
+version: 3.0.0
 display_name: "WooCommerce"
 description: "WooCommerce (WordPress) e-commerce platform. Order sync, stock management, product catalog and customer data."
 website_url: "https://woocommerce.com"
@@ -202,3 +202,9 @@ config_schema:
       default: true
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "3.0.0"
+  check_url: "https://woocommerce.github.io/woocommerce-rest-api-docs/"
+  check_type: html
+  version_field: "wc/(v\\d+)"
+  docs_url: "https://woocommerce.github.io/woocommerce-rest-api-docs/"

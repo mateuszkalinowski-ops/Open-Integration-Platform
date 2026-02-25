@@ -22,6 +22,7 @@ async def save_report(
     passed = sum(1 for c in checks if c["status"] == "PASS")
     failed = sum(1 for c in checks if c["status"] == "FAIL")
     skipped = sum(1 for c in checks if c["status"] == "SKIP")
+    warned = sum(1 for c in checks if c["status"] == "WARN")
     total_ms = sum(c.get("response_time_ms", 0) for c in checks)
 
     status = "PASS"
@@ -31,6 +32,8 @@ async def save_report(
         status = "FAIL"
     elif skipped == len(checks):
         status = "SKIP"
+    elif warned > 0:
+        status = "WARN"
 
     report = VerificationReport(
         run_id=run_id,
@@ -45,6 +48,7 @@ async def save_report(
             "passed": passed,
             "failed": failed,
             "skipped": skipped,
+            "warned": warned,
             "duration_ms": total_ms,
         },
     )

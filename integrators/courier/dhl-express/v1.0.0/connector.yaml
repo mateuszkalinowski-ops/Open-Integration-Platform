@@ -1,6 +1,6 @@
 name: dhl-express
 category: courier
-version: 1.0.0
+version: 3.2.0
 display_name: "DHL Express"
 description: "International express shipping by DHL Express — fast door-to-door delivery worldwide."
 website_url: "https://www.dhl.com/pl-pl/home/express.html"
@@ -33,3 +33,9 @@ config_schema:
       default: false
 health_endpoint: /health
 docs_url: /docs
+api_version_check:
+  current_api_version: "3.2.0"
+  check_url: "https://developer.dhl.com/api-reference/dhl-express-mydhl-api?language_content_entity=en"
+  check_type: html
+  version_field: "v\\s*(\\d+\\.\\d+\\.\\d+)"
+  docs_url: "https://developer.dhl.com/api-reference/dhl-express-mydhl-api"
