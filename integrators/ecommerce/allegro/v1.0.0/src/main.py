@@ -107,8 +107,8 @@ async def lifespan(application: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="pinquark Allegro Integrator",
-        description="E-commerce integration between pinquark WMS and Allegro marketplace",
+        title="Allegro Connector",
+        description="Allegro marketplace integration — orders, offers, shipping, payments and more",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

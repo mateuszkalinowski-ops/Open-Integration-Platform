@@ -89,7 +89,7 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark Slack Integrator",
+        title="Slack Connector",
         description="Slack messaging integration — send messages, poll channels, manage reactions and files",
         version=settings.app_version,
         docs_url="/docs",

@@ -89,7 +89,7 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark SkanujFakture Integrator",
+        title="SkanujFakture Connector",
         description="Invoice OCR integration — upload, scan, retrieve and manage invoices via SkanujFakture.pl API",
         version=settings.app_version,
         docs_url="/docs",

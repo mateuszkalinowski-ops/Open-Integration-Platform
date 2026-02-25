@@ -25,7 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-dpd")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — DPD",
+    title="DPD Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

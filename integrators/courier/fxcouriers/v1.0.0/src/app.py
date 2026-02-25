@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-fxcouriers")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — FX Couriers",
+    title="FX Couriers Connector",
     version="1.0.0",
     docs_url="/docs",
 )

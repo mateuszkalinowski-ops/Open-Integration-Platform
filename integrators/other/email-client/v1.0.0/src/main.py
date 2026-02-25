@@ -89,7 +89,7 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark Email Client Integrator",
+        title="Email Client Connector",
         description="IMAP/SMTP email integration — send and receive emails at configurable intervals",
         version=settings.app_version,
         docs_url="/docs",

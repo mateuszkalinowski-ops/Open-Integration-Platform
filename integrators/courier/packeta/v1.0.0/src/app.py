@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-packeta")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Packeta",
+    title="Packeta Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

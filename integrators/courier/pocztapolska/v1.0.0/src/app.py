@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-pocztapolska")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Poczta Polska",
+    title="Poczta Polska Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

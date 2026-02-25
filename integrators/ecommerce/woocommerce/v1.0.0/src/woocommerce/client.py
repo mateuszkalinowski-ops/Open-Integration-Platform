@@ -129,6 +129,9 @@ class WooCommerceClient:
     async def delete(self, path: str, account_name: str, **kwargs: Any) -> httpx.Response:
         return await self.request("DELETE", path, account_name, **kwargs)
 
+    async def patch(self, path: str, account_name: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("PATCH", path, account_name, **kwargs)
+
     # --- High-level WooCommerce API methods ---
 
     async def list_orders(

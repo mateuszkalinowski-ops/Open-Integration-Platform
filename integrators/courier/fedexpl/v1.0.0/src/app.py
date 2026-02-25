@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-fedexpl")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — FedEx PL",
+    title="FedEx PL Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

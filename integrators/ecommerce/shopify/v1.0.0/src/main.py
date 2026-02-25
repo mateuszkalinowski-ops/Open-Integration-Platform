@@ -111,8 +111,8 @@ async def lifespan(application: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="pinquark Shopify Integrator",
-        description="E-commerce integration between pinquark Integration Platform and Shopify",
+        title="Shopify Connector",
+        description="Shopify e-commerce platform integration — orders, products, customers, inventory",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

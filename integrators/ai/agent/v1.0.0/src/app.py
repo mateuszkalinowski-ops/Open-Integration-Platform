@@ -31,7 +31,7 @@ logging.basicConfig(
 logger = logging.getLogger("ai-agent")
 
 app = FastAPI(
-    title="Pinquark AI Agent",
+    title="AI Agent Connector",
     version="1.0.0",
     description=(
         "Universal AI agent — give it a prompt and data, "

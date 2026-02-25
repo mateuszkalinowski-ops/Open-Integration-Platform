@@ -22,7 +22,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-geis")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Geis",
+    title="Geis Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

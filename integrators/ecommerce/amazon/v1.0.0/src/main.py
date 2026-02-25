@@ -93,8 +93,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark Amazon Integrator",
-        description="E-commerce integration between Pinquark platform and Amazon Selling Partner API",
+        title="Amazon Connector",
+        description="Amazon Selling Partner API integration — orders, products, inventory, reports",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

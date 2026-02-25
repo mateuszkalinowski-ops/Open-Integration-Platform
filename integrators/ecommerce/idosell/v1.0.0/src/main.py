@@ -96,8 +96,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark IdoSell Integrator",
-        description="E-commerce integration between Pinquark platform and IdoSell",
+        title="IdoSell Connector",
+        description="IdoSell e-commerce platform integration — orders, products, customers",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

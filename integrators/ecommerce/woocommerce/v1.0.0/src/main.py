@@ -113,8 +113,8 @@ async def lifespan(application: FastAPI):
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="pinquark WooCommerce Integrator",
-        description="E-commerce integration between pinquark WMS and WooCommerce stores",
+        title="WooCommerce Connector",
+        description="WooCommerce e-commerce platform — full REST API v3 integration",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

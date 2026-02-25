@@ -38,7 +38,7 @@ async def lifespan(application: FastAPI):
 
 
 app = FastAPI(
-    title="Pinquark Integrator — BulkGate SMS Gateway",
+    title="BulkGate SMS Gateway Connector",
     version="1.0.0",
     docs_url="/docs",
     lifespan=lifespan,

@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-gls")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — GLS",
+    title="GLS Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

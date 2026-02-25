@@ -25,7 +25,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-ups")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — UPS",
+    title="UPS Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

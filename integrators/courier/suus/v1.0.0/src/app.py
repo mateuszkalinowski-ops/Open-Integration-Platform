@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-suus")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Suus",
+    title="Suus Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

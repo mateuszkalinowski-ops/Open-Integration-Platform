@@ -93,8 +93,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark BaseLinker Integrator",
-        description="E-commerce integration between Pinquark platform and BaseLinker",
+        title="BaseLinker Connector",
+        description="BaseLinker multi-channel e-commerce management platform integration",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

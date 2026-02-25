@@ -88,7 +88,7 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark FTP/SFTP Integrator",
+        title="FTP/SFTP Connector",
         description="FTP and SFTP file transfer integration — upload, download, list, delete, and move files on remote servers",
         version=settings.app_version,
         docs_url="/docs",

@@ -16,7 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-paxy")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Paxy",
+    title="Paxy Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

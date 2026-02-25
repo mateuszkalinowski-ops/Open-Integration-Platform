@@ -24,7 +24,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-raben")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Raben Group",
+    title="Raben Group Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

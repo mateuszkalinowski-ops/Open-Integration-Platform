@@ -37,7 +37,7 @@ async def lifespan(_app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — DHL Express",
+    title="DHL Express Courier Connector",
     version="1.0.0",
     docs_url="/docs",
     lifespan=lifespan,

@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-dhl")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — DHL",
+    title="DHL Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

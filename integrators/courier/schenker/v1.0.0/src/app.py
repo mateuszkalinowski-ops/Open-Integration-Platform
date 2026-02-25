@@ -21,7 +21,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-schenker")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Schenker",
+    title="Schenker Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )

@@ -27,7 +27,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-inpost-int-2025")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — InPost International 2025",
+    title="InPost International 2025 Courier Connector",
     version="3.0.0",
     docs_url="/docs",
 )

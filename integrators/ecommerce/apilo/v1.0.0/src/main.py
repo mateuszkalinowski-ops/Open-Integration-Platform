@@ -93,8 +93,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
 def create_app() -> FastAPI:
     application = FastAPI(
-        title="Pinquark Apilo Integrator",
-        description="E-commerce integration between Pinquark platform and Apilo REST API",
+        title="Apilo Connector",
+        description="Apilo multi-channel e-commerce platform — orders, products, shipments, stock",
         version=settings.app_version,
         docs_url="/docs",
         lifespan=lifespan,

@@ -23,7 +23,7 @@ logging.basicConfig(
 logger = logging.getLogger("courier-orlenpaczka")
 
 app = FastAPI(
-    title="Pinquark Courier Integrator — Orlen Paczka",
+    title="Orlen Paczka Courier Connector",
     version="1.0.0",
     docs_url="/docs",
 )
