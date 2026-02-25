@@ -16,6 +16,7 @@ services:
       LOG_LEVEL: INFO
     volumes:
       - ./integrators:/integrators:ro
+      - ./onpremise:/onpremise:ro
     depends_on:
       postgres:
         condition: service_healthy
@@ -492,6 +493,19 @@ services:
       interval: 30s
       timeout: 5s
       retries: 3
+
+  # ─── ERP: InsERT Nexo (cloud connector) ─────────────────────
+  connector-insert-nexo:
+    build:
+      context: .
+      dockerfile: integrators/erp/insert-nexo/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      NEXO_CONNECTOR_LOG_LEVEL: INFO
+    depends_on:
+      - platform
+    restart: unless-stopped
 
 volumes:
   pgdata:

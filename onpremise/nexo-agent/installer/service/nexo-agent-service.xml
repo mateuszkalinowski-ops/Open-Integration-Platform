@@ -1,0 +1,40 @@
+<!--
+  WinSW service descriptor for Pinquark Nexo Agent.
+  WinSW wraps the Python/FastAPI process as a native Windows Service.
+  Download WinSW from: https://github.com/winsw/winsw/releases
+  Rename to nexo-agent-service.exe and place alongside this XML.
+-->
+<service>
+  <id>PinquarkNexoAgent</id>
+  <name>Pinquark Nexo Agent</name>
+  <description>Pinquark Integration Platform — on-premise agent for InsERT Nexo ERP (Subiekt). Provides REST API bridge to Nexo SDK and bidirectional sync with Pinquark Cloud.</description>
+
+  <executable>python</executable>
+  <arguments>-m uvicorn src.main:app --host 0.0.0.0 --port 8000</arguments>
+  <workingdirectory>%BASE%\..</workingdirectory>
+
+  <env name="PYTHONNET_RUNTIME" value="coreclr" />
+
+  <log mode="roll-by-size">
+    <sizeThreshold>10240</sizeThreshold>
+    <keepFiles>5</keepFiles>
+    <logpath>%BASE%\..\logs</logpath>
+  </log>
+
+  <onfailure action="restart" delay="10 sec" />
+  <onfailure action="restart" delay="30 sec" />
+  <onfailure action="none" />
+
+  <resetfailure>1 hour</resetfailure>
+
+  <startmode>Automatic</startmode>
+  <delayedAutoStart>true</delayedAutoStart>
+
+  <stoptimeout>30 sec</stoptimeout>
+
+  <serviceaccount>
+    <domain>NT AUTHORITY</domain>
+    <user>LocalService</user>
+    <allowservicelogon>true</allowservicelogon>
+  </serviceaccount>
+</service>

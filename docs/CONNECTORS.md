@@ -54,6 +54,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 31 | Apilo | E-commerce | v2.0.0 | REST (OAuth2 / Basic) | `client_id`, `client_secret`, `authorization_code` |
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
+| 34 | InsERT Nexo (Subiekt) | ERP | v1.0.0 | .NET SDK (pythonnet) + REST | `sql_server`, `sql_database`, `nexo_operator_login`, `nexo_operator_password` |
 
 ---
 

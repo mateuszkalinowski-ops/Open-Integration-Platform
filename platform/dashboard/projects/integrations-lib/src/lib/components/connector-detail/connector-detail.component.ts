@@ -13,7 +13,7 @@ import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 
-import { Connector, ConnectorGroup, ConnectorInstance, ApiEndpoint, COUNTRY_FLAG_MAP, COUNTRY_NAME_MAP } from '../../models';
+import { Connector, ConnectorGroup, ConnectorInstance, ApiEndpoint, OnPremiseAgentInfo, COUNTRY_FLAG_MAP, COUNTRY_NAME_MAP } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
 import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
 
@@ -100,6 +100,28 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
       <!-- Description -->
       <div class="connector-detail__section">
         <p class="connector-detail__description">{{ connector.description }}</p>
+      </div>
+
+      <!-- On-premise Agent Banner -->
+      <div class="onpremise-banner" *ngIf="connector.requires_onpremise_agent && connector.onpremise_agent">
+        <div class="onpremise-banner__icon">
+          <mat-icon>dns</mat-icon>
+        </div>
+        <div class="onpremise-banner__content">
+          <h3 class="onpremise-banner__title">
+            {{ connector.onpremise_agent.display_name }}
+            <span class="onpremise-banner__platform" *ngIf="connector.onpremise_agent.platform">
+              <mat-icon>desktop_windows</mat-icon> {{ connector.onpremise_agent.platform | titlecase }}
+            </span>
+          </h3>
+          <p class="onpremise-banner__desc">{{ connector.onpremise_agent.description }}</p>
+          <div class="onpremise-banner__actions">
+            <button mat-raised-button color="primary" (click)="onDownloadAgent()">
+              <mat-icon>download</mat-icon> Download Agent Package
+            </button>
+            <span class="onpremise-banner__version">v{{ connector.version }}</span>
+          </div>
+        </div>
       </div>
 
       <!-- Tabs -->
@@ -286,6 +308,46 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
             <p *ngIf="connector.config_schema.optional.length === 0" class="connector-detail__empty">No optional fields.</p>
           </div>
         </mat-tab>
+
+        <!-- On-Premise Agent -->
+        <mat-tab *ngIf="connector.requires_onpremise_agent && connector.onpremise_agent">
+          <ng-template mat-tab-label>
+            <mat-icon>dns</mat-icon>&nbsp;On-Premise Agent
+          </ng-template>
+          <div class="connector-detail__tab-content">
+            <p class="connector-detail__tab-hint">
+              This connector requires an on-premise agent installed at the client site.
+            </p>
+
+            <div class="onpremise-details">
+              <div class="onpremise-details__section">
+                <h4><mat-icon>checklist</mat-icon> System Requirements</h4>
+                <mat-list>
+                  <mat-list-item *ngFor="let req of connector.onpremise_agent.requirements">
+                    <mat-icon matListItemIcon>check_circle_outline</mat-icon>
+                    <span matListItemTitle>{{ req }}</span>
+                  </mat-list-item>
+                </mat-list>
+              </div>
+
+              <div class="onpremise-details__section">
+                <h4><mat-icon>format_list_numbered</mat-icon> Installation Steps</h4>
+                <mat-list>
+                  <mat-list-item *ngFor="let step of connector.onpremise_agent.install_steps; let i = index">
+                    <span matListItemIcon class="onpremise-step-number">{{ i + 1 }}</span>
+                    <span matListItemTitle>{{ step }}</span>
+                  </mat-list-item>
+                </mat-list>
+              </div>
+
+              <div class="onpremise-details__download">
+                <button mat-raised-button color="primary" (click)="onDownloadAgent()">
+                  <mat-icon>download</mat-icon> Download Agent Package (ZIP)
+                </button>
+              </div>
+            </div>
+          </div>
+        </mat-tab>
       </mat-tab-group>
     </div>
   `,
@@ -448,6 +510,98 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
     .swagger-status--error {
       color: #c62828;
     }
+
+    /* On-premise agent banner */
+    .onpremise-banner {
+      display: flex;
+      gap: 16px;
+      padding: 20px;
+      margin: 16px 0;
+      border-radius: 12px;
+      background: linear-gradient(135deg, #e8eaf6 0%, #e3f2fd 100%);
+      border: 1px solid #c5cae9;
+    }
+    .onpremise-banner__icon {
+      flex-shrink: 0;
+      width: 48px;
+      height: 48px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border-radius: 12px;
+      background: var(--mat-sys-primary, #005cbb);
+      color: #fff;
+    }
+    .onpremise-banner__icon mat-icon { font-size: 28px; width: 28px; height: 28px; }
+    .onpremise-banner__content { flex: 1; }
+    .onpremise-banner__title {
+      margin: 0 0 6px;
+      font-size: 16px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .onpremise-banner__platform {
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 2px 10px;
+      border-radius: 12px;
+      background: rgba(0,0,0,0.06);
+      color: var(--mat-sys-on-surface-variant, #555);
+    }
+    .onpremise-banner__platform mat-icon { font-size: 14px; width: 14px; height: 14px; }
+    .onpremise-banner__desc {
+      font-size: 13px;
+      line-height: 1.5;
+      color: var(--mat-sys-on-surface-variant, #555);
+      margin: 0 0 12px;
+    }
+    .onpremise-banner__actions {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .onpremise-banner__version {
+      font-size: 12px;
+      color: var(--mat-sys-on-surface-variant, #888);
+    }
+
+    /* On-premise agent tab details */
+    .onpremise-details__section { margin-bottom: 20px; }
+    .onpremise-details__section h4 {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 15px;
+      font-weight: 600;
+      margin: 0 0 8px;
+      color: var(--mat-sys-on-surface, #1a1a1a);
+    }
+    .onpremise-details__section h4 mat-icon {
+      font-size: 20px; width: 20px; height: 20px;
+      color: var(--mat-sys-primary, #005cbb);
+    }
+    .onpremise-step-number {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--mat-sys-primary, #005cbb);
+      color: #fff;
+      font-size: 12px;
+      font-weight: 700;
+    }
+    .onpremise-details__download {
+      margin-top: 24px;
+      padding-top: 16px;
+      border-top: 1px solid var(--mat-sys-outline-variant, #ddd);
+    }
   `],
 })
 export class ConnectorDetailComponent implements OnInit, OnChanges {
@@ -585,6 +739,12 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
 
   getCountryName(code: string): string {
     return COUNTRY_NAME_MAP[code] ?? code;
+  }
+
+  onDownloadAgent(): void {
+    if (this.connector) {
+      this.api.downloadOnPremiseAgent(this.connector.name);
+    }
   }
 
   onDeactivate(): void {

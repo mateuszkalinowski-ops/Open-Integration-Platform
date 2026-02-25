@@ -1,0 +1,127 @@
+name: insert-nexo
+category: erp
+version: 1.0.0
+display_name: "InsERT Nexo (Subiekt)"
+description: "On-premise agent for InsERT Nexo ERP (Subiekt) — contractors, products, sales & warehouse documents, orders, stock levels. Connects via Nexo SDK (Sfera API)."
+website_url: "https://www.insert.com.pl"
+country: PL
+logo_url: /assets/logos/insert-nexo.svg
+interface: erp
+deployment: on-premise
+capabilities:
+  - list_contractors
+  - get_contractor
+  - create_contractor
+  - update_contractor
+  - delete_contractor
+  - list_products
+  - get_product
+  - create_product
+  - update_product
+  - delete_product
+  - list_sales_documents
+  - get_sales_document
+  - create_sales_document
+  - list_warehouse_documents
+  - get_warehouse_document
+  - create_warehouse_document
+  - list_orders
+  - get_order
+  - create_order
+  - update_order
+  - get_stock_levels
+  - get_stock_for_product
+events:
+  - contractor.created
+  - contractor.updated
+  - product.created
+  - product.updated
+  - product.price_changed
+  - document.sales.created
+  - document.warehouse.created
+  - order.created
+  - order.status_changed
+  - stock.level_changed
+actions:
+  - contractor.create
+  - contractor.update
+  - contractor.delete
+  - contractor.list
+  - contractor.get
+  - product.create
+  - product.update
+  - product.delete
+  - product.list
+  - product.get
+  - document.sales.create
+  - document.sales.list
+  - document.sales.get
+  - document.warehouse.create
+  - document.warehouse.list
+  - document.warehouse.get
+  - order.create
+  - order.update
+  - order.list
+  - order.get
+  - stock.levels
+  - stock.get
+config_schema:
+  required:
+    - sql_server
+    - sql_database
+    - nexo_operator_login
+    - nexo_operator_password
+  optional:
+    - sql_auth_windows
+    - sql_username
+    - sql_password
+    - default_warehouse
+    - default_branch
+    - sync_interval_seconds
+    - heartbeat_interval_seconds
+    - cloud_platform_url
+  field_types:
+    sql_server:
+      type: string
+      label: "SQL Server instance (e.g. (local)\\INSERTNEXO)"
+    sql_database:
+      type: string
+      label: "Nexo database name"
+    nexo_operator_login:
+      type: string
+      label: "Nexo operator login"
+    nexo_operator_password:
+      type: password
+      label: "Nexo operator password"
+    sql_auth_windows:
+      type: boolean
+      label: "Use Windows Authentication for SQL Server"
+      default: true
+    sql_username:
+      type: string
+      label: "SQL Server username (if not using Windows Auth)"
+    sql_password:
+      type: password
+      label: "SQL Server password (if not using Windows Auth)"
+    default_warehouse:
+      type: string
+      label: "Default warehouse symbol"
+      default: "MAG"
+    default_branch:
+      type: string
+      label: "Default branch symbol"
+      default: "CENTRALA"
+    sync_interval_seconds:
+      type: integer
+      label: "Bidirectional sync interval"
+      default: 300
+    heartbeat_interval_seconds:
+      type: integer
+      label: "Heartbeat to cloud interval"
+      default: 60
+    cloud_platform_url:
+      type: string
+      label: "Pinquark Cloud Platform URL"
+      default: "https://integrations.pinquark.com"
+health_endpoint: /health
+docs_url: /docs
