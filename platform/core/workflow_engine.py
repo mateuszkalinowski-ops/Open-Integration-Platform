@@ -673,6 +673,25 @@ class WorkflowEngine:
 
         return _get_nested(ctx.data, path)
 
+    def _resolve_sources(
+        self, m: dict, ctx: WorkflowContext
+    ) -> list[Any]:
+        """Resolve all source values for a mapping rule.
+
+        Supports both legacy single-source (``from``) and multi-source
+        (``sources``) modes.  Returns a list of resolved values.
+        """
+        sources: list[str] = m.get("sources", [])
+        if sources:
+            return [self._resolve_value(s, ctx) for s in sources]
+
+        from_field = m.get("from", "")
+        if not from_field:
+            return []
+        if from_field == "__custom__":
+            return [m.get("from_custom", "")]
+        return [self._resolve_value(from_field, ctx)]
+
     def _apply_field_mapping(
         self, mappings: list[dict], ctx: WorkflowContext
     ) -> dict[str, Any]:
@@ -681,33 +700,38 @@ class WorkflowEngine:
         subject_extras: list[str] = []
 
         for m in mappings:
-            from_field = m.get("from", "")
             to_field = m.get("to", "")
-            if not from_field or not to_field:
-                continue
-
-            if from_field == "__custom__":
-                value = m.get("from_custom", "")
-            else:
-                value = self._resolve_value(from_field, ctx)
-
             if to_field == "__custom__":
                 to_field = m.get("to_custom", "")
-
             if not to_field:
                 continue
 
-            transform = m.get("transform")
-            if transform and value is not None:
-                value = self._apply_transform(value, transform)
-            if value is not None:
-                is_concat = to_field in result
-                _set_nested(result, to_field, value)
-                if is_concat and isinstance(value, (str, int, float)):
-                    if to_field == "body_text":
-                        body_text_extras.append(str(value))
-                    elif to_field == "subject":
-                        subject_extras.append(str(value))
+            resolved = self._resolve_sources(m, ctx)
+            if not resolved and not m.get("from", "") and not m.get("sources"):
+                continue
+
+            raw_transform = m.get("transform")
+            if raw_transform:
+                steps = raw_transform if isinstance(raw_transform, list) else [raw_transform]
+                pipe: list[Any] = resolved
+                for step in steps:
+                    pipe = [self._apply_transform(pipe, step)]
+                value = pipe[0]
+            elif len(resolved) == 1:
+                value = resolved[0]
+            else:
+                value = " ".join(str(v) for v in resolved if v is not None)
+
+            if value is None:
+                continue
+
+            is_concat = to_field in result
+            _set_nested(result, to_field, value)
+            if is_concat and isinstance(value, (str, int, float)):
+                if to_field == "body_text":
+                    body_text_extras.append(str(value))
+                elif to_field == "subject":
+                    subject_extras.append(str(value))
 
         if body_text_extras and "body_text" in result:
             original = result["body_text"]
@@ -733,44 +757,122 @@ class WorkflowEngine:
 
         return result
 
-    def _apply_transform(self, value: Any, transform: dict) -> Any:
+    def _apply_transform(self, values: list[Any], transform: dict) -> Any:
+        """Apply a transform to resolved source values.
+
+        ``values`` is always a list (single-element for 1:1 mappings).
+        Most single-value transforms operate on ``values[0]``.
+        Multi-source transforms (template, join, coalesce) use the full list.
+        """
         t = transform.get("type", "")
-        if t == "map":
-            return transform.get("values", {}).get(str(value), value)
-        elif t == "format":
-            return transform.get("template", "{}").format(value)
-        elif t == "uppercase":
-            return str(value).upper()
-        elif t == "lowercase":
-            return str(value).lower()
-        elif t == "to_int":
+        val = values[0] if values else None
+
+        # -- multi-source transforms --
+        if t == "template":
+            tpl = transform.get("template", "")
+            for i, v in enumerate(values):
+                tpl = tpl.replace(f"{{{{{i}}}}}", str(v) if v is not None else "")
+            return tpl
+        if t == "join":
+            sep = transform.get("separator", " ")
+            return sep.join(str(v) for v in values if v is not None)
+        if t == "coalesce":
+            for v in values:
+                if v is not None:
+                    return v
+            return transform.get("default_value")
+
+        # -- single-value transforms --
+        if t == "map" or t == "lookup":
+            table = transform.get("values") or transform.get("table", {})
+            return table.get(str(val), transform.get("default", val))
+        if t == "format":
+            return transform.get("template", "{}").format(val)
+        if t == "uppercase":
+            return str(val).upper() if val is not None else None
+        if t == "lowercase":
+            return str(val).lower() if val is not None else None
+        if t == "to_int":
             try:
-                return int(value)
+                return int(val)
             except (ValueError, TypeError):
-                return value
-        elif t == "to_float":
+                return val
+        if t == "to_float":
             try:
-                return float(value)
+                return float(val)
             except (ValueError, TypeError):
-                return value
-        elif t == "to_string":
-            return str(value)
-        elif t == "default":
-            return value if value is not None else transform.get("default_value")
-        elif t == "concat":
+                return val
+        if t == "to_string":
+            return str(val) if val is not None else None
+        if t == "default":
+            return val if val is not None else transform.get("default_value")
+        if t == "concat":
             separator = transform.get("separator", "")
             parts = transform.get("parts", [])
             return separator.join(str(p) for p in parts)
-        elif t == "split":
+        if t == "split":
             separator = transform.get("separator", ",")
-            return str(value).split(separator)
-        elif t == "trim":
-            return str(value).strip()
-        elif t == "replace":
+            return str(val).split(separator) if val is not None else []
+        if t == "trim":
+            return str(val).strip() if val is not None else None
+        if t == "replace":
             old = transform.get("old", "")
             new = transform.get("new", "")
-            return str(value).replace(old, new)
-        return value
+            return str(val).replace(old, new) if val is not None else None
+        if t == "regex_extract":
+            pattern = transform.get("pattern", "")
+            group = transform.get("group", 0)
+            if val is None or not pattern:
+                return val
+            match = re.search(pattern, str(val))
+            if match:
+                try:
+                    return match.group(group)
+                except IndexError:
+                    return match.group(0)
+            return None
+        if t == "regex_replace":
+            pattern = transform.get("pattern", "")
+            replacement = transform.get("replacement", "")
+            if val is None or not pattern:
+                return val
+            return re.sub(pattern, replacement, str(val))
+        if t == "substring":
+            start = transform.get("start", 0)
+            end = transform.get("end")
+            s = str(val) if val is not None else ""
+            return s[start:end] if end is not None else s[start:]
+        if t == "date_format":
+            in_fmt = transform.get("input_format", "%Y-%m-%d")
+            out_fmt = transform.get("output_format", "%d.%m.%Y")
+            try:
+                return datetime.strptime(str(val), in_fmt).strftime(out_fmt)
+            except (ValueError, TypeError):
+                return val
+        if t == "math":
+            op = transform.get("operation", "add")
+            operand = transform.get("operand", 0)
+            try:
+                n = float(val)
+            except (ValueError, TypeError):
+                return val
+            if op == "add":
+                return n + operand
+            if op == "sub":
+                return n - operand
+            if op == "mul":
+                return n * operand
+            if op == "div":
+                return n / operand if operand != 0 else val
+            return val
+        if t == "prepend":
+            prefix = transform.get("value", "")
+            return f"{prefix}{val}" if val is not None else None
+        if t == "append":
+            suffix = transform.get("value", "")
+            return f"{val}{suffix}" if val is not None else None
+
+        return val
 
     def _evaluate_expression(self, expr: str, ctx: WorkflowContext) -> Any:
         if not isinstance(expr, str):

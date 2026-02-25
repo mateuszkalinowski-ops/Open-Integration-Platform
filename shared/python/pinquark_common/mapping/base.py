@@ -1,12 +1,14 @@
 """Base mapper that applies a MappingProfile to transform data.
 
 Supports nested field access via dot notation, array iteration,
-value transforms, and per-client custom transform hooks.
+value transforms, multi-source mappings, and per-client custom
+transform hooks.
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 from typing import Any, Callable
@@ -47,32 +49,55 @@ class BaseMapper:
             _set_nested(result, key, value)
 
         for fm in self.profile.field_mappings:
-            raw_value = _get_nested(source_data, fm.source_field)
+            resolved = self._resolve_sources(fm, source_data)
 
-            if raw_value is None:
+            if not resolved or all(v is None for v in resolved):
                 if fm.required:
+                    label = ", ".join(fm.source_fields) if fm.source_fields else fm.source_field
                     raise MappingError(
-                        f"Required field '{fm.source_field}' is missing "
+                        f"Required field(s) '{label}' missing "
                         f"(profile={self.profile.profile_id})"
                     )
                 if fm.default_value is not None:
                     _set_nested(result, fm.target_field, fm.default_value)
                 continue
 
-            transformed = self._apply_transform(fm, raw_value)
+            transformed = self._apply_transform(fm, resolved)
+            if fm.extra_transforms:
+                for extra in fm.extra_transforms:
+                    transformed = self._apply_transform(extra, [transformed])
             _set_nested(result, fm.target_field, transformed)
 
         return result
+
+    def _resolve_sources(
+        self, fm: FieldMapping, source_data: dict[str, Any]
+    ) -> list[Any]:
+        """Resolve all source values for a mapping rule."""
+        if fm.source_fields:
+            return [_get_nested(source_data, f) for f in fm.source_fields]
+        if fm.source_field:
+            return [_get_nested(source_data, fm.source_field)]
+        return []
 
     def map_list(
         self, source_items: list[dict[str, Any]]
     ) -> list[dict[str, Any]]:
         return [self.map(item) for item in source_items]
 
-    def _apply_transform(self, fm: FieldMapping, value: Any) -> Any:
+    def _apply_transform(self, fm: FieldMapping, values: list[Any]) -> Any:
+        """Apply the configured transform to resolved source values.
+
+        ``values`` is a list of resolved sources (single-element for
+        legacy 1:1 mappings, multi-element for multi-source rules).
+        """
+        value = values[0] if values else None
+
         match fm.transform:
             case TransformType.NONE:
-                return value
+                return value if len(values) == 1 else " ".join(
+                    str(v) for v in values if v is not None
+                )
             case TransformType.STRING:
                 return str(value)
             case TransformType.INTEGER:
@@ -84,7 +109,7 @@ class BaseMapper:
                     logger.warning(
                         "Cannot convert '%s' to Decimal for field '%s'",
                         value,
-                        fm.source_field,
+                        fm.source_field or fm.source_fields,
                     )
                     return fm.default_value
             case TransformType.DATE:
@@ -103,9 +128,9 @@ class BaseMapper:
                 return str(value).upper()
             case TransformType.LOWERCASE:
                 return str(value).lower()
-            case TransformType.STRIP:
+            case TransformType.STRIP | TransformType.TRIM:
                 return str(value).strip()
-            case TransformType.MAP_VALUE:
+            case TransformType.MAP_VALUE | TransformType.LOOKUP:
                 mapped = fm.value_map.get(str(value))
                 if mapped is None:
                     logger.warning(
@@ -118,10 +143,13 @@ class BaseMapper:
                     return fm.default_value
                 return mapped
             case TransformType.TEMPLATE:
+                tpl = fm.template
+                for i, v in enumerate(values):
+                    tpl = tpl.replace(f"{{{{{i}}}}}", str(v) if v is not None else "")
                 try:
-                    return fm.template.format(value=value)
+                    return tpl.format(value=value)
                 except (KeyError, IndexError):
-                    return str(value)
+                    return tpl
             case TransformType.CUSTOM:
                 func = self._custom_transforms.get(fm.custom_transform_name)
                 if func is None:
@@ -130,6 +158,66 @@ class BaseMapper:
                         f"not registered"
                     )
                 return func(value)
+            case TransformType.REGEX_EXTRACT:
+                if value is None or not fm.regex_pattern:
+                    return value
+                match = re.search(fm.regex_pattern, str(value))
+                if match:
+                    try:
+                        return match.group(fm.regex_group)
+                    except IndexError:
+                        return match.group(0)
+                return None
+            case TransformType.REGEX_REPLACE:
+                if value is None or not fm.regex_pattern:
+                    return value
+                return re.sub(fm.regex_pattern, fm.regex_replacement, str(value))
+            case TransformType.COALESCE:
+                for v in values:
+                    if v is not None:
+                        return v
+                return fm.default_value
+            case TransformType.JOIN:
+                sep = fm.separator or " "
+                return sep.join(str(v) for v in values if v is not None)
+            case TransformType.SUBSTRING:
+                s = str(value) if value is not None else ""
+                end = fm.substring_end
+                return s[fm.substring_start:end] if end is not None else s[fm.substring_start:]
+            case TransformType.DATE_FORMAT:
+                in_fmt = fm.input_format or "%Y-%m-%d"
+                out_fmt = fm.output_format or "%d.%m.%Y"
+                try:
+                    return datetime.strptime(str(value), in_fmt).strftime(out_fmt)
+                except (ValueError, TypeError):
+                    return value
+            case TransformType.MATH:
+                op = fm.math_operation or "add"
+                operand = fm.math_operand
+                try:
+                    n = float(value)
+                except (ValueError, TypeError):
+                    return value
+                if op == "add":
+                    return n + operand
+                if op == "sub":
+                    return n - operand
+                if op == "mul":
+                    return n * operand
+                if op == "div":
+                    return n / operand if operand != 0 else value
+                return value
+            case TransformType.PREPEND:
+                return f"{fm.prepend_value}{value}" if value is not None else None
+            case TransformType.APPEND:
+                return f"{value}{fm.append_value}" if value is not None else None
+            case TransformType.SPLIT:
+                sep = fm.separator or ","
+                return str(value).split(sep) if value is not None else []
+            case TransformType.REPLACE:
+                return str(value).replace(
+                    fm.regex_pattern, fm.regex_replacement
+                ) if value is not None else None
             case _:
                 return value
 

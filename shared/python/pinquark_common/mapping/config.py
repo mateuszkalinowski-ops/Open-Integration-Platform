@@ -57,6 +57,19 @@ class TransformType(str, Enum):
     MAP_VALUE = "map_value"
     TEMPLATE = "template"
     CUSTOM = "custom"
+    REGEX_EXTRACT = "regex_extract"
+    REGEX_REPLACE = "regex_replace"
+    COALESCE = "coalesce"
+    JOIN = "join"
+    SUBSTRING = "substring"
+    DATE_FORMAT = "date_format"
+    MATH = "math"
+    PREPEND = "prepend"
+    APPEND = "append"
+    LOOKUP = "lookup"
+    SPLIT = "split"
+    REPLACE = "replace"
+    TRIM = "trim"
 
 
 class FieldMapping(BaseModel):
@@ -64,9 +77,15 @@ class FieldMapping(BaseModel):
 
     Supports dot-notation for nested fields (e.g. "buyer.address.city")
     and array notation (e.g. "line_items[].quantity").
+
+    Multi-source mode: when ``source_fields`` is provided, all listed
+    fields are resolved and passed to the transform.  The legacy
+    ``source_field`` is used as the primary source for backward
+    compatibility.
     """
 
-    source_field: str
+    source_field: str = ""
+    source_fields: list[str] = Field(default_factory=list)
     target_field: str
     transform: TransformType = TransformType.NONE
     default_value: Any = None
@@ -75,6 +94,19 @@ class FieldMapping(BaseModel):
     template: str = ""
     custom_transform_name: str = ""
     description: str = ""
+    regex_pattern: str = ""
+    regex_group: int = 0
+    regex_replacement: str = ""
+    separator: str = ""
+    input_format: str = ""
+    output_format: str = ""
+    math_operation: str = ""
+    math_operand: float = 0
+    prepend_value: str = ""
+    append_value: str = ""
+    substring_start: int = 0
+    substring_end: int | None = None
+    extra_transforms: list["FieldMapping"] = Field(default_factory=list)
 
 
 class MappingProfile(BaseModel):

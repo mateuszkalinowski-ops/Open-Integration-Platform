@@ -7,7 +7,9 @@ Resolution: merge defaults with overrides, tenant overrides take priority.
 
 import json
 import logging
+import re
 import uuid
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -80,6 +82,21 @@ class MappingResolver:
         )
         return list(result.scalars().all())
 
+    def _resolve_sources(
+        self, mapping_entry: dict, source_data: dict[str, Any]
+    ) -> list[Any]:
+        """Resolve all source values for a mapping rule."""
+        sources: list[str] = mapping_entry.get("sources", [])
+        if sources:
+            return [self._get_nested(source_data, s) for s in sources]
+
+        from_field = mapping_entry.get("from", "")
+        if not from_field:
+            return []
+        if from_field == "__custom__":
+            return [mapping_entry.get("from_custom", "")]
+        return [self._get_nested(source_data, from_field)]
+
     async def resolve(
         self,
         db: AsyncSession,
@@ -93,28 +110,39 @@ class MappingResolver:
 
         if flow_field_mapping:
             for mapping_entry in flow_field_mapping:
-                from_field = mapping_entry.get("from", "")
                 to_field = mapping_entry.get("to", "")
-                if not from_field or not to_field:
-                    continue
-
-                if from_field == "__custom__":
-                    value = mapping_entry.get("from_custom", "")
-                else:
-                    value = self._get_nested(source_data, from_field)
-
                 if to_field == "__custom__":
                     to_field = mapping_entry.get("to_custom", "")
+                if not to_field:
+                    continue
 
-                if to_field and value is not None:
+                resolved = self._resolve_sources(mapping_entry, source_data)
+                if not resolved and not mapping_entry.get("from") and not mapping_entry.get("sources"):
+                    continue
+
+                raw_transform = mapping_entry.get("transform")
+                if raw_transform:
+                    steps = raw_transform if isinstance(raw_transform, list) else [raw_transform]
+                    pipe: list[Any] = resolved
+                    for step in steps:
+                        pipe = [self._apply_transform(pipe, step)]
+                    value = pipe[0]
+                elif len(resolved) == 1:
+                    value = resolved[0]
+                else:
+                    value = " ".join(str(v) for v in resolved if v is not None)
+
+                if value is not None:
                     self._set_nested(mapped, to_field, value)
 
         overrides = await self.get_tenant_overrides(db, tenant_id, connector_name, mapping_type)
         for override in overrides:
-            value = self._get_nested(source_data, override.source_field)
-            if value is not None:
+            values = [self._get_nested(source_data, override.source_field)]
+            if values[0] is not None:
                 if override.transform:
-                    value = self._apply_transform(value, override.transform)
+                    value = self._apply_transform(values, override.transform)
+                else:
+                    value = values[0]
                 self._set_nested(mapped, override.target_field, value)
 
         return mapped
@@ -138,21 +166,117 @@ class MappingResolver:
             current = current[part]
         current[parts[-1]] = value
 
-    def _apply_transform(self, value: Any, transform: dict) -> Any:
-        transform_type = transform.get("type", "")
+    def _apply_transform(self, values: list[Any], transform: dict) -> Any:
+        """Apply a transform to resolved source values.
 
-        if transform_type == "map":
-            mapping_table = transform.get("values", {})
-            return mapping_table.get(str(value), value)
-        elif transform_type == "format":
-            template = transform.get("template", "{}")
-            return template.format(value)
-        elif transform_type == "uppercase":
-            return str(value).upper()
-        elif transform_type == "lowercase":
-            return str(value).lower()
+        ``values`` is always a list (single-element for 1:1 mappings).
+        """
+        t = transform.get("type", "")
+        val = values[0] if values else None
 
-        return value
+        if t == "template":
+            tpl = transform.get("template", "")
+            for i, v in enumerate(values):
+                tpl = tpl.replace(f"{{{{{i}}}}}", str(v) if v is not None else "")
+            return tpl
+        if t == "join":
+            sep = transform.get("separator", " ")
+            return sep.join(str(v) for v in values if v is not None)
+        if t == "coalesce":
+            for v in values:
+                if v is not None:
+                    return v
+            return transform.get("default_value")
+        if t == "map" or t == "lookup":
+            table = transform.get("values") or transform.get("table", {})
+            return table.get(str(val), transform.get("default", val))
+        if t == "format":
+            return transform.get("template", "{}").format(val)
+        if t == "uppercase":
+            return str(val).upper() if val is not None else None
+        if t == "lowercase":
+            return str(val).lower() if val is not None else None
+        if t == "to_int":
+            try:
+                return int(val)
+            except (ValueError, TypeError):
+                return val
+        if t == "to_float":
+            try:
+                return float(val)
+            except (ValueError, TypeError):
+                return val
+        if t == "to_string":
+            return str(val) if val is not None else None
+        if t == "default":
+            return val if val is not None else transform.get("default_value")
+        if t == "concat":
+            separator = transform.get("separator", "")
+            parts = transform.get("parts", [])
+            return separator.join(str(p) for p in parts)
+        if t == "split":
+            separator = transform.get("separator", ",")
+            return str(val).split(separator) if val is not None else []
+        if t == "trim":
+            return str(val).strip() if val is not None else None
+        if t == "replace":
+            old = transform.get("old", "")
+            new = transform.get("new", "")
+            return str(val).replace(old, new) if val is not None else None
+        if t == "regex_extract":
+            pattern = transform.get("pattern", "")
+            group = transform.get("group", 0)
+            if val is None or not pattern:
+                return val
+            match = re.search(pattern, str(val))
+            if match:
+                try:
+                    return match.group(group)
+                except IndexError:
+                    return match.group(0)
+            return None
+        if t == "regex_replace":
+            pattern = transform.get("pattern", "")
+            replacement = transform.get("replacement", "")
+            if val is None or not pattern:
+                return val
+            return re.sub(pattern, replacement, str(val))
+        if t == "substring":
+            start = transform.get("start", 0)
+            end = transform.get("end")
+            s = str(val) if val is not None else ""
+            return s[start:end] if end is not None else s[start:]
+        if t == "date_format":
+            in_fmt = transform.get("input_format", "%Y-%m-%d")
+            out_fmt = transform.get("output_format", "%d.%m.%Y")
+            try:
+                return datetime.strptime(str(val), in_fmt).strftime(out_fmt)
+            except (ValueError, TypeError):
+                return val
+        if t == "math":
+            op = transform.get("operation", "add")
+            operand = transform.get("operand", 0)
+            try:
+                n = float(val)
+            except (ValueError, TypeError):
+                return val
+            if op == "add":
+                return n + operand
+            if op == "sub":
+                return n - operand
+            if op == "mul":
+                return n * operand
+            if op == "div":
+                return n / operand if operand != 0 else val
+            return val
+        if t == "prepend":
+            prefix = transform.get("value", "")
+            return f"{prefix}{val}" if val is not None else None
+        if t == "append":
+            suffix = transform.get("value", "")
+            return f"{val}{suffix}" if val is not None else None
+
+        return val
 
     async def invalidate_cache(self, connector_name: str | None = None) -> None:
         if connector_name:

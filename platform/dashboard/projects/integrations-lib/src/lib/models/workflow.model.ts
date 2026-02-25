@@ -131,15 +131,18 @@ export interface ConditionRule {
   value?: unknown;
 }
 
+export interface TransformStep {
+  type: string;
+  [key: string]: unknown;
+}
+
 export interface FieldMapping {
   from: string;
   to: string;
   from_custom?: string;
   to_custom?: string;
-  transform?: {
-    type: string;
-    [key: string]: unknown;
-  };
+  sources?: string[];
+  transform?: TransformStep | TransformStep[];
 }
 
 export interface NodeTypeDefinition {
@@ -315,19 +318,37 @@ export const CONDITION_OPERATORS = [
   { value: 'is_not_empty', label: 'is not empty' },
 ];
 
-export const TRANSFORM_TYPES = [
-  { value: 'map', label: 'Value Map' },
-  { value: 'format', label: 'Format Template' },
-  { value: 'uppercase', label: 'Uppercase' },
-  { value: 'lowercase', label: 'Lowercase' },
+export interface TransformTypeDef {
+  value: string;
+  label: string;
+  multiSource?: boolean;
+  configFields?: string[];
+}
+
+export const TRANSFORM_TYPES: TransformTypeDef[] = [
+  { value: 'template', label: 'Template', multiSource: true, configFields: ['template'] },
+  { value: 'join', label: 'Join', multiSource: true, configFields: ['separator'] },
+  { value: 'coalesce', label: 'Coalesce (first non-null)', multiSource: true, configFields: ['default_value'] },
+  { value: 'regex_extract', label: 'Regex Extract', configFields: ['pattern', 'group'] },
+  { value: 'regex_replace', label: 'Regex Replace', configFields: ['pattern', 'replacement'] },
+  { value: 'map', label: 'Value Map', configFields: ['values'] },
+  { value: 'lookup', label: 'Lookup Table', configFields: ['table', 'default'] },
+  { value: 'format', label: 'Format Template', configFields: ['template'] },
+  { value: 'uppercase', label: 'UPPERCASE' },
+  { value: 'lowercase', label: 'lowercase' },
+  { value: 'trim', label: 'Trim Whitespace' },
+  { value: 'replace', label: 'Replace Text', configFields: ['old', 'new'] },
+  { value: 'split', label: 'Split String', configFields: ['separator'] },
+  { value: 'concat', label: 'Concatenate', configFields: ['separator', 'parts'] },
+  { value: 'substring', label: 'Substring', configFields: ['start', 'end'] },
+  { value: 'date_format', label: 'Date Format', configFields: ['input_format', 'output_format'] },
+  { value: 'math', label: 'Math Operation', configFields: ['operation', 'operand'] },
+  { value: 'prepend', label: 'Prepend', configFields: ['value'] },
+  { value: 'append', label: 'Append', configFields: ['value'] },
   { value: 'to_int', label: 'To Integer' },
   { value: 'to_float', label: 'To Float' },
   { value: 'to_string', label: 'To String' },
-  { value: 'default', label: 'Default Value' },
-  { value: 'trim', label: 'Trim Whitespace' },
-  { value: 'replace', label: 'Replace Text' },
-  { value: 'split', label: 'Split String' },
-  { value: 'concat', label: 'Concatenate' },
+  { value: 'default', label: 'Default Value', configFields: ['default_value'] },
 ];
 
 export type AiModelType = 'gemini' | 'opus';

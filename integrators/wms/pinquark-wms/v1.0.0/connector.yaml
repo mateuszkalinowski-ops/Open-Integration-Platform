@@ -87,12 +87,30 @@ event_fields:
     - field: group
       label: "Grupa"
       type: string
+    - field: type
+      label: "Typ artykulu"
+      type: string
     - field: unit
       label: "Jednostka miary"
       type: string
     - field: source
       label: "Zrodlo (ERP/WMS)"
       type: string
+    - field: state
+      label: "Stan artykulu"
+      type: integer
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
+    - field: images
+      label: "Obrazy"
+      type: "object[]"
+    - field: providers
+      label: "Dostawcy"
+      type: "object[]"
+    - field: unitsOfMeasure
+      label: "Jednostki miar (konwersje)"
+      type: "object[]"
   document.synced:
     - field: erpId
       label: "ID dokumentu (ERP)"
@@ -104,7 +122,7 @@ event_fields:
       label: "Typ dokumentu"
       type: string
     - field: symbol
-      label: "Symbol"
+      label: "Symbol dokumentu"
       type: string
     - field: source
       label: "Zrodlo (ERP/WMS)"
@@ -115,20 +133,92 @@ event_fields:
     - field: dueDate
       label: "Termin"
       type: date
+    - field: erpCode
+      label: "Kod ERP"
+      type: string
+    - field: erpStatusSymbol
+      label: "Status ERP"
+      type: string
+    - field: orderType
+      label: "Typ zamowienia"
+      type: string
+    - field: contractor.erpId
+      label: "Kontrahent - ID ERP"
+      type: integer
+    - field: contractor.wmsId
+      label: "Kontrahent - ID WMS"
+      type: integer
     - field: contractor.name
       label: "Kontrahent - nazwa"
+      type: string
+    - field: contractor.symbol
+      label: "Kontrahent - symbol"
       type: string
     - field: contractor.email
       label: "Kontrahent - email"
       type: string
-    - field: deliveryAddress.city
-      label: "Adres dostawy - miasto"
+    - field: contractor.phone
+      label: "Kontrahent - telefon"
+      type: string
+    - field: contractor.taxNumber
+      label: "Kontrahent - NIP"
+      type: string
+    - field: contractor.source
+      label: "Kontrahent - zrodlo"
+      type: string
+    - field: contractor.isSupplier
+      label: "Kontrahent - dostawca"
+      type: boolean
+    - field: contractor.supplierSymbol
+      label: "Kontrahent - symbol dostawcy"
+      type: string
+    - field: contractor.address.street
+      label: "Kontrahent - ulica"
+      type: string
+    - field: contractor.address.city
+      label: "Kontrahent - miasto"
+      type: string
+    - field: contractor.address.zipCode
+      label: "Kontrahent - kod pocztowy"
+      type: string
+    - field: contractor.address.country
+      label: "Kontrahent - kraj"
+      type: string
+    - field: contact.firstName
+      label: "Kontakt - imie"
+      type: string
+    - field: contact.lastName
+      label: "Kontakt - nazwisko"
+      type: string
+    - field: contact.phone
+      label: "Kontakt - telefon"
+      type: string
+    - field: contact.email
+      label: "Kontakt - email"
       type: string
     - field: deliveryAddress.street
       label: "Adres dostawy - ulica"
       type: string
+    - field: deliveryAddress.city
+      label: "Adres dostawy - miasto"
+      type: string
     - field: deliveryAddress.zipCode
       label: "Adres dostawy - kod pocztowy"
+      type: string
+    - field: deliveryAddress.country
+      label: "Adres dostawy - kraj"
+      type: string
+    - field: deliveryAddress.name
+      label: "Adres dostawy - nazwa"
+      type: string
+    - field: positions
+      label: "Pozycje dokumentu"
+      type: "object[]"
+    - field: procedures
+      label: "Procedury WMS"
+      type: "string[]"
+    - field: warehouseSymbol
+      label: "Symbol magazynu"
       type: string
     - field: note
       label: "Uwagi"
@@ -136,9 +226,15 @@ event_fields:
     - field: priority
       label: "Priorytet"
       type: integer
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
   contractor.synced:
     - field: erpId
       label: "ID kontrahenta (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID kontrahenta (WMS)"
       type: integer
     - field: name
       label: "Nazwa kontrahenta"
@@ -155,15 +251,33 @@ event_fields:
     - field: taxNumber
       label: "NIP"
       type: string
-    - field: address.city
-      label: "Miasto"
+    - field: isSupplier
+      label: "Czy dostawca"
+      type: boolean
+    - field: supplierSymbol
+      label: "Symbol dostawcy"
+      type: string
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
       type: string
     - field: address.street
       label: "Ulica"
       type: string
+    - field: address.city
+      label: "Miasto"
+      type: string
     - field: address.zipCode
       label: "Kod pocztowy"
       type: string
+    - field: address.country
+      label: "Kraj"
+      type: string
+    - field: addresses
+      label: "Dodatkowe adresy"
+      type: "object[]"
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
   position.synced:
     - field: documentId
       label: "ID dokumentu"
@@ -175,6 +289,9 @@ event_fields:
       label: "Lista pozycji"
       type: "object[]"
   feedback.received:
+    - field: id
+      label: "ID feedbacku"
+      type: integer
     - field: action
       label: "Akcja (SAVE/DELETE)"
       type: string
@@ -186,6 +303,9 @@ event_fields:
       type: boolean
     - field: errors
       label: "Bledy"
+      type: object
+    - field: responseMessages
+      label: "Odpowiedzi z WMS"
       type: object
   error.received:
     - field: body
@@ -218,16 +338,70 @@ action_fields:
     - field: group
       label: "Grupa"
       type: string
+    - field: type
+      label: "Typ artykulu"
+      type: string
     - field: unit
       label: "Jednostka miary"
       type: string
     - field: source
       label: "Zrodlo (ERP/WMS)"
       type: string
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
+    - field: unitsOfMeasure
+      label: "Jednostki miar (konwersje)"
+      type: "object[]"
+    - field: images
+      label: "Obrazy"
+      type: "object[]"
+    - field: providers
+      label: "Dostawcy"
+      type: "object[]"
   article.delete:
     - field: uniqueCode
       label: "Unikalny kod artykulu"
       type: string
+      required: true
+  articles.create_list:
+    - field: articles
+      label: "Lista artykulow"
+      type: "object[]"
+      required: true
+  articles.delete_list:
+    - field: deletions
+      label: "Lista do usuniecia"
+      type: "object[]"
+      required: true
+  article_batch.create:
+    - field: batchNumber
+      label: "Numer partii"
+      type: string
+      required: true
+    - field: erpArticleId
+      label: "ID artykulu (ERP)"
+      type: integer
+      required: true
+    - field: eanCode
+      label: "Kod EAN"
+      type: string
+    - field: batchOwner
+      label: "Wlasciciel partii"
+      type: string
+    - field: batchOwnerId
+      label: "ID wlasciciela"
+      type: integer
+    - field: termValidity
+      label: "Data waznosci"
+      type: date
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
+  article_batches.create_list:
+    - field: batches
+      label: "Lista partii"
+      type: "object[]"
       required: true
   document.create:
     - field: erpId
@@ -242,20 +416,53 @@ action_fields:
       label: "Zrodlo (ERP/WMS)"
       type: string
       required: true
+    - field: symbol
+      label: "Symbol dokumentu"
+      type: string
+    - field: date
+      label: "Data dokumentu"
+      type: date
+    - field: dueDate
+      label: "Termin"
+      type: date
+    - field: erpCode
+      label: "Kod ERP"
+      type: string
+    - field: orderType
+      label: "Typ zamowienia"
+      type: string
     - field: contractor.erpId
       label: "Kontrahent - ID ERP"
       type: integer
     - field: contractor.source
       label: "Kontrahent - zrodlo"
       type: string
-    - field: deliveryAddress.street
-      label: "Adres dostawy - ulica"
+    - field: contractor.name
+      label: "Kontrahent - nazwa"
       type: string
-    - field: deliveryAddress.city
-      label: "Adres dostawy - miasto"
+    - field: contractor.symbol
+      label: "Kontrahent - symbol"
       type: string
-    - field: deliveryAddress.zipCode
-      label: "Adres dostawy - kod pocztowy"
+    - field: contractor.email
+      label: "Kontrahent - email"
+      type: string
+    - field: contractor.phone
+      label: "Kontrahent - telefon"
+      type: string
+    - field: contractor.taxNumber
+      label: "Kontrahent - NIP"
+      type: string
+    - field: contractor.address.street
+      label: "Kontrahent - ulica"
+      type: string
+    - field: contractor.address.city
+      label: "Kontrahent - miasto"
+      type: string
+    - field: contractor.address.zipCode
+      label: "Kontrahent - kod pocztowy"
+      type: string
+    - field: contractor.address.country
+      label: "Kontrahent - kraj"
       type: string
     - field: contact.firstName
       label: "Kontakt - imie"
@@ -269,6 +476,39 @@ action_fields:
     - field: contact.email
       label: "Kontakt - email"
       type: string
+    - field: deliveryAddress.street
+      label: "Adres dostawy - ulica"
+      type: string
+    - field: deliveryAddress.city
+      label: "Adres dostawy - miasto"
+      type: string
+    - field: deliveryAddress.zipCode
+      label: "Adres dostawy - kod pocztowy"
+      type: string
+    - field: deliveryAddress.country
+      label: "Adres dostawy - kraj"
+      type: string
+    - field: deliveryAddress.name
+      label: "Adres dostawy - nazwa"
+      type: string
+    - field: positions
+      label: "Pozycje dokumentu"
+      type: "object[]"
+    - field: procedures
+      label: "Procedury WMS"
+      type: "string[]"
+    - field: warehouseSymbol
+      label: "Symbol magazynu"
+      type: string
+    - field: note
+      label: "Uwagi"
+      type: string
+    - field: priority
+      label: "Priorytet"
+      type: integer
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
   document.delete:
     - field: source
       label: "Zrodlo (ERP/WMS)"
@@ -277,6 +517,56 @@ action_fields:
     - field: uniqueCode
       label: "Unikalny kod dokumentu"
       type: string
+      required: true
+  documents.create_wrapper:
+    - field: continueOnFail
+      label: "Kontynuuj przy bledzie"
+      type: boolean
+      required: true
+    - field: documents
+      label: "Lista dokumentow"
+      type: "object[]"
+      required: true
+  documents.delete_list:
+    - field: deletions
+      label: "Lista do usuniecia"
+      type: "object[]"
+      required: true
+  position.create:
+    - field: documentId
+      label: "ID dokumentu"
+      type: integer
+      required: true
+    - field: documentSource
+      label: "Zrodlo dokumentu"
+      type: string
+      required: true
+    - field: positions
+      label: "Pozycje"
+      type: "object[]"
+      required: true
+  position.delete:
+    - field: documentId
+      label: "ID dokumentu"
+      type: integer
+      required: true
+    - field: source
+      label: "Zrodlo (ERP/WMS)"
+      type: string
+      required: true
+    - field: uniqueCode
+      label: "Unikalny kod pozycji"
+      type: string
+      required: true
+  positions.create_list:
+    - field: positionWrappers
+      label: "Lista wrapperow pozycji"
+      type: "object[]"
+      required: true
+  positions.delete_list:
+    - field: deletions
+      label: "Lista do usuniecia"
+      type: "object[]"
       required: true
   contractor.create:
     - field: erpId
@@ -303,6 +593,12 @@ action_fields:
     - field: taxNumber
       label: "NIP"
       type: string
+    - field: isSupplier
+      label: "Czy dostawca"
+      type: boolean
+    - field: supplierSymbol
+      label: "Symbol dostawcy"
+      type: string
     - field: address.street
       label: "Ulica"
       type: string
@@ -312,6 +608,15 @@ action_fields:
     - field: address.zipCode
       label: "Kod pocztowy"
       type: string
+    - field: address.country
+      label: "Kraj"
+      type: string
+    - field: addresses
+      label: "Dodatkowe adresy"
+      type: "object[]"
+    - field: attributes
+      label: "Atrybuty"
+      type: "object[]"
   contractor.delete:
     - field: source
       label: "Zrodlo (ERP/WMS)"
@@ -321,6 +626,107 @@ action_fields:
       label: "Unikalny kod kontrahenta"
       type: string
       required: true
+  contractors.create_list:
+    - field: contractors
+      label: "Lista kontrahentow"
+      type: "object[]"
+      required: true
+  contractors.delete_list:
+    - field: deletions
+      label: "Lista do usuniecia"
+      type: "object[]"
+      required: true
+
+output_fields:
+  article.create:
+    - field: erpId
+      label: "ID artykulu (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID artykulu (WMS)"
+      type: integer
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: ean
+      label: "Kod EAN"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  article.delete:
+    - field: uniqueCode
+      label: "Unikalny kod"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  document.create:
+    - field: erpId
+      label: "ID dokumentu (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID dokumentu (WMS)"
+      type: integer
+    - field: documentType
+      label: "Typ dokumentu"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  document.delete:
+    - field: uniqueCode
+      label: "Unikalny kod"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  contractor.create:
+    - field: erpId
+      label: "ID kontrahenta (ERP)"
+      type: integer
+    - field: wmsId
+      label: "ID kontrahenta (WMS)"
+      type: integer
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: symbol
+      label: "Symbol"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  contractor.delete:
+    - field: uniqueCode
+      label: "Unikalny kod"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  position.create:
+    - field: documentId
+      label: "ID dokumentu"
+      type: integer
+    - field: count
+      label: "Liczba utworzonych pozycji"
+      type: integer
+    - field: success
+      label: "Sukces"
+      type: boolean
+  position.delete:
+    - field: uniqueCode
+      label: "Unikalny kod"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
 
 config_schema:
   required:
