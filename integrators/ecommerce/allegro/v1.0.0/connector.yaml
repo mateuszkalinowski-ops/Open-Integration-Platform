@@ -2,11 +2,12 @@ name: allegro
 category: ecommerce
 version: "2025"
 display_name: "Allegro"
-description: "Poland's largest e-commerce platform. Order sync, stock level management and offer listings."
+description: "Poland's largest e-commerce platform. Orders, offers, shipments, payments, returns, messages, billing."
 website_url: "https://allegro.pl"
 country: PL
 logo_url: /assets/logos/allegro.svg
 interface: ecommerce
+
 capabilities:
   - fetch_orders
   - get_order
@@ -15,23 +16,230 @@ capabilities:
   - get_product
   - search_products
   - upload_invoice
+  - manage_offers
+  - manage_shipments
+  - manage_returns
+  - manage_payments
+  - manage_messages
+  - manage_delivery
+  - manage_promotions
+  - manage_categories
+
 events:
+  # Order events (GET /order/events)
+  - order.bought
+  - order.filled_in
+  - order.ready_for_processing
+  - order.buyer_cancelled
+  - order.auto_cancelled
+  # Semantic order events (derived from order event journal)
   - order.created
   - order.status_changed
+  - order.paid
+  - order.shipped
+  - order.completed
+  - order.cancelled
+  # Offer events (GET /sale/offer-events)
+  - offer.activated
+  - offer.changed
+  - offer.ended
+  - offer.stock_changed
+  - offer.price_changed
+  - offer.archived
+  - offer.bid_placed
+  - offer.bid_canceled
+  - offer.translation_updated
+  - offer.visibility_changed
+  - offer.delivery_countries_blocked
+  # Semantic offer events (derived from offer event journal)
+  - offer.created
+  - offer.updated
+  # Category events (GET /sale/category-events)
+  - category.created
+  - category.renamed
+  - category.moved
+  - category.deleted
+  # Other events
   - stock.updated
+  - return.opened
+  - return.resolved
+  - message.received
+  - shipment.status_changed
+
 actions:
+  # Orders
   - order.fetch
   - order.get
   - order.status_update
   - order.invoice_upload
   - order.invoices_get
+  - order.events_get
+  - order.events_stats
+  - order.tracking_add
+  - order.tracking_get
+  - order.carriers_get
+  - order.billing_upload
+  # Offers
+  - offer.get
+  - offer.get_all
+  - offer.create
+  - offer.edit
+  - offer.delete_draft
+  - offer.publish
+  - offer.events_get
+  - offer.promo_get
+  - offer.promo_modify
+  - offer.rating_get
+  # Offer batch
+  - offer_batch.price_change
+  - offer_batch.quantity_change
+  - offer_batch.modify
+  # Stock
   - stock.sync
+  # Products
   - product.get
   - product.search
+  - product.propose
+  - product.params_get
+  # Categories
+  - category.list
+  - category.get
+  - category.params_get
+  - category.suggestions
+  # Images
+  - image.upload
+  - attachment.create
+  - attachment.upload
+  # Offer variants
+  - variant.list
+  - variant.get
+  - variant.create
+  - variant.update
+  - variant.delete
+  # Offer tags
+  - tag.list
+  - tag.create
+  - tag.update
+  - tag.delete
+  - tag.assign
+  # Promotions
+  - promotion.list
+  - promotion.get
+  - promotion.create
+  - promotion.update
+  - promotion.delete
+  - turnover_discount.list
+  - turnover_discount.create
+  - turnover_discount.deactivate
+  # Bundles
+  - bundle.list
+  - bundle.get
+  - bundle.create
+  - bundle.delete
+  # Payments
+  - payment.history
+  - payment.refund_list
+  - payment.refund_initiate
+  # Shipments
+  - shipment.create
+  - shipment.get
+  - shipment.cancel
+  - shipment.labels
+  - shipment.protocol
+  - shipment.services_get
+  - shipment.pickup_request
+  - shipment.pickup_proposals
+  # Returns
+  - return.list
+  - return.get
+  - return.reject
+  # Delivery
+  - delivery.methods_get
+  - delivery.settings_get
+  - delivery.settings_update
+  - delivery.shipping_rates_list
+  - delivery.shipping_rates_get
+  - delivery.shipping_rates_create
+  - delivery.shipping_rates_update
+  # After sale
+  - warranty.list
+  - warranty.get
+  - warranty.create
+  - warranty.update
+  - return_policy.list
+  - return_policy.get
+  - return_policy.create
+  - return_policy.update
+  - return_policy.delete
+  # Messages
+  - message.threads_list
+  - message.thread_get
+  - message.thread_messages
+  - message.send
+  - message.thread_read
+  # Billing
+  - billing.types_get
+  - billing.entries_get
+  # User
+  - user.info_get
+  - user.ratings_get
+  - user.sales_quality
+  # Commission refunds
+  - commission_refund.list
+  - commission_refund.get
+  - commission_refund.create
+  - commission_refund.cancel
+  # Additional services
+  - additional_service.groups_list
+  - additional_service.group_get
+  - additional_service.group_create
+  - additional_service.group_update
+  - additional_service.definitions_get
+  # Size tables
+  - size_table.list
+  - size_table.get
+  - size_table.create
+  - size_table.update
+  # Points of service
+  - point_of_service.list
+  - point_of_service.get
+  - point_of_service.create
+  - point_of_service.update
+  - point_of_service.delete
+  # Contacts
+  - contact.list
+  - contact.get
+  - contact.create
+  - contact.update
+  # Pricing
+  - pricing.offer_quotes
+  - pricing.fee_calculate
+  # Tax
+  - tax.settings_get
+  # Badge campaigns
+  - badge.campaigns_list
+  - badge.list
+  - badge.apply
+  # Compatibility list
+  - compatibility.products
+  - compatibility.groups
+  - compatibility.suggestions
+  - compatibility.categories
+  # Fulfillment
+  - fulfillment.stock_get
+  - fulfillment.parcels_get
+  - fulfillment.products_get
+  - fulfillment.asn_list
+  - fulfillment.asn_get
+  - fulfillment.asn_create
+
 event_fields:
   order.created:
     - field: order_id
       label: "ID zamowienia"
+      type: string
+    - field: buyer.id
+      label: "ID kupujacego"
       type: string
     - field: buyer.login
       label: "Login kupujacego"
@@ -48,39 +256,295 @@ event_fields:
     - field: buyer.phone
       label: "Telefon kupujacego"
       type: string
+    - field: buyer.company_name
+      label: "Nazwa firmy"
+      type: string
+    - field: buyer.nip
+      label: "NIP"
+      type: string
+    - field: buyer.address.street
+      label: "Adres kupujacego - ulica"
+      type: string
+    - field: buyer.address.city
+      label: "Adres kupujacego - miasto"
+      type: string
+    - field: buyer.address.zip_code
+      label: "Adres kupujacego - kod pocztowy"
+      type: string
+    - field: buyer.address.country
+      label: "Adres kupujacego - kraj"
+      type: string
+    - field: delivery.address.first_name
+      label: "Adres dostawy - imie"
+      type: string
+    - field: delivery.address.last_name
+      label: "Adres dostawy - nazwisko"
+      type: string
     - field: delivery.address.street
-      label: "Ulica dostawy"
+      label: "Adres dostawy - ulica"
       type: string
     - field: delivery.address.city
-      label: "Miasto dostawy"
+      label: "Adres dostawy - miasto"
       type: string
     - field: delivery.address.zip_code
-      label: "Kod pocztowy dostawy"
+      label: "Adres dostawy - kod pocztowy"
       type: string
     - field: delivery.address.country
-      label: "Kraj dostawy"
+      label: "Adres dostawy - kraj"
       type: string
-    - field: delivery.method
+    - field: delivery.address.phone
+      label: "Adres dostawy - telefon"
+      type: string
+    - field: delivery.address.company_name
+      label: "Adres dostawy - firma"
+      type: string
+    - field: delivery.method.id
+      label: "ID metody dostawy"
+      type: string
+    - field: delivery.method.name
       label: "Metoda dostawy"
       type: string
-    - field: delivery.point_id
+    - field: delivery.pickup_point.id
       label: "ID punktu odbioru"
       type: string
-    - field: payment.amount
-      label: "Kwota zamowienia"
+    - field: delivery.pickup_point.name
+      label: "Nazwa punktu odbioru"
+      type: string
+    - field: delivery.pickup_point.address
+      label: "Adres punktu odbioru"
+      type: string
+    - field: delivery.cost.amount
+      label: "Koszt dostawy"
       type: number
-    - field: payment.currency
+    - field: delivery.cost.currency
+      label: "Waluta kosztu dostawy"
+      type: string
+    - field: payment.id
+      label: "ID platnosci"
+      type: string
+    - field: payment.type
+      label: "Typ platnosci"
+      type: string
+    - field: payment.paid_amount.amount
+      label: "Kwota zaplacona"
+      type: number
+    - field: payment.paid_amount.currency
       label: "Waluta"
       type: string
-    - field: items
-      label: "Produkty (lista)"
+    - field: payment.total_amount.amount
+      label: "Kwota calkowita"
+      type: number
+    - field: payment.total_amount.currency
+      label: "Waluta calkowita"
+      type: string
+    - field: status
+      label: "Status zamowienia"
+      type: string
+    - field: fulfillment.status
+      label: "Status realizacji"
+      type: string
+    - field: fulfillment.shipment_summary.line_items_sent
+      label: "Pozycje wyslane"
+      type: string
+    - field: invoice.required
+      label: "Faktura wymagana"
+      type: boolean
+    - field: invoice.address.company_name
+      label: "Faktura - nazwa firmy"
+      type: string
+    - field: invoice.address.nip
+      label: "Faktura - NIP"
+      type: string
+    - field: invoice.address.street
+      label: "Faktura - ulica"
+      type: string
+    - field: invoice.address.city
+      label: "Faktura - miasto"
+      type: string
+    - field: invoice.address.zip_code
+      label: "Faktura - kod pocztowy"
+      type: string
+    - field: invoice.address.country
+      label: "Faktura - kraj"
+      type: string
+    - field: line_items
+      label: "Pozycje zamowienia"
       type: "object[]"
-    - field: note
+    - field: surcharges
+      label: "Doplaty"
+      type: "object[]"
+    - field: discounts
+      label: "Rabaty"
+      type: "object[]"
+    - field: note.text
       label: "Uwagi kupujacego"
+      type: string
+    - field: marketplace.id
+      label: "ID marketplace"
       type: string
     - field: created_at
       label: "Data utworzenia"
       type: datetime
+    - field: updated_at
+      label: "Data aktualizacji"
+      type: datetime
+  # Allegro native order events (GET /order/events)
+  order.bought:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: order.seller.id
+      label: "ID sprzedawcy"
+      type: string
+    - field: order.buyer.id
+      label: "ID kupujacego"
+      type: string
+    - field: order.buyer.email
+      label: "Email kupujacego"
+      type: string
+    - field: order.buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: order.buyer.guest
+      label: "Czy gosc"
+      type: boolean
+    - field: order.buyer.preferences.language
+      label: "Jezyk kupujacego"
+      type: string
+    - field: order.line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+    - field: order.checkout_form.id
+      label: "ID formularza"
+      type: string
+    - field: order.checkout_form.revision
+      label: "Rewizja formularza"
+      type: string
+    - field: order.marketplace.id
+      label: "ID marketplace"
+      type: string
+  order.filled_in:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: order.seller.id
+      label: "ID sprzedawcy"
+      type: string
+    - field: order.buyer.id
+      label: "ID kupujacego"
+      type: string
+    - field: order.buyer.email
+      label: "Email kupujacego"
+      type: string
+    - field: order.buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: order.checkout_form.id
+      label: "ID formularza"
+      type: string
+    - field: order.line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+    - field: order.marketplace.id
+      label: "ID marketplace"
+      type: string
+  order.ready_for_processing:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: order.seller.id
+      label: "ID sprzedawcy"
+      type: string
+    - field: order.buyer.id
+      label: "ID kupujacego"
+      type: string
+    - field: order.buyer.email
+      label: "Email kupujacego"
+      type: string
+    - field: order.buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: order.checkout_form.id
+      label: "ID formularza"
+      type: string
+    - field: order.checkout_form.revision
+      label: "Rewizja formularza"
+      type: string
+    - field: order.line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+    - field: order.marketplace.id
+      label: "ID marketplace"
+      type: string
+  order.buyer_cancelled:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: order.seller.id
+      label: "ID sprzedawcy"
+      type: string
+    - field: order.buyer.id
+      label: "ID kupujacego"
+      type: string
+    - field: order.buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: order.checkout_form.id
+      label: "ID formularza"
+      type: string
+    - field: order.line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+  order.auto_cancelled:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: order.seller.id
+      label: "ID sprzedawcy"
+      type: string
+    - field: order.buyer.id
+      label: "ID kupujacego"
+      type: string
+    - field: order.buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: order.checkout_form.id
+      label: "ID formularza"
+      type: string
+    - field: order.line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+  # Semantic order events (derived)
   order.status_changed:
     - field: order_id
       label: "ID zamowienia"
@@ -91,8 +555,69 @@ event_fields:
     - field: previous_status
       label: "Poprzedni status"
       type: string
+    - field: fulfillment.status
+      label: "Status realizacji"
+      type: string
+    - field: buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: buyer.email
+      label: "Email kupujacego"
+      type: string
     - field: updated_at
       label: "Data zmiany"
+      type: datetime
+  order.paid:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: payment.id
+      label: "ID platnosci"
+      type: string
+    - field: payment.type
+      label: "Typ platnosci"
+      type: string
+    - field: payment.paid_amount.amount
+      label: "Kwota zaplacona"
+      type: number
+    - field: payment.paid_amount.currency
+      label: "Waluta"
+      type: string
+    - field: buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: paid_at
+      label: "Data platnosci"
+      type: datetime
+  order.shipped:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: tracking_number
+      label: "Numer sledzenia"
+      type: string
+    - field: carrier
+      label: "Przewoznik"
+      type: string
+    - field: shipped_at
+      label: "Data wysylki"
+      type: datetime
+  order.completed:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: completed_at
+      label: "Data zakonczenia"
+      type: datetime
+  order.cancelled:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: reason
+      label: "Powod anulowania"
+      type: string
+    - field: cancelled_at
+      label: "Data anulowania"
       type: datetime
   stock.updated:
     - field: product_id
@@ -107,11 +632,369 @@ event_fields:
     - field: updated_at
       label: "Data aktualizacji"
       type: datetime
+  # Allegro native offer events (GET /sale/offer-events)
+  offer.activated:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_ACTIVATED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.changed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_CHANGED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.ended:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_ENDED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.stock_changed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_STOCK_CHANGED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.price_changed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_PRICE_CHANGED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.archived:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_ARCHIVED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.bid_placed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_BID_PLACED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+  offer.bid_canceled:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_BID_CANCELED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+  offer.translation_updated:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_TRANSLATION_UPDATED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.visibility_changed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_VISIBILITY_CHANGED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  offer.delivery_countries_blocked:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (OFFER_DELIVERY_COUNTRIES_BLOCKED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: offer.id
+      label: "ID oferty"
+      type: string
+    - field: offer.external.id
+      label: "ID zewnetrzne oferty"
+      type: string
+  # Semantic offer events (derived)
+  offer.created:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+    - field: name
+      label: "Nazwa oferty"
+      type: string
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: created_at
+      label: "Data utworzenia"
+      type: datetime
+  offer.updated:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+    - field: name
+      label: "Nazwa oferty"
+      type: string
+    - field: updated_at
+      label: "Data aktualizacji"
+      type: datetime
+  # Category events (GET /sale/category-events)
+  category.created:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (CATEGORY_CREATED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: category.name
+      label: "Nazwa kategorii"
+      type: string
+    - field: category.parent.id
+      label: "ID kategorii nadrzednej"
+      type: string
+    - field: category.leaf
+      label: "Czy kategoria lisciowa"
+      type: boolean
+  category.renamed:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (CATEGORY_RENAMED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: category.name
+      label: "Nowa nazwa kategorii"
+      type: string
+    - field: category.parent.id
+      label: "ID kategorii nadrzednej"
+      type: string
+  category.moved:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (CATEGORY_MOVED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: category.name
+      label: "Nazwa kategorii"
+      type: string
+    - field: category.parent.id
+      label: "Nowe ID kategorii nadrzednej"
+      type: string
+  category.deleted:
+    - field: event_id
+      label: "ID zdarzenia"
+      type: string
+    - field: type
+      label: "Typ zdarzenia (CATEGORY_DELETED)"
+      type: string
+    - field: occurred_at
+      label: "Data zdarzenia"
+      type: datetime
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: category.name
+      label: "Nazwa kategorii"
+      type: string
+  return.opened:
+    - field: return_id
+      label: "ID zwrotu"
+      type: string
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: reason
+      label: "Powod zwrotu"
+      type: string
+    - field: buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: created_at
+      label: "Data otwarcia"
+      type: datetime
+  return.resolved:
+    - field: return_id
+      label: "ID zwrotu"
+      type: string
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: resolution
+      label: "Rozwiazanie"
+      type: string
+    - field: resolved_at
+      label: "Data rozwiazania"
+      type: datetime
+  message.received:
+    - field: thread_id
+      label: "ID watku"
+      type: string
+    - field: message_id
+      label: "ID wiadomosci"
+      type: string
+    - field: subject
+      label: "Temat"
+      type: string
+    - field: text
+      label: "Tresc wiadomosci"
+      type: string
+    - field: sender.login
+      label: "Nadawca"
+      type: string
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: created_at
+      label: "Data wiadomosci"
+      type: datetime
+  shipment.status_changed:
+    - field: shipment_id
+      label: "ID przesylki"
+      type: string
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: status
+      label: "Status przesylki"
+      type: string
+    - field: carrier
+      label: "Przewoznik"
+      type: string
+    - field: tracking_number
+      label: "Numer sledzenia"
+      type: string
+    - field: updated_at
+      label: "Data zmiany"
+      type: datetime
 
 action_fields:
+  # --- Orders ---
   order.fetch:
     - field: status
       label: "Filtruj po statusie"
+      type: string
+    - field: fulfillment.status
+      label: "Filtruj po statusie realizacji"
+      type: string
+    - field: buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: delivery.method.id
+      label: "ID metody dostawy"
+      type: string
+    - field: sort
+      label: "Sortowanie"
       type: string
     - field: limit
       label: "Limit wynikow"
@@ -119,6 +1002,12 @@ action_fields:
     - field: offset
       label: "Offset"
       type: integer
+    - field: updated_at.gte
+      label: "Aktualizowane od (ISO 8601)"
+      type: datetime
+    - field: updated_at.lte
+      label: "Aktualizowane do (ISO 8601)"
+      type: datetime
   order.get:
     - field: order_id
       label: "ID zamowienia"
@@ -139,15 +1028,49 @@ action_fields:
     - field: carrier
       label: "Przewoznik"
       type: string
-  stock.sync:
-    - field: offer_id
-      label: "ID oferty"
+    - field: carrier_id
+      label: "ID przewoznika"
+      type: string
+  order.events_get:
+    - field: from
+      label: "Od event ID"
+      type: string
+    - field: type
+      label: "Typ eventu (BOUGHT, FILLED_IN, READY_FOR_PROCESSING, ...)"
+      type: string
+  order.events_stats:
+    - field: limit
+      label: "Limit"
+      type: integer
+  order.tracking_add:
+    - field: order_id
+      label: "ID zamowienia"
       type: string
       required: true
-    - field: quantity
-      label: "Nowa ilosc"
-      type: integer
+    - field: carrier_id
+      label: "ID przewoznika"
+      type: string
       required: true
+    - field: tracking_number
+      label: "Numer sledzenia"
+      type: string
+      required: true
+  order.tracking_get:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+      required: true
+  order.carriers_get: []
+  order.billing_upload:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+      required: true
+    - field: url
+      label: "URL do dokumentu"
+      type: string
+      required: true
+  # --- Invoices ---
   order.invoice_upload:
     - field: order_id
       label: "ID zamowienia (checkout form)"
@@ -169,11 +1092,1240 @@ action_fields:
       label: "ID zamowienia (checkout form)"
       type: string
       required: true
+  # --- Offers ---
+  offer.get:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+  offer.get_all:
+    - field: publication.status
+      label: "Status publikacji (ACTIVE, INACTIVE, ENDED)"
+      type: string
+    - field: selling_mode.format
+      label: "Format sprzedazy (BUY_NOW, AUCTION, ADVERTISEMENT)"
+      type: string
+    - field: sort
+      label: "Sortowanie"
+      type: string
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+    - field: name
+      label: "Nazwa oferty (fragment)"
+      type: string
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: product.id.empty
+      label: "Tylko bez produktu"
+      type: boolean
+    - field: external.id
+      label: "ID zewnetrzne"
+      type: string
+  offer.create:
+    - field: product.id
+      label: "ID produktu"
+      type: string
+    - field: name
+      label: "Nazwa oferty"
+      type: string
+      required: true
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: parameters
+      label: "Parametry oferty"
+      type: "object[]"
+    - field: description
+      label: "Opis oferty"
+      type: object
+    - field: images
+      label: "Zdjecia (URL)"
+      type: "string[]"
+    - field: selling_mode.format
+      label: "Format (BUY_NOW, AUCTION)"
+      type: string
+      required: true
+    - field: selling_mode.price.amount
+      label: "Cena"
+      type: number
+      required: true
+    - field: selling_mode.price.currency
+      label: "Waluta"
+      type: string
+    - field: stock.available
+      label: "Ilosc dostepna"
+      type: integer
+    - field: stock.unit
+      label: "Jednostka"
+      type: string
+    - field: delivery.shipping_rates.id
+      label: "ID cennika dostawy"
+      type: string
+    - field: delivery.handling_time
+      label: "Czas obslugi"
+      type: string
+    - field: location.city
+      label: "Miasto wysylki"
+      type: string
+    - field: location.country_code
+      label: "Kraj wysylki"
+      type: string
+    - field: location.post_code
+      label: "Kod pocztowy wysylki"
+      type: string
+    - field: external.id
+      label: "ID zewnetrzne"
+      type: string
+    - field: publication.duration
+      label: "Czas trwania"
+      type: string
+    - field: publication.status
+      label: "Status po publikacji (ACTIVE, INACTIVE)"
+      type: string
+    - field: after_sales_services.warranty.id
+      label: "ID gwarancji"
+      type: string
+    - field: after_sales_services.return_policy.id
+      label: "ID polityki zwrotow"
+      type: string
+    - field: after_sales_services.implied_warranty.id
+      label: "ID rekojmi"
+      type: string
+  offer.edit:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa oferty"
+      type: string
+    - field: description
+      label: "Opis oferty"
+      type: object
+    - field: images
+      label: "Zdjecia (URL)"
+      type: "string[]"
+    - field: selling_mode.price.amount
+      label: "Cena"
+      type: number
+    - field: stock.available
+      label: "Ilosc dostepna"
+      type: integer
+    - field: parameters
+      label: "Parametry"
+      type: "object[]"
+    - field: delivery.shipping_rates.id
+      label: "ID cennika dostawy"
+      type: string
+    - field: publication.status
+      label: "Status (ACTIVE, INACTIVE)"
+      type: string
+  offer.delete_draft:
+    - field: offer_id
+      label: "ID oferty (draft)"
+      type: string
+      required: true
+  offer.publish:
+    - field: offer_ids
+      label: "Lista ID ofert"
+      type: "string[]"
+      required: true
+    - field: action
+      label: "Akcja (ACTIVATE, END)"
+      type: string
+      required: true
+  offer.events_get:
+    - field: from
+      label: "Od event ID"
+      type: string
+    - field: type
+      label: "Typ eventu"
+      type: string
+    - field: limit
+      label: "Limit"
+      type: integer
+  offer.promo_get:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+  offer.promo_modify:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: package_id
+      label: "ID pakietu promowania"
+      type: string
+      required: true
+  offer.rating_get:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+  # --- Offer batch ---
+  offer_batch.price_change:
+    - field: offer_criteria
+      label: "Kryteria ofert"
+      type: "object[]"
+      required: true
+    - field: modification
+      label: "Typ modyfikacji ceny"
+      type: object
+      required: true
+  offer_batch.quantity_change:
+    - field: offer_criteria
+      label: "Kryteria ofert"
+      type: "object[]"
+      required: true
+    - field: modification
+      label: "Typ modyfikacji ilosci"
+      type: object
+      required: true
+  offer_batch.modify:
+    - field: offer_criteria
+      label: "Kryteria ofert"
+      type: "object[]"
+      required: true
+    - field: modification
+      label: "Modyfikacje"
+      type: object
+      required: true
+  # --- Stock ---
+  stock.sync:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: quantity
+      label: "Nowa ilosc"
+      type: integer
+      required: true
+  # --- Products ---
   product.get:
     - field: product_id
       label: "ID produktu"
       type: string
       required: true
+  product.search:
+    - field: phrase
+      label: "Fraza wyszukiwania"
+      type: string
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: language
+      label: "Jezyk (pl-PL)"
+      type: string
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  product.propose:
+    - field: name
+      label: "Nazwa produktu"
+      type: string
+      required: true
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+      required: true
+    - field: parameters
+      label: "Parametry produktu"
+      type: "object[]"
+    - field: images
+      label: "Zdjecia"
+      type: "string[]"
+    - field: description
+      label: "Opis"
+      type: object
+  product.params_get:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+      required: true
+  # --- Categories ---
+  category.list:
+    - field: parent_id
+      label: "ID kategorii nadrzednej"
+      type: string
+  category.get:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+      required: true
+  category.params_get:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+      required: true
+  category.suggestions:
+    - field: name
+      label: "Nazwa produktu"
+      type: string
+      required: true
+  # --- Images ---
+  image.upload:
+    - field: url
+      label: "URL obrazu"
+      type: string
+      required: true
+  attachment.create:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: type
+      label: "Typ zalacznika"
+      type: string
+      required: true
+    - field: filename
+      label: "Nazwa pliku"
+      type: string
+      required: true
+  attachment.upload:
+    - field: attachment_id
+      label: "ID zalacznika"
+      type: string
+      required: true
+    - field: file_base64
+      label: "Plik (base64)"
+      type: string
+      required: true
+  # --- Offer variants ---
+  variant.list: []
+  variant.get:
+    - field: set_id
+      label: "ID zestawu wariantow"
+      type: string
+      required: true
+  variant.create:
+    - field: name
+      label: "Nazwa zestawu"
+      type: string
+      required: true
+    - field: offers
+      label: "Lista ofert (ID + kolorystyka)"
+      type: "object[]"
+      required: true
+    - field: parameters
+      label: "Parametry rozrozniajace"
+      type: "object[]"
+      required: true
+  variant.update:
+    - field: set_id
+      label: "ID zestawu"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: offers
+      label: "Lista ofert"
+      type: "object[]"
+    - field: parameters
+      label: "Parametry"
+      type: "object[]"
+  variant.delete:
+    - field: set_id
+      label: "ID zestawu"
+      type: string
+      required: true
+  # --- Tags ---
+  tag.list: []
+  tag.create:
+    - field: name
+      label: "Nazwa tagu"
+      type: string
+      required: true
+    - field: hidden
+      label: "Czy ukryty"
+      type: boolean
+  tag.update:
+    - field: tag_id
+      label: "ID tagu"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: hidden
+      label: "Czy ukryty"
+      type: boolean
+  tag.delete:
+    - field: tag_id
+      label: "ID tagu"
+      type: string
+      required: true
+  tag.assign:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: tag_ids
+      label: "Lista ID tagow"
+      type: "string[]"
+      required: true
+  # --- Promotions ---
+  promotion.list:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  promotion.get:
+    - field: promotion_id
+      label: "ID promocji"
+      type: string
+      required: true
+  promotion.create:
+    - field: benefits
+      label: "Korzysci (rabaty)"
+      type: "object[]"
+      required: true
+    - field: offer_criteria
+      label: "Kryteria ofert"
+      type: "object[]"
+      required: true
+  promotion.update:
+    - field: promotion_id
+      label: "ID promocji"
+      type: string
+      required: true
+    - field: benefits
+      label: "Korzysci"
+      type: "object[]"
+    - field: offer_criteria
+      label: "Kryteria ofert"
+      type: "object[]"
+  promotion.delete:
+    - field: promotion_id
+      label: "ID promocji"
+      type: string
+      required: true
+  turnover_discount.list: []
+  turnover_discount.create:
+    - field: marketplace_id
+      label: "ID marketplace"
+      type: string
+      required: true
+    - field: rates
+      label: "Stawki rabatu"
+      type: "object[]"
+      required: true
+  turnover_discount.deactivate:
+    - field: marketplace_id
+      label: "ID marketplace"
+      type: string
+      required: true
+  # --- Bundles ---
+  bundle.list:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  bundle.get:
+    - field: bundle_id
+      label: "ID bundle"
+      type: string
+      required: true
+  bundle.create:
+    - field: offers
+      label: "ID ofert"
+      type: "string[]"
+      required: true
+    - field: discount
+      label: "Rabat"
+      type: object
+  bundle.delete:
+    - field: bundle_id
+      label: "ID bundle"
+      type: string
+      required: true
+  # --- Payments ---
+  payment.history:
+    - field: wallet_type
+      label: "Typ portfela"
+      type: string
+    - field: payment_id
+      label: "ID platnosci"
+      type: string
+    - field: type
+      label: "Typ operacji"
+      type: string
+    - field: occurred_at.gte
+      label: "Data od (ISO 8601)"
+      type: datetime
+    - field: occurred_at.lte
+      label: "Data do (ISO 8601)"
+      type: datetime
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  payment.refund_list:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  payment.refund_initiate:
+    - field: payment_id
+      label: "ID platnosci"
+      type: string
+      required: true
+    - field: reason_code
+      label: "Kod powodu"
+      type: string
+      required: true
+    - field: line_items
+      label: "Pozycje do zwrotu"
+      type: "object[]"
+    - field: delivery
+      label: "Zwrot kosztow dostawy"
+      type: object
+    - field: overpaid
+      label: "Zwrot nadplaty"
+      type: object
+    - field: additional_services
+      label: "Zwrot uslug dodatkowych"
+      type: object
+    - field: surcharges
+      label: "Zwrot doplat"
+      type: object
+  # --- Shipments ---
+  shipment.create:
+    - field: delivery_method_id
+      label: "ID metody dostawy"
+      type: string
+      required: true
+    - field: credentials_id
+      label: "ID danych dostepowych"
+      type: string
+    - field: sender
+      label: "Dane nadawcy"
+      type: object
+    - field: receiver
+      label: "Dane odbiorcy"
+      type: object
+      required: true
+    - field: packages
+      label: "Paczki"
+      type: "object[]"
+      required: true
+    - field: reference_number
+      label: "Numer referencyjny"
+      type: string
+    - field: label_format
+      label: "Format etykiety (PDF, ZPL)"
+      type: string
+  shipment.get:
+    - field: shipment_id
+      label: "ID przesylki"
+      type: string
+      required: true
+  shipment.cancel:
+    - field: shipment_id
+      label: "ID przesylki"
+      type: string
+      required: true
+  shipment.labels:
+    - field: shipment_ids
+      label: "Lista ID przesylek"
+      type: "string[]"
+      required: true
+    - field: page_format
+      label: "Format strony"
+      type: string
+  shipment.protocol:
+    - field: shipment_ids
+      label: "Lista ID przesylek"
+      type: "string[]"
+      required: true
+  shipment.services_get: []
+  shipment.pickup_request:
+    - field: shipment_ids
+      label: "Lista ID przesylek"
+      type: "string[]"
+      required: true
+    - field: address
+      label: "Adres odbioru"
+      type: object
+    - field: date
+      label: "Proponowana data"
+      type: date
+  shipment.pickup_proposals:
+    - field: shipment_ids
+      label: "Lista ID przesylek"
+      type: "string[]"
+      required: true
+  # --- Returns ---
+  return.list:
+    - field: buyer_login
+      label: "Login kupujacego"
+      type: string
+    - field: status
+      label: "Status zwrotu"
+      type: string
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+    - field: created_at.gte
+      label: "Utworzone od"
+      type: datetime
+    - field: created_at.lte
+      label: "Utworzone do"
+      type: datetime
+  return.get:
+    - field: return_id
+      label: "ID zwrotu"
+      type: string
+      required: true
+  return.reject:
+    - field: return_id
+      label: "ID zwrotu"
+      type: string
+      required: true
+    - field: rejection_reason
+      label: "Powod odrzucenia"
+      type: string
+      required: true
+  # --- Delivery ---
+  delivery.methods_get: []
+  delivery.settings_get: []
+  delivery.settings_update:
+    - field: marketplace
+      label: "Marketplace"
+      type: object
+    - field: custom_cost
+      label: "Koszt niestandardowy"
+      type: object
+    - field: free_delivery
+      label: "Darmowa dostawa"
+      type: object
+  delivery.shipping_rates_list: []
+  delivery.shipping_rates_get:
+    - field: shipping_rates_id
+      label: "ID cennika"
+      type: string
+      required: true
+  delivery.shipping_rates_create:
+    - field: name
+      label: "Nazwa cennika"
+      type: string
+      required: true
+    - field: rates
+      label: "Stawki"
+      type: "object[]"
+      required: true
+  delivery.shipping_rates_update:
+    - field: shipping_rates_id
+      label: "ID cennika"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa cennika"
+      type: string
+    - field: rates
+      label: "Stawki"
+      type: "object[]"
+  # --- After sale ---
+  warranty.list: []
+  warranty.get:
+    - field: warranty_id
+      label: "ID gwarancji"
+      type: string
+      required: true
+  warranty.create:
+    - field: name
+      label: "Nazwa gwarancji"
+      type: string
+      required: true
+    - field: type
+      label: "Typ (SELLER, MANUFACTURER)"
+      type: string
+      required: true
+    - field: description
+      label: "Opis"
+      type: string
+    - field: period
+      label: "Okres gwarancji"
+      type: string
+  warranty.update:
+    - field: warranty_id
+      label: "ID gwarancji"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: description
+      label: "Opis"
+      type: string
+  return_policy.list: []
+  return_policy.get:
+    - field: policy_id
+      label: "ID polityki"
+      type: string
+      required: true
+  return_policy.create:
+    - field: name
+      label: "Nazwa polityki"
+      type: string
+      required: true
+    - field: availability.range
+      label: "Zakres (FULL, RESTRICTED, UNAVAILABLE)"
+      type: string
+    - field: withdrawal_period
+      label: "Okres odstapienia (dni)"
+      type: integer
+    - field: return_cost.covered_by
+      label: "Kto placi za zwrot (SELLER, BUYER)"
+      type: string
+    - field: address
+      label: "Adres zwrotu"
+      type: object
+    - field: description
+      label: "Opis"
+      type: string
+  return_policy.update:
+    - field: policy_id
+      label: "ID polityki"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: description
+      label: "Opis"
+      type: string
+  return_policy.delete:
+    - field: policy_id
+      label: "ID polityki"
+      type: string
+      required: true
+  # --- Messages ---
+  message.threads_list:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  message.thread_get:
+    - field: thread_id
+      label: "ID watku"
+      type: string
+      required: true
+  message.thread_messages:
+    - field: thread_id
+      label: "ID watku"
+      type: string
+      required: true
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  message.send:
+    - field: recipient.login
+      label: "Login odbiorcy"
+      type: string
+      required: true
+    - field: text
+      label: "Tresc wiadomosci"
+      type: string
+      required: true
+    - field: offer_id
+      label: "ID oferty (kontekst)"
+      type: string
+    - field: order_id
+      label: "ID zamowienia (kontekst)"
+      type: string
+    - field: attachments
+      label: "Zalaczniki"
+      type: "object[]"
+  message.thread_read:
+    - field: thread_id
+      label: "ID watku"
+      type: string
+      required: true
+  # --- Billing ---
+  billing.types_get: []
+  billing.entries_get:
+    - field: type_id
+      label: "ID typu rozliczenia"
+      type: string
+    - field: occurred_at.gte
+      label: "Data od"
+      type: datetime
+    - field: occurred_at.lte
+      label: "Data do"
+      type: datetime
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  # --- User ---
+  user.info_get: []
+  user.ratings_get:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  user.sales_quality: []
+  # --- Commission refunds ---
+  commission_refund.list:
+    - field: limit
+      label: "Limit"
+      type: integer
+    - field: offset
+      label: "Offset"
+      type: integer
+  commission_refund.get:
+    - field: refund_id
+      label: "ID wniosku"
+      type: string
+      required: true
+  commission_refund.create:
+    - field: line_item_id
+      label: "ID pozycji"
+      type: string
+      required: true
+    - field: quantity
+      label: "Ilosc"
+      type: integer
+  commission_refund.cancel:
+    - field: refund_id
+      label: "ID wniosku"
+      type: string
+      required: true
+  # --- Additional services ---
+  additional_service.groups_list: []
+  additional_service.group_get:
+    - field: group_id
+      label: "ID grupy"
+      type: string
+      required: true
+  additional_service.group_create:
+    - field: name
+      label: "Nazwa grupy"
+      type: string
+      required: true
+    - field: definitions
+      label: "Definicje uslug"
+      type: "object[]"
+      required: true
+  additional_service.group_update:
+    - field: group_id
+      label: "ID grupy"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: definitions
+      label: "Definicje"
+      type: "object[]"
+  additional_service.definitions_get:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+  # --- Size tables ---
+  size_table.list: []
+  size_table.get:
+    - field: table_id
+      label: "ID tabeli"
+      type: string
+      required: true
+  size_table.create:
+    - field: name
+      label: "Nazwa tabeli"
+      type: string
+      required: true
+    - field: headers
+      label: "Naglowki kolumn"
+      type: "string[]"
+      required: true
+    - field: rows
+      label: "Wiersze"
+      type: "object[]"
+      required: true
+  size_table.update:
+    - field: table_id
+      label: "ID tabeli"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: headers
+      label: "Naglowki"
+      type: "string[]"
+    - field: rows
+      label: "Wiersze"
+      type: "object[]"
+  # --- Points of service ---
+  point_of_service.list: []
+  point_of_service.get:
+    - field: point_id
+      label: "ID punktu"
+      type: string
+      required: true
+  point_of_service.create:
+    - field: name
+      label: "Nazwa"
+      type: string
+      required: true
+    - field: type
+      label: "Typ (STORE, DEPARTMENT, COLLECTION_POINT)"
+      type: string
+      required: true
+    - field: address
+      label: "Adres"
+      type: object
+      required: true
+    - field: phone
+      label: "Telefon"
+      type: string
+    - field: email
+      label: "Email"
+      type: string
+    - field: open_hours
+      label: "Godziny otwarcia"
+      type: "object[]"
+  point_of_service.update:
+    - field: point_id
+      label: "ID punktu"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: address
+      label: "Adres"
+      type: object
+  point_of_service.delete:
+    - field: point_id
+      label: "ID punktu"
+      type: string
+      required: true
+  # --- Contacts ---
+  contact.list: []
+  contact.get:
+    - field: contact_id
+      label: "ID kontaktu"
+      type: string
+      required: true
+  contact.create:
+    - field: name
+      label: "Nazwa"
+      type: string
+      required: true
+    - field: emails
+      label: "Emaile"
+      type: "object[]"
+    - field: phones
+      label: "Telefony"
+      type: "object[]"
+  contact.update:
+    - field: contact_id
+      label: "ID kontaktu"
+      type: string
+      required: true
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: emails
+      label: "Emaile"
+      type: "object[]"
+    - field: phones
+      label: "Telefony"
+      type: "object[]"
+  # --- Pricing ---
+  pricing.offer_quotes: []
+  pricing.fee_calculate:
+    - field: offer
+      label: "Dane oferty (do obliczenia)"
+      type: object
+      required: true
+  # --- Tax ---
+  tax.settings_get:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+      required: true
+  # --- Badge campaigns ---
+  badge.campaigns_list: []
+  badge.list:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+    - field: campaign_id
+      label: "ID kampanii"
+      type: string
+  badge.apply:
+    - field: campaign_id
+      label: "ID kampanii"
+      type: string
+      required: true
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+    - field: prices
+      label: "Ceny w kampanii"
+      type: object
+  # --- Compatibility ---
+  compatibility.products:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+  compatibility.groups:
+    - field: category_id
+      label: "ID kategorii"
+      type: string
+      required: true
+  compatibility.suggestions:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+      required: true
+  compatibility.categories: []
+  # --- Fulfillment ---
+  fulfillment.stock_get: []
+  fulfillment.parcels_get: []
+  fulfillment.products_get: []
+  fulfillment.asn_list: []
+  fulfillment.asn_get:
+    - field: asn_id
+      label: "ID ASN"
+      type: string
+      required: true
+  fulfillment.asn_create:
+    - field: display_number
+      label: "Numer wyswietlany"
+      type: string
+    - field: items
+      label: "Pozycje"
+      type: "object[]"
+      required: true
+    - field: handover
+      label: "Sposob dostarczenia"
+      type: object
+
+output_fields:
+  order.fetch:
+    - field: orders
+      label: "Lista zamowien"
+      type: "object[]"
+    - field: total_count
+      label: "Laczna liczba"
+      type: integer
+  order.get:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: status
+      label: "Status"
+      type: string
+    - field: buyer.login
+      label: "Login kupujacego"
+      type: string
+    - field: buyer.email
+      label: "Email kupujacego"
+      type: string
+    - field: buyer.first_name
+      label: "Imie kupujacego"
+      type: string
+    - field: buyer.last_name
+      label: "Nazwisko kupujacego"
+      type: string
+    - field: buyer.phone
+      label: "Telefon"
+      type: string
+    - field: payment.paid_amount.amount
+      label: "Kwota zaplacona"
+      type: number
+    - field: payment.paid_amount.currency
+      label: "Waluta"
+      type: string
+    - field: delivery.address.street
+      label: "Ulica dostawy"
+      type: string
+    - field: delivery.address.city
+      label: "Miasto dostawy"
+      type: string
+    - field: delivery.address.zip_code
+      label: "Kod pocztowy"
+      type: string
+    - field: delivery.method.name
+      label: "Metoda dostawy"
+      type: string
+    - field: delivery.pickup_point.id
+      label: "ID punktu odbioru"
+      type: string
+    - field: line_items
+      label: "Pozycje zamowienia"
+      type: "object[]"
+    - field: invoice.required
+      label: "Faktura wymagana"
+      type: boolean
+    - field: fulfillment.status
+      label: "Status realizacji"
+      type: string
+    - field: created_at
+      label: "Data utworzenia"
+      type: datetime
+  order.status_update:
+    - field: order_id
+      label: "ID zamowienia"
+      type: string
+    - field: status
+      label: "Nowy status"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  order.invoice_upload:
+    - field: invoice_id
+      label: "ID faktury"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  order.invoices_get:
+    - field: invoices
+      label: "Lista faktur"
+      type: "object[]"
+  offer.get:
+    - field: id
+      label: "ID oferty"
+      type: string
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: selling_mode.price.amount
+      label: "Cena"
+      type: number
+    - field: stock.available
+      label: "Ilosc"
+      type: integer
+    - field: publication.status
+      label: "Status"
+      type: string
+    - field: images
+      label: "Zdjecia"
+      type: "object[]"
+    - field: external.id
+      label: "ID zewnetrzne"
+      type: string
+  offer.get_all:
+    - field: offers
+      label: "Lista ofert"
+      type: "object[]"
+    - field: total_count
+      label: "Laczna liczba"
+      type: integer
+  offer.create:
+    - field: id
+      label: "ID oferty"
+      type: string
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: publication.status
+      label: "Status"
+      type: string
+  offer.edit:
+    - field: id
+      label: "ID oferty"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  stock.sync:
+    - field: offer_id
+      label: "ID oferty"
+      type: string
+    - field: quantity
+      label: "Nowa ilosc"
+      type: integer
+    - field: success
+      label: "Sukces"
+      type: boolean
+  product.get:
+    - field: id
+      label: "ID produktu"
+      type: string
+    - field: name
+      label: "Nazwa"
+      type: string
+    - field: category.id
+      label: "ID kategorii"
+      type: string
+    - field: images
+      label: "Zdjecia"
+      type: "object[]"
+    - field: parameters
+      label: "Parametry"
+      type: "object[]"
+  product.search:
+    - field: products
+      label: "Wyniki wyszukiwania"
+      type: "object[]"
+    - field: total_count
+      label: "Laczna liczba"
+      type: integer
+  shipment.create:
+    - field: id
+      label: "ID przesylki"
+      type: string
+    - field: status
+      label: "Status"
+      type: string
+    - field: tracking_number
+      label: "Numer sledzenia"
+      type: string
+  shipment.labels:
+    - field: content
+      label: "Etykieta (base64)"
+      type: string
+  payment.refund_initiate:
+    - field: id
+      label: "ID zwrotu"
+      type: string
+    - field: status
+      label: "Status"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
 
 config_schema:
   required:

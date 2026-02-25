@@ -124,6 +124,14 @@ class AllegroClient:
                   api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
         return await self.request("PUT", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
+    async def patch(self, path: str, account_name: str, client_id: str, client_secret: str,
+                    api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("PATCH", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
+
+    async def delete(self, path: str, account_name: str, client_id: str, client_secret: str,
+                     api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+        return await self.request("DELETE", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
+
     # --- High-level Allegro API methods ---
 
     async def get_order_events(

@@ -63,9 +63,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
           @if (node.type === 'trigger') {
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Source Connector</mat-label>
-              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onTriggerConnectorChange()">
+              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onTriggerConnectorChange()" (openedChange)="onSelectOpen('trigConn', $event)">
+                <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['trigConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['trigConn'] = $any($event.target).value" placeholder="Search..." /></div>
                 @for (c of connectors; track c.name) {
+                  @if (matchesFilter('trigConn', c.display_name + ' ' + c.name)) {
                   <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                  }
                 }
               </mat-select>
             </mat-form-field>
@@ -86,9 +89,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             }
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Event</mat-label>
-              <mat-select [(ngModel)]="cfg['event']" (ngModelChange)="onTriggerEventChange()">
+              <mat-select [(ngModel)]="cfg['event']" (ngModelChange)="onTriggerEventChange()" (openedChange)="onSelectOpen('trigEvent', $event)">
+                <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['trigEvent'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['trigEvent'] = $any($event.target).value" placeholder="Search..." /></div>
                 @for (e of triggerEvents; track e) {
+                  @if (matchesFilter('trigEvent', e)) {
                   <mat-option [value]="e">{{ e }}</mat-option>
+                  }
                 }
               </mat-select>
             </mat-form-field>
@@ -98,9 +104,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
           @if (node.type === 'action') {
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Destination Connector</mat-label>
-              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onActionConnectorChange(); emitChange()">
+              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onActionConnectorChange(); emitChange()" (openedChange)="onSelectOpen('actConn', $event)">
+                <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['actConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['actConn'] = $any($event.target).value" placeholder="Search..." /></div>
                 @for (c of connectors; track c.name) {
+                  @if (matchesFilter('actConn', c.display_name + ' ' + c.name)) {
                   <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                  }
                 }
               </mat-select>
             </mat-form-field>
@@ -121,9 +130,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             }
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Action</mat-label>
-              <mat-select [(ngModel)]="cfg['action']" (ngModelChange)="onActionChange()">
+              <mat-select [(ngModel)]="cfg['action']" (ngModelChange)="onActionChange()" (openedChange)="onSelectOpen('actAction', $event)">
+                <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['actAction'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['actAction'] = $any($event.target).value" placeholder="Search..." /></div>
                 @for (a of actionActions; track a) {
+                  @if (matchesFilter('actAction', a)) {
                   <mat-option [value]="a">{{ a }}</mat-option>
+                  }
                 }
               </mat-select>
             </mat-form-field>
@@ -151,9 +163,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                         @if (sourceFieldDefs.length > 0) {
                           <mat-form-field appearance="outline" class="wnc__mc-src-ff">
                             <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)">
+                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
+                              <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
                               @for (f of sourceFieldDefs; track f.field) {
+                                @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
                                 <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                                }
                               }
                               @if (getMappingSources(m).length === 1) {
                                 <mat-option value="__custom__">-- Static value --</mat-option>
@@ -183,14 +198,19 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   @if (destFieldDefs.length > 0 || sourceFieldDefs.length > 0) {
                     <mat-form-field appearance="outline" class="wnc__mc-to">
                       <mat-label>Target</mat-label>
-                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()">
+                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
+                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
                         @if (destFieldDefs.length > 0) {
                           @for (f of destFieldDefs; track f.field) {
+                            @if (matchesFilter('destField', f.label + ' ' + f.field)) {
                             <mat-option [value]="f.field">{{ f.label }}@if (f.required) { *}</mat-option>
+                            }
                           }
                         } @else {
                           @for (f of sourceFieldDefs; track f.field) {
+                            @if (matchesFilter('destField', f.label + ' ' + f.field)) {
                             <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                            }
                           }
                         }
                         <mat-option value="__custom__">-- Custom --</mat-option>
@@ -214,9 +234,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   <div class="wnc__ts">
                     <span class="wnc__ts-badge">fx{{ ti + 1 }}</span>
                     <mat-form-field appearance="outline" class="wnc__ts-type">
-                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)">
+                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)" (openedChange)="onSelectOpen('transform', $event)">
+                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['transform'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['transform'] = $any($event.target).value" placeholder="Search..." /></div>
                         @for (tt of transformTypes; track tt.value) {
+                          @if (matchesFilter('transform', tt.label + ' ' + tt.value)) {
                           <mat-option [value]="tt.value">{{ tt.label }}</mat-option>
+                          }
                         }
                       </mat-select>
                     </mat-form-field>
@@ -265,9 +288,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 @if (sourceFieldDefs.length > 0) {
                   <mat-form-field appearance="outline" class="wnc__cond-field">
                     <mat-label>Field</mat-label>
-                    <mat-select [(ngModel)]="c.field" (ngModelChange)="emitChange()">
+                    <mat-select [(ngModel)]="c.field" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('condField', $event)">
+                      <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['condField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['condField'] = $any($event.target).value" placeholder="Search..." /></div>
                       @for (f of sourceFieldDefs; track f.field) {
+                        @if (matchesFilter('condField', f.label + ' ' + f.field)) {
                         <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                        }
                       }
                       <mat-option value="__custom__">-- Custom value --</mat-option>
                     </mat-select>
@@ -285,9 +311,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 }
                 <mat-form-field appearance="outline" class="wnc__cond-op">
                   <mat-label>Operator</mat-label>
-                  <mat-select [(ngModel)]="c.operator" (ngModelChange)="emitChange()">
+                  <mat-select [(ngModel)]="c.operator" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('condOp', $event)">
+                    <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['condOp'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['condOp'] = $any($event.target).value" placeholder="Search..." /></div>
                     @for (op of conditionOperators; track op.value) {
+                      @if (matchesFilter('condOp', op.label + ' ' + op.value)) {
                       <mat-option [value]="op.value">{{ op.label }}</mat-option>
+                      }
                     }
                   </mat-select>
                 </mat-form-field>
@@ -307,9 +336,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             @if (sourceFieldDefs.length > 0) {
               <mat-form-field appearance="outline" class="wnc__field">
                 <mat-label>Field to switch on</mat-label>
-                <mat-select [(ngModel)]="cfg['field']" (ngModelChange)="emitChange()">
+                <mat-select [(ngModel)]="cfg['field']" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('switchField', $event)">
+                  <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['switchField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['switchField'] = $any($event.target).value" placeholder="Search..." /></div>
                   @for (f of sourceFieldDefs; track f.field) {
+                    @if (matchesFilter('switchField', f.label + ' ' + f.field)) {
                     <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                    }
                   }
                   <mat-option value="__custom__">-- Custom value --</mat-option>
                 </mat-select>
@@ -366,9 +398,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                         @if (sourceFieldDefs.length > 0) {
                           <mat-form-field appearance="outline" class="wnc__mc-src-ff">
                             <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)">
+                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
+                              <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
                               @for (f of sourceFieldDefs; track f.field) {
+                                @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
                                 <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                                }
                               }
                               @if (getMappingSources(m).length === 1) {
                                 <mat-option value="__custom__">-- Static value --</mat-option>
@@ -398,9 +433,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   @if (destFieldDefs.length > 0 || sourceFieldDefs.length > 0) {
                     <mat-form-field appearance="outline" class="wnc__mc-to">
                       <mat-label>Target</mat-label>
-                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()">
+                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
+                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
                         @for (f of destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs; track f.field) {
+                          @if (matchesFilter('destField', f.label + ' ' + f.field)) {
                           <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                          }
                         }
                         <mat-option value="__custom__">-- Custom --</mat-option>
                       </mat-select>
@@ -423,9 +461,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   <div class="wnc__ts">
                     <span class="wnc__ts-badge">fx{{ ti + 1 }}</span>
                     <mat-form-field appearance="outline" class="wnc__ts-type">
-                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)">
+                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)" (openedChange)="onSelectOpen('transform', $event)">
+                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['transform'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['transform'] = $any($event.target).value" placeholder="Search..." /></div>
                         @for (tt of transformTypes; track tt.value) {
+                          @if (matchesFilter('transform', tt.label + ' ' + tt.value)) {
                           <mat-option [value]="tt.value">{{ tt.label }}</mat-option>
+                          }
                         }
                       </mat-select>
                     </mat-form-field>
@@ -469,9 +510,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             @if (sourceFieldDefs.length > 0) {
               <mat-form-field appearance="outline" class="wnc__field">
                 <mat-label>Array Field</mat-label>
-                <mat-select [(ngModel)]="cfg['array_field']" (ngModelChange)="emitChange()">
+                <mat-select [(ngModel)]="cfg['array_field']" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('loopField', $event)">
+                  <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['loopField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['loopField'] = $any($event.target).value" placeholder="Search..." /></div>
                   @for (f of sourceFieldDefs; track f.field) {
+                    @if (matchesFilter('loopField', f.label + ' ' + f.field)) {
                     <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                    }
                   }
                   <mat-option value="__custom__">-- Custom value --</mat-option>
                 </mat-select>
@@ -726,6 +770,11 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .wnc__ts-rm { width: 28px; height: 28px; line-height: 28px; flex-shrink: 0; }
     .wnc__mc-add-fx { font-size: 11px; color: #1565c0; padding: 0 4px; min-height: 24px; line-height: 24px; margin-top: 2px; }
     .wnc__mc-add-fx mat-icon { margin-right: 2px; vertical-align: middle; }
+
+    /* Search inside mat-select dropdowns */
+    ::ng-deep .wnc__search-wrap { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 1; background: #fff; }
+    ::ng-deep .wnc__search-wrap mat-icon { color: #999; font-size: 18px; height: 18px; width: 18px; margin-right: 8px; flex-shrink: 0; }
+    ::ng-deep .wnc__search-wrap input { flex: 1; border: none; outline: none; font-size: 13px; padding: 4px 0; background: transparent; }
   `],
 })
 export class WorkflowNodeConfigComponent implements OnChanges {
@@ -744,6 +793,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   loadingCredentialNames = false;
   httpBodyJson = '';
   responseBodyJson = '';
+  selectFilter: Record<string, string> = {};
   private _lastNodeId = '';
   private _selfEmit = false;
 
@@ -781,6 +831,22 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   trackByField(_index: number, item: ConnectorFieldDef): string {
     return item.field;
+  }
+
+  onSelectOpen(key: string, opened: boolean): void {
+    if (!opened) {
+      this.selectFilter[key] = '';
+    } else {
+      setTimeout(() => {
+        const input = document.querySelector<HTMLInputElement>('.cdk-overlay-container .wnc__search-wrap input');
+        input?.focus();
+      });
+    }
+  }
+
+  matchesFilter(key: string, text: string): boolean {
+    const q = (this.selectFilter[key] || '').trim().toLowerCase();
+    return !q || text.toLowerCase().includes(q);
   }
 
   // ── Mapping sources ──

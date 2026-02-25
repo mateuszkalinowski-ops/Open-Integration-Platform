@@ -472,6 +472,8 @@ services:
     build:
       context: .
       dockerfile: platform/verification-agent/Dockerfile
+    ports:
+      - "18080:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
