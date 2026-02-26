@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  nexo-agent:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nexo-agent
+    ports:
+      - "8000:8000"
+    volumes:
+      # Mount the Nexo SDK DLLs (read-only)
+      - type: bind
+        source: C:\nexoSDK\Bin
+        target: C:\nexo-sdk
+        read_only: true
+      # Persistent queue database
+      - nexo-agent-data:C:\app\data
+    environment:
+      - NEXO_AGENT_ID=nexo-agent-001
+      - NEXO_SQL_SERVER=(local)\INSERTNEXO
+      - NEXO_SQL_DATABASE=Nexo_demo
+      - NEXO_SQL_AUTH_WINDOWS=true
+      - NEXO_OPERATOR_LOGIN=${NEXO_OPERATOR_LOGIN}
+      - NEXO_OPERATOR_PASSWORD=${NEXO_OPERATOR_PASSWORD}
+      - NEXO_PRODUCT=Subiekt
+      - NEXO_SDK_BIN_PATH=C:\nexo-sdk
+      - NEXO_AGENT_LOG_LEVEL=INFO
+      - NEXO_AGENT_SYNC_INTERVAL_SECONDS=300
+      - NEXO_AGENT_HEARTBEAT_INTERVAL_SECONDS=60
+      - CLOUD_PLATFORM_URL=${CLOUD_PLATFORM_URL:-https://integrations.pinquark.com}
+      - CLOUD_API_KEY=${CLOUD_API_KEY:-}
+      - KAFKA_ENABLED=false
+    restart: unless-stopped
+    # Windows containers require this for SQL Server access on host
+    network_mode: "nat"
+
+volumes:
+  nexo-agent-data:

@@ -81,6 +81,11 @@ export class PinquarkApiService {
     });
   }
 
+  downloadOnPremiseAgent(connectorName: string): void {
+    const url = `${this.apiUrl}/api/v1/connectors/${connectorName}/onpremise-agent`;
+    window.open(url, '_blank');
+  }
+
   // --- Connector Instances ---
 
   listConnectorInstances(): Observable<ConnectorInstance[]> {

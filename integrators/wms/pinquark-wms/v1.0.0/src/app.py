@@ -6,6 +6,7 @@ Endpoints mirror the official Pinquark Integration REST API documentation.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 from contextlib import asynccontextmanager
 from typing import Any
@@ -15,6 +16,8 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel
 
 from src.client import PinquarkWmsClient, WriteResult
+from src.config import settings
+from src.event_poller import EventPoller
 from src.schemas import (
     Article,
     ArticleBatch,
@@ -31,11 +34,54 @@ logger = logging.getLogger("pinquark-wms")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 wms_client = PinquarkWmsClient()
+event_poller = EventPoller(wms_client)
+
+
+async def _auto_register_credentials() -> None:
+    """Fetch WMS credentials from platform vault for active workflows/flows."""
+    await asyncio.sleep(10)
+    if not settings.platform_api_url:
+        return
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(
+                f"{settings.platform_api_url}/internal/connector-credentials/pinquark-wms",
+            )
+            if resp.status_code == 200:
+                accounts = resp.json()
+                if isinstance(accounts, list):
+                    for acct in accounts:
+                        name = acct.get("credential_name", "default")
+                        creds_data = acct.get("credentials", {})
+                        if creds_data.get("api_url") and creds_data.get("username"):
+                            creds = WmsCredentials(
+                                api_url=creds_data["api_url"],
+                                username=creds_data["username"],
+                                password=creds_data.get("password", ""),
+                            )
+                            event_poller.register_credentials(name, creds)
+                elif isinstance(accounts, dict) and accounts.get("api_url"):
+                    creds = WmsCredentials(
+                        api_url=accounts["api_url"],
+                        username=accounts.get("username", ""),
+                        password=accounts.get("password", ""),
+                    )
+                    event_poller.register_credentials("default", creds)
+            else:
+                logger.debug(
+                    "No credentials from platform (HTTP %d), poller will wait for manual registration",
+                    resp.status_code,
+                )
+    except Exception:
+        logger.debug("Could not auto-register credentials from platform", exc_info=True)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    await event_poller.start()
+    asyncio.create_task(_auto_register_credentials())
     yield
+    await event_poller.stop()
     await wms_client.close()
 
 
@@ -499,3 +545,40 @@ async def get_feedbacks(req: CredentialsBody) -> Any:
 @app.post("/errors/get", tags=["errors"])
 async def get_errors(req: CredentialsBody) -> Any:
     return await _forward_get(req.credentials, "GET /errors", wms_client.get_errors)
+
+
+# =========================================================================
+# EVENT POLLER MANAGEMENT
+# =========================================================================
+
+class RegisterPollingRequest(BaseModel):
+    account_name: str = "default"
+    credentials: WmsCredentials
+
+
+@app.post("/poller/register", tags=["poller"])
+async def register_polling_account(req: RegisterPollingRequest) -> dict[str, Any]:
+    """Register WMS credentials for event polling."""
+    event_poller.register_credentials(req.account_name, req.credentials)
+    return {
+        "status": "registered",
+        "account_name": req.account_name,
+        "polling_interval": settings.event_polling_interval_seconds,
+        "polling_enabled": settings.event_polling_enabled,
+    }
+
+
+@app.get("/poller/status", tags=["poller"])
+async def poller_status() -> dict[str, Any]:
+    """Get current event poller status."""
+    return {
+        "running": event_poller._running,
+        "enabled": settings.event_polling_enabled,
+        "interval_seconds": settings.event_polling_interval_seconds,
+        "registered_accounts": list(event_poller._credential_store.keys()),
+        "tracked_entities": {
+            k: len(v) for k, v in event_poller._state.items()
+        },
+        "initialized_entities": list(event_poller._initialized),
+        "platform_url": settings.platform_api_url,
+    }

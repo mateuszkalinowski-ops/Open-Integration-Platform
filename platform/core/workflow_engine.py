@@ -1126,6 +1126,8 @@ class WorkflowError(Exception):
 
 
 def _get_nested(data: dict | Any, key: str) -> Any:
+    if "[]" in key:
+        return _get_nested_array(data, key)
     parts = key.split(".")
     current = data
     for part in parts:
@@ -1141,7 +1143,33 @@ def _get_nested(data: dict | Any, key: str) -> Any:
     return current
 
 
+def _get_nested_array(data: dict | Any, key: str) -> Any:
+    """Handle ``[]`` array iteration in field paths.
+
+    ``positions[].product_symbol`` extracts ``product_symbol`` from every
+    element of the ``positions`` array, returning a list of values.
+    Nested ``[]`` (e.g. ``orders[].items[].sku``) is supported recursively.
+    """
+    bracket_pos = key.index("[]")
+    array_path = key[:bracket_pos]
+    rest = key[bracket_pos + 2:]
+    if rest.startswith("."):
+        rest = rest[1:]
+
+    arr = _get_nested(data, array_path) if array_path else data
+    if not isinstance(arr, list):
+        return None
+
+    if not rest:
+        return arr
+
+    return [_get_nested(item, rest) for item in arr]
+
+
 def _set_nested(data: dict, key: str, value: Any, concat: bool = True) -> None:
+    if "[]" in key:
+        _set_nested_array(data, key, value)
+        return
     parts = key.split(".")
     current = data
     for part in parts[:-1]:
@@ -1160,6 +1188,50 @@ def _set_nested(data: dict, key: str, value: Any, concat: bool = True) -> None:
             current[final_key] = f"{value} {existing}"
     else:
         current[final_key] = value
+
+
+def _set_nested_array(data: dict, key: str, value: Any) -> None:
+    """Handle ``[]`` array iteration when setting target fields.
+
+    When ``value`` is a list, each element is assigned to the corresponding
+    array item.  If the target array already exists, fields are merged into
+    the existing objects by index so that multiple mapping rules can build
+    up array items together (e.g. ``items[].sku`` + ``items[].qty``).
+    """
+    bracket_pos = key.index("[]")
+    array_path = key[:bracket_pos]
+    rest = key[bracket_pos + 2:]
+    if rest.startswith("."):
+        rest = rest[1:]
+
+    parts = array_path.split(".") if array_path else []
+    current: Any = data
+    for part in parts[:-1]:
+        if part not in current:
+            current[part] = {}
+        current = current[part]
+
+    arr_key = parts[-1] if parts else ""
+    if not arr_key:
+        return
+
+    if arr_key not in current or not isinstance(current[arr_key], list):
+        current[arr_key] = []
+    arr = current[arr_key]
+
+    if not isinstance(value, list):
+        value = [value]
+
+    while len(arr) < len(value):
+        arr.append({})
+
+    for i, v in enumerate(value):
+        if rest:
+            if not isinstance(arr[i], dict):
+                arr[i] = {}
+            _set_nested(arr[i], rest, v, concat=False)
+        else:
+            arr[i] = v
 
 
 def _safe_truncate(value: Any, max_len: int = 2000) -> Any:

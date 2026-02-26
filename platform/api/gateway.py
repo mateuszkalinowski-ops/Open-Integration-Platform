@@ -2,15 +2,19 @@
 
 import base64
 import hashlib
+import io
 import time
+import zipfile
 from contextlib import asynccontextmanager
 from datetime import datetime, timezone
+from pathlib import Path
 from typing import Any
 
 import httpx
 import structlog
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -232,6 +236,9 @@ async def list_connectors(
             event_fields=c.event_fields,
             action_fields=c.action_fields,
             output_fields=c.output_fields,
+            deployment=c.deployment,
+            requires_onpremise_agent=c.requires_onpremise_agent,
+            onpremise_agent=c.onpremise_agent,
         )
         for c in results
     ]
@@ -258,6 +265,50 @@ async def get_connector_openapi(name: str):
             raise HTTPException(status_code=exc.response.status_code, detail="Failed to fetch OpenAPI spec")
 
 
+@app.get("/api/v1/connectors/{name}/onpremise-agent", tags=["connectors"])
+async def download_onpremise_agent(name: str) -> StreamingResponse:
+    """Download the on-premise agent package as a ZIP file."""
+    connectors = registry.get_by_name(name)
+    if not connectors:
+        raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
+
+    manifest = connectors[0]
+    if not manifest.requires_onpremise_agent:
+        raise HTTPException(status_code=404, detail=f"Connector '{name}' does not have an on-premise agent")
+
+    agent_info = manifest.onpremise_agent
+    source_dir = agent_info.get("source_directory", "")
+    if not source_dir:
+        raise HTTPException(status_code=404, detail="On-premise agent source directory not configured")
+
+    agent_path = Path(source_dir)
+    if not agent_path.is_absolute():
+        agent_path = Path(settings.connector_discovery_path).parent / source_dir
+
+    if not agent_path.exists() or not agent_path.is_dir():
+        raise HTTPException(status_code=404, detail="On-premise agent files not found on server")
+
+    skip_patterns = {".pyc", "__pycache__", ".git", ".env", "*.egg-info"}
+
+    buf = io.BytesIO()
+    with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
+        for file_path in sorted(agent_path.rglob("*")):
+            if not file_path.is_file():
+                continue
+            if any(p in str(file_path) for p in skip_patterns):
+                continue
+            arcname = file_path.relative_to(agent_path)
+            zf.write(file_path, arcname)
+    buf.seek(0)
+
+    filename = f"{name}-onpremise-agent-v{manifest.version}.zip"
+    return StreamingResponse(
+        buf,
+        media_type="application/zip",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
 @app.get("/api/v1/connectors/{category}/{name}", response_model=ConnectorResponse, tags=["connectors"])
 async def get_connector(category: str, name: str) -> ConnectorResponse:
     connector = registry.get_latest(category, name)
@@ -281,6 +332,9 @@ async def get_connector(category: str, name: str) -> ConnectorResponse:
         event_fields=connector.event_fields,
         action_fields=connector.action_fields,
         output_fields=connector.output_fields,
+        deployment=connector.deployment,
+        requires_onpremise_agent=connector.requires_onpremise_agent,
+        onpremise_agent=connector.onpremise_agent,
     )
 
 
@@ -1556,6 +1610,50 @@ async def internal_trigger_event(
         "flows_triggered": len(all_flow_executions),
         "workflows_triggered": len(all_workflow_executions),
     }
+
+
+# --- Internal: connector credential distribution ---
+
+
+@app.get("/internal/connector-credentials/{connector_name}", tags=["internal"])
+async def internal_get_connector_credentials(
+    connector_name: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """Return all stored credentials for a connector across all tenants.
+
+    Used internally by connectors (within Docker network) to auto-register
+    credentials for event polling.
+    """
+    result = await db.execute(
+        select(Tenant).where(Tenant.is_active.is_(True))
+    )
+    tenants = list(result.scalars().all())
+
+    accounts: list[dict[str, Any]] = []
+    for tenant in tenants:
+        try:
+            cred_names = await vault.list_credential_names(
+                db, tenant.id, connector_name
+            )
+            for cred_name in cred_names:
+                try:
+                    creds = await vault.retrieve_all(
+                        db, tenant.id, connector_name,
+                        credential_name=cred_name,
+                    )
+                    if creds:
+                        accounts.append({
+                            "tenant_id": str(tenant.id),
+                            "credential_name": cred_name,
+                            "credentials": creds,
+                        })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    return accounts
 
 
 # --- Flow Executions (audit log) ---

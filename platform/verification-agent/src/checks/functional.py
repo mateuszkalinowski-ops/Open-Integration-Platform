@@ -22,6 +22,7 @@ from src.checks.courier import generic as courier_generic
 from src.checks.ecommerce import allegro as ecommerce_allegro
 from src.checks.ecommerce import generic as ecommerce_generic
 from src.checks.ecommerce import woocommerce as ecommerce_woocommerce
+from src.checks.erp import insert_nexo as erp_insert_nexo
 from src.checks.other import account_based as other_account_based
 from src.checks.other import skanuj_fakture as other_skanuj_fakture
 from src.discovery import VerificationTarget
@@ -31,6 +32,7 @@ _CONNECTOR_REGISTRY: dict[str, Any] = {
     "dhl-express": courier_dhl_express,
     "allegro": ecommerce_allegro,
     "woocommerce": ecommerce_woocommerce,
+    "insert-nexo": erp_insert_nexo,
 }
 
 _INTERFACE_REGISTRY: dict[str, Any] = {

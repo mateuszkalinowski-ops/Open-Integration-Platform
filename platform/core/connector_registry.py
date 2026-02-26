@@ -29,6 +29,9 @@ class ConnectorManifest:
     event_fields: dict[str, list[dict]] = field(default_factory=dict)
     action_fields: dict[str, list[dict]] = field(default_factory=dict)
     output_fields: dict[str, list[dict]] = field(default_factory=dict)
+    deployment: str = "cloud"
+    requires_onpremise_agent: bool = False
+    onpremise_agent: dict = field(default_factory=dict)
     health_endpoint: str = "/health"
     docs_url: str = "/docs"
     path: str = ""
@@ -82,6 +85,9 @@ class ConnectorRegistry:
             event_fields=data.get("event_fields", {}),
             action_fields=data.get("action_fields", {}),
             output_fields=data.get("output_fields", {}),
+            deployment=data.get("deployment", "cloud"),
+            requires_onpremise_agent=data.get("requires_onpremise_agent", False),
+            onpremise_agent=data.get("onpremise_agent", {}),
             health_endpoint=data.get("health_endpoint", "/health"),
             docs_url=data.get("docs_url", "/docs"),
             path=str(path.parent),

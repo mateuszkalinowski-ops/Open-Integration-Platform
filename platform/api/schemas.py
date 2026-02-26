@@ -56,6 +56,9 @@ class ConnectorResponse(BaseModel):
     event_fields: dict[str, list[dict]] = Field(default_factory=dict)
     action_fields: dict[str, list[dict]] = Field(default_factory=dict)
     output_fields: dict[str, list[dict]] = Field(default_factory=dict)
+    deployment: str = "cloud"
+    requires_onpremise_agent: bool = False
+    onpremise_agent: dict = Field(default_factory=dict)
 
 
 class ConnectorInstanceCreate(BaseModel):

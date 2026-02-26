@@ -1,3 +1,12 @@
+export interface OnPremiseAgentInfo {
+  display_name: string;
+  description: string;
+  source_directory: string;
+  platform: string;
+  requirements: string[];
+  install_steps: string[];
+}
+
 export interface Connector {
   name: string;
   category: string;
@@ -16,6 +25,9 @@ export interface Connector {
   event_fields: Record<string, ConnectorFieldDef[]>;
   action_fields: Record<string, ConnectorFieldDef[]>;
   output_fields: Record<string, ConnectorFieldDef[]>;
+  deployment: string;
+  requires_onpremise_agent: boolean;
+  onpremise_agent: OnPremiseAgentInfo | null;
 }
 
 export const COUNTRY_FLAG_MAP: Record<string, string> = {
