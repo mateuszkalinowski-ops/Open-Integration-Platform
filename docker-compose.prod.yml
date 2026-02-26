@@ -323,6 +323,10 @@ services:
     environment:
       WMS_APP_ENV: production
       WMS_APP_PORT: 8000
+      PINQUARK_WMS_EVENT_POLLING_ENABLED: "true"
+      PINQUARK_WMS_EVENT_POLLING_INTERVAL_SECONDS: "120"
+      PINQUARK_WMS_PLATFORM_API_URL: http://platform:8080
+      PINQUARK_WMS_PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
     restart: unless-stopped

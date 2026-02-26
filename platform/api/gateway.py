@@ -1612,6 +1612,50 @@ async def internal_trigger_event(
     }
 
 
+# --- Internal: connector credential distribution ---
+
+
+@app.get("/internal/connector-credentials/{connector_name}", tags=["internal"])
+async def internal_get_connector_credentials(
+    connector_name: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """Return all stored credentials for a connector across all tenants.
+
+    Used internally by connectors (within Docker network) to auto-register
+    credentials for event polling.
+    """
+    result = await db.execute(
+        select(Tenant).where(Tenant.is_active.is_(True))
+    )
+    tenants = list(result.scalars().all())
+
+    accounts: list[dict[str, Any]] = []
+    for tenant in tenants:
+        try:
+            cred_names = await vault.list_credential_names(
+                db, tenant.id, connector_name
+            )
+            for cred_name in cred_names:
+                try:
+                    creds = await vault.retrieve_all(
+                        db, tenant.id, connector_name,
+                        credential_name=cred_name,
+                    )
+                    if creds:
+                        accounts.append({
+                            "tenant_id": str(tenant.id),
+                            "credential_name": cred_name,
+                            "credentials": creds,
+                        })
+                except Exception:
+                    pass
+        except Exception:
+            pass
+
+    return accounts
+
+
 # --- Flow Executions (audit log) ---
 
 
