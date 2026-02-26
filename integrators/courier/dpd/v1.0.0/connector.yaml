@@ -1,42 +1,64 @@
 name: dpd
 category: courier
 version: 2024-04
-display_name: "DPD Poland"
-description: "Domestic and international DPD courier shipments. DPD Pickup point network, parcel tracking."
-website_url: "https://www.dpd.com.pl"
+display_name: DPD Poland
+description: Domestic and international DPD courier shipments. DPD Pickup point network, parcel tracking.
+website_url: https://www.dpd.com.pl
 country: PL
 logo_url: /assets/logos/dpd.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - generate_protocol
-  - get_rates
+- create_shipment
+- get_label
+- get_shipment_status
+- generate_protocol
+- get_rates
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - protocol.generate
-  - rates.get
+- shipment.create
+- label.get
+- protocol.generate
+- rates.get
 config_schema:
   required:
-    - login
-    - password
-    - master_fid
+  - login
+  - password
+  - master_fid
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "2024-04"
-  check_url: "https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/"
+  current_api_version: 2024-04
+  check_url: https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/
   check_type: html
-  version_field: "(\\d{4}-\\d{2})"
-  docs_url: "https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/"
+  version_field: (\d{4}-\d{2})
+  docs_url: https://www.dpd.com/pl/en/oferta-dla-firm/rozwiazania-it/web-service-dpd-polska/
+service_name: connector-dpd
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill_number}/status
+  label.get:
+    method: POST
+    path: /labels
+  protocol.get:
+    method: POST
+    path: /protocol
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - login
+  - password
+  - master_fid

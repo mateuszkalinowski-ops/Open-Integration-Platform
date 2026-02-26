@@ -1,41 +1,62 @@
 name: pocztapolska
 category: courier
 version: 17.0.0
-display_name: "Poczta Polska"
-description: "National postal operator. Domestic and international shipments, Paczka+, Pocztex, parcel lockers."
-website_url: "https://www.poczta-polska.pl"
+display_name: Poczta Polska
+description: National postal operator. Domestic and international shipments, Paczka+, Pocztex, parcel lockers.
+website_url: https://www.poczta-polska.pl
 country: PL
 logo_url: /assets/logos/pocztapolska.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - get_pickup_points
+- create_shipment
+- get_label
+- get_shipment_status
+- get_pickup_points
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - pickup_points.list
+- shipment.create
+- label.get
+- pickup_points.list
 config_schema:
   required:
-    - username
-    - password
+  - username
+  - password
   optional:
-    - tracking_wsdl
-    - posting_wsdl
-    - sandbox_mode
+  - tracking_wsdl
+  - posting_wsdl
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "17.0.0"
-  check_url: "https://e-nadawca.poczta-polska.pl/"
+  current_api_version: 17.0.0
+  check_url: https://e-nadawca.poczta-polska.pl/
   check_type: html
-  version_field: "wersja\\s*(\\d+\\.\\d+\\.\\d+)"
-  docs_url: "https://e-nadawca.poczta-polska.pl/"
+  version_field: wersja\s*(\d+\.\d+\.\d+)
+  docs_url: https://e-nadawca.poczta-polska.pl/
+service_name: connector-pocztapolska
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{order_id}/status
+  tracking.get:
+    method: GET
+    path: /shipments/{order_id}/tracking
+  label.get:
+    method: POST
+    path: /labels
+  points.list:
+    method: POST
+    path: /points
+credential_validation:
+  required_fields:
+  - username
+  - password

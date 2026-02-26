@@ -1,187 +1,264 @@
 name: ftp-sftp
 category: other
 version: 1.0.0
-display_name: "FTP / SFTP"
-description: "FTP and SFTP file transfer connector. Upload, download, list, delete, and move files on remote servers. Supports polling for new files."
-website_url: "https://datatracker.ietf.org/doc/html/rfc959"
+display_name: FTP / SFTP
+description: FTP and SFTP file transfer connector. Upload, download, list, delete, and move files on remote servers. Supports
+  polling for new files.
+website_url: https://datatracker.ietf.org/doc/html/rfc959
 country: US
 logo_url: /assets/logos/ftp-sftp.svg
 interface: file_transfer
 capabilities:
-  - upload_file
-  - download_file
-  - list_files
-  - delete_file
-  - move_file
-  - create_directory
-  - poll_new_files
+- upload_file
+- download_file
+- list_files
+- delete_file
+- move_file
+- create_directory
+- poll_new_files
 events:
-  - file.new
-  - file.uploaded
-  - file.deleted
+- file.new
+- file.uploaded
+- file.deleted
 actions:
-  - file.upload
-  - file.download
-  - file.list
-  - file.delete
-  - file.move
-  - directory.create
-  - directory.list
+- file.upload
+- file.download
+- file.list
+- file.delete
+- file.move
+- directory.create
+- directory.list
 event_fields:
   file.new:
-    - field: filename
-      label: "File name"
-      type: string
-    - field: path
-      label: "Remote path"
-      type: string
-    - field: size
-      label: "File size (bytes)"
-      type: integer
-    - field: modified_at
-      label: "Last modification time"
-      type: string
-    - field: account_name
-      label: "Account name"
-      type: string
+  - field: filename
+    label: File name
+    type: string
+  - field: path
+    label: Remote path
+    type: string
+  - field: size
+    label: File size (bytes)
+    type: integer
+  - field: modified_at
+    label: Last modification time
+    type: string
+  - field: account_name
+    label: Account name
+    type: string
   file.uploaded:
-    - field: filename
-      label: "File name"
-      type: string
-    - field: path
-      label: "Remote path"
-      type: string
-    - field: size
-      label: "File size (bytes)"
-      type: integer
-    - field: account_name
-      label: "Account name"
-      type: string
+  - field: filename
+    label: File name
+    type: string
+  - field: path
+    label: Remote path
+    type: string
+  - field: size
+    label: File size (bytes)
+    type: integer
+  - field: account_name
+    label: Account name
+    type: string
   file.deleted:
-    - field: filename
-      label: "File name"
-      type: string
-    - field: path
-      label: "Remote path"
-      type: string
-    - field: account_name
-      label: "Account name"
-      type: string
+  - field: filename
+    label: File name
+    type: string
+  - field: path
+    label: Remote path
+    type: string
+  - field: account_name
+    label: Account name
+    type: string
 action_fields:
   file.upload:
-    - field: remote_path
-      label: "Remote destination path"
-      type: string
-      required: true
-    - field: content_base64
-      label: "File content (base64)"
-      type: string
-      required: true
-    - field: filename
-      label: "File name"
-      type: string
-      required: true
-    - field: overwrite
-      label: "Overwrite if exists"
-      type: boolean
-      default: false
+  - field: remote_path
+    label: Remote destination path
+    type: string
+    required: true
+  - field: content_base64
+    label: File content (base64)
+    type: string
+    required: true
+  - field: filename
+    label: File name
+    type: string
+    required: true
+  - field: overwrite
+    label: Overwrite if exists
+    type: boolean
+    default: false
   file.download:
-    - field: remote_path
-      label: "Remote file path"
-      type: string
-      required: true
+  - field: remote_path
+    label: Remote file path
+    type: string
+    required: true
   file.list:
-    - field: remote_path
-      label: "Remote directory path"
-      type: string
-      default: "/"
-    - field: pattern
-      label: "File name pattern (glob)"
-      type: string
+  - field: remote_path
+    label: Remote directory path
+    type: string
+    default: /
+  - field: pattern
+    label: File name pattern (glob)
+    type: string
   file.delete:
-    - field: remote_path
-      label: "Remote file path"
-      type: string
-      required: true
+  - field: remote_path
+    label: Remote file path
+    type: string
+    required: true
   file.move:
-    - field: source_path
-      label: "Source path"
-      type: string
-      required: true
-    - field: destination_path
-      label: "Destination path"
-      type: string
-      required: true
+  - field: source_path
+    label: Source path
+    type: string
+    required: true
+  - field: destination_path
+    label: Destination path
+    type: string
+    required: true
   directory.create:
-    - field: remote_path
-      label: "Directory path to create"
-      type: string
-      required: true
+  - field: remote_path
+    label: Directory path to create
+    type: string
+    required: true
   directory.list:
-    - field: remote_path
-      label: "Remote directory path"
-      type: string
-      default: "/"
+  - field: remote_path
+    label: Remote directory path
+    type: string
+    default: /
 config_schema:
   required:
-    - host
-    - protocol
+  - host
+  - protocol
   optional:
-    - port
-    - username
-    - password
-    - private_key
-    - passive_mode
-    - base_path
-    - polling_enabled
-    - polling_path
-    - polling_interval_seconds
+  - port
+  - username
+  - password
+  - private_key
+  - passive_mode
+  - base_path
+  - polling_enabled
+  - polling_path
+  - polling_interval_seconds
   field_types:
     host:
       type: string
-      label: "Server hostname or IP"
-      placeholder: "ftp.example.com"
+      label: Server hostname or IP
+      placeholder: ftp.example.com
     protocol:
       type: select
-      label: "Protocol"
+      label: Protocol
       options:
-        - value: sftp
-          label: "SFTP (SSH File Transfer)"
-        - value: ftp
-          label: "FTP (File Transfer Protocol)"
+      - value: sftp
+        label: SFTP (SSH File Transfer)
+      - value: ftp
+        label: FTP (File Transfer Protocol)
       default: sftp
     port:
       type: number
-      label: "Port"
-      placeholder: "21 (FTP) or 22 (SFTP)"
+      label: Port
+      placeholder: 21 (FTP) or 22 (SFTP)
     username:
       type: string
-      label: "Username"
+      label: Username
     password:
       type: password
-      label: "Password"
+      label: Password
     private_key:
       type: password
-      label: "SSH private key (PEM, for SFTP)"
+      label: SSH private key (PEM, for SFTP)
     passive_mode:
       type: boolean
-      label: "Passive mode (FTP only)"
+      label: Passive mode (FTP only)
       default: true
     base_path:
       type: string
-      label: "Base directory on server"
-      default: "/"
+      label: Base directory on server
+      default: /
     polling_enabled:
       type: boolean
-      label: "Poll for new files"
+      label: Poll for new files
       default: false
     polling_path:
       type: string
-      label: "Directory to poll for new files"
-      default: "/"
+      label: Directory to poll for new files
+      default: /
     polling_interval_seconds:
       type: number
-      label: "Polling interval (seconds)"
+      label: Polling interval (seconds)
       default: 300
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-ftp-sftp
+action_routes:
+  file.upload:
+    method: POST
+    path: /files/upload
+    query_from_payload:
+    - account_name
+  file.download:
+    method: GET
+    path: /files/download
+    query_from_payload:
+    - account_name
+    - remote_path
+  file.list:
+    method: GET
+    path: /files
+    query_from_payload:
+    - account_name
+    - remote_path
+    - pattern
+  file.delete:
+    method: DELETE
+    path: /files
+    query_from_payload:
+    - account_name
+  file.move:
+    method: POST
+    path: /files/move
+    query_from_payload:
+    - account_name
+  directory.create:
+    method: POST
+    path: /directories
+    query_from_payload:
+    - account_name
+  directory.list:
+    method: GET
+    path: /directories
+    query_from_payload:
+    - account_name
+    - remote_path
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    host: host
+    protocol:
+      source: protocol
+      default: sftp
+    port:
+      source: port
+      type: integer
+      default: 0
+    username: username
+    password: password
+    private_key:
+      source: private_key
+      default: ''
+    passive_mode:
+      source: passive_mode
+      type: boolean
+      default: true
+    base_path:
+      source: base_path
+      default: /
+    environment:
+      source: environment
+      default: production
+credential_validation:
+  required_fields:
+  - host
+  - username
+  - password
+  validate_endpoint: /auth/{account_name}/test

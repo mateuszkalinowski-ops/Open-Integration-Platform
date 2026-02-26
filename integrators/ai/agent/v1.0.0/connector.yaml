@@ -1,205 +1,233 @@
 name: ai-agent
 category: ai
 version: 1.0.0
-display_name: "AI Agent"
-description: "Universal AI agent powered by Google Gemini. Accepts a prompt and data, returns a structured response. Built-in templates: order risk analysis, courier selection, data extraction, priority classification."
-website_url: ""
+display_name: AI Agent
+description: 'Universal AI agent powered by Google Gemini. Accepts a prompt and data, returns a structured response. Built-in
+  templates: order risk analysis, courier selection, data extraction, priority classification.'
+website_url: ''
 country: US
 logo_url: /assets/logos/ai-agent.svg
 interface: ai-agent
-
 capabilities:
-  - analyze
-  - analyze_order_risk
-  - recommend_courier
-  - extract_data
-  - classify_priority
-
+- analyze
+- analyze_order_risk
+- recommend_courier
+- extract_data
+- classify_priority
 events:
-  - analysis.completed
-  - analysis.risk_flagged
-  - analysis.courier_recommended
-
+- analysis.completed
+- analysis.risk_flagged
+- analysis.courier_recommended
 actions:
-  - agent.analyze
-  - agent.analyze_risk
-  - agent.recommend_courier
-  - agent.classify_priority
-  - agent.extract_data
-
+- agent.analyze
+- agent.analyze_risk
+- agent.recommend_courier
+- agent.classify_priority
+- agent.extract_data
 event_fields:
   analysis.completed:
-    - field: analysis_id
-      label: "ID analizy"
-      type: string
-    - field: result
-      label: "Wynik analizy (JSON)"
-      type: object
-    - field: prompt_used
-      label: "Uzyty prompt"
-      type: string
-    - field: confidence
-      label: "Poziom pewnosci (0-1)"
-      type: number
-    - field: model_used
-      label: "Model AI"
-      type: string
-    - field: tokens_used
-      label: "Zuzycie tokenow"
-      type: integer
-    - field: timestamp
-      label: "Data analizy"
-      type: datetime
-
+  - field: analysis_id
+    label: ID analizy
+    type: string
+  - field: result
+    label: Wynik analizy (JSON)
+    type: object
+  - field: prompt_used
+    label: Uzyty prompt
+    type: string
+  - field: confidence
+    label: Poziom pewnosci (0-1)
+    type: number
+  - field: model_used
+    label: Model AI
+    type: string
+  - field: tokens_used
+    label: Zuzycie tokenow
+    type: integer
+  - field: timestamp
+    label: Data analizy
+    type: datetime
   analysis.risk_flagged:
-    - field: analysis_id
-      label: "ID analizy"
-      type: string
-    - field: risk_score
-      label: "Ocena ryzyka (0-100)"
-      type: integer
-    - field: risk_level
-      label: "Poziom ryzyka (low/medium/high/critical)"
-      type: string
-    - field: recommendation
-      label: "Rekomendacja (approve/review/reject)"
-      type: string
-    - field: risk_factors
-      label: "Czynniki ryzyka"
-      type: "string[]"
-
+  - field: analysis_id
+    label: ID analizy
+    type: string
+  - field: risk_score
+    label: Ocena ryzyka (0-100)
+    type: integer
+  - field: risk_level
+    label: Poziom ryzyka (low/medium/high/critical)
+    type: string
+  - field: recommendation
+    label: Rekomendacja (approve/review/reject)
+    type: string
+  - field: risk_factors
+    label: Czynniki ryzyka
+    type: string[]
   analysis.courier_recommended:
-    - field: analysis_id
-      label: "ID analizy"
-      type: string
-    - field: recommended_courier
-      label: "Rekomendowany kurier"
-      type: string
-    - field: reasoning
-      label: "Uzasadnienie"
-      type: string
-    - field: alternatives
-      label: "Alternatywy"
-      type: "object[]"
-
+  - field: analysis_id
+    label: ID analizy
+    type: string
+  - field: recommended_courier
+    label: Rekomendowany kurier
+    type: string
+  - field: reasoning
+    label: Uzasadnienie
+    type: string
+  - field: alternatives
+    label: Alternatywy
+    type: object[]
 action_fields:
   agent.analyze:
-    - field: prompt
-      label: "Prompt (instrukcja dla AI)"
-      type: string
-      required: true
-    - field: data
-      label: "Dane do analizy (JSON lub tekst)"
-      type: object
-      required: true
-    - field: output_schema
-      label: "Schemat odpowiedzi (JSON) — AI zwroci dane w tym formacie"
-      type: object
-    - field: temperature
-      label: "Temperatura modelu (0.0=precyzyjny, 1.0=kreatywny)"
-      type: number
-    - field: max_tokens
-      label: "Maksymalna liczba tokenow odpowiedzi"
-      type: integer
-
+  - field: prompt
+    label: Prompt (instrukcja dla AI)
+    type: string
+    required: true
+  - field: data
+    label: Dane do analizy (JSON lub tekst)
+    type: object
+    required: true
+  - field: output_schema
+    label: Schemat odpowiedzi (JSON) — AI zwroci dane w tym formacie
+    type: object
+  - field: temperature
+    label: Temperatura modelu (0.0=precyzyjny, 1.0=kreatywny)
+    type: number
+  - field: max_tokens
+    label: Maksymalna liczba tokenow odpowiedzi
+    type: integer
   agent.analyze_risk:
-    - field: order_data
-      label: "Dane zamowienia (JSON)"
-      type: object
-      required: true
-    - field: customer_history
-      label: "Historia klienta (opcjonalnie)"
-      type: object
-    - field: extra_context
-      label: "Dodatkowy kontekst"
-      type: string
-
+  - field: order_data
+    label: Dane zamowienia (JSON)
+    type: object
+    required: true
+  - field: customer_history
+    label: Historia klienta (opcjonalnie)
+    type: object
+  - field: extra_context
+    label: Dodatkowy kontekst
+    type: string
   agent.recommend_courier:
-    - field: order_data
-      label: "Dane zamowienia"
-      type: object
-      required: true
-    - field: available_couriers
-      label: "Dostepni kurierzy (lista nazw)"
-      type: "string[]"
-    - field: preferences
-      label: "Preferencje (koszt/szybkosc/niezawodnosc)"
-      type: object
-    - field: destination_country
-      label: "Kraj docelowy"
-      type: string
-
+  - field: order_data
+    label: Dane zamowienia
+    type: object
+    required: true
+  - field: available_couriers
+    label: Dostepni kurierzy (lista nazw)
+    type: string[]
+  - field: preferences
+    label: Preferencje (koszt/szybkosc/niezawodnosc)
+    type: object
+  - field: destination_country
+    label: Kraj docelowy
+    type: string
   agent.classify_priority:
-    - field: order_data
-      label: "Dane zamowienia"
-      type: object
-      required: true
-    - field: customer_tier
-      label: "Poziom klienta (standard/premium/vip)"
-      type: string
-    - field: sla_rules
-      label: "Reguly SLA (JSON)"
-      type: object
-
+  - field: order_data
+    label: Dane zamowienia
+    type: object
+    required: true
+  - field: customer_tier
+    label: Poziom klienta (standard/premium/vip)
+    type: string
+  - field: sla_rules
+    label: Reguly SLA (JSON)
+    type: object
   agent.extract_data:
-    - field: input_text
-      label: "Tekst wejsciowy"
-      type: string
-      required: true
-    - field: extraction_schema
-      label: "Schemat ekstrakcji (JSON z polami do wyciagniecia)"
-      type: object
-      required: true
-    - field: input_type
-      label: "Typ wejscia (email/invoice/address/custom)"
-      type: string
-
+  - field: input_text
+    label: Tekst wejsciowy
+    type: string
+    required: true
+  - field: extraction_schema
+    label: Schemat ekstrakcji (JSON z polami do wyciagniecia)
+    type: object
+    required: true
+  - field: input_type
+    label: Typ wejscia (email/invoice/address/custom)
+    type: string
 config_schema:
   required:
-    - gemini_api_key
+  - gemini_api_key
   optional:
-    - model_name
-    - default_temperature
-    - max_tokens
-    - risk_threshold_high
-    - risk_threshold_critical
+  - model_name
+  - default_temperature
+  - max_tokens
+  - risk_threshold_high
+  - risk_threshold_critical
   field_types:
     gemini_api_key:
       type: password
-      label: "Google Gemini API Key"
+      label: Google Gemini API Key
     model_name:
       type: select
-      label: "Model AI"
-      default: "gemini-2.5-flash"
+      label: Model AI
+      default: gemini-2.5-flash
       options:
-        - value: "gemini-2.5-flash"
-          label: "Gemini 2.5 Flash (free tier)"
-        - value: "gemini-2.5-flash-lite"
-          label: "Gemini 2.5 Flash Lite (free tier, faster)"
-        - value: "gemini-2.5-pro"
-          label: "Gemini 2.5 Pro (paid, most capable)"
+      - value: gemini-2.5-flash
+        label: Gemini 2.5 Flash (free tier)
+      - value: gemini-2.5-flash-lite
+        label: Gemini 2.5 Flash Lite (free tier, faster)
+      - value: gemini-2.5-pro
+        label: Gemini 2.5 Pro (paid, most capable)
     default_temperature:
       type: number
-      label: "Domyslna temperatura"
+      label: Domyslna temperatura
       default: 0.1
     max_tokens:
       type: integer
-      label: "Max tokenow odpowiedzi"
+      label: Max tokenow odpowiedzi
       default: 2048
     risk_threshold_high:
       type: integer
-      label: "Prog ryzyka HIGH (0-100)"
+      label: Prog ryzyka HIGH (0-100)
       default: 60
     risk_threshold_critical:
       type: integer
-      label: "Prog ryzyka CRITICAL (0-100)"
+      label: Prog ryzyka CRITICAL (0-100)
       default: 85
-
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "v1beta"
-  check_url: "https://ai.google.dev/gemini-api/docs/api-versions"
+  current_api_version: v1beta
+  check_url: https://ai.google.dev/gemini-api/docs/api-versions
   check_type: html
-  version_field: "(v\\d+[a-z]*\\d*)"
-  docs_url: "https://ai.google.dev/gemini-api/docs/changelog"
+  version_field: (v\d+[a-z]*\d*)
+  docs_url: https://ai.google.dev/gemini-api/docs/changelog
+service_name: connector-ai-agent
+action_routes:
+  agent.analyze:
+    method: POST
+    path: /analyze
+  agent.analyze_risk:
+    method: POST
+    path: /analyze/risk
+  agent.recommend_courier:
+    method: POST
+    path: /analyze/courier
+  agent.classify_priority:
+    method: POST
+    path: /analyze/priority
+  agent.extract_data:
+    method: POST
+    path: /analyze/extract
+credential_provisioning:
+  mode: inject_nested
+  inject_key: credentials
+  credential_mapping:
+    gemini_api_key: gemini_api_key
+    model_name:
+      source: model_name
+      default: gemini-2.5-flash
+credential_validation:
+  required_fields:
+  - gemini_api_key
+  test_request:
+    method: POST
+    url_template: https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent
+    params_template:
+      key: '{gemini_api_key}'
+    json_body_template:
+      contents:
+      - parts:
+        - text: Say OK
+    success_status: 200
+    defaults:
+      model_name: gemini-2.5-flash

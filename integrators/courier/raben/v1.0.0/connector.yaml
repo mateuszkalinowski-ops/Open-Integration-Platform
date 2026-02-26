@@ -1,259 +1,303 @@
 name: raben
 category: courier
 version: 1.0.0
-display_name: "Raben Group"
-description: "Raben Group logistics integration — domestic and international freight transport (LTL/FTL), palletized shipments, ETA tracking, delivery confirmation (PCD), claims."
-website_url: "https://polska.raben-group.com"
+display_name: Raben Group
+description: Raben Group logistics integration — domestic and international freight transport (LTL/FTL), palletized shipments,
+  ETA tracking, delivery confirmation (PCD), claims.
+website_url: https://polska.raben-group.com
 country: PL
 logo_url: /assets/logos/raben.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_tracking
-  - get_eta
-  - create_claim
-  - get_delivery_confirmation
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_tracking
+- get_eta
+- create_claim
+- get_delivery_confirmation
 events:
-  - shipment.status_changed
-  - shipment.created
-  - shipment.delivered
+- shipment.status_changed
+- shipment.created
+- shipment.delivered
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - shipment.status
-  - tracking.get
-  - eta.get
-  - claim.create
-  - delivery_confirmation.get
+- shipment.create
+- label.get
+- shipment.cancel
+- shipment.status
+- tracking.get
+- eta.get
+- claim.create
+- delivery_confirmation.get
 event_fields:
   shipment.status_changed:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-    - field: status
-      label: "Nowy status"
-      type: string
-    - field: previous_status
-      label: "Poprzedni status"
-      type: string
-    - field: eta_from
-      label: "ETA od"
-      type: datetime
-    - field: eta_to
-      label: "ETA do"
-      type: datetime
-    - field: updated_at
-      label: "Data zmiany"
-      type: datetime
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+  - field: status
+    label: Nowy status
+    type: string
+  - field: previous_status
+    label: Poprzedni status
+    type: string
+  - field: eta_from
+    label: ETA od
+    type: datetime
+  - field: eta_to
+    label: ETA do
+    type: datetime
+  - field: updated_at
+    label: Data zmiany
+    type: datetime
   shipment.created:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: sender.company_name
-      label: "Nadawca - firma"
-      type: string
-    - field: receiver.company_name
-      label: "Odbiorca - firma"
-      type: string
-    - field: service_type
-      label: "Typ uslugi"
-      type: string
-    - field: created_at
-      label: "Data utworzenia"
-      type: datetime
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: sender.company_name
+    label: Nadawca - firma
+    type: string
+  - field: receiver.company_name
+    label: Odbiorca - firma
+    type: string
+  - field: service_type
+    label: Typ uslugi
+    type: string
+  - field: created_at
+    label: Data utworzenia
+    type: datetime
   shipment.delivered:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-    - field: delivered_at
-      label: "Data dostarczenia"
-      type: datetime
-    - field: pcd_available
-      label: "Dostepne PCD"
-      type: boolean
-
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+  - field: delivered_at
+    label: Data dostarczenia
+    type: datetime
+  - field: pcd_available
+    label: Dostepne PCD
+    type: boolean
 action_fields:
   shipment.create:
-    - field: sender.company_name
-      label: "Nadawca - firma"
-      type: string
-      required: true
-    - field: sender.contact_person
-      label: "Nadawca - osoba kontaktowa"
-      type: string
-      required: true
-    - field: sender.phone
-      label: "Nadawca - telefon"
-      type: string
-      required: true
-    - field: sender.email
-      label: "Nadawca - email"
-      type: string
-    - field: sender.street
-      label: "Nadawca - ulica"
-      type: string
-      required: true
-    - field: sender.city
-      label: "Nadawca - miasto"
-      type: string
-      required: true
-    - field: sender.postal_code
-      label: "Nadawca - kod pocztowy"
-      type: string
-      required: true
-    - field: sender.country_code
-      label: "Nadawca - kraj"
-      type: string
-      required: true
-    - field: receiver.company_name
-      label: "Odbiorca - firma"
-      type: string
-      required: true
-    - field: receiver.contact_person
-      label: "Odbiorca - osoba kontaktowa"
-      type: string
-      required: true
-    - field: receiver.phone
-      label: "Odbiorca - telefon"
-      type: string
-      required: true
-    - field: receiver.email
-      label: "Odbiorca - email"
-      type: string
-    - field: receiver.street
-      label: "Odbiorca - ulica"
-      type: string
-      required: true
-    - field: receiver.city
-      label: "Odbiorca - miasto"
-      type: string
-      required: true
-    - field: receiver.postal_code
-      label: "Odbiorca - kod pocztowy"
-      type: string
-      required: true
-    - field: receiver.country_code
-      label: "Odbiorca - kraj"
-      type: string
-      required: true
-    - field: packages
-      label: "Paczki/palety (lista)"
-      type: "object[]"
-      required: true
-    - field: service_type
-      label: "Typ uslugi (cargo_classic / cargo_premium / cargo_premium_08 / cargo_premium_10 / cargo_premium_12 / cargo_premium_16)"
-      type: string
-    - field: pickup_date
-      label: "Data odbioru"
-      type: date
-    - field: reference
-      label: "Referencja"
-      type: string
-    - field: comments
-      label: "Komentarz"
-      type: string
-    - field: pcd_enabled
-      label: "Potwierdzenie dostawy zdjeciem (PCD)"
-      type: boolean
-    - field: email_notification
-      label: "Powiadomienie email dla odbiorcy"
-      type: boolean
+  - field: sender.company_name
+    label: Nadawca - firma
+    type: string
+    required: true
+  - field: sender.contact_person
+    label: Nadawca - osoba kontaktowa
+    type: string
+    required: true
+  - field: sender.phone
+    label: Nadawca - telefon
+    type: string
+    required: true
+  - field: sender.email
+    label: Nadawca - email
+    type: string
+  - field: sender.street
+    label: Nadawca - ulica
+    type: string
+    required: true
+  - field: sender.city
+    label: Nadawca - miasto
+    type: string
+    required: true
+  - field: sender.postal_code
+    label: Nadawca - kod pocztowy
+    type: string
+    required: true
+  - field: sender.country_code
+    label: Nadawca - kraj
+    type: string
+    required: true
+  - field: receiver.company_name
+    label: Odbiorca - firma
+    type: string
+    required: true
+  - field: receiver.contact_person
+    label: Odbiorca - osoba kontaktowa
+    type: string
+    required: true
+  - field: receiver.phone
+    label: Odbiorca - telefon
+    type: string
+    required: true
+  - field: receiver.email
+    label: Odbiorca - email
+    type: string
+  - field: receiver.street
+    label: Odbiorca - ulica
+    type: string
+    required: true
+  - field: receiver.city
+    label: Odbiorca - miasto
+    type: string
+    required: true
+  - field: receiver.postal_code
+    label: Odbiorca - kod pocztowy
+    type: string
+    required: true
+  - field: receiver.country_code
+    label: Odbiorca - kraj
+    type: string
+    required: true
+  - field: packages
+    label: Paczki/palety (lista)
+    type: object[]
+    required: true
+  - field: service_type
+    label: Typ uslugi (cargo_classic / cargo_premium / cargo_premium_08 / cargo_premium_10 / cargo_premium_12 / cargo_premium_16)
+    type: string
+  - field: pickup_date
+    label: Data odbioru
+    type: date
+  - field: reference
+    label: Referencja
+    type: string
+  - field: comments
+    label: Komentarz
+    type: string
+  - field: pcd_enabled
+    label: Potwierdzenie dostawy zdjeciem (PCD)
+    type: boolean
+  - field: email_notification
+    label: Powiadomienie email dla odbiorcy
+    type: boolean
   label.get:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
-    - field: format
-      label: "Format (pdf / zpl)"
-      type: string
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
+  - field: format
+    label: Format (pdf / zpl)
+    type: string
   shipment.cancel:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
   shipment.status:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
   tracking.get:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
   eta.get:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
   claim.create:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
-    - field: claim_type
-      label: "Typ reklamacji (damage / loss / delay / other)"
-      type: string
-      required: true
-    - field: description
-      label: "Opis"
-      type: string
-      required: true
-    - field: contact_email
-      label: "Email kontaktowy"
-      type: string
-      required: true
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
+  - field: claim_type
+    label: Typ reklamacji (damage / loss / delay / other)
+    type: string
+    required: true
+  - field: description
+    label: Opis
+    type: string
+    required: true
+  - field: contact_email
+    label: Email kontaktowy
+    type: string
+    required: true
   delivery_confirmation.get:
-    - field: waybill_number
-      label: "Numer listu przewozowego"
-      type: string
-      required: true
-
+  - field: waybill_number
+    label: Numer listu przewozowego
+    type: string
+    required: true
 config_schema:
   required:
-    - username
-    - password
+  - username
+  - password
   optional:
-    - sandbox_mode
-    - customer_number
-    - default_service_type
+  - sandbox_mode
+  - customer_number
+  - default_service_type
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
     default_service_type:
       type: select
-      label: "Domyslny typ uslugi"
+      label: Domyslny typ uslugi
       default: cargo_classic
       options:
-        - value: cargo_classic
-          label: "Cargo Classic (24/48h)"
-        - value: cargo_premium
-          label: "Cargo Premium"
-        - value: cargo_premium_08
-          label: "Cargo Premium 08:00"
-        - value: cargo_premium_10
-          label: "Cargo Premium 10:00"
-        - value: cargo_premium_12
-          label: "Cargo Premium 12:00"
-        - value: cargo_premium_16
-          label: "Cargo Premium 16:00"
+      - value: cargo_classic
+        label: Cargo Classic (24/48h)
+      - value: cargo_premium
+        label: Cargo Premium
+      - value: cargo_premium_08
+        label: Cargo Premium 08:00
+      - value: cargo_premium_10
+        label: Cargo Premium 10:00
+      - value: cargo_premium_12
+        label: Cargo Premium 12:00
+      - value: cargo_premium_16
+        label: Cargo Premium 16:00
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-raben
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill_number}/status
+  shipment.cancel:
+    method: PUT
+    path: /shipments/{waybill_number}/cancel
+  tracking.get:
+    method: GET
+    path: /tracking/{waybill_number}
+  eta.get:
+    method: GET
+    path: /shipments/{waybill_number}/eta
+  label.get:
+    method: POST
+    path: /labels
+  claim.create:
+    method: POST
+    path: /claims
+  delivery_confirmation.get:
+    method: GET
+    path: /deliveries/{waybill_number}/confirmation
+credential_validation:
+  required_fields:
+  - username
+  - password
+  test_request:
+    method: POST
+    url_template: '{base_url}/auth/login'
+    headers_template:
+      Content-Type: application/json
+    json_body_template:
+      username: '{username}'
+      password: '{password}'
+    success_status: 200
+    defaults:
+      base_url: https://myraben.com/api/v1
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://sandbox.myraben.com/api/v1
+      production_url: https://myraben.com/api/v1

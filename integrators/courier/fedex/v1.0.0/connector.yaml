@@ -1,43 +1,83 @@
 name: fedex
 category: courier
 version: 1.0.0
-display_name: "FedEx"
-description: "Global courier services by FedEx — air, ground and freight shipping worldwide."
-website_url: "https://www.fedex.com"
+display_name: FedEx
+description: Global courier services by FedEx — air, ground and freight shipping worldwide.
+website_url: https://www.fedex.com
 country: US
 logo_url: /assets/logos/fedex.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - cancel_shipment
-  - get_pickup_points
-  - get_shipment_status
-  - get_rates
+- create_shipment
+- get_label
+- cancel_shipment
+- get_pickup_points
+- get_shipment_status
+- get_rates
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - pickup_points.list
-  - rates.get
+- shipment.create
+- label.get
+- shipment.cancel
+- pickup_points.list
+- rates.get
 config_schema:
   required:
-    - client_id
-    - client_secret
+  - client_id
+  - client_secret
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0.0"
-  check_url: "https://developer.fedex.com/api/en-us/catalog.html"
+  current_api_version: 1.0.0
+  check_url: https://developer.fedex.com/api/en-us/catalog.html
   check_type: html
-  version_field: "version[:\\s]+(\\d+\\.\\d+)"
-  docs_url: "https://developer.fedex.com/api/en-us/catalog.html"
+  version_field: version[:\s]+(\d+\.\d+)
+  docs_url: https://developer.fedex.com/api/en-us/catalog.html
+service_name: connector-fedex
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.cancel:
+    method: DELETE
+    path: /shipments/{order_id}
+  label.get:
+    method: POST
+    path: /labels
+  tracking.get:
+    method: GET
+    path: /tracking/{tracking_number}
+  points.list:
+    method: POST
+    path: /points
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - client_id
+  - client_secret
+  test_request:
+    method: POST
+    url_template: '{base_url}/oauth/token'
+    headers_template:
+      content-type: application/x-www-form-urlencoded
+    form_data_template:
+      grant_type: client_credentials
+      client_id: '{client_id}'
+      client_secret: '{client_secret}'
+    success_status: 200
+    defaults:
+      base_url: https://apis-sandbox.fedex.com
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://apis-sandbox.fedex.com
+      production_url: https://apis.fedex.com

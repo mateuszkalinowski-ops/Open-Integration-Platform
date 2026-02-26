@@ -1,41 +1,79 @@
 name: inpost
 category: courier
 version: 1.0.0
-display_name: "InPost Krajowy"
-description: "Domestic InPost courier service based on the ShipX API — Parcel Lockers, standard and express courier, labels, shipment tracking."
-website_url: "https://inpost.pl"
+display_name: InPost Krajowy
+description: Domestic InPost courier service based on the ShipX API — Parcel Lockers, standard and express courier, labels,
+  shipment tracking.
+website_url: https://inpost.pl
 country: PL
 logo_url: /assets/logos/inpost.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_pickup_points
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_pickup_points
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - pickup_points.list
+- shipment.create
+- label.get
+- shipment.cancel
+- pickup_points.list
 config_schema:
   required:
-    - organization_id
-    - access_token
+  - organization_id
+  - access_token
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "shipping/v1"
-  check_url: "https://developers.inpost-group.com/versioning"
+  current_api_version: shipping/v1
+  check_url: https://developers.inpost-group.com/versioning
   check_type: html
-  version_field: "shipping/(v\\d+)"
-  docs_url: "https://developers.inpost-group.com/"
+  version_field: shipping/(v\d+)
+  docs_url: https://developers.inpost-group.com/
+service_name: connector-inpost
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  label.get:
+    method: GET
+    path: /shipments/{shipment_id}/label
+  shipment.cancel:
+    method: POST
+    path: /shipments/{shipment_id}/cancel
+  pickup_points.list:
+    method: GET
+    path: /pickup-points
+  return.create:
+    method: POST
+    path: /returns
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - organization_id
+  - access_token
+  test_request:
+    method: GET
+    url_template: '{base_url}/v1/organizations/{organization_id}/shipments'
+    headers_template:
+      Authorization: Bearer {access_token}
+    params_template:
+      per_page: '1'
+    success_status: 200
+    defaults:
+      base_url: https://api-shipx-pl.easypack24.net
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://sandbox-api-shipx-pl.easypack24.net

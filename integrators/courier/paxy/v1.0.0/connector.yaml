@@ -1,32 +1,60 @@
 name: paxy
 category: courier
 version: 1.0.0
-display_name: "Paxy"
-description: "Polish urban courier — same-day delivery in major Polish cities."
-website_url: "https://paxy.pl"
+display_name: Paxy
+description: Polish urban courier — same-day delivery in major Polish cities.
+website_url: https://paxy.pl
 country: PL
 logo_url: /assets/logos/paxy.png
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
+- shipment.create
+- label.get
+- shipment.cancel
 config_schema:
   required:
-    - api_key
+  - api_key
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-paxy
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: POST
+    path: /shipments/status
+  shipment.cancel:
+    method: POST
+    path: /shipments/delete
+  label.get:
+    method: POST
+    path: /labels
+credential_validation:
+  required_fields:
+  - api_key
+  - api_token
+  test_request:
+    method: POST
+    url_template: https://api.paxy.pl/v1/trackings
+    headers_template:
+      CL-API-KEY: '{api_key}'
+      CL-API-TOKEN: '{api_token}'
+      Content-Type: application/json
+    json_body_template:
+      trackingNrs: []
+    success_status: 200

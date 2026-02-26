@@ -1,36 +1,60 @@
 name: geis
 category: courier
 version: 1.0.0
-display_name: "Geis"
-description: "Central European logistics company — pallet and parcel shipments, domestic and international transport."
-website_url: "https://www.geis-group.cz"
+display_name: Geis
+description: Central European logistics company — pallet and parcel shipments, domestic and international transport.
+website_url: https://www.geis-group.cz
 country: CZ
 logo_url: /assets/logos/geis.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_shipment
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_shipment
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - shipment.get
+- shipment.create
+- label.get
+- shipment.cancel
+- shipment.get
 config_schema:
   required:
-    - customer_code
-    - password
+  - customer_code
+  - password
   optional:
-    - default_language
-    - sandbox_mode
+  - default_language
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-geis
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: POST
+    path: /shipments/status
+  shipment.detail:
+    method: POST
+    path: /shipments/detail
+  shipment.delete:
+    method: POST
+    path: /shipments/delete
+  shipment.assign_range:
+    method: POST
+    path: /shipments/assign-range
+  label.get:
+    method: POST
+    path: /labels
+credential_validation:
+  required_fields:
+  - customer_code
+  - password

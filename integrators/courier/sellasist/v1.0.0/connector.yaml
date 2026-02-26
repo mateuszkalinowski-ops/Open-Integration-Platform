@@ -1,32 +1,48 @@
 name: sellasist
 category: courier
 version: 1.90.7
-display_name: "SellAsist"
-description: "Multi-channel sales management platform — marketplace integration, courier shipping labels."
-website_url: "https://sellasist.pl"
+display_name: SellAsist
+description: Multi-channel sales management platform — marketplace integration, courier shipping labels.
+website_url: https://sellasist.pl
 country: PL
 logo_url: /assets/logos/sellasist.svg
 interface: courier
 capabilities:
-  - get_label
+- get_label
 events: []
 actions:
-  - label.get
+- label.get
 config_schema:
   required:
-    - api_key
+  - api_key
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.90.7"
-  check_url: "https://api.sellasist.pl/"
+  current_api_version: 1.90.7
+  check_url: https://api.sellasist.pl/
   check_type: html
-  version_field: "(\\d+\\.\\d+\\.\\d+)"
-  docs_url: "https://api.sellasist.pl/"
+  version_field: (\d+\.\d+\.\d+)
+  docs_url: https://api.sellasist.pl/
+service_name: connector-sellasist
+action_routes:
+  label.get:
+    method: POST
+    path: /labels
+credential_validation:
+  required_fields:
+  - login
+  - api_key
+  test_request:
+    method: GET
+    url_template: https://{login}.sellasist.pl/api/v1/ordersshipments
+    headers_template:
+      apiKey: '{api_key}'
+      accept: application/json
+    success_status: 200

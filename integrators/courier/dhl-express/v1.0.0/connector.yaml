@@ -1,41 +1,101 @@
 name: dhl-express
 category: courier
 version: 3.2.0
-display_name: "DHL Express"
-description: "International express shipping by DHL Express — fast door-to-door delivery worldwide."
-website_url: "https://www.dhl.com/pl-pl/home/express.html"
+display_name: DHL Express
+description: International express shipping by DHL Express — fast door-to-door delivery worldwide.
+website_url: https://www.dhl.com/pl-pl/home/express.html
 country: DE
 logo_url: /assets/logos/dhl-express.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - get_pickup_points
-  - get_rates
+- create_shipment
+- get_label
+- get_shipment_status
+- get_pickup_points
+- get_rates
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - pickup_points.list
-  - rates.get
+- shipment.create
+- label.get
+- pickup_points.list
+- rates.get
 config_schema:
   required:
-    - api_key
-    - api_secret
+  - api_key
+  - api_secret
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "3.2.0"
-  check_url: "https://developer.dhl.com/api-reference/dhl-express-mydhl-api?language_content_entity=en"
+  current_api_version: 3.2.0
+  check_url: https://developer.dhl.com/api-reference/dhl-express-mydhl-api?language_content_entity=en
   check_type: html
-  version_field: "v\\s*(\\d+\\.\\d+\\.\\d+)"
-  docs_url: "https://developer.dhl.com/api-reference/dhl-express-mydhl-api"
+  version_field: v\s*(\d+\.\d+\.\d+)
+  docs_url: https://developer.dhl.com/api-reference/dhl-express-mydhl-api
+service_name: connector-dhl-express
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{tracking_number}/status
+  label.get:
+    method: GET
+    path: /shipments/{tracking_number}/label
+  documents.get:
+    method: GET
+    path: /shipments/{tracking_number}/documents
+  rates.get:
+    method: POST
+    path: /rates/standardized
+  rates.raw:
+    method: POST
+    path: /rates
+  pickup.create:
+    method: POST
+    path: /pickups
+  pickup.cancel:
+    method: DELETE
+    path: /pickups/{dispatch_confirmation_number}
+  address.validate:
+    method: GET
+    path: /address-validate
+    query_from_payload:
+    - countryCode
+    - postalCode
+    - cityName
+  points.list:
+    method: GET
+    path: /points
+    query_from_payload:
+    - countryCode
+    - postalCode
+    - city
+credential_validation:
+  required_fields:
+  - api_key
+  - api_secret
+  test_request:
+    method: GET
+    url_template: '{base_url}/shipments'
+    auth: basic
+    auth_fields:
+    - api_key
+    - api_secret
+    headers_template:
+      Accept: application/json
+    success_status: 200
+    defaults:
+      base_url: https://express.api.dhl.com/mydhlapi/test
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://express.api.dhl.com/mydhlapi/test
+      production_url: https://express.api.dhl.com/mydhlapi

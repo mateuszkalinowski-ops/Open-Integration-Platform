@@ -1,218 +1,304 @@
 name: email-client
 category: other
 version: 1.0.0
-display_name: "Email Client"
-description: "Universal IMAP/SMTP email client. Receive and send email messages at configurable polling intervals."
-website_url: ""
+display_name: Email Client
+description: Universal IMAP/SMTP email client. Receive and send email messages at configurable polling intervals.
+website_url: ''
 country: PL
 logo_url: /assets/logos/email-client.svg
 interface: email
 capabilities:
-  - send_email
-  - receive_emails
-  - list_emails
-  - get_email
-  - list_folders
-  - mark_as_read
-  - delete_email
+- send_email
+- receive_emails
+- list_emails
+- get_email
+- list_folders
+- mark_as_read
+- delete_email
 events:
-  - email.received
-  - email.sent
+- email.received
+- email.sent
 actions:
-  - email.send
-  - email.fetch
-  - email.get
-  - email.mark_read
-  - email.delete
-  - folder.list
+- email.send
+- email.fetch
+- email.get
+- email.mark_read
+- email.delete
+- folder.list
 config_schema:
   required:
-    - imap_host
-    - smtp_host
-    - email_address
-    - password
+  - imap_host
+  - smtp_host
+  - email_address
+  - password
   optional:
-    - username
-    - imap_port
-    - smtp_port
-    - use_ssl
-    - polling_interval_seconds
-    - polling_folder
+  - username
+  - imap_port
+  - smtp_port
+  - use_ssl
+  - polling_interval_seconds
+  - polling_folder
   field_types:
     imap_host:
       type: string
-      label: "Serwer IMAP"
-      placeholder: "imap.gmail.com"
+      label: Serwer IMAP
+      placeholder: imap.gmail.com
     smtp_host:
       type: string
-      label: "Serwer SMTP"
-      placeholder: "smtp.gmail.com"
+      label: Serwer SMTP
+      placeholder: smtp.gmail.com
     email_address:
       type: string
-      label: "Adres email"
-      placeholder: "user@example.com"
+      label: Adres email
+      placeholder: user@example.com
     password:
       type: password
-      label: "Haslo / App password"
+      label: Haslo / App password
     username:
       type: string
-      label: "Login IMAP/SMTP (jesli inny niz adres email)"
-      placeholder: "jkowalski"
+      label: Login IMAP/SMTP (jesli inny niz adres email)
+      placeholder: jkowalski
     imap_port:
       type: integer
-      label: "Port IMAP"
+      label: Port IMAP
       default: 993
     smtp_port:
       type: integer
-      label: "Port SMTP"
+      label: Port SMTP
       default: 587
     use_ssl:
       type: boolean
-      label: "Uzyj SSL/TLS"
+      label: Uzyj SSL/TLS
       default: true
     polling_interval_seconds:
       type: integer
-      label: "Interwal pollingu (sekundy)"
+      label: Interwal pollingu (sekundy)
       default: 60
     polling_folder:
       type: string
-      label: "Folder IMAP do pollingu"
-      default: "INBOX"
+      label: Folder IMAP do pollingu
+      default: INBOX
 event_fields:
   email.received:
-    - field: from
-      label: "Nadawca (adres email)"
-      type: string
-    - field: to
-      label: "Odbiorca"
-      type: string
-    - field: subject
-      label: "Temat wiadomosci"
-      type: string
-    - field: body_text
-      label: "Tresc (tekst)"
-      type: string
-    - field: body_html
-      label: "Tresc (HTML)"
-      type: string
-    - field: date
-      label: "Data otrzymania"
-      type: datetime
-    - field: message_id
-      label: "ID wiadomosci"
-      type: string
-    - field: has_attachments
-      label: "Czy ma zalaczniki"
-      type: boolean
-    - field: attachments
-      label: "Zalaczniki"
-      type: "attachment[]"
-    - field: cc
-      label: "CC"
-      type: string
-    - field: reply_to
-      label: "Reply-To"
-      type: string
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
+  - field: from
+    label: Nadawca (adres email)
+    type: string
+  - field: to
+    label: Odbiorca
+    type: string
+  - field: subject
+    label: Temat wiadomosci
+    type: string
+  - field: body_text
+    label: Tresc (tekst)
+    type: string
+  - field: body_html
+    label: Tresc (HTML)
+    type: string
+  - field: date
+    label: Data otrzymania
+    type: datetime
+  - field: message_id
+    label: ID wiadomosci
+    type: string
+  - field: has_attachments
+    label: Czy ma zalaczniki
+    type: boolean
+  - field: attachments
+    label: Zalaczniki
+    type: attachment[]
+  - field: cc
+    label: CC
+    type: string
+  - field: reply_to
+    label: Reply-To
+    type: string
+  - field: account_name
+    label: Nazwa konta
+    type: string
   email.sent:
-    - field: to
-      label: "Adresaci"
-      type: string
-    - field: subject
-      label: "Temat"
-      type: string
-    - field: message_id
-      label: "ID wiadomosci"
-      type: string
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-
+  - field: to
+    label: Adresaci
+    type: string
+  - field: subject
+    label: Temat
+    type: string
+  - field: message_id
+    label: ID wiadomosci
+    type: string
+  - field: account_name
+    label: Nazwa konta
+    type: string
 action_fields:
   email.send:
-    - field: to
-      label: "Adresaci (lista email)"
-      type: "string[]"
-      required: true
-    - field: cc
-      label: "CC (kopia)"
-      type: "string[]"
-    - field: bcc
-      label: "BCC (kopia ukryta)"
-      type: "string[]"
-    - field: subject
-      label: "Temat wiadomosci"
-      type: string
-      required: true
-    - field: body_text
-      label: "Tresc (tekst)"
-      type: string
-    - field: body_html
-      label: "Tresc (HTML)"
-      type: string
-    - field: priority
-      label: "Priorytet (1=wysoki, 3=normalny, 5=niski)"
-      type: integer
-    - field: reply_to
-      label: "Reply-To"
-      type: string
+  - field: to
+    label: Adresaci (lista email)
+    type: string[]
+    required: true
+  - field: cc
+    label: CC (kopia)
+    type: string[]
+  - field: bcc
+    label: BCC (kopia ukryta)
+    type: string[]
+  - field: subject
+    label: Temat wiadomosci
+    type: string
+    required: true
+  - field: body_text
+    label: Tresc (tekst)
+    type: string
+  - field: body_html
+    label: Tresc (HTML)
+    type: string
+  - field: priority
+    label: Priorytet (1=wysoki, 3=normalny, 5=niski)
+    type: integer
+  - field: reply_to
+    label: Reply-To
+    type: string
   email.fetch:
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-      required: true
-    - field: folder
-      label: "Folder IMAP"
-      type: string
-    - field: limit
-      label: "Limit wiadomosci"
-      type: integer
-    - field: since
-      label: "Od daty (ISO 8601)"
-      type: datetime
+  - field: account_name
+    label: Nazwa konta
+    type: string
+    required: true
+  - field: folder
+    label: Folder IMAP
+    type: string
+  - field: limit
+    label: Limit wiadomosci
+    type: integer
+  - field: since
+    label: Od daty (ISO 8601)
+    type: datetime
   email.get:
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-      required: true
-    - field: message_id
-      label: "ID wiadomosci"
-      type: string
-      required: true
-    - field: folder
-      label: "Folder IMAP"
-      type: string
+  - field: account_name
+    label: Nazwa konta
+    type: string
+    required: true
+  - field: message_id
+    label: ID wiadomosci
+    type: string
+    required: true
+  - field: folder
+    label: Folder IMAP
+    type: string
   email.mark_read:
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-      required: true
-    - field: message_id
-      label: "ID wiadomosci"
-      type: string
-      required: true
-    - field: folder
-      label: "Folder IMAP"
-      type: string
+  - field: account_name
+    label: Nazwa konta
+    type: string
+    required: true
+  - field: message_id
+    label: ID wiadomosci
+    type: string
+    required: true
+  - field: folder
+    label: Folder IMAP
+    type: string
   email.delete:
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-      required: true
-    - field: message_id
-      label: "ID wiadomosci"
-      type: string
-      required: true
-    - field: folder
-      label: "Folder IMAP"
-      type: string
+  - field: account_name
+    label: Nazwa konta
+    type: string
+    required: true
+  - field: message_id
+    label: ID wiadomosci
+    type: string
+    required: true
+  - field: folder
+    label: Folder IMAP
+    type: string
   folder.list:
-    - field: account_name
-      label: "Nazwa konta"
-      type: string
-      required: true
-
+  - field: account_name
+    label: Nazwa konta
+    type: string
+    required: true
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-email-client
+action_routes:
+  email.send:
+    method: POST
+    path: /emails/send
+    query_from_payload:
+    - account_name
+  email.fetch:
+    method: GET
+    path: /emails
+    query_from_payload:
+    - account_name
+    - folder
+    - max_count
+    - unseen_only
+  email.get:
+    method: GET
+    path: /emails/{message_id}
+    query_from_payload:
+    - account_name
+    - folder
+  email.mark_read:
+    method: PUT
+    path: /emails/{message_id}/read
+    query_from_payload:
+    - account_name
+    - folder
+  email.delete:
+    method: DELETE
+    path: /emails/{message_id}
+    query_from_payload:
+    - account_name
+    - folder
+  folder.list:
+    method: GET
+    path: /folders
+    query_from_payload:
+    - account_name
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    email_address: email_address
+    username: username
+    password: password
+    imap_host: imap_host
+    imap_port:
+      source: imap_port
+      type: integer
+      default: 993
+    smtp_host: smtp_host
+    smtp_port:
+      source: smtp_port
+      type: integer
+      default: 587
+    use_ssl:
+      source: use_ssl
+      type: boolean
+      default: true
+    polling_folder:
+      source: polling_folder
+      default: INBOX
+credential_validation:
+  required_fields:
+  - imap_host
+  - smtp_host
+  - email_address
+  - password
+  validate_mode: email_imap_smtp
+payload_hints:
+  list_fields:
+    email.send:
+    - to
+    - cc
+    - bcc
+  enum_fields:
+    email.send:
+      priority:
+        values:
+          '1': high
+          '2': normal
+          '3': low
+          high: high
+          normal: normal
+          low: low
+        default: normal

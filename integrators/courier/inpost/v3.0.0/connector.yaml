@@ -1,196 +1,232 @@
 name: inpost
 category: courier
 version: 3.0.0
-display_name: "InPost International 2025"
-description: "Latest InPost International API (2025) — international shipments, returns, courier pickup orders, PDF labels, point and location search."
-website_url: "https://inpost.pl"
+display_name: InPost International 2025
+description: Latest InPost International API (2025) — international shipments, returns, courier pickup orders, PDF labels,
+  point and location search.
+website_url: https://inpost.pl
 country: PL
 logo_url: /assets/logos/inpost.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_pickup_points
-  - create_return_shipment
-  - create_pickup_order
-  - get_pickup_cutoff_time
-  - get_return_label
-  - get_rates
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_pickup_points
+- create_return_shipment
+- create_pickup_order
+- get_pickup_cutoff_time
+- get_return_label
+- get_rates
 events:
-  - shipment.status_changed
-  - shipment.created
+- shipment.status_changed
+- shipment.created
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - pickup_points.list
-  - return.create
-  - pickup_order.create
-  - return_label.get
-  - rates.get
+- shipment.create
+- label.get
+- shipment.cancel
+- pickup_points.list
+- return.create
+- pickup_order.create
+- return_label.get
+- rates.get
 event_fields:
   shipment.status_changed:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-    - field: tracking_number
-      label: "Numer sledzenia"
-      type: string
-    - field: status
-      label: "Nowy status"
-      type: string
-    - field: previous_status
-      label: "Poprzedni status"
-      type: string
-    - field: updated_at
-      label: "Data zmiany"
-      type: datetime
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+  - field: tracking_number
+    label: Numer sledzenia
+    type: string
+  - field: status
+    label: Nowy status
+    type: string
+  - field: previous_status
+    label: Poprzedni status
+    type: string
+  - field: updated_at
+    label: Data zmiany
+    type: datetime
   shipment.created:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-    - field: tracking_number
-      label: "Numer sledzenia"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: sender.name
-      label: "Nadawca - nazwa"
-      type: string
-    - field: receiver.name
-      label: "Odbiorca - nazwa"
-      type: string
-    - field: receiver.email
-      label: "Odbiorca - email"
-      type: string
-    - field: receiver.phone
-      label: "Odbiorca - telefon"
-      type: string
-    - field: created_at
-      label: "Data utworzenia"
-      type: datetime
-
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+  - field: tracking_number
+    label: Numer sledzenia
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: sender.name
+    label: Nadawca - nazwa
+    type: string
+  - field: receiver.name
+    label: Odbiorca - nazwa
+    type: string
+  - field: receiver.email
+    label: Odbiorca - email
+    type: string
+  - field: receiver.phone
+    label: Odbiorca - telefon
+    type: string
+  - field: created_at
+    label: Data utworzenia
+    type: datetime
 action_fields:
   shipment.create:
-    - field: receiver.first_name
-      label: "Odbiorca - imie"
-      type: string
-      required: true
-    - field: receiver.last_name
-      label: "Odbiorca - nazwisko"
-      type: string
-      required: true
-    - field: receiver.email
-      label: "Odbiorca - email"
-      type: string
-      required: true
-    - field: receiver.phone
-      label: "Odbiorca - telefon"
-      type: string
-      required: true
-    - field: receiver.address.street
-      label: "Odbiorca - ulica"
-      type: string
-    - field: receiver.address.city
-      label: "Odbiorca - miasto"
-      type: string
-    - field: receiver.address.zip_code
-      label: "Odbiorca - kod pocztowy"
-      type: string
-    - field: receiver.address.country
-      label: "Odbiorca - kraj"
-      type: string
-    - field: parcels
-      label: "Paczki (lista)"
-      type: "object[]"
-      required: true
-    - field: extras.target_point
-      label: "Punkt odbioru (paczkomat)"
-      type: string
-    - field: reference
-      label: "Referencja"
-      type: string
-    - field: comments
-      label: "Komentarz"
-      type: string
+  - field: receiver.first_name
+    label: Odbiorca - imie
+    type: string
+    required: true
+  - field: receiver.last_name
+    label: Odbiorca - nazwisko
+    type: string
+    required: true
+  - field: receiver.email
+    label: Odbiorca - email
+    type: string
+    required: true
+  - field: receiver.phone
+    label: Odbiorca - telefon
+    type: string
+    required: true
+  - field: receiver.address.street
+    label: Odbiorca - ulica
+    type: string
+  - field: receiver.address.city
+    label: Odbiorca - miasto
+    type: string
+  - field: receiver.address.zip_code
+    label: Odbiorca - kod pocztowy
+    type: string
+  - field: receiver.address.country
+    label: Odbiorca - kraj
+    type: string
+  - field: parcels
+    label: Paczki (lista)
+    type: object[]
+    required: true
+  - field: extras.target_point
+    label: Punkt odbioru (paczkomat)
+    type: string
+  - field: reference
+    label: Referencja
+    type: string
+  - field: comments
+    label: Komentarz
+    type: string
   label.get:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-      required: true
-    - field: format
-      label: "Format (pdf / zpl)"
-      type: string
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+    required: true
+  - field: format
+    label: Format (pdf / zpl)
+    type: string
   shipment.cancel:
-    - field: shipment_id
-      label: "ID przesylki"
-      type: string
-      required: true
+  - field: shipment_id
+    label: ID przesylki
+    type: string
+    required: true
   pickup_points.list:
-    - field: city
-      label: "Miasto"
-      type: string
-    - field: zip_code
-      label: "Kod pocztowy"
-      type: string
-    - field: type
-      label: "Typ punktu (paczkomat / pop)"
-      type: string
+  - field: city
+    label: Miasto
+    type: string
+  - field: zip_code
+    label: Kod pocztowy
+    type: string
+  - field: type
+    label: Typ punktu (paczkomat / pop)
+    type: string
   return.create:
-    - field: shipment_id
-      label: "ID oryginalnej przesylki"
-      type: string
-      required: true
-    - field: reason
-      label: "Powod zwrotu"
-      type: string
+  - field: shipment_id
+    label: ID oryginalnej przesylki
+    type: string
+    required: true
+  - field: reason
+    label: Powod zwrotu
+    type: string
   pickup_order.create:
-    - field: shipment_ids
-      label: "ID przesylek (lista)"
-      type: "string[]"
-      required: true
-    - field: pickup_date
-      label: "Data odbioru"
-      type: date
+  - field: shipment_ids
+    label: ID przesylek (lista)
+    type: string[]
+    required: true
+  - field: pickup_date
+    label: Data odbioru
+    type: date
   return_label.get:
-    - field: shipment_id
-      label: "ID przesylki zwrotnej"
-      type: string
-      required: true
-
+  - field: shipment_id
+    label: ID przesylki zwrotnej
+    type: string
+    required: true
 config_schema:
   required:
-    - organization_id
-    - access_token
+  - organization_id
+  - access_token
   optional:
-    - sandbox_mode
-    - default_currency
+  - sandbox_mode
+  - default_currency
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
     default_currency:
       type: select
-      label: "Waluta domyślna"
+      label: Waluta domyślna
       default: EUR
       options:
-        - value: EUR
-          label: EUR
-        - value: PLN
-          label: PLN
-        - value: GBP
-          label: GBP
-        - value: CZK
-          label: CZK
+      - value: EUR
+        label: EUR
+      - value: PLN
+        label: PLN
+      - value: GBP
+        label: GBP
+      - value: CZK
+        label: CZK
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "shipping/v2"
-  check_url: "https://developers.inpost-group.com/versioning"
+  current_api_version: shipping/v2
+  check_url: https://developers.inpost-group.com/versioning
   check_type: html
-  version_field: "shipping/(v\\d+)"
-  docs_url: "https://developers.inpost-group.com/shipping"
+  version_field: shipping/(v\d+)
+  docs_url: https://developers.inpost-group.com/shipping
+service_name: connector-inpost
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  label.get:
+    method: GET
+    path: /shipments/{shipment_id}/label
+  shipment.cancel:
+    method: POST
+    path: /shipments/{shipment_id}/cancel
+  pickup_points.list:
+    method: GET
+    path: /pickup-points
+  return.create:
+    method: POST
+    path: /returns
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - organization_id
+  - access_token
+  test_request:
+    method: GET
+    url_template: '{base_url}/v1/organizations/{organization_id}/shipments'
+    headers_template:
+      Authorization: Bearer {access_token}
+    params_template:
+      per_page: '1'
+    success_status: 200
+    defaults:
+      base_url: https://api-shipx-pl.easypack24.net
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://sandbox-api-shipx-pl.easypack24.net

@@ -1,35 +1,59 @@
 name: orlenpaczka
 category: courier
 version: 1.0.0
-display_name: "Orlen Paczka"
-description: "Parcel locker network and pickup points at Orlen stations. Affordable shipping across Poland."
-website_url: "https://orlenpaczka.pl"
+display_name: Orlen Paczka
+description: Parcel locker network and pickup points at Orlen stations. Affordable shipping across Poland.
+website_url: https://orlenpaczka.pl
 country: PL
 logo_url: /assets/logos/orlenpaczka.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_pickup_points
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_pickup_points
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - pickup_points.list
+- shipment.create
+- label.get
+- shipment.cancel
+- pickup_points.list
 config_schema:
   required:
-    - partner_id
-    - partner_key
+  - partner_id
+  - partner_key
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-orlenpaczka
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: POST
+    path: /shipments/status
+  shipment.cancel:
+    method: POST
+    path: /shipments/delete
+  tracking.get:
+    method: GET
+    path: /shipments/{order_id}/tracking
+  label.get:
+    method: POST
+    path: /labels
+  points.list:
+    method: POST
+    path: /points
+credential_validation:
+  required_fields:
+  - partner_id
+  - partner_key

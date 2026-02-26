@@ -1,40 +1,80 @@
 name: ups
 category: courier
 version: 1.0.0
-display_name: "UPS"
-description: "Global courier and logistics services by UPS. Air, ground and international shipping."
-website_url: "https://www.ups.com/pl"
+display_name: UPS
+description: Global courier and logistics services by UPS. Air, ground and international shipping.
+website_url: https://www.ups.com/pl
 country: US
 logo_url: /assets/logos/ups.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - get_rates
+- create_shipment
+- get_label
+- get_shipment_status
+- get_rates
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - rates.get
+- shipment.create
+- label.get
+- rates.get
 config_schema:
   required:
-    - client_id
-    - client_secret
-    - account_number
+  - client_id
+  - client_secret
+  - account_number
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0.0"
-  check_url: "https://developer.ups.com/api/reference"
+  current_api_version: 1.0.0
+  check_url: https://developer.ups.com/api/reference
   check_type: html
-  version_field: "version[:\\s]+(\\d+\\.\\d+)"
-  docs_url: "https://developer.ups.com/api/reference"
+  version_field: version[:\s]+(\d+\.\d+)
+  docs_url: https://developer.ups.com/api/reference
+service_name: connector-ups
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: POST
+    path: /shipments/{waybill}/status
+  label.get:
+    method: POST
+    path: /labels
+  documents.upload:
+    method: POST
+    path: /upload-documents
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - client_id
+  - client_secret
+  - account_number
+  test_request:
+    method: POST
+    url_template: '{base_url}/security/v1/oauth/token'
+    headers_template:
+      Content-Type: application/x-www-form-urlencoded
+    form_data_template:
+      grant_type: client_credentials
+    auth: basic
+    auth_fields:
+    - client_id
+    - client_secret
+    success_status: 200
+    defaults:
+      base_url: https://wwwcie.ups.com
+    sandbox:
+      flag: sandbox_mode
+      base_url: https://wwwcie.ups.com
+      production_url: https://onlinetools.ups.com

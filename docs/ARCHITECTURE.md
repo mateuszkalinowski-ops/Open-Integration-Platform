@@ -652,20 +652,64 @@ cp .env.example .env  # fill in secrets
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### 8.2 Adding a connector to Docker Compose
+### 8.2 Adding a new connector (zero-impact architecture)
 
-To make a new connector available in the workflow and flow system, follow 3 steps:
+Adding a new connector requires **only two steps** and **zero changes to any platform code**.  The platform discovers connectors automatically by scanning the `integrators/` directory (volume-mounted) for `connector.yaml` manifests at startup.
 
-#### Step 1: Add the service to `docker-compose.prod.yml`
+#### Step 1: Create the connector folder with `connector.yaml`
 
-The service name **must** follow the pattern `connector-{name}`, e.g., `connector-skanuj-fakture`. The platform resolves connector addresses as `http://connector-{name}:8000`.
+Create the directory structure under `integrators/`:
 
-**Variant A** -- Dockerfile in the integrator directory (build context = integrator directory):
+```
+integrators/{category}/{name}/v1.0.0/
+  connector.yaml      # declares everything the platform needs
+  Dockerfile
+  requirements.txt
+  src/
+    app.py             # FastAPI application
+    ...
+```
+
+The `connector.yaml` is the **single source of truth** — it declares the connector's identity, action routing, credential provisioning, credential validation, event/action field schemas, and more. See `AGENTS.md` section 2.1.1 for the full field reference.
+
+Minimal `connector.yaml` example:
 
 ```yaml
-connector-moj-konektor:
+name: my-connector
+category: other
+version: 1.0.0
+display_name: "My Connector"
+description: "Example connector"
+interface: generic
+service_name: connector-my-connector
+
+actions:
+  - document.list
+  - document.get
+
+action_routes:
+  document.list:
+    method: GET
+    path: /documents
+    query_from_payload: [account_name]
+  document.get:
+    method: GET
+    path: /documents/{document_id}
+    query_from_payload: [account_name]
+
+credential_validation:
+  required_fields: [api_key]
+
+health_endpoint: /health
+docs_url: /docs
+```
+
+#### Step 2: Add the service to `docker-compose.prod.yml`
+
+```yaml
+connector-my-connector:
   build:
-    context: ./integrators/{kategoria}/{nazwa}/v1.0.0
+    context: ./integrators/other/my-connector/v1.0.0
   environment:
     APP_ENV: production
     APP_PORT: 8000
@@ -674,87 +718,39 @@ connector-moj-konektor:
   restart: unless-stopped
 ```
 
-**Variant B** -- Dockerfile requires root context (e.g., copies `shared/python`):
+The service name **must** match the `service_name` in `connector.yaml` (or follow the `connector-{name}` convention if omitted).
+
+If the `Dockerfile` references files outside its directory (e.g. `shared/python`), use root build context:
 
 ```yaml
-connector-moj-konektor:
+connector-my-connector:
   build:
     context: .
-    dockerfile: integrators/{kategoria}/{nazwa}/v1.0.0/Dockerfile
-  environment:
-    APP_ENV: production
-    APP_PORT: 8000
-  depends_on:
-    - platform
-  restart: unless-stopped
+    dockerfile: integrators/other/my-connector/v1.0.0/Dockerfile
 ```
 
-Choose Variant B when the `Dockerfile` uses `COPY shared/python ...` or references files outside the integrator directory.
+#### What you do NOT need to modify
 
-Additional environment variables (optional, depending on the connector):
+- `platform/core/action_dispatcher.py` — reads `action_routes` and `credential_provisioning` from `connector.yaml`
+- `platform/api/gateway.py` — reads `credential_validation` from `connector.yaml`
+- `platform/verification-agent/src/discovery.py` — reads `service_name` from `connector.yaml`
+- `platform/verification-agent/src/checks/functional.py` — auto-discovers test modules by convention
 
-
-| Variable                | When to add                                    | Example                                  |
-| ----------------------- | ---------------------------------------------- | ---------------------------------------- |
-| `KAFKA_ENABLED`         | Connector uses Kafka                           | `"false"` (when Kafka is not in compose) |
-| `PLATFORM_API_URL`      | Connector sends events to the platform         | `http://platform:8080`                   |
-| `PLATFORM_EVENT_NOTIFY` | Connector should notify the platform of events | `"true"`                                 |
-
-
-#### Step 2: Register action routing in `platform/core/action_dispatcher.py`
-
-Add an entry in `_CONNECTOR_SERVICE_NAMES` (connector name -> Docker service name mapping):
-
-```python
-_CONNECTOR_SERVICE_NAMES: dict[str, str] = {
-    ...
-    "moj-konektor": "connector-moj-konektor",
-}
-```
-
-Add action routing in `_ACTION_ROUTES` (action to connector HTTP endpoint mapping):
-
-```python
-_ACTION_ROUTES: dict[str, dict[str, ActionRoute]] = {
-    ...
-    "moj-konektor": {
-        "document.upload": ActionRoute(
-            method="POST",
-            path="/documents",
-            query_from_payload=["account_name"],
-        ),
-        "document.list": ActionRoute(
-            method="GET",
-            path="/documents",
-        ),
-    },
-}
-```
-
-If the connector requires account provisioning (like `email-client` or `skanuj-fakture`), add the corresponding `_ensure_{connector}_account()` function and handling in `dispatch_action()`.
-
-#### Step 3: Build and run
+**No platform container rebuild is needed.** The platform container mounts the `integrators/` directory as a volume and re-scans it on startup. Simply restart the platform after deploying the new connector:
 
 ```bash
-# Build and run only the new connector
-docker compose -f docker-compose.prod.yml up -d --build connector-moj-konektor
-
-# Check health
-docker compose -f docker-compose.prod.yml exec platform \
-  curl -sf http://connector-moj-konektor:8000/health
-
-# If you changed action_dispatcher.py, also rebuild the platform
-docker compose -f docker-compose.prod.yml up -d --build platform connector-moj-konektor
+docker compose -f docker-compose.prod.yml up -d --build connector-my-connector
+docker compose -f docker-compose.prod.yml restart platform
 ```
 
 #### Verification
 
 After startup, verify:
 
-1. **Health check**: `curl http://connector-moj-konektor:8000/health` from inside the Docker network
-2. **Platform discovery**: the connector should appear in `GET /api/v1/connectors` (if it has a `connector.yaml`)
+1. **Health check**: `curl http://connector-my-connector:8000/health` from inside the Docker network
+2. **Platform discovery**: the connector should appear in `GET /api/v1/connectors`
 3. **Workflow/Flow**: it can be used as an action target in workflows and flows
-4. **Logs**: `docker compose -f docker-compose.prod.yml logs connector-moj-konektor`
+4. **Logs**: `docker compose -f docker-compose.prod.yml logs connector-my-connector`
 
 ---
 

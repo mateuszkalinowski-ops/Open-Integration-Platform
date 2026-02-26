@@ -1,365 +1,437 @@
 name: fxcouriers
 category: courier
 version: 1.0.0
-display_name: "FX Couriers"
-description: "FX Couriers (KurierSystem) integration — domestic and international shipments, order management, label printing, shipment pickup scheduling."
-website_url: "https://fxcouriers.kuriersystem.pl"
+display_name: FX Couriers
+description: FX Couriers (KurierSystem) integration — domestic and international shipments, order management, label printing,
+  shipment pickup scheduling.
+website_url: https://fxcouriers.kuriersystem.pl
 country: PL
 logo_url: /assets/logos/fxcouriers.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_tracking
-  - get_services
-  - create_pickup
-  - cancel_pickup
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
+- get_tracking
+- get_services
+- create_pickup
+- cancel_pickup
 events:
-  - shipment.status_changed
-  - shipment.created
+- shipment.status_changed
+- shipment.created
 actions:
-  - shipment.create
-  - shipment.find_by_number
-  - shipment.get
-  - shipment.list
-  - label.get
-  - shipment.cancel
-  - shipment.status
-  - tracking.get
-  - services.list
-  - pickup.create
-  - pickup.get
-  - pickup.cancel
-  - company.get
+- shipment.create
+- shipment.find_by_number
+- shipment.get
+- shipment.list
+- label.get
+- shipment.cancel
+- shipment.status
+- tracking.get
+- services.list
+- pickup.create
+- pickup.get
+- pickup.cancel
+- company.get
 event_fields:
   shipment.status_changed:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-    - field: order_number
-      label: "Numer zamowienia"
-      type: string
-    - field: status
-      label: "Nowy status"
-      type: string
-    - field: tracking_number
-      label: "Numer sledzenia"
-      type: string
-    - field: updated_at
-      label: "Data zmiany"
-      type: datetime
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+  - field: order_number
+    label: Numer zamowienia
+    type: string
+  - field: status
+    label: Nowy status
+    type: string
+  - field: tracking_number
+    label: Numer sledzenia
+    type: string
+  - field: updated_at
+    label: Data zmiany
+    type: datetime
   shipment.created:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-    - field: order_number
-      label: "Numer zamowienia"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: sender.name
-      label: "Nadawca - nazwa"
-      type: string
-    - field: recipient.name
-      label: "Odbiorca - nazwa"
-      type: string
-    - field: service_code
-      label: "Kod uslugi"
-      type: string
-    - field: created_at
-      label: "Data utworzenia"
-      type: datetime
-
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+  - field: order_number
+    label: Numer zamowienia
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: sender.name
+    label: Nadawca - nazwa
+    type: string
+  - field: recipient.name
+    label: Odbiorca - nazwa
+    type: string
+  - field: service_code
+    label: Kod uslugi
+    type: string
+  - field: created_at
+    label: Data utworzenia
+    type: datetime
 action_fields:
   shipment.create:
-    - field: company_id
-      label: "ID firmy"
-      type: integer
-      required: true
-    - field: service_code
-      label: "Kod uslugi (np. STANDARD)"
-      type: string
-      required: true
-    - field: payment_method
-      label: "Metoda platnosci (CASH / TRANSFER)"
-      type: string
-      required: true
-    - field: sender.name
-      label: "Nadawca - nazwa"
-      type: string
-      required: true
-    - field: sender.country
-      label: "Nadawca - kraj"
-      type: string
-      required: true
-    - field: sender.city
-      label: "Nadawca - miasto"
-      type: string
-      required: true
-    - field: sender.postal_code
-      label: "Nadawca - kod pocztowy"
-      type: string
-      required: true
-    - field: sender.street
-      label: "Nadawca - ulica"
-      type: string
-      required: true
-    - field: sender.house_number
-      label: "Nadawca - numer domu"
-      type: string
-      required: true
-    - field: sender.contact_person
-      label: "Nadawca - osoba kontaktowa"
-      type: string
-    - field: sender.contact_phone
-      label: "Nadawca - telefon"
-      type: string
-    - field: sender.contact_email
-      label: "Nadawca - email"
-      type: string
-    - field: recipient.name
-      label: "Odbiorca - nazwa"
-      type: string
-      required: true
-    - field: recipient.country
-      label: "Odbiorca - kraj"
-      type: string
-      required: true
-    - field: recipient.city
-      label: "Odbiorca - miasto"
-      type: string
-      required: true
-    - field: recipient.postal_code
-      label: "Odbiorca - kod pocztowy"
-      type: string
-      required: true
-    - field: recipient.street
-      label: "Odbiorca - ulica"
-      type: string
-      required: true
-    - field: recipient.house_number
-      label: "Odbiorca - numer domu"
-      type: string
-      required: true
-    - field: recipient.contact_person
-      label: "Odbiorca - osoba kontaktowa"
-      type: string
-    - field: recipient.contact_phone
-      label: "Odbiorca - telefon"
-      type: string
-    - field: recipient.contact_email
-      label: "Odbiorca - email"
-      type: string
-    - field: items
-      label: "Paczki (lista)"
-      type: "object[]"
-      required: true
-    - field: comment
-      label: "Komentarz"
-      type: string
-    - field: services
-      label: "Uslugi dodatkowe (np. UBEZPIECZENIE, POBRANIE)"
-      type: "object[]"
+  - field: company_id
+    label: ID firmy
+    type: integer
+    required: true
+  - field: service_code
+    label: Kod uslugi (np. STANDARD)
+    type: string
+    required: true
+  - field: payment_method
+    label: Metoda platnosci (CASH / TRANSFER)
+    type: string
+    required: true
+  - field: sender.name
+    label: Nadawca - nazwa
+    type: string
+    required: true
+  - field: sender.country
+    label: Nadawca - kraj
+    type: string
+    required: true
+  - field: sender.city
+    label: Nadawca - miasto
+    type: string
+    required: true
+  - field: sender.postal_code
+    label: Nadawca - kod pocztowy
+    type: string
+    required: true
+  - field: sender.street
+    label: Nadawca - ulica
+    type: string
+    required: true
+  - field: sender.house_number
+    label: Nadawca - numer domu
+    type: string
+    required: true
+  - field: sender.contact_person
+    label: Nadawca - osoba kontaktowa
+    type: string
+  - field: sender.contact_phone
+    label: Nadawca - telefon
+    type: string
+  - field: sender.contact_email
+    label: Nadawca - email
+    type: string
+  - field: recipient.name
+    label: Odbiorca - nazwa
+    type: string
+    required: true
+  - field: recipient.country
+    label: Odbiorca - kraj
+    type: string
+    required: true
+  - field: recipient.city
+    label: Odbiorca - miasto
+    type: string
+    required: true
+  - field: recipient.postal_code
+    label: Odbiorca - kod pocztowy
+    type: string
+    required: true
+  - field: recipient.street
+    label: Odbiorca - ulica
+    type: string
+    required: true
+  - field: recipient.house_number
+    label: Odbiorca - numer domu
+    type: string
+    required: true
+  - field: recipient.contact_person
+    label: Odbiorca - osoba kontaktowa
+    type: string
+  - field: recipient.contact_phone
+    label: Odbiorca - telefon
+    type: string
+  - field: recipient.contact_email
+    label: Odbiorca - email
+    type: string
+  - field: items
+    label: Paczki (lista)
+    type: object[]
+    required: true
+  - field: comment
+    label: Komentarz
+    type: string
+  - field: services
+    label: Uslugi dodatkowe (np. UBEZPIECZENIE, POBRANIE)
+    type: object[]
   shipment.find_by_number:
-    - field: order_number
-      label: "Numer zamowienia (np. E000123)"
-      type: string
-      required: true
+  - field: order_number
+    label: Numer zamowienia (np. E000123)
+    type: string
+    required: true
   shipment.get:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   shipment.list:
-    - field: since
-      label: "Data od (YYYY-MM-DD)"
-      type: date
-    - field: offset
-      label: "Offset paginacji"
-      type: integer
-    - field: company_id
-      label: "ID firmy"
-      type: integer
+  - field: since
+    label: Data od (YYYY-MM-DD)
+    type: date
+  - field: offset
+    label: Offset paginacji
+    type: integer
+  - field: company_id
+    label: ID firmy
+    type: integer
   label.get:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   shipment.cancel:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   shipment.status:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   tracking.get:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   services.list: []
   company.get:
-    - field: company_id
-      label: "ID firmy"
-      type: integer
-      required: true
+  - field: company_id
+    label: ID firmy
+    type: integer
+    required: true
   pickup.create:
-    - field: pickup_date
-      label: "Data odbioru (YYYY-MM-DD)"
-      type: date
-      required: true
-    - field: pickup_time_from
-      label: "Odbiór od (HH:MM)"
-      type: string
-      required: true
-    - field: pickup_time_to
-      label: "Odbiór do (HH:MM)"
-      type: string
-      required: true
-    - field: order_id_list
-      label: "Lista ID zamowien"
-      type: "integer[]"
-      required: true
+  - field: pickup_date
+    label: Data odbioru (YYYY-MM-DD)
+    type: date
+    required: true
+  - field: pickup_time_from
+    label: Odbiór od (HH:MM)
+    type: string
+    required: true
+  - field: pickup_time_to
+    label: Odbiór do (HH:MM)
+    type: string
+    required: true
+  - field: order_id_list
+    label: Lista ID zamowien
+    type: integer[]
+    required: true
   pickup.get:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
   pickup.cancel:
-    - field: order_id
-      label: "ID zamowienia"
-      type: integer
-      required: true
-
+  - field: order_id
+    label: ID zamowienia
+    type: integer
+    required: true
 output_fields:
   shipment.create:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: order_number
-      label: "Numer zamówienia"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: tracking_number
-      label: "Numer śledzenia"
-      type: string
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: order_number
+    label: Numer zamówienia
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: tracking_number
+    label: Numer śledzenia
+    type: string
   shipment.find_by_number:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: order_number
-      label: "Numer zamówienia"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: tracking_number
-      label: "Numer śledzenia"
-      type: string
-    - field: tracking_url_internal
-      label: "URL śledzenia"
-      type: string
-    - field: company_id
-      label: "ID firmy"
-      type: integer
-    - field: service_code
-      label: "Kod usługi"
-      type: string
-    - field: total_price
-      label: "Cena netto (grosze)"
-      type: integer
-    - field: gross_price
-      label: "Cena brutto (grosze)"
-      type: integer
-    - field: created
-      label: "Data utworzenia"
-      type: datetime
-    - field: sent
-      label: "Data wysyłki"
-      type: datetime
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: order_number
+    label: Numer zamówienia
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: tracking_number
+    label: Numer śledzenia
+    type: string
+  - field: tracking_url_internal
+    label: URL śledzenia
+    type: string
+  - field: company_id
+    label: ID firmy
+    type: integer
+  - field: service_code
+    label: Kod usługi
+    type: string
+  - field: total_price
+    label: Cena netto (grosze)
+    type: integer
+  - field: gross_price
+    label: Cena brutto (grosze)
+    type: integer
+  - field: created
+    label: Data utworzenia
+    type: datetime
+  - field: sent
+    label: Data wysyłki
+    type: datetime
   shipment.get:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: order_number
-      label: "Numer zamówienia"
-      type: string
-    - field: status
-      label: "Status"
-      type: string
-    - field: tracking_number
-      label: "Numer śledzenia"
-      type: string
-    - field: tracking_url_internal
-      label: "URL śledzenia"
-      type: string
-    - field: company_id
-      label: "ID firmy"
-      type: integer
-    - field: service_code
-      label: "Kod usługi"
-      type: string
-    - field: total_price
-      label: "Cena netto (grosze)"
-      type: integer
-    - field: gross_price
-      label: "Cena brutto (grosze)"
-      type: integer
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: order_number
+    label: Numer zamówienia
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: tracking_number
+    label: Numer śledzenia
+    type: string
+  - field: tracking_url_internal
+    label: URL śledzenia
+    type: string
+  - field: company_id
+    label: ID firmy
+    type: integer
+  - field: service_code
+    label: Kod usługi
+    type: string
+  - field: total_price
+    label: Cena netto (grosze)
+    type: integer
+  - field: gross_price
+    label: Cena brutto (grosze)
+    type: integer
   label.get:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: format
-      label: "Format etykiety"
-      type: string
-    - field: label_base64
-      label: "Etykieta PDF (base64)"
-      type: string
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: format
+    label: Format etykiety
+    type: string
+  - field: label_base64
+    label: Etykieta PDF (base64)
+    type: string
   shipment.status:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: status
-      label: "Status"
-      type: string
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: status
+    label: Status
+    type: string
   tracking.get:
-    - field: order_id
-      label: "ID zamówienia"
-      type: integer
-    - field: events
-      label: "Historia zdarzeń"
-      type: "object[]"
+  - field: order_id
+    label: ID zamówienia
+    type: integer
+  - field: events
+    label: Historia zdarzeń
+    type: object[]
   shipment.cancel:
-    - field: status
-      label: "Status operacji"
-      type: string
+  - field: status
+    label: Status operacji
+    type: string
   company.get:
-    - field: company_id
-      label: "ID firmy"
-      type: integer
-    - field: name
-      label: "Nazwa firmy"
-      type: string
-
+  - field: company_id
+    label: ID firmy
+    type: integer
+  - field: name
+    label: Nazwa firmy
+    type: string
 config_schema:
   required:
-    - api_token
+  - api_token
   optional:
-    - company_id
+  - company_id
   field_types:
     api_token:
       type: string
-      label: "Token API (Bearer)"
+      label: Token API (Bearer)
     company_id:
       type: integer
-      label: "ID firmy"
+      label: ID firmy
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-fxcouriers
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{order_id}/status
+    query_from_payload:
+    - api_token
+  shipment.get:
+    method: GET
+    path: /shipments/{order_id}
+    query_from_payload:
+    - api_token
+  shipment.find_by_number:
+    method: GET
+    path: /shipments/by-number/{order_number}
+    query_from_payload:
+    - api_token
+  shipment.cancel:
+    method: DELETE
+    path: /shipments/{order_id}
+    query_from_payload:
+    - api_token
+  shipment.list:
+    method: GET
+    path: /shipments
+    query_from_payload:
+    - api_token
+    - since
+    - offset
+    - company_id
+  tracking.get:
+    method: GET
+    path: /tracking/{order_id}
+    query_from_payload:
+    - api_token
+  label.get:
+    method: POST
+    path: /labels
+  pickup.create:
+    method: POST
+    path: /pickups
+  pickup.get:
+    method: GET
+    path: /pickups/{order_id}
+    query_from_payload:
+    - api_token
+  pickup.cancel:
+    method: DELETE
+    path: /pickups/{order_id}
+    query_from_payload:
+    - api_token
+  services.list:
+    method: GET
+    path: /services
+    query_from_payload:
+    - api_token
+  company.get:
+    method: GET
+    path: /company/{company_id}
+    query_from_payload:
+    - api_token
+credential_provisioning:
+  mode: inject
+  credential_mapping:
+    api_token: api_token
+    company_id:
+      source: company_id
+      optional: true
+credential_validation:
+  required_fields:
+  - api_token

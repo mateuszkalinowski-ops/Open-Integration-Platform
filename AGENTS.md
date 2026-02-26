@@ -69,7 +69,7 @@ Each external system gets its own **connector** — a self-contained module that
 
 ### 2.1.1 Connector Manifest
 
-Every connector MUST include a `connector.yaml` in its version root:
+Every connector MUST include a `connector.yaml` in its version root. The manifest is the **single source of truth** for all connector configuration — the platform reads it at startup and requires zero per-connector code. Adding a new connector means creating its folder with a `connector.yaml`; no platform files need to change.
 
 ```yaml
 name: inpost
@@ -78,6 +78,10 @@ version: 3.0.0
 display_name: "InPost"
 description: "InPost courier integration - Paczkomaty, Kurier, Returns"
 interface: courier
+
+# Docker service name (convention: connector-{name})
+service_name: connector-inpost
+
 capabilities:
   - create_shipment
   - get_label
@@ -101,8 +105,132 @@ config_schema:
   optional:
     - sandbox_mode
     - default_currency
+
+# Action routing — tells the platform how to call each action on the connector
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  label.get:
+    method: GET
+    path: /shipments/{shipment_id}/label
+  shipment.cancel:
+    method: POST
+    path: /shipments/{shipment_id}/cancel
+  pickup_points.list:
+    method: GET
+    path: /pickup-points
+  return.create:
+    method: POST
+    path: /returns
+  rates.get:
+    method: POST
+    path: /rates
+
+# Credential validation — how the platform validates credentials for this connector
+credential_validation:
+  required_fields: [organization_id, access_token]
+  test_request:
+    method: GET
+    url_template: "{base_url}/v1/organizations/{organization_id}/shipments"
+    headers_template:
+      Authorization: "Bearer {access_token}"
+    params_template:
+      per_page: "1"
+    success_status: 200
+    defaults:
+      base_url: "https://api-shipx-pl.easypack24.net"
+    sandbox:
+      flag: sandbox_mode
+      base_url: "https://sandbox-api-shipx-pl.easypack24.net"
+
 health_endpoint: /health
 docs_url: /docs
+```
+
+#### connector.yaml field reference
+
+| Field | Required | Description |
+| --- | --- | --- |
+| `name` | Yes | Unique connector identifier (kebab-case) |
+| `category` | Yes | One of: `courier`, `ecommerce`, `erp`, `wms`, `ai`, `automation`, `other` |
+| `version` | Yes | Semantic version |
+| `display_name` | Yes | Human-readable name |
+| `description` | Yes | Short description |
+| `interface` | Yes | Category interface type |
+| `service_name` | No | Docker service name (default: `connector-{name}`) |
+| `capabilities` | No | List of supported capabilities |
+| `events` | No | List of events the connector emits |
+| `actions` | No | List of actions the connector accepts |
+| `config_schema` | No | Required/optional configuration fields |
+| `action_routes` | No | Maps action names to HTTP method + path on the connector |
+| `credential_provisioning` | No | How credentials are provisioned on the connector (see below) |
+| `credential_validation` | No | How the platform validates credentials (see below) |
+| `payload_hints` | No | Field coercion hints (list fields, enum mappings) |
+| `event_fields` | No | Per-event field schemas for workflow builder |
+| `action_fields` | No | Per-action input field schemas |
+| `output_fields` | No | Per-action output field schemas |
+
+#### action_routes
+
+Each entry maps an action name to its HTTP endpoint on the connector:
+
+```yaml
+action_routes:
+  document.upload:
+    method: POST
+    path: /companies/{company_id}/documents
+    query_from_payload: [account_name, single_document]
+    multipart: true  # sends file as multipart/form-data
+```
+
+Path parameters like `{company_id}` are resolved from the action payload. Fields listed in `query_from_payload` are moved from the body to query string parameters.
+
+#### credential_provisioning
+
+Defines how the platform provisions credentials on the connector before dispatching actions:
+
+| Mode | Description |
+| --- | --- |
+| `account` | POST credentials to `account_endpoint` (e.g. `/accounts`), inject `payload_field` into action payload |
+| `inject` | Inject credential fields flat into action payload |
+| `inject_nested` | Inject credentials as `payload[inject_key] = {...}` |
+| `none` / omitted | Default: set `account_name` from credentials |
+
+```yaml
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    login: login
+    password: password
+    api_url:
+      source: api_url
+      default: "https://example.com/api"
+```
+
+#### credential_validation
+
+Defines how the platform validates credentials when a user stores them:
+
+```yaml
+credential_validation:
+  required_fields: [login, password]
+  # Option A: HTTP test request
+  test_request:
+    method: GET
+    url_template: "{api_url}/users/currentUser"
+    auth: basic
+    auth_fields: [login, password]
+    success_status: 200
+    defaults:
+      api_url: "https://example.com/api"
+  # Option B: connector-side validation endpoint
+  validate_endpoint: /auth/{account_name}/status
+  # Option C: special mode for email (IMAP+SMTP)
+  validate_mode: email_imap_smtp
 ```
 
 ### 2.1.2 Any-to-any topology

@@ -1,1212 +1,2354 @@
 name: woocommerce
 category: ecommerce
 version: 3.0.0
-display_name: "WooCommerce"
-description: "WooCommerce (WordPress) e-commerce platform — full REST API v3 integration. Orders, products, customers, coupons, taxes, shipping, reports, webhooks, settings and more."
-website_url: "https://woocommerce.com"
+display_name: WooCommerce
+description: WooCommerce (WordPress) e-commerce platform — full REST API v3 integration. Orders, products, customers, coupons,
+  taxes, shipping, reports, webhooks, settings and more.
+website_url: https://woocommerce.com
 country: US
 logo_url: /assets/logos/woocommerce.svg
 interface: ecommerce
 capabilities:
-  # Orders
-  - fetch_orders
-  - get_order
-  - create_order
-  - update_order
-  - delete_order
-  - batch_orders
-  - update_order_status
-  - list_order_notes
-  - create_order_note
-  - delete_order_note
-  - list_order_refunds
-  - create_order_refund
-  - delete_order_refund
-  - upload_invoice
-  # Products
-  - list_products
-  - get_product
-  - create_product
-  - update_product
-  - delete_product
-  - batch_products
-  - duplicate_product
-  - list_product_variations
-  - create_product_variation
-  - get_product_variation
-  - update_product_variation
-  - delete_product_variation
-  - batch_product_variations
-  - list_product_attributes
-  - create_product_attribute
-  - get_product_attribute
-  - update_product_attribute
-  - delete_product_attribute
-  - list_attribute_terms
-  - create_attribute_term
-  - get_attribute_term
-  - update_attribute_term
-  - delete_attribute_term
-  - list_product_categories
-  - create_product_category
-  - get_product_category
-  - update_product_category
-  - delete_product_category
-  - list_product_tags
-  - create_product_tag
-  - get_product_tag
-  - update_product_tag
-  - delete_product_tag
-  - list_product_reviews
-  - create_product_review
-  - get_product_review
-  - update_product_review
-  - delete_product_review
-  - list_shipping_classes
-  - create_shipping_class
-  - update_shipping_class
-  - delete_shipping_class
-  # Stock
-  - sync_stock
-  # Customers
-  - list_customers
-  - get_customer
-  - create_customer
-  - update_customer
-  - delete_customer
-  - batch_customers
-  - list_customer_downloads
-  # Coupons
-  - list_coupons
-  - get_coupon
-  - create_coupon
-  - update_coupon
-  - delete_coupon
-  - batch_coupons
-  # Taxes
-  - list_tax_rates
-  - create_tax_rate
-  - get_tax_rate
-  - update_tax_rate
-  - delete_tax_rate
-  - batch_tax_rates
-  - list_tax_classes
-  - create_tax_class
-  - delete_tax_class
-  # Reports
-  - list_reports
-  - get_sales_report
-  - get_top_sellers_report
-  - get_coupons_totals
-  - get_customers_totals
-  - get_orders_totals
-  - get_products_totals
-  - get_reviews_totals
-  # Webhooks
-  - list_webhooks
-  - create_webhook
-  - get_webhook
-  - update_webhook
-  - delete_webhook
-  - batch_webhooks
-  # Settings
-  - list_settings_groups
-  - list_settings_options
-  - get_setting_option
-  - update_setting_option
-  # Payment Gateways
-  - list_payment_gateways
-  - get_payment_gateway
-  - update_payment_gateway
-  # Shipping Zones
-  - list_shipping_zones
-  - create_shipping_zone
-  - get_shipping_zone
-  - update_shipping_zone
-  - delete_shipping_zone
-  - list_shipping_zone_locations
-  - update_shipping_zone_locations
-  - list_shipping_zone_methods
-  - create_shipping_zone_method
-  - get_shipping_zone_method
-  - update_shipping_zone_method
-  - delete_shipping_zone_method
-  - list_shipping_methods
-  # System
-  - get_system_status
-  - list_system_status_tools
-  - run_system_status_tool
-
+- fetch_orders
+- get_order
+- create_order
+- update_order
+- delete_order
+- batch_orders
+- update_order_status
+- list_order_notes
+- create_order_note
+- delete_order_note
+- list_order_refunds
+- create_order_refund
+- delete_order_refund
+- upload_invoice
+- list_products
+- get_product
+- create_product
+- update_product
+- delete_product
+- batch_products
+- duplicate_product
+- list_product_variations
+- create_product_variation
+- get_product_variation
+- update_product_variation
+- delete_product_variation
+- batch_product_variations
+- list_product_attributes
+- create_product_attribute
+- get_product_attribute
+- update_product_attribute
+- delete_product_attribute
+- list_attribute_terms
+- create_attribute_term
+- get_attribute_term
+- update_attribute_term
+- delete_attribute_term
+- list_product_categories
+- create_product_category
+- get_product_category
+- update_product_category
+- delete_product_category
+- list_product_tags
+- create_product_tag
+- get_product_tag
+- update_product_tag
+- delete_product_tag
+- list_product_reviews
+- create_product_review
+- get_product_review
+- update_product_review
+- delete_product_review
+- list_shipping_classes
+- create_shipping_class
+- update_shipping_class
+- delete_shipping_class
+- sync_stock
+- list_customers
+- get_customer
+- create_customer
+- update_customer
+- delete_customer
+- batch_customers
+- list_customer_downloads
+- list_coupons
+- get_coupon
+- create_coupon
+- update_coupon
+- delete_coupon
+- batch_coupons
+- list_tax_rates
+- create_tax_rate
+- get_tax_rate
+- update_tax_rate
+- delete_tax_rate
+- batch_tax_rates
+- list_tax_classes
+- create_tax_class
+- delete_tax_class
+- list_reports
+- get_sales_report
+- get_top_sellers_report
+- get_coupons_totals
+- get_customers_totals
+- get_orders_totals
+- get_products_totals
+- get_reviews_totals
+- list_webhooks
+- create_webhook
+- get_webhook
+- update_webhook
+- delete_webhook
+- batch_webhooks
+- list_settings_groups
+- list_settings_options
+- get_setting_option
+- update_setting_option
+- list_payment_gateways
+- get_payment_gateway
+- update_payment_gateway
+- list_shipping_zones
+- create_shipping_zone
+- get_shipping_zone
+- update_shipping_zone
+- delete_shipping_zone
+- list_shipping_zone_locations
+- update_shipping_zone_locations
+- list_shipping_zone_methods
+- create_shipping_zone_method
+- get_shipping_zone_method
+- update_shipping_zone_method
+- delete_shipping_zone_method
+- list_shipping_methods
+- get_system_status
+- list_system_status_tools
+- run_system_status_tool
 events:
-  # Order events (WooCommerce webhooks)
-  - order.created
-  - order.updated
-  - order.deleted
-  - order.restored
-  - order.status_changed
-  # Product events
-  - product.created
-  - product.updated
-  - product.deleted
-  - product.restored
-  # Customer events
-  - customer.created
-  - customer.updated
-  - customer.deleted
-  # Coupon events
-  - coupon.created
-  - coupon.updated
-  - coupon.deleted
-  # Stock events
-  - stock.updated
-
+- order.created
+- order.updated
+- order.deleted
+- order.restored
+- order.status_changed
+- product.created
+- product.updated
+- product.deleted
+- product.restored
+- customer.created
+- customer.updated
+- customer.deleted
+- coupon.created
+- coupon.updated
+- coupon.deleted
+- stock.updated
 actions:
-  # --- Orders ---
-  - order.list
-  - order.get
-  - order.create
-  - order.update
-  - order.delete
-  - order.batch
-  - order.status_update
-  - order.invoice_upload
-  - order.notes.list
-  - order.notes.create
-  - order.notes.get
-  - order.notes.delete
-  - order.refunds.list
-  - order.refunds.create
-  - order.refunds.get
-  - order.refunds.delete
-  # --- Products ---
-  - product.list
-  - product.get
-  - product.create
-  - product.update
-  - product.delete
-  - product.batch
-  - product.duplicate
-  - product.search
-  - product.variations.list
-  - product.variations.get
-  - product.variations.create
-  - product.variations.update
-  - product.variations.delete
-  - product.variations.batch
-  - product.attributes.list
-  - product.attributes.get
-  - product.attributes.create
-  - product.attributes.update
-  - product.attributes.delete
-  - product.attribute_terms.list
-  - product.attribute_terms.get
-  - product.attribute_terms.create
-  - product.attribute_terms.update
-  - product.attribute_terms.delete
-  - product.categories.list
-  - product.categories.get
-  - product.categories.create
-  - product.categories.update
-  - product.categories.delete
-  - product.tags.list
-  - product.tags.get
-  - product.tags.create
-  - product.tags.update
-  - product.tags.delete
-  - product.reviews.list
-  - product.reviews.get
-  - product.reviews.create
-  - product.reviews.update
-  - product.reviews.delete
-  - product.shipping_classes.list
-  - product.shipping_classes.get
-  - product.shipping_classes.create
-  - product.shipping_classes.update
-  - product.shipping_classes.delete
-  # --- Stock ---
-  - stock.sync
-  # --- Customers ---
-  - customer.list
-  - customer.get
-  - customer.create
-  - customer.update
-  - customer.delete
-  - customer.batch
-  - customer.downloads
-  # --- Coupons ---
-  - coupon.list
-  - coupon.get
-  - coupon.create
-  - coupon.update
-  - coupon.delete
-  - coupon.batch
-  # --- Taxes ---
-  - tax.rates.list
-  - tax.rates.get
-  - tax.rates.create
-  - tax.rates.update
-  - tax.rates.delete
-  - tax.rates.batch
-  - tax.classes.list
-  - tax.classes.create
-  - tax.classes.delete
-  # --- Reports ---
-  - report.list
-  - report.sales
-  - report.top_sellers
-  - report.coupons_totals
-  - report.customers_totals
-  - report.orders_totals
-  - report.products_totals
-  - report.reviews_totals
-  # --- Webhooks ---
-  - webhook.list
-  - webhook.get
-  - webhook.create
-  - webhook.update
-  - webhook.delete
-  - webhook.batch
-  # --- Settings ---
-  - settings.groups.list
-  - settings.options.list
-  - settings.option.get
-  - settings.option.update
-  # --- Payment Gateways ---
-  - payment_gateway.list
-  - payment_gateway.get
-  - payment_gateway.update
-  # --- Shipping Zones ---
-  - shipping_zone.list
-  - shipping_zone.get
-  - shipping_zone.create
-  - shipping_zone.update
-  - shipping_zone.delete
-  - shipping_zone.locations.list
-  - shipping_zone.locations.update
-  - shipping_zone.methods.list
-  - shipping_zone.methods.get
-  - shipping_zone.methods.create
-  - shipping_zone.methods.update
-  - shipping_zone.methods.delete
-  # --- Shipping Methods ---
-  - shipping_method.list
-  # --- System Status ---
-  - system_status.get
-  - system_status.tools.list
-  - system_status.tools.get
-  - system_status.tools.run
-
-# ── Event field definitions ──
-
+- order.list
+- order.get
+- order.create
+- order.update
+- order.delete
+- order.batch
+- order.status_update
+- order.invoice_upload
+- order.notes.list
+- order.notes.create
+- order.notes.get
+- order.notes.delete
+- order.refunds.list
+- order.refunds.create
+- order.refunds.get
+- order.refunds.delete
+- product.list
+- product.get
+- product.create
+- product.update
+- product.delete
+- product.batch
+- product.duplicate
+- product.search
+- product.variations.list
+- product.variations.get
+- product.variations.create
+- product.variations.update
+- product.variations.delete
+- product.variations.batch
+- product.attributes.list
+- product.attributes.get
+- product.attributes.create
+- product.attributes.update
+- product.attributes.delete
+- product.attribute_terms.list
+- product.attribute_terms.get
+- product.attribute_terms.create
+- product.attribute_terms.update
+- product.attribute_terms.delete
+- product.categories.list
+- product.categories.get
+- product.categories.create
+- product.categories.update
+- product.categories.delete
+- product.tags.list
+- product.tags.get
+- product.tags.create
+- product.tags.update
+- product.tags.delete
+- product.reviews.list
+- product.reviews.get
+- product.reviews.create
+- product.reviews.update
+- product.reviews.delete
+- product.shipping_classes.list
+- product.shipping_classes.get
+- product.shipping_classes.create
+- product.shipping_classes.update
+- product.shipping_classes.delete
+- stock.sync
+- customer.list
+- customer.get
+- customer.create
+- customer.update
+- customer.delete
+- customer.batch
+- customer.downloads
+- coupon.list
+- coupon.get
+- coupon.create
+- coupon.update
+- coupon.delete
+- coupon.batch
+- tax.rates.list
+- tax.rates.get
+- tax.rates.create
+- tax.rates.update
+- tax.rates.delete
+- tax.rates.batch
+- tax.classes.list
+- tax.classes.create
+- tax.classes.delete
+- report.list
+- report.sales
+- report.top_sellers
+- report.coupons_totals
+- report.customers_totals
+- report.orders_totals
+- report.products_totals
+- report.reviews_totals
+- webhook.list
+- webhook.get
+- webhook.create
+- webhook.update
+- webhook.delete
+- webhook.batch
+- settings.groups.list
+- settings.options.list
+- settings.option.get
+- settings.option.update
+- payment_gateway.list
+- payment_gateway.get
+- payment_gateway.update
+- shipping_zone.list
+- shipping_zone.get
+- shipping_zone.create
+- shipping_zone.update
+- shipping_zone.delete
+- shipping_zone.locations.list
+- shipping_zone.locations.update
+- shipping_zone.methods.list
+- shipping_zone.methods.get
+- shipping_zone.methods.create
+- shipping_zone.methods.update
+- shipping_zone.methods.delete
+- shipping_method.list
+- system_status.get
+- system_status.tools.list
+- system_status.tools.get
+- system_status.tools.run
 event_fields:
   order.created:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: currency, label: "Currency", type: string }
-    - { field: total, label: "Total", type: string }
-    - { field: total_tax, label: "Total tax", type: string }
-    - { field: discount_total, label: "Discount total", type: string }
-    - { field: shipping_total, label: "Shipping total", type: string }
-    - { field: customer_id, label: "Customer ID", type: integer }
-    - { field: customer_note, label: "Customer note", type: string }
-    - { field: billing.first_name, label: "Billing first name", type: string }
-    - { field: billing.last_name, label: "Billing last name", type: string }
-    - { field: billing.company, label: "Billing company", type: string }
-    - { field: billing.address_1, label: "Billing address 1", type: string }
-    - { field: billing.address_2, label: "Billing address 2", type: string }
-    - { field: billing.city, label: "Billing city", type: string }
-    - { field: billing.state, label: "Billing state", type: string }
-    - { field: billing.postcode, label: "Billing postcode", type: string }
-    - { field: billing.country, label: "Billing country", type: string }
-    - { field: billing.email, label: "Billing email", type: string }
-    - { field: billing.phone, label: "Billing phone", type: string }
-    - { field: shipping.first_name, label: "Shipping first name", type: string }
-    - { field: shipping.last_name, label: "Shipping last name", type: string }
-    - { field: shipping.company, label: "Shipping company", type: string }
-    - { field: shipping.address_1, label: "Shipping address 1", type: string }
-    - { field: shipping.address_2, label: "Shipping address 2", type: string }
-    - { field: shipping.city, label: "Shipping city", type: string }
-    - { field: shipping.state, label: "Shipping state", type: string }
-    - { field: shipping.postcode, label: "Shipping postcode", type: string }
-    - { field: shipping.country, label: "Shipping country", type: string }
-    - { field: payment_method, label: "Payment method", type: string }
-    - { field: payment_method_title, label: "Payment method title", type: string }
-    - { field: transaction_id, label: "Transaction ID", type: string }
-    - { field: date_created, label: "Date created", type: datetime }
-    - { field: date_paid, label: "Date paid", type: datetime }
-    - { field: line_items, label: "Line items", type: "object[]" }
-    - { field: shipping_lines, label: "Shipping lines", type: "object[]" }
-    - { field: fee_lines, label: "Fee lines", type: "object[]" }
-    - { field: coupon_lines, label: "Coupon lines", type: "object[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: currency
+    label: Currency
+    type: string
+  - field: total
+    label: Total
+    type: string
+  - field: total_tax
+    label: Total tax
+    type: string
+  - field: discount_total
+    label: Discount total
+    type: string
+  - field: shipping_total
+    label: Shipping total
+    type: string
+  - field: customer_id
+    label: Customer ID
+    type: integer
+  - field: customer_note
+    label: Customer note
+    type: string
+  - field: billing.first_name
+    label: Billing first name
+    type: string
+  - field: billing.last_name
+    label: Billing last name
+    type: string
+  - field: billing.company
+    label: Billing company
+    type: string
+  - field: billing.address_1
+    label: Billing address 1
+    type: string
+  - field: billing.address_2
+    label: Billing address 2
+    type: string
+  - field: billing.city
+    label: Billing city
+    type: string
+  - field: billing.state
+    label: Billing state
+    type: string
+  - field: billing.postcode
+    label: Billing postcode
+    type: string
+  - field: billing.country
+    label: Billing country
+    type: string
+  - field: billing.email
+    label: Billing email
+    type: string
+  - field: billing.phone
+    label: Billing phone
+    type: string
+  - field: shipping.first_name
+    label: Shipping first name
+    type: string
+  - field: shipping.last_name
+    label: Shipping last name
+    type: string
+  - field: shipping.company
+    label: Shipping company
+    type: string
+  - field: shipping.address_1
+    label: Shipping address 1
+    type: string
+  - field: shipping.address_2
+    label: Shipping address 2
+    type: string
+  - field: shipping.city
+    label: Shipping city
+    type: string
+  - field: shipping.state
+    label: Shipping state
+    type: string
+  - field: shipping.postcode
+    label: Shipping postcode
+    type: string
+  - field: shipping.country
+    label: Shipping country
+    type: string
+  - field: payment_method
+    label: Payment method
+    type: string
+  - field: payment_method_title
+    label: Payment method title
+    type: string
+  - field: transaction_id
+    label: Transaction ID
+    type: string
+  - field: date_created
+    label: Date created
+    type: datetime
+  - field: date_paid
+    label: Date paid
+    type: datetime
+  - field: line_items
+    label: Line items
+    type: object[]
+  - field: shipping_lines
+    label: Shipping lines
+    type: object[]
+  - field: fee_lines
+    label: Fee lines
+    type: object[]
+  - field: coupon_lines
+    label: Coupon lines
+    type: object[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
   order.updated:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: currency, label: "Currency", type: string }
-    - { field: total, label: "Total", type: string }
-    - { field: customer_id, label: "Customer ID", type: integer }
-    - { field: billing.first_name, label: "Billing first name", type: string }
-    - { field: billing.last_name, label: "Billing last name", type: string }
-    - { field: billing.email, label: "Billing email", type: string }
-    - { field: billing.phone, label: "Billing phone", type: string }
-    - { field: shipping.first_name, label: "Shipping first name", type: string }
-    - { field: shipping.last_name, label: "Shipping last name", type: string }
-    - { field: shipping.address_1, label: "Shipping address 1", type: string }
-    - { field: shipping.city, label: "Shipping city", type: string }
-    - { field: shipping.postcode, label: "Shipping postcode", type: string }
-    - { field: shipping.country, label: "Shipping country", type: string }
-    - { field: date_modified, label: "Date modified", type: datetime }
-    - { field: line_items, label: "Line items", type: "object[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: currency
+    label: Currency
+    type: string
+  - field: total
+    label: Total
+    type: string
+  - field: customer_id
+    label: Customer ID
+    type: integer
+  - field: billing.first_name
+    label: Billing first name
+    type: string
+  - field: billing.last_name
+    label: Billing last name
+    type: string
+  - field: billing.email
+    label: Billing email
+    type: string
+  - field: billing.phone
+    label: Billing phone
+    type: string
+  - field: shipping.first_name
+    label: Shipping first name
+    type: string
+  - field: shipping.last_name
+    label: Shipping last name
+    type: string
+  - field: shipping.address_1
+    label: Shipping address 1
+    type: string
+  - field: shipping.city
+    label: Shipping city
+    type: string
+  - field: shipping.postcode
+    label: Shipping postcode
+    type: string
+  - field: shipping.country
+    label: Shipping country
+    type: string
+  - field: date_modified
+    label: Date modified
+    type: datetime
+  - field: line_items
+    label: Line items
+    type: object[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
   order.deleted:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
   order.restored:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
   order.status_changed:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "New status", type: string }
-    - { field: previous_status, label: "Previous status", type: string }
-    - { field: date_modified, label: "Date modified", type: datetime }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: New status
+    type: string
+  - field: previous_status
+    label: Previous status
+    type: string
+  - field: date_modified
+    label: Date modified
+    type: datetime
   product.created:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: slug, label: "Slug", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: type, label: "Product type", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: price, label: "Current price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-    - { field: weight, label: "Weight", type: string }
-    - { field: categories, label: "Categories", type: "object[]" }
-    - { field: tags, label: "Tags", type: "object[]" }
-    - { field: images, label: "Images", type: "object[]" }
-    - { field: date_created, label: "Date created", type: datetime }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: slug
+    label: Slug
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: type
+    label: Product type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: price
+    label: Current price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
+  - field: weight
+    label: Weight
+    type: string
+  - field: categories
+    label: Categories
+    type: object[]
+  - field: tags
+    label: Tags
+    type: object[]
+  - field: images
+    label: Images
+    type: object[]
+  - field: date_created
+    label: Date created
+    type: datetime
   product.updated:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: type, label: "Product type", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: price, label: "Current price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: date_modified, label: "Date modified", type: datetime }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: type
+    label: Product type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: price
+    label: Current price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: date_modified
+    label: Date modified
+    type: datetime
   product.deleted:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
   product.restored:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
   customer.created:
-    - { field: id, label: "Customer ID", type: integer }
-    - { field: email, label: "Email", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: username, label: "Username", type: string }
-    - { field: role, label: "Role", type: string }
-    - { field: billing.email, label: "Billing email", type: string }
-    - { field: billing.phone, label: "Billing phone", type: string }
-    - { field: date_created, label: "Date created", type: datetime }
-
+  - field: id
+    label: Customer ID
+    type: integer
+  - field: email
+    label: Email
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: username
+    label: Username
+    type: string
+  - field: role
+    label: Role
+    type: string
+  - field: billing.email
+    label: Billing email
+    type: string
+  - field: billing.phone
+    label: Billing phone
+    type: string
+  - field: date_created
+    label: Date created
+    type: datetime
   customer.updated:
-    - { field: id, label: "Customer ID", type: integer }
-    - { field: email, label: "Email", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: date_modified, label: "Date modified", type: datetime }
-
+  - field: id
+    label: Customer ID
+    type: integer
+  - field: email
+    label: Email
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: date_modified
+    label: Date modified
+    type: datetime
   customer.deleted:
-    - { field: id, label: "Customer ID", type: integer }
-    - { field: email, label: "Email", type: string }
-
+  - field: id
+    label: Customer ID
+    type: integer
+  - field: email
+    label: Email
+    type: string
   coupon.created:
-    - { field: id, label: "Coupon ID", type: integer }
-    - { field: code, label: "Coupon code", type: string }
-    - { field: discount_type, label: "Discount type", type: string }
-    - { field: amount, label: "Amount", type: string }
-    - { field: date_created, label: "Date created", type: datetime }
-
+  - field: id
+    label: Coupon ID
+    type: integer
+  - field: code
+    label: Coupon code
+    type: string
+  - field: discount_type
+    label: Discount type
+    type: string
+  - field: amount
+    label: Amount
+    type: string
+  - field: date_created
+    label: Date created
+    type: datetime
   coupon.updated:
-    - { field: id, label: "Coupon ID", type: integer }
-    - { field: code, label: "Coupon code", type: string }
-    - { field: discount_type, label: "Discount type", type: string }
-    - { field: amount, label: "Amount", type: string }
-    - { field: date_modified, label: "Date modified", type: datetime }
-
+  - field: id
+    label: Coupon ID
+    type: integer
+  - field: code
+    label: Coupon code
+    type: string
+  - field: discount_type
+    label: Discount type
+    type: string
+  - field: amount
+    label: Amount
+    type: string
+  - field: date_modified
+    label: Date modified
+    type: datetime
   coupon.deleted:
-    - { field: id, label: "Coupon ID", type: integer }
-    - { field: code, label: "Coupon code", type: string }
-
+  - field: id
+    label: Coupon ID
+    type: integer
+  - field: code
+    label: Coupon code
+    type: string
   stock.updated:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: sku, label: "SKU", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-
-# ── Action field definitions ──
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: sku
+    label: SKU
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
 action_fields:
-  # --- Orders ---
   order.list:
-    - { field: status, label: "Filter by status", type: string }
-    - { field: customer, label: "Filter by customer ID", type: integer }
-    - { field: product, label: "Filter by product ID", type: integer }
-    - { field: after, label: "After date (ISO8601)", type: string }
-    - { field: before, label: "Before date (ISO8601)", type: string }
-    - { field: search, label: "Search keyword", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: orderby, label: "Order by", type: string }
-    - { field: order, label: "Sort direction (asc/desc)", type: string }
-
+  - field: status
+    label: Filter by status
+    type: string
+  - field: customer
+    label: Filter by customer ID
+    type: integer
+  - field: product
+    label: Filter by product ID
+    type: integer
+  - field: after
+    label: After date (ISO8601)
+    type: string
+  - field: before
+    label: Before date (ISO8601)
+    type: string
+  - field: search
+    label: Search keyword
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: orderby
+    label: Order by
+    type: string
+  - field: order
+    label: Sort direction (asc/desc)
+    type: string
   order.get:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
   order.create:
-    - { field: payment_method, label: "Payment method", type: string }
-    - { field: payment_method_title, label: "Payment method title", type: string }
-    - { field: set_paid, label: "Set as paid", type: boolean }
-    - { field: status, label: "Status", type: string }
-    - { field: currency, label: "Currency", type: string }
-    - { field: customer_id, label: "Customer ID", type: integer }
-    - { field: customer_note, label: "Customer note", type: string }
-    - { field: billing, label: "Billing address (object)", type: object }
-    - { field: shipping, label: "Shipping address (object)", type: object }
-    - { field: line_items, label: "Line items", type: "object[]" }
-    - { field: shipping_lines, label: "Shipping lines", type: "object[]" }
-    - { field: fee_lines, label: "Fee lines", type: "object[]" }
-    - { field: coupon_lines, label: "Coupon lines", type: "object[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: payment_method
+    label: Payment method
+    type: string
+  - field: payment_method_title
+    label: Payment method title
+    type: string
+  - field: set_paid
+    label: Set as paid
+    type: boolean
+  - field: status
+    label: Status
+    type: string
+  - field: currency
+    label: Currency
+    type: string
+  - field: customer_id
+    label: Customer ID
+    type: integer
+  - field: customer_note
+    label: Customer note
+    type: string
+  - field: billing
+    label: Billing address (object)
+    type: object
+  - field: shipping
+    label: Shipping address (object)
+    type: object
+  - field: line_items
+    label: Line items
+    type: object[]
+  - field: shipping_lines
+    label: Shipping lines
+    type: object[]
+  - field: fee_lines
+    label: Fee lines
+    type: object[]
+  - field: coupon_lines
+    label: Coupon lines
+    type: object[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
   order.update:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: status, label: "Status", type: string }
-    - { field: customer_note, label: "Customer note", type: string }
-    - { field: billing, label: "Billing address (object)", type: object }
-    - { field: shipping, label: "Shipping address (object)", type: object }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: status
+    label: Status
+    type: string
+  - field: customer_note
+    label: Customer note
+    type: string
+  - field: billing
+    label: Billing address (object)
+    type: object
+  - field: shipping
+    label: Shipping address (object)
+    type: object
+  - field: meta_data
+    label: Meta data
+    type: object[]
   order.delete:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: force, label: "Force delete (bypass trash)", type: boolean }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete (bypass trash)
+    type: boolean
   order.batch:
-    - { field: create, label: "Orders to create", type: "object[]" }
-    - { field: update, label: "Orders to update", type: "object[]" }
-    - { field: delete, label: "Order IDs to delete", type: "integer[]" }
-
+  - field: create
+    label: Orders to create
+    type: object[]
+  - field: update
+    label: Orders to update
+    type: object[]
+  - field: delete
+    label: Order IDs to delete
+    type: integer[]
   order.status_update:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: status, label: "New status", type: string, required: true }
-    - { field: tracking_number, label: "Tracking number", type: string }
-    - { field: carrier, label: "Carrier name", type: string }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: status
+    label: New status
+    type: string
+    required: true
+  - field: tracking_number
+    label: Tracking number
+    type: string
+  - field: carrier
+    label: Carrier name
+    type: string
   order.invoice_upload:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: invoice_base64, label: "Invoice PDF (base64)", type: string, required: true }
-    - { field: filename, label: "Filename", type: string }
-    - { field: customer_note, label: "Send as customer note", type: boolean }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: invoice_base64
+    label: Invoice PDF (base64)
+    type: string
+    required: true
+  - field: filename
+    label: Filename
+    type: string
+  - field: customer_note
+    label: Send as customer note
+    type: boolean
   order.notes.list:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: type, label: "Filter by note type (customer/internal/any)", type: string }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: type
+    label: Filter by note type (customer/internal/any)
+    type: string
   order.notes.create:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: note, label: "Note content", type: string, required: true }
-    - { field: customer_note, label: "Is customer note", type: boolean }
-    - { field: added_by_user, label: "Added by user", type: boolean }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: note
+    label: Note content
+    type: string
+    required: true
+  - field: customer_note
+    label: Is customer note
+    type: boolean
+  - field: added_by_user
+    label: Added by user
+    type: boolean
   order.notes.get:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: note_id, label: "Note ID", type: integer, required: true }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: note_id
+    label: Note ID
+    type: integer
+    required: true
   order.notes.delete:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: note_id, label: "Note ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: note_id
+    label: Note ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   order.refunds.list:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   order.refunds.create:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: amount, label: "Refund amount", type: string }
-    - { field: reason, label: "Refund reason", type: string }
-    - { field: refunded_by, label: "Refunded by user ID", type: integer }
-    - { field: line_items, label: "Refund line items", type: "object[]" }
-    - { field: api_refund, label: "Process payment refund via API", type: boolean }
-    - { field: api_restock, label: "Restock items", type: boolean }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: amount
+    label: Refund amount
+    type: string
+  - field: reason
+    label: Refund reason
+    type: string
+  - field: refunded_by
+    label: Refunded by user ID
+    type: integer
+  - field: line_items
+    label: Refund line items
+    type: object[]
+  - field: api_refund
+    label: Process payment refund via API
+    type: boolean
+  - field: api_restock
+    label: Restock items
+    type: boolean
   order.refunds.get:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: refund_id, label: "Refund ID", type: integer, required: true }
-
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: refund_id
+    label: Refund ID
+    type: integer
+    required: true
   order.refunds.delete:
-    - { field: order_id, label: "Order ID", type: integer, required: true }
-    - { field: refund_id, label: "Refund ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
-  # --- Products ---
+  - field: order_id
+    label: Order ID
+    type: integer
+    required: true
+  - field: refund_id
+    label: Refund ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.list:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: sku, label: "Filter by SKU", type: string }
-    - { field: status, label: "Filter by status", type: string }
-    - { field: type, label: "Filter by type", type: string }
-    - { field: category, label: "Filter by category ID", type: string }
-    - { field: tag, label: "Filter by tag ID", type: string }
-    - { field: featured, label: "Featured only", type: boolean }
-    - { field: on_sale, label: "On sale only", type: boolean }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: after, label: "After date (ISO8601)", type: string }
-    - { field: before, label: "Before date (ISO8601)", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: orderby, label: "Order by", type: string }
-    - { field: order, label: "Sort direction (asc/desc)", type: string }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: sku
+    label: Filter by SKU
+    type: string
+  - field: status
+    label: Filter by status
+    type: string
+  - field: type
+    label: Filter by type
+    type: string
+  - field: category
+    label: Filter by category ID
+    type: string
+  - field: tag
+    label: Filter by tag ID
+    type: string
+  - field: featured
+    label: Featured only
+    type: boolean
+  - field: on_sale
+    label: On sale only
+    type: boolean
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: after
+    label: After date (ISO8601)
+    type: string
+  - field: before
+    label: Before date (ISO8601)
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: orderby
+    label: Order by
+    type: string
+  - field: order
+    label: Sort direction (asc/desc)
+    type: string
   product.get:
-    - { field: product_id, label: "Product ID", type: integer, required: true }
-
+  - field: product_id
+    label: Product ID
+    type: integer
+    required: true
   product.create:
-    - { field: name, label: "Product name", type: string, required: true }
-    - { field: type, label: "Type (simple/grouped/external/variable)", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: description, label: "Description", type: string }
-    - { field: short_description, label: "Short description", type: string }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: weight, label: "Weight", type: string }
-    - { field: dimensions, label: "Dimensions (object)", type: object }
-    - { field: categories, label: "Categories", type: "object[]" }
-    - { field: tags, label: "Tags", type: "object[]" }
-    - { field: images, label: "Images", type: "object[]" }
-    - { field: attributes, label: "Attributes", type: "object[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-    - { field: virtual, label: "Virtual product", type: boolean }
-    - { field: downloadable, label: "Downloadable", type: boolean }
-    - { field: tax_status, label: "Tax status", type: string }
-    - { field: tax_class, label: "Tax class", type: string }
-
+  - field: name
+    label: Product name
+    type: string
+    required: true
+  - field: type
+    label: Type (simple/grouped/external/variable)
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: description
+    label: Description
+    type: string
+  - field: short_description
+    label: Short description
+    type: string
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: weight
+    label: Weight
+    type: string
+  - field: dimensions
+    label: Dimensions (object)
+    type: object
+  - field: categories
+    label: Categories
+    type: object[]
+  - field: tags
+    label: Tags
+    type: object[]
+  - field: images
+    label: Images
+    type: object[]
+  - field: attributes
+    label: Attributes
+    type: object[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
+  - field: virtual
+    label: Virtual product
+    type: boolean
+  - field: downloadable
+    label: Downloadable
+    type: boolean
+  - field: tax_status
+    label: Tax status
+    type: string
+  - field: tax_class
+    label: Tax class
+    type: string
   product.update:
-    - { field: product_id, label: "Product ID", type: integer, required: true }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: description, label: "Description", type: string }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: weight, label: "Weight", type: string }
-    - { field: categories, label: "Categories", type: "object[]" }
-    - { field: tags, label: "Tags", type: "object[]" }
-    - { field: images, label: "Images", type: "object[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: product_id
+    label: Product ID
+    type: integer
+    required: true
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: description
+    label: Description
+    type: string
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: weight
+    label: Weight
+    type: string
+  - field: categories
+    label: Categories
+    type: object[]
+  - field: tags
+    label: Tags
+    type: object[]
+  - field: images
+    label: Images
+    type: object[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
   product.delete:
-    - { field: product_id, label: "Product ID", type: integer, required: true }
-    - { field: force, label: "Force delete (bypass trash)", type: boolean }
-
+  - field: product_id
+    label: Product ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete (bypass trash)
+    type: boolean
   product.batch:
-    - { field: create, label: "Products to create", type: "object[]" }
-    - { field: update, label: "Products to update", type: "object[]" }
-    - { field: delete, label: "Product IDs to delete", type: "integer[]" }
-
+  - field: create
+    label: Products to create
+    type: object[]
+  - field: update
+    label: Products to update
+    type: object[]
+  - field: delete
+    label: Product IDs to delete
+    type: integer[]
   product.duplicate:
-    - { field: product_id, label: "Product ID to duplicate", type: integer, required: true }
-
+  - field: product_id
+    label: Product ID to duplicate
+    type: integer
+    required: true
   product.search:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: sku, label: "Filter by SKU", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: sku
+    label: Filter by SKU
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.variations.list:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.variations.get:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: variation_id, label: "Variation ID", type: integer, required: true }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: variation_id
+    label: Variation ID
+    type: integer
+    required: true
   product.variations.create:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: sku, label: "SKU", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: stock_status, label: "Stock status", type: string }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-    - { field: weight, label: "Weight", type: string }
-    - { field: dimensions, label: "Dimensions (object)", type: object }
-    - { field: attributes, label: "Attributes", type: "object[]" }
-    - { field: image, label: "Image (object)", type: object }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: sku
+    label: SKU
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: stock_status
+    label: Stock status
+    type: string
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
+  - field: weight
+    label: Weight
+    type: string
+  - field: dimensions
+    label: Dimensions (object)
+    type: object
+  - field: attributes
+    label: Attributes
+    type: object[]
+  - field: image
+    label: Image (object)
+    type: object
   product.variations.update:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: variation_id, label: "Variation ID", type: integer, required: true }
-    - { field: sku, label: "SKU", type: string }
-    - { field: regular_price, label: "Regular price", type: string }
-    - { field: sale_price, label: "Sale price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-    - { field: manage_stock, label: "Manage stock", type: boolean }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: variation_id
+    label: Variation ID
+    type: integer
+    required: true
+  - field: sku
+    label: SKU
+    type: string
+  - field: regular_price
+    label: Regular price
+    type: string
+  - field: sale_price
+    label: Sale price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
+  - field: manage_stock
+    label: Manage stock
+    type: boolean
   product.variations.delete:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: variation_id, label: "Variation ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: variation_id
+    label: Variation ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.variations.batch:
-    - { field: product_id, label: "Parent product ID", type: integer, required: true }
-    - { field: create, label: "Variations to create", type: "object[]" }
-    - { field: update, label: "Variations to update", type: "object[]" }
-    - { field: delete, label: "Variation IDs to delete", type: "integer[]" }
-
+  - field: product_id
+    label: Parent product ID
+    type: integer
+    required: true
+  - field: create
+    label: Variations to create
+    type: object[]
+  - field: update
+    label: Variations to update
+    type: object[]
+  - field: delete
+    label: Variation IDs to delete
+    type: integer[]
   product.attributes.list:
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.attributes.get:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
   product.attributes.create:
-    - { field: name, label: "Attribute name", type: string, required: true }
-    - { field: slug, label: "Slug", type: string }
-    - { field: type, label: "Type (select/text)", type: string }
-    - { field: order_by, label: "Order by", type: string }
-    - { field: has_archives, label: "Has archives", type: boolean }
-
+  - field: name
+    label: Attribute name
+    type: string
+    required: true
+  - field: slug
+    label: Slug
+    type: string
+  - field: type
+    label: Type (select/text)
+    type: string
+  - field: order_by
+    label: Order by
+    type: string
+  - field: has_archives
+    label: Has archives
+    type: boolean
   product.attributes.update:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: name, label: "Attribute name", type: string }
-    - { field: slug, label: "Slug", type: string }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: name
+    label: Attribute name
+    type: string
+  - field: slug
+    label: Slug
+    type: string
   product.attributes.delete:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.attribute_terms.list:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.attribute_terms.get:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: term_id, label: "Term ID", type: integer, required: true }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: term_id
+    label: Term ID
+    type: integer
+    required: true
   product.attribute_terms.create:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: name, label: "Term name", type: string, required: true }
-    - { field: slug, label: "Slug", type: string }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: name
+    label: Term name
+    type: string
+    required: true
+  - field: slug
+    label: Slug
+    type: string
   product.attribute_terms.update:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: term_id, label: "Term ID", type: integer, required: true }
-    - { field: name, label: "Term name", type: string }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: term_id
+    label: Term ID
+    type: integer
+    required: true
+  - field: name
+    label: Term name
+    type: string
   product.attribute_terms.delete:
-    - { field: attribute_id, label: "Attribute ID", type: integer, required: true }
-    - { field: term_id, label: "Term ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: attribute_id
+    label: Attribute ID
+    type: integer
+    required: true
+  - field: term_id
+    label: Term ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.categories.list:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: parent, label: "Parent category ID", type: integer }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: hide_empty, label: "Hide empty categories", type: boolean }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: parent
+    label: Parent category ID
+    type: integer
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: hide_empty
+    label: Hide empty categories
+    type: boolean
   product.categories.get:
-    - { field: category_id, label: "Category ID", type: integer, required: true }
-
+  - field: category_id
+    label: Category ID
+    type: integer
+    required: true
   product.categories.create:
-    - { field: name, label: "Category name", type: string, required: true }
-    - { field: slug, label: "Slug", type: string }
-    - { field: parent, label: "Parent category ID", type: integer }
-    - { field: description, label: "Description", type: string }
-    - { field: display, label: "Display type", type: string }
-    - { field: image, label: "Image (object)", type: object }
-
+  - field: name
+    label: Category name
+    type: string
+    required: true
+  - field: slug
+    label: Slug
+    type: string
+  - field: parent
+    label: Parent category ID
+    type: integer
+  - field: description
+    label: Description
+    type: string
+  - field: display
+    label: Display type
+    type: string
+  - field: image
+    label: Image (object)
+    type: object
   product.categories.update:
-    - { field: category_id, label: "Category ID", type: integer, required: true }
-    - { field: name, label: "Category name", type: string }
-    - { field: slug, label: "Slug", type: string }
-    - { field: description, label: "Description", type: string }
-
+  - field: category_id
+    label: Category ID
+    type: integer
+    required: true
+  - field: name
+    label: Category name
+    type: string
+  - field: slug
+    label: Slug
+    type: string
+  - field: description
+    label: Description
+    type: string
   product.categories.delete:
-    - { field: category_id, label: "Category ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: category_id
+    label: Category ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.tags.list:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: hide_empty, label: "Hide empty", type: boolean }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: hide_empty
+    label: Hide empty
+    type: boolean
   product.tags.get:
-    - { field: tag_id, label: "Tag ID", type: integer, required: true }
-
+  - field: tag_id
+    label: Tag ID
+    type: integer
+    required: true
   product.tags.create:
-    - { field: name, label: "Tag name", type: string, required: true }
-    - { field: slug, label: "Slug", type: string }
-    - { field: description, label: "Description", type: string }
-
+  - field: name
+    label: Tag name
+    type: string
+    required: true
+  - field: slug
+    label: Slug
+    type: string
+  - field: description
+    label: Description
+    type: string
   product.tags.update:
-    - { field: tag_id, label: "Tag ID", type: integer, required: true }
-    - { field: name, label: "Tag name", type: string }
-
+  - field: tag_id
+    label: Tag ID
+    type: integer
+    required: true
+  - field: name
+    label: Tag name
+    type: string
   product.tags.delete:
-    - { field: tag_id, label: "Tag ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: tag_id
+    label: Tag ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.reviews.list:
-    - { field: product, label: "Filter by product ID", type: "integer[]" }
-    - { field: status, label: "Filter by status", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: product
+    label: Filter by product ID
+    type: integer[]
+  - field: status
+    label: Filter by status
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.reviews.get:
-    - { field: review_id, label: "Review ID", type: integer, required: true }
-
+  - field: review_id
+    label: Review ID
+    type: integer
+    required: true
   product.reviews.create:
-    - { field: product_id, label: "Product ID", type: integer, required: true }
-    - { field: review, label: "Review content", type: string, required: true }
-    - { field: reviewer, label: "Reviewer name", type: string, required: true }
-    - { field: reviewer_email, label: "Reviewer email", type: string, required: true }
-    - { field: rating, label: "Rating (0-5)", type: integer }
-    - { field: status, label: "Status (approved/hold/spam/unspam/trash/untrash)", type: string }
-
+  - field: product_id
+    label: Product ID
+    type: integer
+    required: true
+  - field: review
+    label: Review content
+    type: string
+    required: true
+  - field: reviewer
+    label: Reviewer name
+    type: string
+    required: true
+  - field: reviewer_email
+    label: Reviewer email
+    type: string
+    required: true
+  - field: rating
+    label: Rating (0-5)
+    type: integer
+  - field: status
+    label: Status (approved/hold/spam/unspam/trash/untrash)
+    type: string
   product.reviews.update:
-    - { field: review_id, label: "Review ID", type: integer, required: true }
-    - { field: review, label: "Review content", type: string }
-    - { field: rating, label: "Rating (0-5)", type: integer }
-    - { field: status, label: "Status", type: string }
-
+  - field: review_id
+    label: Review ID
+    type: integer
+    required: true
+  - field: review
+    label: Review content
+    type: string
+  - field: rating
+    label: Rating (0-5)
+    type: integer
+  - field: status
+    label: Status
+    type: string
   product.reviews.delete:
-    - { field: review_id, label: "Review ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: review_id
+    label: Review ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   product.shipping_classes.list:
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   product.shipping_classes.get:
-    - { field: shipping_class_id, label: "Shipping class ID", type: integer, required: true }
-
+  - field: shipping_class_id
+    label: Shipping class ID
+    type: integer
+    required: true
   product.shipping_classes.create:
-    - { field: name, label: "Name", type: string, required: true }
-    - { field: slug, label: "Slug", type: string }
-    - { field: description, label: "Description", type: string }
-
+  - field: name
+    label: Name
+    type: string
+    required: true
+  - field: slug
+    label: Slug
+    type: string
+  - field: description
+    label: Description
+    type: string
   product.shipping_classes.update:
-    - { field: shipping_class_id, label: "Shipping class ID", type: integer, required: true }
-    - { field: name, label: "Name", type: string }
-
+  - field: shipping_class_id
+    label: Shipping class ID
+    type: integer
+    required: true
+  - field: name
+    label: Name
+    type: string
   product.shipping_classes.delete:
-    - { field: shipping_class_id, label: "Shipping class ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
-  # --- Stock ---
+  - field: shipping_class_id
+    label: Shipping class ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   stock.sync:
-    - { field: sku, label: "Product SKU", type: string, required: true }
-    - { field: quantity, label: "New quantity", type: integer, required: true }
-
-  # --- Customers ---
+  - field: sku
+    label: Product SKU
+    type: string
+    required: true
+  - field: quantity
+    label: New quantity
+    type: integer
+    required: true
   customer.list:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: email, label: "Filter by email", type: string }
-    - { field: role, label: "Filter by role", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: orderby, label: "Order by", type: string }
-    - { field: order, label: "Sort direction (asc/desc)", type: string }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: email
+    label: Filter by email
+    type: string
+  - field: role
+    label: Filter by role
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: orderby
+    label: Order by
+    type: string
+  - field: order
+    label: Sort direction (asc/desc)
+    type: string
   customer.get:
-    - { field: customer_id, label: "Customer ID", type: integer, required: true }
-
+  - field: customer_id
+    label: Customer ID
+    type: integer
+    required: true
   customer.create:
-    - { field: email, label: "Email", type: string, required: true }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: username, label: "Username", type: string }
-    - { field: password, label: "Password", type: string }
-    - { field: billing, label: "Billing address (object)", type: object }
-    - { field: shipping, label: "Shipping address (object)", type: object }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: email
+    label: Email
+    type: string
+    required: true
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: username
+    label: Username
+    type: string
+  - field: password
+    label: Password
+    type: string
+  - field: billing
+    label: Billing address (object)
+    type: object
+  - field: shipping
+    label: Shipping address (object)
+    type: object
+  - field: meta_data
+    label: Meta data
+    type: object[]
   customer.update:
-    - { field: customer_id, label: "Customer ID", type: integer, required: true }
-    - { field: email, label: "Email", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: billing, label: "Billing address (object)", type: object }
-    - { field: shipping, label: "Shipping address (object)", type: object }
-
+  - field: customer_id
+    label: Customer ID
+    type: integer
+    required: true
+  - field: email
+    label: Email
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: billing
+    label: Billing address (object)
+    type: object
+  - field: shipping
+    label: Shipping address (object)
+    type: object
   customer.delete:
-    - { field: customer_id, label: "Customer ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-    - { field: reassign, label: "Reassign to user ID", type: integer }
-
+  - field: customer_id
+    label: Customer ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
+  - field: reassign
+    label: Reassign to user ID
+    type: integer
   customer.batch:
-    - { field: create, label: "Customers to create", type: "object[]" }
-    - { field: update, label: "Customers to update", type: "object[]" }
-    - { field: delete, label: "Customer IDs to delete", type: "integer[]" }
-
+  - field: create
+    label: Customers to create
+    type: object[]
+  - field: update
+    label: Customers to update
+    type: object[]
+  - field: delete
+    label: Customer IDs to delete
+    type: integer[]
   customer.downloads:
-    - { field: customer_id, label: "Customer ID", type: integer, required: true }
-
-  # --- Coupons ---
+  - field: customer_id
+    label: Customer ID
+    type: integer
+    required: true
   coupon.list:
-    - { field: search, label: "Search keyword", type: string }
-    - { field: code, label: "Filter by coupon code", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-    - { field: after, label: "After date (ISO8601)", type: string }
-    - { field: before, label: "Before date (ISO8601)", type: string }
-
+  - field: search
+    label: Search keyword
+    type: string
+  - field: code
+    label: Filter by coupon code
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
+  - field: after
+    label: After date (ISO8601)
+    type: string
+  - field: before
+    label: Before date (ISO8601)
+    type: string
   coupon.get:
-    - { field: coupon_id, label: "Coupon ID", type: integer, required: true }
-
+  - field: coupon_id
+    label: Coupon ID
+    type: integer
+    required: true
   coupon.create:
-    - { field: code, label: "Coupon code", type: string, required: true }
-    - { field: discount_type, label: "Discount type (percent/fixed_cart/fixed_product)", type: string }
-    - { field: amount, label: "Discount amount", type: string, required: true }
-    - { field: description, label: "Description", type: string }
-    - { field: date_expires, label: "Expiry date", type: string }
-    - { field: individual_use, label: "Individual use only", type: boolean }
-    - { field: product_ids, label: "Applicable product IDs", type: "integer[]" }
-    - { field: excluded_product_ids, label: "Excluded product IDs", type: "integer[]" }
-    - { field: usage_limit, label: "Usage limit", type: integer }
-    - { field: usage_limit_per_user, label: "Usage limit per user", type: integer }
-    - { field: limit_usage_to_x_items, label: "Limit to X items", type: integer }
-    - { field: free_shipping, label: "Free shipping", type: boolean }
-    - { field: product_categories, label: "Product category IDs", type: "integer[]" }
-    - { field: excluded_product_categories, label: "Excluded category IDs", type: "integer[]" }
-    - { field: minimum_amount, label: "Minimum order amount", type: string }
-    - { field: maximum_amount, label: "Maximum order amount", type: string }
-    - { field: email_restrictions, label: "Email restrictions", type: "string[]" }
-    - { field: meta_data, label: "Meta data", type: "object[]" }
-
+  - field: code
+    label: Coupon code
+    type: string
+    required: true
+  - field: discount_type
+    label: Discount type (percent/fixed_cart/fixed_product)
+    type: string
+  - field: amount
+    label: Discount amount
+    type: string
+    required: true
+  - field: description
+    label: Description
+    type: string
+  - field: date_expires
+    label: Expiry date
+    type: string
+  - field: individual_use
+    label: Individual use only
+    type: boolean
+  - field: product_ids
+    label: Applicable product IDs
+    type: integer[]
+  - field: excluded_product_ids
+    label: Excluded product IDs
+    type: integer[]
+  - field: usage_limit
+    label: Usage limit
+    type: integer
+  - field: usage_limit_per_user
+    label: Usage limit per user
+    type: integer
+  - field: limit_usage_to_x_items
+    label: Limit to X items
+    type: integer
+  - field: free_shipping
+    label: Free shipping
+    type: boolean
+  - field: product_categories
+    label: Product category IDs
+    type: integer[]
+  - field: excluded_product_categories
+    label: Excluded category IDs
+    type: integer[]
+  - field: minimum_amount
+    label: Minimum order amount
+    type: string
+  - field: maximum_amount
+    label: Maximum order amount
+    type: string
+  - field: email_restrictions
+    label: Email restrictions
+    type: string[]
+  - field: meta_data
+    label: Meta data
+    type: object[]
   coupon.update:
-    - { field: coupon_id, label: "Coupon ID", type: integer, required: true }
-    - { field: code, label: "Coupon code", type: string }
-    - { field: amount, label: "Discount amount", type: string }
-    - { field: description, label: "Description", type: string }
-    - { field: date_expires, label: "Expiry date", type: string }
-    - { field: usage_limit, label: "Usage limit", type: integer }
-
+  - field: coupon_id
+    label: Coupon ID
+    type: integer
+    required: true
+  - field: code
+    label: Coupon code
+    type: string
+  - field: amount
+    label: Discount amount
+    type: string
+  - field: description
+    label: Description
+    type: string
+  - field: date_expires
+    label: Expiry date
+    type: string
+  - field: usage_limit
+    label: Usage limit
+    type: integer
   coupon.delete:
-    - { field: coupon_id, label: "Coupon ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: coupon_id
+    label: Coupon ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   coupon.batch:
-    - { field: create, label: "Coupons to create", type: "object[]" }
-    - { field: update, label: "Coupons to update", type: "object[]" }
-    - { field: delete, label: "Coupon IDs to delete", type: "integer[]" }
-
-  # --- Taxes ---
+  - field: create
+    label: Coupons to create
+    type: object[]
+  - field: update
+    label: Coupons to update
+    type: object[]
+  - field: delete
+    label: Coupon IDs to delete
+    type: integer[]
   tax.rates.list:
-    - { field: class, label: "Filter by tax class", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: class
+    label: Filter by tax class
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   tax.rates.get:
-    - { field: tax_id, label: "Tax rate ID", type: integer, required: true }
-
+  - field: tax_id
+    label: Tax rate ID
+    type: integer
+    required: true
   tax.rates.create:
-    - { field: country, label: "Country code", type: string }
-    - { field: state, label: "State code", type: string }
-    - { field: postcode, label: "Postcode", type: string }
-    - { field: city, label: "City", type: string }
-    - { field: rate, label: "Tax rate", type: string, required: true }
-    - { field: name, label: "Tax name", type: string, required: true }
-    - { field: priority, label: "Priority", type: integer }
-    - { field: compound, label: "Compound tax", type: boolean }
-    - { field: shipping, label: "Apply to shipping", type: boolean }
-    - { field: order, label: "Sort order", type: integer }
-    - { field: class, label: "Tax class", type: string }
-
+  - field: country
+    label: Country code
+    type: string
+  - field: state
+    label: State code
+    type: string
+  - field: postcode
+    label: Postcode
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: rate
+    label: Tax rate
+    type: string
+    required: true
+  - field: name
+    label: Tax name
+    type: string
+    required: true
+  - field: priority
+    label: Priority
+    type: integer
+  - field: compound
+    label: Compound tax
+    type: boolean
+  - field: shipping
+    label: Apply to shipping
+    type: boolean
+  - field: order
+    label: Sort order
+    type: integer
+  - field: class
+    label: Tax class
+    type: string
   tax.rates.update:
-    - { field: tax_id, label: "Tax rate ID", type: integer, required: true }
-    - { field: rate, label: "Tax rate", type: string }
-    - { field: name, label: "Tax name", type: string }
-
+  - field: tax_id
+    label: Tax rate ID
+    type: integer
+    required: true
+  - field: rate
+    label: Tax rate
+    type: string
+  - field: name
+    label: Tax name
+    type: string
   tax.rates.delete:
-    - { field: tax_id, label: "Tax rate ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: tax_id
+    label: Tax rate ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   tax.rates.batch:
-    - { field: create, label: "Tax rates to create", type: "object[]" }
-    - { field: update, label: "Tax rates to update", type: "object[]" }
-    - { field: delete, label: "Tax rate IDs to delete", type: "integer[]" }
-
+  - field: create
+    label: Tax rates to create
+    type: object[]
+  - field: update
+    label: Tax rates to update
+    type: object[]
+  - field: delete
+    label: Tax rate IDs to delete
+    type: integer[]
   tax.classes.list: []
-
   tax.classes.create:
-    - { field: name, label: "Tax class name", type: string, required: true }
-
+  - field: name
+    label: Tax class name
+    type: string
+    required: true
   tax.classes.delete:
-    - { field: slug, label: "Tax class slug", type: string, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
-  # --- Reports ---
+  - field: slug
+    label: Tax class slug
+    type: string
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   report.list: []
-
   report.sales:
-    - { field: date_min, label: "Start date (YYYY-MM-DD)", type: string }
-    - { field: date_max, label: "End date (YYYY-MM-DD)", type: string }
-    - { field: period, label: "Period (week/month/last_month/year)", type: string }
-
+  - field: date_min
+    label: Start date (YYYY-MM-DD)
+    type: string
+  - field: date_max
+    label: End date (YYYY-MM-DD)
+    type: string
+  - field: period
+    label: Period (week/month/last_month/year)
+    type: string
   report.top_sellers:
-    - { field: date_min, label: "Start date (YYYY-MM-DD)", type: string }
-    - { field: date_max, label: "End date (YYYY-MM-DD)", type: string }
-    - { field: period, label: "Period (week/month/last_month/year)", type: string }
-
+  - field: date_min
+    label: Start date (YYYY-MM-DD)
+    type: string
+  - field: date_max
+    label: End date (YYYY-MM-DD)
+    type: string
+  - field: period
+    label: Period (week/month/last_month/year)
+    type: string
   report.coupons_totals: []
   report.customers_totals: []
   report.orders_totals: []
   report.products_totals: []
   report.reviews_totals: []
-
-  # --- Webhooks ---
   webhook.list:
-    - { field: status, label: "Filter by status (active/paused/disabled)", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: per_page, label: "Per page", type: integer }
-
+  - field: status
+    label: Filter by status (active/paused/disabled)
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: per_page
+    label: Per page
+    type: integer
   webhook.get:
-    - { field: webhook_id, label: "Webhook ID", type: integer, required: true }
-
+  - field: webhook_id
+    label: Webhook ID
+    type: integer
+    required: true
   webhook.create:
-    - { field: name, label: "Webhook name", type: string }
-    - { field: topic, label: "Topic (e.g. order.created)", type: string, required: true }
-    - { field: delivery_url, label: "Delivery URL", type: string, required: true }
-    - { field: secret, label: "Secret key", type: string }
-    - { field: status, label: "Status", type: string }
-
+  - field: name
+    label: Webhook name
+    type: string
+  - field: topic
+    label: Topic (e.g. order.created)
+    type: string
+    required: true
+  - field: delivery_url
+    label: Delivery URL
+    type: string
+    required: true
+  - field: secret
+    label: Secret key
+    type: string
+  - field: status
+    label: Status
+    type: string
   webhook.update:
-    - { field: webhook_id, label: "Webhook ID", type: integer, required: true }
-    - { field: name, label: "Webhook name", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: topic, label: "Topic", type: string }
-    - { field: delivery_url, label: "Delivery URL", type: string }
-    - { field: secret, label: "Secret key", type: string }
-
+  - field: webhook_id
+    label: Webhook ID
+    type: integer
+    required: true
+  - field: name
+    label: Webhook name
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: topic
+    label: Topic
+    type: string
+  - field: delivery_url
+    label: Delivery URL
+    type: string
+  - field: secret
+    label: Secret key
+    type: string
   webhook.delete:
-    - { field: webhook_id, label: "Webhook ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: webhook_id
+    label: Webhook ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   webhook.batch:
-    - { field: create, label: "Webhooks to create", type: "object[]" }
-    - { field: update, label: "Webhooks to update", type: "object[]" }
-    - { field: delete, label: "Webhook IDs to delete", type: "integer[]" }
-
-  # --- Settings ---
+  - field: create
+    label: Webhooks to create
+    type: object[]
+  - field: update
+    label: Webhooks to update
+    type: object[]
+  - field: delete
+    label: Webhook IDs to delete
+    type: integer[]
   settings.groups.list: []
-
   settings.options.list:
-    - { field: group_id, label: "Settings group ID", type: string, required: true }
-
+  - field: group_id
+    label: Settings group ID
+    type: string
+    required: true
   settings.option.get:
-    - { field: group_id, label: "Settings group ID", type: string, required: true }
-    - { field: option_id, label: "Option ID", type: string, required: true }
-
+  - field: group_id
+    label: Settings group ID
+    type: string
+    required: true
+  - field: option_id
+    label: Option ID
+    type: string
+    required: true
   settings.option.update:
-    - { field: group_id, label: "Settings group ID", type: string, required: true }
-    - { field: option_id, label: "Option ID", type: string, required: true }
-    - { field: value, label: "New value", type: string, required: true }
-
-  # --- Payment Gateways ---
+  - field: group_id
+    label: Settings group ID
+    type: string
+    required: true
+  - field: option_id
+    label: Option ID
+    type: string
+    required: true
+  - field: value
+    label: New value
+    type: string
+    required: true
   payment_gateway.list: []
-
   payment_gateway.get:
-    - { field: gateway_id, label: "Gateway ID", type: string, required: true }
-
+  - field: gateway_id
+    label: Gateway ID
+    type: string
+    required: true
   payment_gateway.update:
-    - { field: gateway_id, label: "Gateway ID", type: string, required: true }
-    - { field: title, label: "Title", type: string }
-    - { field: description, label: "Description", type: string }
-    - { field: enabled, label: "Enabled", type: boolean }
-    - { field: settings, label: "Settings (object)", type: object }
-
-  # --- Shipping Zones ---
+  - field: gateway_id
+    label: Gateway ID
+    type: string
+    required: true
+  - field: title
+    label: Title
+    type: string
+  - field: description
+    label: Description
+    type: string
+  - field: enabled
+    label: Enabled
+    type: boolean
+  - field: settings
+    label: Settings (object)
+    type: object
   shipping_zone.list: []
-
   shipping_zone.get:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
   shipping_zone.create:
-    - { field: name, label: "Zone name", type: string, required: true }
-    - { field: order, label: "Sort order", type: integer }
-
+  - field: name
+    label: Zone name
+    type: string
+    required: true
+  - field: order
+    label: Sort order
+    type: integer
   shipping_zone.update:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: name, label: "Zone name", type: string }
-    - { field: order, label: "Sort order", type: integer }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: name
+    label: Zone name
+    type: string
+  - field: order
+    label: Sort order
+    type: integer
   shipping_zone.delete:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   shipping_zone.locations.list:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
   shipping_zone.locations.update:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: locations, label: "Locations array", type: "object[]", required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: locations
+    label: Locations array
+    type: object[]
+    required: true
   shipping_zone.methods.list:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
   shipping_zone.methods.get:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: instance_id, label: "Method instance ID", type: integer, required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: instance_id
+    label: Method instance ID
+    type: integer
+    required: true
   shipping_zone.methods.create:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: method_id, label: "Shipping method ID", type: string, required: true }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: method_id
+    label: Shipping method ID
+    type: string
+    required: true
   shipping_zone.methods.update:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: instance_id, label: "Method instance ID", type: integer, required: true }
-    - { field: enabled, label: "Enabled", type: boolean }
-    - { field: settings, label: "Settings (object)", type: object }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: instance_id
+    label: Method instance ID
+    type: integer
+    required: true
+  - field: enabled
+    label: Enabled
+    type: boolean
+  - field: settings
+    label: Settings (object)
+    type: object
   shipping_zone.methods.delete:
-    - { field: zone_id, label: "Zone ID", type: integer, required: true }
-    - { field: instance_id, label: "Method instance ID", type: integer, required: true }
-    - { field: force, label: "Force delete", type: boolean }
-
+  - field: zone_id
+    label: Zone ID
+    type: integer
+    required: true
+  - field: instance_id
+    label: Method instance ID
+    type: integer
+    required: true
+  - field: force
+    label: Force delete
+    type: boolean
   shipping_method.list: []
-
-  # --- System Status ---
   system_status.get: []
-
   system_status.tools.list: []
-
   system_status.tools.get:
-    - { field: tool_id, label: "Tool ID", type: string, required: true }
-
+  - field: tool_id
+    label: Tool ID
+    type: string
+    required: true
   system_status.tools.run:
-    - { field: tool_id, label: "Tool ID", type: string, required: true }
-
-# ── Output fields (responses from actions) ──
-
+  - field: tool_id
+    label: Tool ID
+    type: string
+    required: true
 output_fields:
   order.list:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: total, label: "Total", type: string }
-    - { field: currency, label: "Currency", type: string }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: total
+    label: Total
+    type: string
+  - field: currency
+    label: Currency
+    type: string
   order.get:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: total, label: "Total", type: string }
-    - { field: billing.email, label: "Billing email", type: string }
-
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: total
+    label: Total
+    type: string
+  - field: billing.email
+    label: Billing email
+    type: string
   order.create:
-    - { field: id, label: "Created order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-
+  - field: id
+    label: Created order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
   product.list:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: price, label: "Price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: price
+    label: Price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
   product.get:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-    - { field: price, label: "Price", type: string }
-    - { field: stock_quantity, label: "Stock quantity", type: integer }
-
+  - field: id
+    label: Product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
+  - field: price
+    label: Price
+    type: string
+  - field: stock_quantity
+    label: Stock quantity
+    type: integer
   product.create:
-    - { field: id, label: "Created product ID", type: integer }
-    - { field: name, label: "Product name", type: string }
-    - { field: sku, label: "SKU", type: string }
-
+  - field: id
+    label: Created product ID
+    type: integer
+  - field: name
+    label: Product name
+    type: string
+  - field: sku
+    label: SKU
+    type: string
   customer.list:
-    - { field: id, label: "Customer ID", type: integer }
-    - { field: email, label: "Email", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-
+  - field: id
+    label: Customer ID
+    type: integer
+  - field: email
+    label: Email
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
   customer.get:
-    - { field: id, label: "Customer ID", type: integer }
-    - { field: email, label: "Email", type: string }
-    - { field: first_name, label: "First name", type: string }
-
+  - field: id
+    label: Customer ID
+    type: integer
+  - field: email
+    label: Email
+    type: string
+  - field: first_name
+    label: First name
+    type: string
   coupon.list:
-    - { field: id, label: "Coupon ID", type: integer }
-    - { field: code, label: "Coupon code", type: string }
-    - { field: amount, label: "Amount", type: string }
-
+  - field: id
+    label: Coupon ID
+    type: integer
+  - field: code
+    label: Coupon code
+    type: string
+  - field: amount
+    label: Amount
+    type: string
   stock.sync:
-    - { field: status, label: "Sync status", type: string }
-    - { field: succeeded, label: "Succeeded count", type: integer }
-    - { field: failed, label: "Failed count", type: integer }
-
+  - field: status
+    label: Sync status
+    type: string
+  - field: succeeded
+    label: Succeeded count
+    type: integer
+  - field: failed
+    label: Failed count
+    type: integer
 config_schema:
   required:
-    - store_url
-    - consumer_key
-    - consumer_secret
+  - store_url
+  - consumer_key
+  - consumer_secret
   optional:
-    - api_version
-    - verify_ssl
+  - api_version
+  - verify_ssl
   field_types:
     api_version:
       type: string
-      label: "API Version"
-      default: "wc/v3"
+      label: API Version
+      default: wc/v3
     verify_ssl:
       type: boolean
-      label: "Verify SSL"
+      label: Verify SSL
       default: true
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "3.0.0"
-  check_url: "https://woocommerce.github.io/woocommerce-rest-api-docs/"
+  current_api_version: 3.0.0
+  check_url: https://woocommerce.github.io/woocommerce-rest-api-docs/
   check_type: html
-  version_field: "wc/(v\\d+)"
-  docs_url: "https://woocommerce.github.io/woocommerce-rest-api-docs/"
+  version_field: wc/(v\d+)
+  docs_url: https://woocommerce.github.io/woocommerce-rest-api-docs/
+service_name: connector-woocommerce
+action_routes:
+  order.fetch:
+    method: GET
+    path: /orders
+    query_from_payload:
+    - account_name
+    - since
+    - page
+    - per_page
+  order.get:
+    method: GET
+    path: /orders/{order_id}
+    query_from_payload:
+    - account_name
+  order.status_update:
+    method: PUT
+    path: /orders/{order_id}/status
+    query_from_payload:
+    - account_name
+  order.invoice_upload:
+    method: POST
+    path: /orders/{order_id}/invoice
+    query_from_payload:
+    - account_name
+  stock.sync:
+    method: POST
+    path: /stock/sync
+    query_from_payload:
+    - account_name
+  product.get:
+    method: GET
+    path: /products/{product_id}
+    query_from_payload:
+    - account_name
+  product.search:
+    method: GET
+    path: /products/search
+    query_from_payload:
+    - account_name
+    - query
+    - page
+    - page_size
+  products.sync:
+    method: POST
+    path: /products/sync
+    query_from_payload:
+    - account_name
+credential_validation:
+  required_fields:
+  - store_url
+  - consumer_key
+  - consumer_secret
+  test_request:
+    method: GET
+    url_template: '{store_url}/wp-json/{api_version}/system_status'
+    auth: basic
+    auth_fields:
+    - consumer_key
+    - consumer_secret
+    success_status: 200
+    defaults:
+      api_version: wc/v3

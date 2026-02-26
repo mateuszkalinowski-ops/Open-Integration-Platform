@@ -1,89 +1,144 @@
 name: idosell
 category: ecommerce
 version: 6.0.0
-display_name: "IdoSell"
-description: "IdoSell (formerly IAI-Shop) — Polish e-commerce SaaS platform. Order management, product sync, stock levels, parcel tracking."
-website_url: "https://www.idosell.com"
+display_name: IdoSell
+description: IdoSell (formerly IAI-Shop) — Polish e-commerce SaaS platform. Order management, product sync, stock levels,
+  parcel tracking.
+website_url: https://www.idosell.com
 country: PL
 logo_url: /assets/logos/idosell.svg
 interface: ecommerce
 capabilities:
-  - fetch_orders
-  - get_order
-  - update_order_status
-  - sync_stock
-  - get_product
-  - search_products
-  - sync_products
-  - create_parcel
+- fetch_orders
+- get_order
+- update_order_status
+- sync_stock
+- get_product
+- search_products
+- sync_products
+- create_parcel
 events:
-  - order.created
-  - order.status_changed
-  - product.created
-  - product.updated
+- order.created
+- order.status_changed
+- product.created
+- product.updated
 actions:
-  - order.fetch
-  - order.get
-  - order.status_update
-  - stock.sync
-  - product.get
-  - product.search
-  - product.sync
-  - parcel.create
+- order.fetch
+- order.get
+- order.status_update
+- stock.sync
+- product.get
+- product.search
+- product.sync
+- parcel.create
 config_schema:
   required:
-    - shop_url
+  - shop_url
   optional:
-    - api_key
-    - login
-    - password
-    - auth_mode
-    - api_version
-    - default_stock_id
-    - default_currency
-    - scraping_enabled
-    - scraping_interval_seconds
+  - api_key
+  - login
+  - password
+  - auth_mode
+  - api_version
+  - default_stock_id
+  - default_currency
+  - scraping_enabled
+  - scraping_interval_seconds
   field_types:
     shop_url:
       type: string
-      label: "Adres panelu IdoSell"
-      placeholder: "https://client12345.idosell.com"
+      label: Adres panelu IdoSell
+      placeholder: https://client12345.idosell.com
     api_key:
       type: password
-      label: "Klucz API (Admin Panel) — for api_key mode"
+      label: Klucz API (Admin Panel) — for api_key mode
     login:
       type: string
-      label: "Login — for legacy mode"
+      label: Login — for legacy mode
     password:
       type: password
-      label: "Hasło — for legacy mode"
+      label: Hasło — for legacy mode
     auth_mode:
       type: enum
-      label: "Tryb uwierzytelniania"
-      default: "api_key"
-      values: ["api_key", "legacy"]
+      label: Tryb uwierzytelniania
+      default: api_key
+      values:
+      - api_key
+      - legacy
     api_version:
       type: string
-      label: "Wersja API"
-      default: "v6"
-      description: "v6 (modern + api_key) or v7 (legacy + SHA-1)"
+      label: Wersja API
+      default: v6
+      description: v6 (modern + api_key) or v7 (legacy + SHA-1)
     default_stock_id:
       type: integer
-      label: "Domyślny magazyn (stock_id)"
+      label: Domyślny magazyn (stock_id)
       default: 1
     default_currency:
       type: string
-      label: "Domyślna waluta"
-      default: "PLN"
+      label: Domyślna waluta
+      default: PLN
     scraping_enabled:
       type: boolean
-      label: "Automatyczny polling zamówień"
+      label: Automatyczny polling zamówień
       default: true
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "6.0.0"
-  check_url: "https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/"
+  current_api_version: 6.0.0
+  check_url: https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/
   check_type: html
-  version_field: "v(\\d+\\.\\d+)"
-  docs_url: "https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/"
+  version_field: v(\d+\.\d+)
+  docs_url: https://www.idosell.com/en/apidoc/panel/administration-panel-api-documentation/
+service_name: connector-idosell
+action_routes:
+  order.fetch:
+    method: GET
+    path: /orders
+    query_from_payload:
+    - account_name
+  order.get:
+    method: GET
+    path: /orders/{order_id}
+    query_from_payload:
+    - account_name
+  order.status_update:
+    method: PUT
+    path: /orders/{order_id}/status
+    query_from_payload:
+    - account_name
+  stock.sync:
+    method: POST
+    path: /stock/sync
+    query_from_payload:
+    - account_name
+  product.get:
+    method: GET
+    path: /products/{product_id}
+    query_from_payload:
+    - account_name
+  product.search:
+    method: GET
+    path: /products/search
+    query_from_payload:
+    - account_name
+    - query
+    - page
+    - page_size
+  parcel.create:
+    method: POST
+    path: /parcels
+    query_from_payload:
+    - account_name
+credential_validation:
+  required_fields:
+  - shop_url
+  test_request:
+    method: GET
+    url_template: '{shop_url}/api/admin/{api_version}/system/shops'
+    headers_template:
+      X-API-KEY: '{api_key}'
+      Accept: application/json
+    success_status: 200
+    defaults:
+      api_version: v6

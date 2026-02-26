@@ -2,12 +2,18 @@
 
 Scans the integrators directory for connector.yaml manifests and provides
 a registry of available connectors with their capabilities.
+
+Each connector is fully self-described by its connector.yaml — the platform
+requires zero per-connector code.  Adding a new connector means creating its
+folder with a connector.yaml; no platform files need to change.
 """
 
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
+
+DEFAULT_CONNECTOR_PORT = 8000
 
 
 @dataclass
@@ -29,6 +35,11 @@ class ConnectorManifest:
     event_fields: dict[str, list[dict]] = field(default_factory=dict)
     action_fields: dict[str, list[dict]] = field(default_factory=dict)
     output_fields: dict[str, list[dict]] = field(default_factory=dict)
+    action_routes: dict[str, dict] = field(default_factory=dict)
+    service_name: str = ""
+    credential_provisioning: dict = field(default_factory=dict)
+    credential_validation: dict = field(default_factory=dict)
+    payload_hints: dict = field(default_factory=dict)
     deployment: str = "cloud"
     requires_onpremise_agent: bool = False
     onpremise_agent: dict = field(default_factory=dict)
@@ -39,6 +50,14 @@ class ConnectorManifest:
     @property
     def connector_id(self) -> str:
         return f"{self.category}/{self.name}/{self.version}"
+
+    @property
+    def resolved_service_name(self) -> str:
+        return self.service_name or f"connector-{self.name}"
+
+    @property
+    def base_url(self) -> str:
+        return f"http://{self.resolved_service_name}:{DEFAULT_CONNECTOR_PORT}"
 
 
 class ConnectorRegistry:
@@ -85,6 +104,11 @@ class ConnectorRegistry:
             event_fields=data.get("event_fields", {}),
             action_fields=data.get("action_fields", {}),
             output_fields=data.get("output_fields", {}),
+            action_routes=data.get("action_routes", {}),
+            service_name=data.get("service_name", ""),
+            credential_provisioning=data.get("credential_provisioning", {}),
+            credential_validation=data.get("credential_validation", {}),
+            payload_hints=data.get("payload_hints", {}),
             deployment=data.get("deployment", "cloud"),
             requires_onpremise_agent=data.get("requires_onpremise_agent", False),
             onpremise_agent=data.get("onpremise_agent", {}),

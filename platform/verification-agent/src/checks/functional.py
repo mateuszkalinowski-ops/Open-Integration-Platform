@@ -1,49 +1,53 @@
 """Tier 3 — Functional smoke tests dispatcher.
 
-Routes each connector to its dedicated test module based on connector name,
-interface, or category. Per-connector tests live in category subdirectories:
+Auto-discovers test modules by convention — no hardcoded registries needed.
+When a new connector test file is added to the correct category folder, it
+is automatically picked up.
 
-    checks/courier/       — courier connector tests
-    checks/ecommerce/     — e-commerce connector tests
-    checks/erp/           — ERP connector tests
-    checks/automation/    — automation connector tests
-    checks/other/         — other connectors (skanuj-fakture, email, ftp, etc.)
-
-Each category has a generic.py fallback; connector-specific files override it.
+Resolution order:
+  1. checks/{category}/{connector_name}.py  (connector-specific)
+  2. checks/{category}/generic.py           (category fallback)
+  3. SKIP — no tests available
 """
 
+import importlib
+import logging
 from typing import Any
 
 import httpx
 
 from src.checks.common import result
-from src.checks.courier import dhl_express as courier_dhl_express
-from src.checks.courier import generic as courier_generic
-from src.checks.ecommerce import allegro as ecommerce_allegro
-from src.checks.ecommerce import generic as ecommerce_generic
-from src.checks.ecommerce import woocommerce as ecommerce_woocommerce
-from src.checks.erp import insert_nexo as erp_insert_nexo
-from src.checks.other import account_based as other_account_based
-from src.checks.other import skanuj_fakture as other_skanuj_fakture
 from src.discovery import VerificationTarget
 
-_CONNECTOR_REGISTRY: dict[str, Any] = {
-    "skanuj-fakture": other_skanuj_fakture,
-    "dhl-express": courier_dhl_express,
-    "allegro": ecommerce_allegro,
-    "woocommerce": ecommerce_woocommerce,
-    "insert-nexo": erp_insert_nexo,
-}
+logger = logging.getLogger(__name__)
 
-_INTERFACE_REGISTRY: dict[str, Any] = {
-    "email": other_account_based,
-    "ftp-sftp": other_account_based,
-}
 
-_CATEGORY_REGISTRY: dict[str, Any] = {
-    "courier": courier_generic,
-    "ecommerce": ecommerce_generic,
-}
+def _resolve_test_module(name: str, interface: str, category: str) -> Any | None:
+    """Dynamically resolve the test module for a connector.
+
+    Tries connector-specific module first, then interface-based, then
+    category generic fallback.
+    """
+    normalized_name = name.replace("-", "_")
+    normalized_interface = interface.replace("-", "_")
+    normalized_category = category.replace("-", "_")
+
+    candidates = [
+        f"src.checks.{normalized_category}.{normalized_name}",
+        f"src.checks.{normalized_category}.{normalized_interface}",
+        f"src.checks.{normalized_category}.generic",
+    ]
+
+    if interface != category:
+        candidates.insert(1, f"src.checks.other.{normalized_interface}")
+
+    for module_name in candidates:
+        try:
+            return importlib.import_module(module_name)
+        except ImportError:
+            continue
+
+    return None
 
 
 async def run_tier3(
@@ -59,11 +63,7 @@ async def run_tier3(
     interface = target.manifest.interface
     category = target.manifest.category
 
-    module = (
-        _CONNECTOR_REGISTRY.get(name)
-        or _INTERFACE_REGISTRY.get(interface)
-        or _CATEGORY_REGISTRY.get(category)
-    )
+    module = _resolve_test_module(name, interface, category)
 
     if module:
         return await module.run(client, target)

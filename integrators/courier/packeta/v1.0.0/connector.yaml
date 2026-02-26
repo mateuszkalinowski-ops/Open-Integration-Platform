@@ -1,39 +1,56 @@
 name: packeta
 category: courier
 version: 6.3.0
-display_name: "Packeta (Zasilkovna)"
-description: "Packeta/Zasilkovna pickup point network — affordable parcel delivery in Central and Eastern Europe."
-website_url: "https://www.packeta.com"
+display_name: Packeta (Zasilkovna)
+description: Packeta/Zasilkovna pickup point network — affordable parcel delivery in Central and Eastern Europe.
+website_url: https://www.packeta.com
 country: CZ
 logo_url: /assets/logos/packeta.png
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
+- create_shipment
+- get_label
+- get_shipment_status
+- cancel_shipment
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
+- shipment.create
+- label.get
+- shipment.cancel
 config_schema:
   required:
-    - api_password
+  - api_password
   optional:
-    - eshop
-    - sandbox_mode
+  - eshop
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "6.3.0"
-  check_url: "https://docs.packetery.com/"
+  current_api_version: 6.3.0
+  check_url: https://docs.packetery.com/
   check_type: html
-  version_field: "v(\\d+\\.\\d+)"
-  docs_url: "https://docs.packetery.com/"
+  version_field: v(\d+\.\d+)
+  docs_url: https://docs.packetery.com/
+service_name: connector-packeta
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: POST
+    path: /shipments/status
+  shipment.cancel:
+    method: POST
+    path: /shipments/delete
+  label.get:
+    method: POST
+    path: /labels
+credential_validation:
+  required_fields:
+  - api_password

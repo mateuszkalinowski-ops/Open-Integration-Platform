@@ -1,39 +1,54 @@
 name: fedexpl
 category: courier
 version: 1.0.0
-display_name: "FedEx Poland"
-description: "Domestic FedEx courier shipments in Poland. Shipping, tracking, labels."
-website_url: "https://www.fedex.com/pl-pl"
+display_name: FedEx Poland
+description: Domestic FedEx courier shipments in Poland. Shipping, tracking, labels.
+website_url: https://www.fedex.com/pl-pl
 country: PL
 logo_url: /assets/logos/fedexpl.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
+- create_shipment
+- get_label
+- get_shipment_status
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
+- shipment.create
+- label.get
 config_schema:
   required:
-    - api_key
-    - client_id
+  - api_key
+  - client_id
   optional:
-    - courier_number
-    - account_number
-    - sandbox_mode
+  - courier_number
+  - account_number
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0.0"
-  check_url: "https://developer.fedex.com/api/en-pl/catalog.html"
+  current_api_version: 1.0.0
+  check_url: https://developer.fedex.com/api/en-pl/catalog.html
   check_type: html
-  version_field: "v(\\d+\\.\\d+\\.\\d+)"
-  docs_url: "https://developer.fedex.com/api/en-pl/home.html"
+  version_field: v(\d+\.\d+\.\d+)
+  docs_url: https://developer.fedex.com/api/en-pl/home.html
+service_name: connector-fedexpl
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill_number}/status
+  label.get:
+    method: POST
+    path: /labels
+credential_validation:
+  required_fields:
+  - api_key
+  - client_id

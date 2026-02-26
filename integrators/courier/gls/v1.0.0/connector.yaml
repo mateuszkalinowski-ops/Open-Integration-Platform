@@ -1,39 +1,57 @@
 name: gls
 category: courier
 version: 1.0.0
-display_name: "GLS"
-description: "European courier network GLS — domestic and international parcels, ParcelShop pickup points."
-website_url: "https://gls-group.com/PL"
+display_name: GLS
+description: European courier network GLS — domestic and international parcels, ParcelShop pickup points.
+website_url: https://gls-group.com/PL
 country: NL
 logo_url: /assets/logos/gls.svg
 interface: courier
 capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - get_rates
+- create_shipment
+- get_label
+- get_shipment_status
+- get_rates
 events:
-  - shipment.status_changed
+- shipment.status_changed
 actions:
-  - shipment.create
-  - label.get
-  - rates.get
+- shipment.create
+- label.get
+- rates.get
 config_schema:
   required:
-    - username
-    - password
+  - username
+  - password
   optional:
-    - sandbox_mode
+  - sandbox_mode
   field_types:
     sandbox_mode:
       type: boolean
-      label: "Tryb sandbox"
+      label: Tryb sandbox
       default: false
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0.0"
-  check_url: "https://api.gls-group.eu/public/index.html"
+  current_api_version: 1.0.0
+  check_url: https://api.gls-group.eu/public/index.html
   check_type: html
-  version_field: "version[:\\s]+(\\d+\\.\\d+)"
-  docs_url: "https://api.gls-group.eu/public/index.html"
+  version_field: version[:\s]+(\d+\.\d+)
+  docs_url: https://api.gls-group.eu/public/index.html
+service_name: connector-gls
+action_routes:
+  shipment.create:
+    method: POST
+    path: /shipments
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill_number}/status
+  label.get:
+    method: POST
+    path: /labels
+  rates.get:
+    method: POST
+    path: /rates
+credential_validation:
+  required_fields:
+  - username
+  - password

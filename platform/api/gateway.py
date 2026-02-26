@@ -1,12 +1,10 @@
 """API Gateway -- main FastAPI application for Open Integration Platform by Pinquark.com."""
 
-import base64
-import hashlib
 import io
 import time
 import zipfile
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
+from datetime import datetime
 from pathlib import Path
 from typing import Any
 
@@ -46,7 +44,8 @@ from api.schemas import (
     WorkflowUpdate,
 )
 from config import settings
-from core.action_dispatcher import dispatch_action, _ensure_email_account, _ensure_ftp_sftp_account, _resolve_service_url
+from api.credential_validator import validate_credentials as generic_validate_credentials
+from core.action_dispatcher import dispatch_action, _ensure_account_generic, _resolve_service_url
 from core.pii_redactor import redact_execution_detail
 from core.connector_registry import ConnectorRegistry
 from core.credential_vault import CredentialVault
@@ -104,6 +103,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             payload=payload,
             tenant_id=tenant_id,
             credentials=credentials,
+            registry=registry,
         )
 
     workflow_engine.set_action_executor(_execute_connector_action)
@@ -111,60 +111,88 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     import asyncio
 
-    async def _provision_trigger_email_accounts() -> None:
-        """Register email accounts on the connector for active workflow/flow triggers."""
+    async def _provision_trigger_accounts() -> None:
+        """Provision accounts on connectors that use account-based credential
+        provisioning and have active workflow/flow triggers."""
         await asyncio.sleep(5)
+
+        account_connectors: set[str] = set()
+        for manifest in registry.get_all():
+            prov = manifest.credential_provisioning
+            if prov and prov.get("mode") == "account":
+                account_connectors.add(manifest.name)
+
+        if not account_connectors:
+            return
+
         try:
             async with async_session_factory() as db_session:
-                wf_result = await db_session.execute(
-                    select(Workflow).where(
-                        Workflow.trigger_connector == "email-client",
-                        Workflow.is_enabled.is_(True),
-                    )
-                )
-                workflows = wf_result.scalars().all()
-
-                fl_result = await db_session.execute(
-                    select(Flow).where(
-                        Flow.source_connector == "email-client",
-                        Flow.is_enabled.is_(True),
-                    )
-                )
-                flows = fl_result.scalars().all()
-
-                credential_pairs: set[tuple[Any, str]] = set()
-                for wf in workflows:
-                    for node in (wf.nodes or []):
-                        if node.get("type") == "trigger" and node.get("config", {}).get("connector_name") == "email-client":
-                            cred_name = node["config"].get("credential_name", "default")
-                            credential_pairs.add((wf.tenant_id, cred_name))
-                for fl in flows:
-                    credential_pairs.add((fl.tenant_id, "default"))
-
-                base_url = _resolve_service_url("email-client")
-                for tenant_id, cred_name in credential_pairs:
-                    try:
-                        creds = await vault.retrieve_all(db_session, tenant_id, "email-client", credential_name=cred_name)
-                        if creds:
-                            if "account_name" not in creds:
-                                creds["account_name"] = cred_name
-                            account_name = await _ensure_email_account(base_url, creds)
-                            await logger.ainfo(
-                                "trigger_email_account_provisioned",
-                                tenant_id=str(tenant_id),
-                                credential=cred_name,
-                                account=account_name,
-                            )
-                    except Exception:
-                        await logger.aexception(
-                            "trigger_email_account_provision_failed",
-                            tenant_id=str(tenant_id),
-                            credential=cred_name,
+                for connector_name in account_connectors:
+                    wf_result = await db_session.execute(
+                        select(Workflow).where(
+                            Workflow.trigger_connector == connector_name,
+                            Workflow.is_enabled.is_(True),
                         )
-        except Exception:
-            await logger.aexception("trigger_email_provision_scan_failed")
+                    )
+                    workflows = wf_result.scalars().all()
 
-    asyncio.create_task(_provision_trigger_email_accounts())
+                    fl_result = await db_session.execute(
+                        select(Flow).where(
+                            Flow.source_connector == connector_name,
+                            Flow.is_enabled.is_(True),
+                        )
+                    )
+                    flows = fl_result.scalars().all()
+
+                    credential_pairs: set[tuple[Any, str]] = set()
+                    for wf in workflows:
+                        for node in (wf.nodes or []):
+                            if (
+                                node.get("type") == "trigger"
+                                and node.get("config", {}).get("connector_name") == connector_name
+                            ):
+                                cred_name = node["config"].get("credential_name", "default")
+                                credential_pairs.add((wf.tenant_id, cred_name))
+                    for fl in flows:
+                        credential_pairs.add((fl.tenant_id, "default"))
+
+                    if not credential_pairs:
+                        continue
+
+                    manifests = registry.get_by_name(connector_name)
+                    manifest = manifests[0] if manifests else None
+                    base_url = manifest.base_url if manifest else _resolve_service_url(connector_name, registry)
+                    provisioning = manifest.credential_provisioning if manifest else {}
+
+                    for tid, cred_name in credential_pairs:
+                        try:
+                            creds = await vault.retrieve_all(
+                                db_session, tid, connector_name, credential_name=cred_name
+                            )
+                            if creds:
+                                if "account_name" not in creds:
+                                    creds["account_name"] = cred_name
+                                account_name = await _ensure_account_generic(
+                                    base_url, creds, provisioning
+                                )
+                                await logger.ainfo(
+                                    "trigger_account_provisioned",
+                                    connector=connector_name,
+                                    tenant_id=str(tid),
+                                    credential=cred_name,
+                                    account=account_name,
+                                )
+                        except Exception:
+                            await logger.aexception(
+                                "trigger_account_provision_failed",
+                                connector=connector_name,
+                                tenant_id=str(tid),
+                                credential=cred_name,
+                            )
+        except Exception:
+            await logger.aexception("trigger_provision_scan_failed")
+
+    asyncio.create_task(_provision_trigger_accounts())
 
     yield
 
@@ -247,10 +275,9 @@ async def list_connectors(
 @app.get("/api/v1/connectors/{name}/openapi", tags=["connectors"])
 async def get_connector_openapi(name: str):
     """Proxy to connector's /openapi.json endpoint for Swagger UI embedding."""
-    from core.action_dispatcher import _CONNECTOR_SERVICE_NAMES, DEFAULT_CONNECTOR_PORT
-
-    service = _CONNECTOR_SERVICE_NAMES.get(name, f"connector-{name}")
-    url = f"http://{service}:{DEFAULT_CONNECTOR_PORT}/openapi.json"
+    manifests = registry.get_by_name(name)
+    base_url = manifests[0].base_url if manifests else _resolve_service_url(name, registry)
+    url = f"{base_url}/openapi.json"
 
     async with httpx.AsyncClient(timeout=10.0) as client:
         try:
@@ -625,729 +652,6 @@ async def delete_credentials(
     }
 
 
-def _normalize_wms_url(raw: str) -> str:
-    url = raw.rstrip("/")
-    for suffix in ("/auth/sign-in", "/auth/refresh-token", "/auth"):
-        if url.endswith(suffix):
-            url = url[: -len(suffix)]
-            break
-    return url
-
-
-async def _validate_wms_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate WMS credentials by attempting JWT login."""
-    api_url = _normalize_wms_url(creds.get("api_url", ""))
-    username = creds.get("username", "")
-    password = creds.get("password", "")
-
-    if not api_url or not username or not password:
-        return {
-            "status": "failed",
-            "message": "Missing required credentials: api_url, username, password",
-        }
-
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=15, write=10, pool=10)) as client:
-            resp = await client.post(
-                f"{api_url}/auth/sign-in",
-                json={"username": username, "password": password},
-            )
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-
-        if resp.status_code == 200:
-            data = resp.json()
-            if data.get("accessToken"):
-                return {"status": "success", "message": "Authentication successful", "response_time_ms": elapsed_ms}
-        if resp.status_code == 401:
-            return {"status": "failed", "message": "Invalid username or password", "response_time_ms": elapsed_ms}
-        return {
-            "status": "failed",
-            "message": f"Unexpected response (HTTP {resp.status_code})",
-            "response_time_ms": elapsed_ms,
-        }
-    except httpx.ConnectError:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": f"Cannot connect to {api_url}", "response_time_ms": elapsed_ms}
-    except httpx.TimeoutException:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": "Connection timed out", "response_time_ms": elapsed_ms}
-    except Exception as exc:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
-
-
-async def _validate_email_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate email credentials by testing IMAP and SMTP connectivity."""
-    import imaplib
-    import smtplib
-    import asyncio
-    from functools import partial
-
-    imap_host = creds.get("imap_host", "")
-    smtp_host = creds.get("smtp_host", "")
-    email_address = creds.get("email_address", "")
-    username = creds.get("username", "")
-    login = username or email_address
-    password = creds.get("password", "")
-    imap_port = int(creds.get("imap_port", "993"))
-    smtp_port = int(creds.get("smtp_port", "587"))
-    use_ssl = creds.get("use_ssl", "true").lower() in ("true", "1", "yes")
-
-    if not imap_host or not smtp_host or not email_address or not password:
-        return {
-            "status": "failed",
-            "message": "Missing required credentials: imap_host, smtp_host, email_address, password",
-        }
-
-    loop = asyncio.get_event_loop()
-    results: dict[str, Any] = {}
-    start = time.monotonic()
-
-    # --- IMAP ---
-    try:
-        def _test_imap() -> str:
-            if use_ssl:
-                conn = imaplib.IMAP4_SSL(imap_host, imap_port, timeout=10)
-            else:
-                conn = imaplib.IMAP4(imap_host, imap_port, timeout=10)
-            conn.login(login, password)
-            conn.logout()
-            return "ok"
-
-        await loop.run_in_executor(None, _test_imap)
-        results["imap"] = "ok"
-    except imaplib.IMAP4.error as exc:
-        results["imap"] = f"auth_failed: {exc}"
-    except OSError as exc:
-        results["imap"] = f"connection_failed: {exc}"
-    except Exception as exc:
-        results["imap"] = f"error: {exc}"
-
-    # --- SMTP ---
-    try:
-        def _test_smtp() -> str:
-            if use_ssl and smtp_port == 465:
-                server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
-            else:
-                server = smtplib.SMTP(smtp_host, smtp_port, timeout=10)
-                server.ehlo()
-                if use_ssl:
-                    server.starttls()
-                    server.ehlo()
-            server.login(login, password)
-            server.quit()
-            return "ok"
-
-        await loop.run_in_executor(None, _test_smtp)
-        results["smtp"] = "ok"
-    except smtplib.SMTPAuthenticationError as exc:
-        results["smtp"] = f"auth_failed: {exc}"
-    except OSError as exc:
-        results["smtp"] = f"connection_failed: {exc}"
-    except Exception as exc:
-        results["smtp"] = f"error: {exc}"
-
-    elapsed_ms = int((time.monotonic() - start) * 1000)
-
-    if results["imap"] == "ok" and results["smtp"] == "ok":
-        return {
-            "status": "success",
-            "message": "IMAP and SMTP connection successful",
-            "response_time_ms": elapsed_ms,
-            "details": results,
-        }
-
-    return {
-        "status": "failed",
-        "message": "Connection test failed",
-        "response_time_ms": elapsed_ms,
-        "details": results,
-    }
-
-
-async def _validate_ai_agent_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate AI Agent credentials by testing Gemini API key with a minimal request."""
-    api_key = creds.get("gemini_api_key", "")
-    model_name = creds.get("model_name", "gemini-2.5-flash")
-
-    if not api_key:
-        return {
-            "status": "failed",
-            "message": "Missing required credential: gemini_api_key",
-        }
-
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=15, write=10, pool=10)) as client:
-            resp = await client.post(
-                f"https://generativelanguage.googleapis.com/v1beta/models/{model_name}:generateContent",
-                params={"key": api_key},
-                json={"contents": [{"parts": [{"text": "Say OK"}]}]},
-            )
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-
-        if resp.status_code == 200:
-            return {
-                "status": "success",
-                "message": f"Gemini API key valid (model: {model_name})",
-                "response_time_ms": elapsed_ms,
-            }
-        if resp.status_code in (401, 403):
-            return {
-                "status": "failed",
-                "message": "Invalid or unauthorized Gemini API key",
-                "response_time_ms": elapsed_ms,
-            }
-        body = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else {}
-        error_msg = body.get("error", {}).get("message", f"HTTP {resp.status_code}")
-        return {
-            "status": "failed",
-            "message": f"Gemini API error: {error_msg}",
-            "response_time_ms": elapsed_ms,
-        }
-    except httpx.ConnectError:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": "Cannot connect to Gemini API", "response_time_ms": elapsed_ms}
-    except httpx.TimeoutException:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": "Gemini API connection timed out", "response_time_ms": elapsed_ms}
-    except Exception as exc:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
-
-
-async def _validate_invoice_ocr_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    login = creds.get("login", "")
-    password = creds.get("password", "")
-    api_url = creds.get("api_url", "https://skanujfakture.pl:8443/SFApi").rstrip("/")
-
-    if not login or not password:
-        return {
-            "status": "failed",
-            "message": "Missing required credentials: login and password",
-        }
-
-    credentials_b64 = base64.b64encode(f"{login}:{password}".encode()).decode()
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10, read=15, write=10, pool=10),
-            verify=True,
-        ) as client:
-            resp = await client.get(
-                f"{api_url}/users/currentUser/companies",
-                headers={"Authorization": f"Basic {credentials_b64}"},
-            )
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-
-        if resp.status_code == 200:
-            companies = resp.json() if resp.headers.get("content-type", "").startswith("application/json") else []
-            count = len(companies) if isinstance(companies, list) else 0
-            return {
-                "status": "success",
-                "message": f"SkanujFakture login OK — {count} company(ies) accessible",
-                "response_time_ms": elapsed_ms,
-            }
-        if resp.status_code in (401, 403):
-            return {
-                "status": "failed",
-                "message": "Invalid login or password for SkanujFakture",
-                "response_time_ms": elapsed_ms,
-            }
-        return {
-            "status": "failed",
-            "message": f"SkanujFakture API error: HTTP {resp.status_code}",
-            "response_time_ms": elapsed_ms,
-        }
-    except httpx.ConnectError:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": f"Cannot connect to SkanujFakture API at {api_url}", "response_time_ms": elapsed_ms}
-    except httpx.TimeoutException:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": "SkanujFakture API connection timed out", "response_time_ms": elapsed_ms}
-    except Exception as exc:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
-
-
-
-# ---------------------------------------------------------------------------
-# Credential validation helpers
-# ---------------------------------------------------------------------------
-
-
-async def _http_credential_check(
-    method: str,
-    url: str,
-    *,
-    headers: dict[str, str] | None = None,
-    data: dict[str, str] | None = None,
-    json_body: dict | None = None,
-    auth: tuple[str, str] | None = None,
-    params: dict[str, str] | None = None,
-    service_name: str = "API",
-    success_msg: str = "",
-) -> dict[str, Any]:
-    """Execute an HTTP request to validate credentials.
-
-    Treats 401/403 as credential failure, 5xx as server error,
-    and any other response (2xx, 3xx, 4xx) as credential success
-    (the service accepted auth even if the specific request had issues).
-    """
-    if not success_msg:
-        success_msg = f"{service_name} authentication successful"
-    start = time.monotonic()
-    try:
-        async with httpx.AsyncClient(
-            timeout=httpx.Timeout(connect=10, read=15, write=10, pool=10),
-        ) as client:
-            resp = await client.request(
-                method, url, headers=headers, data=data, json=json_body,
-                auth=auth, params=params,
-            )
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        if resp.status_code in (401, 403):
-            return {"status": "failed", "message": f"Invalid {service_name} credentials", "response_time_ms": elapsed_ms}
-        if resp.status_code >= 500:
-            return {"status": "failed", "message": f"{service_name} API error: HTTP {resp.status_code}", "response_time_ms": elapsed_ms}
-        return {"status": "success", "message": success_msg, "response_time_ms": elapsed_ms}
-    except httpx.ConnectError:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": f"Cannot connect to {service_name} API", "response_time_ms": elapsed_ms}
-    except httpx.TimeoutException:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": f"{service_name} API connection timed out", "response_time_ms": elapsed_ms}
-    except Exception as exc:
-        elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
-
-
-def _missing_fields(creds: dict[str, str], fields: list[str], service_name: str) -> dict[str, Any] | None:
-    """Return a failure dict if any required field is missing/empty, else None."""
-    missing = [f for f in fields if not creds.get(f)]
-    if missing:
-        return {"status": "failed", "message": f"Missing required {service_name} credentials: {', '.join(missing)}"}
-    return None
-
-
-# ---------------------------------------------------------------------------
-# Courier credential sub-validators
-# ---------------------------------------------------------------------------
-
-
-async def _validate_courier_inpost(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["organization_id", "access_token"], "InPost")
-    if fail:
-        return fail
-    sandbox = creds.get("sandbox_mode", "false").lower() in ("true", "1", "yes")
-    base = "https://sandbox-api-shipx-pl.easypack24.net" if sandbox else "https://api-shipx-pl.easypack24.net"
-    org_id = creds["organization_id"]
-    return await _http_credential_check(
-        "GET", f"{base}/v1/organizations/{org_id}/shipments",
-        headers={"Authorization": f"Bearer {creds['access_token']}"},
-        params={"per_page": "1"},
-        service_name="InPost",
-        success_msg=f"InPost credentials valid (org: {org_id})",
-    )
-
-
-async def _validate_courier_fedex(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["client_id", "client_secret"], "FedEx")
-    if fail:
-        return fail
-    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
-    base = "https://apis-sandbox.fedex.com" if sandbox else "https://apis.fedex.com"
-    return await _http_credential_check(
-        "POST", f"{base}/oauth/token",
-        headers={"content-type": "application/x-www-form-urlencoded"},
-        data={
-            "grant_type": "client_credentials",
-            "client_id": creds["client_id"],
-            "client_secret": creds["client_secret"],
-        },
-        service_name="FedEx",
-        success_msg="FedEx OAuth2 authentication successful",
-    )
-
-
-async def _validate_courier_ups(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["client_id", "client_secret", "account_number"], "UPS")
-    if fail:
-        return fail
-    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
-    base = "https://wwwcie.ups.com" if sandbox else "https://onlinetools.ups.com"
-    return await _http_credential_check(
-        "POST", f"{base}/security/v1/oauth/token",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        data={"grant_type": "client_credentials"},
-        auth=(creds["client_id"], creds["client_secret"]),
-        service_name="UPS",
-        success_msg="UPS OAuth2 authentication successful",
-    )
-
-
-async def _validate_courier_dhl_express(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["api_key", "api_secret"], "DHL Express")
-    if fail:
-        return fail
-    sandbox = creds.get("sandbox_mode", "true").lower() in ("true", "1", "yes")
-    base = "https://express.api.dhl.com/mydhlapi/test" if sandbox else "https://express.api.dhl.com/mydhlapi"
-    auth_val = base64.b64encode(f"{creds['api_key']}:{creds['api_secret']}".encode()).decode()
-    return await _http_credential_check(
-        "GET", f"{base}/shipments",
-        headers={"Authorization": f"Basic {auth_val}", "Accept": "application/json"},
-        service_name="DHL Express",
-        success_msg="DHL Express credentials valid",
-    )
-
-
-async def _validate_courier_raben(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["username", "password"], "Raben")
-    if fail:
-        return fail
-    sandbox = creds.get("sandbox_mode", "false").lower() in ("true", "1", "yes")
-    base = "https://sandbox.myraben.com/api/v1" if sandbox else "https://myraben.com/api/v1"
-    return await _http_credential_check(
-        "POST", f"{base}/auth/login",
-        headers={"Content-Type": "application/json"},
-        json_body={"username": creds["username"], "password": creds["password"]},
-        service_name="Raben",
-        success_msg="Raben JWT login successful",
-    )
-
-
-async def _validate_courier_paxy(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["api_key", "api_token"], "Paxy")
-    if fail:
-        return fail
-    return await _http_credential_check(
-        "POST", "https://api.paxy.pl/v1/trackings",
-        headers={
-            "CL-API-KEY": creds["api_key"],
-            "CL-API-TOKEN": creds["api_token"],
-            "Content-Type": "application/json",
-        },
-        json_body={"trackingNrs": []},
-        service_name="Paxy",
-        success_msg="Paxy API credentials valid",
-    )
-
-
-async def _validate_courier_sellasist(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["login", "api_key"], "SellAsist")
-    if fail:
-        return fail
-    base_url = f"https://{creds['login']}.sellasist.pl/api/v1"
-    return await _http_credential_check(
-        "GET", f"{base_url}/ordersshipments",
-        headers={"apiKey": creds["api_key"], "accept": "application/json"},
-        service_name="SellAsist",
-        success_msg="SellAsist API credentials valid",
-    )
-
-
-def _validate_courier_soap_fields(creds: dict[str, str], required: list[str], name: str) -> dict[str, Any]:
-    """Validate credentials for SOAP-based couriers (field presence check)."""
-    fail = _missing_fields(creds, required, name)
-    if fail:
-        return fail
-    return {
-        "status": "success",
-        "message": f"{name} credentials present (SOAP service — full validation on first use)",
-    }
-
-
-_COURIER_SUB_VALIDATORS: dict[str, Any] = {
-    "inpost": _validate_courier_inpost,
-    "fedex": _validate_courier_fedex,
-    "ups": _validate_courier_ups,
-    "dhl-express": _validate_courier_dhl_express,
-    "raben": _validate_courier_raben,
-    "paxy": _validate_courier_paxy,
-    "sellasist": _validate_courier_sellasist,
-}
-
-_COURIER_SOAP_REQUIRED: dict[str, tuple[str, list[str]]] = {
-    "dhl": ("DHL Parcel Poland", ["username", "password"]),
-    "dpd": ("DPD Poland", ["login", "password", "master_fid"]),
-    "gls": ("GLS", ["username", "password"]),
-    "geis": ("Geis", ["customer_code", "password"]),
-    "packeta": ("Packeta", ["api_password"]),
-    "orlenpaczka": ("Orlen Paczka", ["partner_id", "partner_key"]),
-    "pocztapolska": ("Poczta Polska", ["username", "password"]),
-    "schenker": ("DB Schenker", ["username", "password"]),
-    "suus": ("SUUS", ["username", "password"]),
-    "fedexpl": ("FedEx Poland", ["api_key", "client_id"]),
-}
-
-
-async def _validate_courier_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate courier credentials — dispatches to connector-specific validators."""
-    sub = _COURIER_SUB_VALIDATORS.get(connector_name)
-    if sub:
-        return await sub(creds)
-    soap_info = _COURIER_SOAP_REQUIRED.get(connector_name)
-    if soap_info:
-        display_name, required_fields = soap_info
-        return _validate_courier_soap_fields(creds, required_fields, display_name)
-    connectors = registry.get_by_name(connector_name)
-    if connectors:
-        manifest = connectors[0]
-        required = manifest.config_schema.get("required", [])
-        if required:
-            fail = _missing_fields(creds, required, manifest.display_name)
-            if fail:
-                return fail
-            return {"status": "success", "message": f"{manifest.display_name} credentials present"}
-    return {"status": "failed", "message": f"Unknown courier connector: {connector_name}"}
-
-
-# ---------------------------------------------------------------------------
-# E-commerce credential sub-validators
-# ---------------------------------------------------------------------------
-
-
-async def _validate_ecommerce_allegro(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["client_id", "client_secret"], "Allegro")
-    if fail:
-        return fail
-    auth_url = creds.get("auth_url", "https://allegro.pl/auth/oauth").rstrip("/")
-    auth_val = base64.b64encode(f"{creds['client_id']}:{creds['client_secret']}".encode()).decode()
-    return await _http_credential_check(
-        "POST", f"{auth_url}/token",
-        headers={
-            "Authorization": f"Basic {auth_val}",
-            "Content-Type": "application/x-www-form-urlencoded",
-        },
-        data={"grant_type": "client_credentials"},
-        service_name="Allegro",
-        success_msg="Allegro OAuth2 client credentials valid",
-    )
-
-
-async def _validate_ecommerce_baselinker(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["api_token"], "BaseLinker")
-    if fail:
-        return fail
-    return await _http_credential_check(
-        "POST", "https://api.baselinker.com/connector.php",
-        headers={"X-BLToken": creds["api_token"]},
-        data={"method": "getOrderStatusList", "parameters": "{}"},
-        service_name="BaseLinker",
-        success_msg="BaseLinker API token valid",
-    )
-
-
-async def _validate_ecommerce_shoper(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["shop_url", "login", "password"], "Shoper")
-    if fail:
-        return fail
-    shop_url = creds["shop_url"].rstrip("/")
-    auth_val = base64.b64encode(f"{creds['login']}:{creds['password']}".encode()).decode()
-    return await _http_credential_check(
-        "POST", f"{shop_url}/webapi/rest/auth",
-        headers={"Authorization": f"Basic {auth_val}"},
-        service_name="Shoper",
-        success_msg="Shoper authentication successful",
-    )
-
-
-async def _validate_ecommerce_woocommerce(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["store_url", "consumer_key", "consumer_secret"], "WooCommerce")
-    if fail:
-        return fail
-    store_url = creds["store_url"].rstrip("/")
-    api_version = creds.get("api_version", "wc/v3")
-    return await _http_credential_check(
-        "GET", f"{store_url}/wp-json/{api_version}/system_status",
-        auth=(creds["consumer_key"], creds["consumer_secret"]),
-        service_name="WooCommerce",
-        success_msg="WooCommerce API credentials valid",
-    )
-
-
-async def _validate_ecommerce_idosell(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["shop_url"], "IdoSell")
-    if fail:
-        return fail
-    shop_url = creds["shop_url"].rstrip("/")
-    api_version = creds.get("api_version", "v6")
-    auth_mode = creds.get("auth_mode", "api_key")
-
-    if auth_mode == "api_key":
-        api_key = creds.get("api_key", "")
-        if not api_key:
-            return {"status": "failed", "message": "Missing required IdoSell credentials: api_key"}
-        return await _http_credential_check(
-            "GET", f"{shop_url}/api/admin/{api_version}/system/shops",
-            headers={"X-API-KEY": api_key, "Accept": "application/json"},
-            service_name="IdoSell",
-            success_msg="IdoSell API key valid",
-        )
-
-    login = creds.get("login", "")
-    password = creds.get("password", "")
-    if not login or not password:
-        return {"status": "failed", "message": "Missing required IdoSell credentials: login, password"}
-    date_str = datetime.now(timezone.utc).strftime("%Y%m%d")
-    hashed_pw = hashlib.sha1(password.encode()).hexdigest()  # noqa: S324
-    auth_key = hashlib.sha1(f"{date_str}{hashed_pw}".encode()).hexdigest()  # noqa: S324
-    return await _http_credential_check(
-        "POST", f"{shop_url}/admin/{api_version}/system/shops",
-        headers={"Content-Type": "application/json"},
-        json_body={"authenticate": {"userLogin": login, "authenticateKey": auth_key}},
-        service_name="IdoSell",
-        success_msg="IdoSell legacy credentials valid",
-    )
-
-
-async def _validate_ecommerce_shopify(creds: dict[str, str]) -> dict[str, Any]:
-    fail = _missing_fields(creds, ["shop_url", "access_token"], "Shopify")
-    if fail:
-        return fail
-    shop_url = creds["shop_url"].rstrip("/")
-    if not shop_url.startswith("http"):
-        shop_url = f"https://{shop_url}"
-    api_version = creds.get("api_version", "2024-07")
-    return await _http_credential_check(
-        "GET", f"{shop_url}/admin/api/{api_version}/shop.json",
-        headers={"X-Shopify-Access-Token": creds["access_token"]},
-        service_name="Shopify",
-        success_msg="Shopify access token valid",
-    )
-
-
-_ECOMMERCE_SUB_VALIDATORS: dict[str, Any] = {
-    "allegro": _validate_ecommerce_allegro,
-    "baselinker": _validate_ecommerce_baselinker,
-    "shoper": _validate_ecommerce_shoper,
-    "woocommerce": _validate_ecommerce_woocommerce,
-    "idosell": _validate_ecommerce_idosell,
-    "shopify": _validate_ecommerce_shopify,
-}
-
-
-async def _validate_ecommerce_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate e-commerce credentials — dispatches to connector-specific validators."""
-    sub = _ECOMMERCE_SUB_VALIDATORS.get(connector_name)
-    if sub:
-        return await sub(creds)
-    connectors = registry.get_by_name(connector_name)
-    if connectors:
-        manifest = connectors[0]
-        required = manifest.config_schema.get("required", [])
-        if required:
-            fail = _missing_fields(creds, required, manifest.display_name)
-            if fail:
-                return fail
-            return {"status": "success", "message": f"{manifest.display_name} credentials present"}
-    return {"status": "failed", "message": f"Unknown e-commerce connector: {connector_name}"}
-
-
-# ---------------------------------------------------------------------------
-# File-transfer (FTP/SFTP) credential validator
-# ---------------------------------------------------------------------------
-
-
-async def _validate_file_transfer_credentials(creds: dict[str, str], connector_name: str = "") -> dict[str, Any]:
-    """Validate FTP/SFTP credentials by provisioning an account and testing the connection."""
-    fail = _missing_fields(creds, ["host", "username", "password"], "FTP/SFTP")
-    if fail:
-        return fail
-
-    protocol = creds.get("protocol", "sftp")
-    if protocol not in ("ftp", "sftp"):
-        return {"status": "failed", "message": f"Unsupported protocol '{protocol}'. Must be 'ftp' or 'sftp'."}
-
-    default_port = 22 if protocol == "sftp" else 21
-    try:
-        port = int(creds.get("port", str(default_port)))
-    except ValueError:
-        return {"status": "failed", "message": f"Invalid port value: {creds.get('port')}"}
-
-    base_url = _resolve_service_url(connector_name or "ftp-sftp")
-    start = time.monotonic()
-
-    try:
-        account_name = await _ensure_ftp_sftp_account(base_url, creds)
-    except Exception as exc:
-        return {
-            "status": "failed",
-            "message": f"Failed to provision FTP/SFTP account on connector: {exc}",
-            "response_time_ms": int((time.monotonic() - start) * 1000),
-        }
-
-    try:
-        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=10, read=20, write=10, pool=10)) as client:
-            resp = await client.post(f"{base_url}/auth/{account_name}/test")
-    except httpx.ConnectError:
-        return {
-            "status": "failed",
-            "message": "Cannot reach FTP/SFTP connector service",
-            "response_time_ms": int((time.monotonic() - start) * 1000),
-        }
-    except Exception as exc:
-        return {
-            "status": "failed",
-            "message": f"Connection test request failed: {exc}",
-            "response_time_ms": int((time.monotonic() - start) * 1000),
-        }
-
-    elapsed_ms = int((time.monotonic() - start) * 1000)
-
-    if resp.status_code >= 500:
-        return {
-            "status": "failed",
-            "message": f"FTP/SFTP connector returned server error (HTTP {resp.status_code})",
-            "response_time_ms": elapsed_ms,
-        }
-
-    try:
-        data = resp.json()
-    except Exception:
-        data = {}
-
-    conn_status = data.get("status", "unknown")
-
-    if resp.status_code >= 400 or conn_status in ("disconnected", "error", "failed"):
-        detail = data.get("detail", data.get("server_banner", ""))
-        return {
-            "status": "failed",
-            "message": f"FTP/SFTP connection failed ({protocol}://{creds['host']}:{port})"
-                       + (f" — {detail}" if detail else ""),
-            "response_time_ms": elapsed_ms,
-            "details": data,
-        }
-
-    parts = [f"protocol={protocol}", f"host={creds['host']}:{port}"]
-    if data.get("current_directory"):
-        parts.append(f"cwd={data['current_directory']}")
-    if data.get("server_banner"):
-        parts.append(f"banner={data['server_banner'][:60]}")
-
-    return {
-        "status": "success",
-        "message": f"FTP/SFTP connection successful ({', '.join(parts)})",
-        "response_time_ms": elapsed_ms,
-        "details": data,
-    }
-
-
-# ---------------------------------------------------------------------------
-
-
-_INTERFACE_VALIDATORS: dict[str, Any] = {
-    "wms": _validate_wms_credentials,
-    "email": _validate_email_credentials,
-    "ai-agent": _validate_ai_agent_credentials,
-    "invoice-ocr": _validate_invoice_ocr_credentials,
-    "courier": _validate_courier_credentials,
-    "ecommerce": _validate_ecommerce_credentials,
-    "file_transfer": _validate_file_transfer_credentials,
-}
-
-
 @app.post("/api/v1/credentials/{connector_name}/validate", tags=["credentials"])
 async def validate_credentials(
     connector_name: str,
@@ -1367,15 +671,7 @@ async def validate_credentials(
     if not merged:
         raise HTTPException(status_code=404, detail="No credentials found for this connector")
 
-    connectors = registry.get_by_name(connector_name)
-    connector = connectors[0] if connectors else None
-    interface = connector.interface if connector else "generic"
-
-    validator = _INTERFACE_VALIDATORS.get(interface)
-    if not validator:
-        return {"status": "unsupported", "message": f"Validation not yet supported for interface '{interface}'"}
-
-    return await validator(merged, connector_name)
+    return await generic_validate_credentials(connector_name, merged, registry)
 
 
 # --- Flows ---
@@ -1485,6 +781,7 @@ async def trigger_event(
             payload=payload,
             tenant_id=tenant_id,
             credentials=credentials,
+            registry=registry,
         )
 
     flow_executions = await flow_engine.process_event(
@@ -1568,6 +865,7 @@ async def internal_trigger_event(
             payload=payload,
             tenant_id=tenant_id,
             credentials=credentials,
+            registry=registry,
         )
 
     all_flow_executions: list[FlowExecution] = []
@@ -1982,30 +1280,42 @@ def _extract_trigger_credential(nodes: list[dict]) -> str:
     return "default"
 
 
-async def _provision_email_trigger(
+async def _provision_trigger_account(
     db: AsyncSession, tenant_id: Any, nodes: list[dict]
 ) -> None:
-    """Provision email account on the connector when a workflow uses an email-client trigger."""
+    """Provision account on the connector when a workflow uses a trigger that
+    requires account-based credential provisioning."""
     trigger_connector, _ = _extract_trigger_info(nodes)
-    if trigger_connector != "email-client":
+    if not trigger_connector:
         return
+
+    manifests = registry.get_by_name(trigger_connector)
+    if not manifests:
+        return
+    manifest = manifests[0]
+    provisioning = manifest.credential_provisioning
+    if not provisioning or provisioning.get("mode") != "account":
+        return
+
     cred_name = _extract_trigger_credential(nodes)
     try:
-        creds = await vault.retrieve_all(db, tenant_id, "email-client", credential_name=cred_name)
+        creds = await vault.retrieve_all(db, tenant_id, trigger_connector, credential_name=cred_name)
         if creds:
             if "account_name" not in creds:
                 creds["account_name"] = cred_name
-            base_url = _resolve_service_url("email-client")
-            account_name = await _ensure_email_account(base_url, creds)
+            base_url = manifest.base_url
+            account_name = await _ensure_account_generic(base_url, creds, provisioning)
             await logger.ainfo(
-                "workflow_email_trigger_provisioned",
+                "workflow_trigger_account_provisioned",
+                connector=trigger_connector,
                 tenant_id=str(tenant_id),
                 credential=cred_name,
                 account=account_name,
             )
     except Exception:
         await logger.aexception(
-            "workflow_email_trigger_provision_failed",
+            "workflow_trigger_account_provision_failed",
+            connector=trigger_connector,
             tenant_id=str(tenant_id),
             credential=cred_name,
         )
@@ -2038,7 +1348,7 @@ async def create_workflow(
     await db.commit()
     await db.refresh(workflow)
 
-    await _provision_email_trigger(db, tenant.id, nodes_raw)
+    await _provision_trigger_account(db, tenant.id, nodes_raw)
 
     return WorkflowResponse.model_validate(workflow)
 
@@ -2111,8 +1421,8 @@ async def update_workflow(
         "nodes" in update_data
         or (update_data.get("is_enabled") is True)
     )
-    if needs_provision and workflow.trigger_connector == "email-client":
-        await _provision_email_trigger(db, tenant.id, workflow.nodes or [])
+    if needs_provision:
+        await _provision_trigger_account(db, tenant.id, workflow.nodes or [])
 
     return WorkflowResponse.model_validate(workflow)
 
@@ -2202,8 +1512,8 @@ async def toggle_workflow(
     workflow.is_enabled = not workflow.is_enabled
     await db.commit()
 
-    if workflow.is_enabled and workflow.trigger_connector == "email-client":
-        await _provision_email_trigger(db, tenant.id, workflow.nodes or [])
+    if workflow.is_enabled:
+        await _provision_trigger_account(db, tenant.id, workflow.nodes or [])
 
     return {"status": "enabled" if workflow.is_enabled else "disabled", "is_enabled": workflow.is_enabled}
 

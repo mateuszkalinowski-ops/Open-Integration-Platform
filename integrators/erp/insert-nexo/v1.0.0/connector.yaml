@@ -1,544 +1,1287 @@
 name: insert-nexo
 category: erp
 version: 1.0.0
-display_name: "InsERT Nexo (Subiekt)"
-description: "Cloud connector for InsERT Nexo ERP (Subiekt) — proxies requests to the on-premise agent running at the client site. Supports contractors, products, sales & warehouse documents, orders, and stock levels."
-website_url: "https://www.insert.com.pl"
+display_name: InsERT Nexo (Subiekt)
+description: Cloud connector for InsERT Nexo ERP (Subiekt) — proxies requests to the on-premise agent running at the client
+  site. Supports contractors, products, sales & warehouse documents, orders, and stock levels.
+website_url: https://www.insert.com.pl
 country: PL
 logo_url: /assets/logos/insert-nexo.svg
 interface: erp
 deployment: hybrid
 requires_onpremise_agent: true
 onpremise_agent:
-  display_name: "InsERT Nexo On-Premise Agent"
-  description: "Windows agent that connects directly to the InsERT Nexo ERP system (Subiekt, Rachmistrz, Rewizor, Gestor) via the Nexo SDK. Must be installed on a Windows machine with access to the Nexo SQL Server database."
-  source_directory: "onpremise/nexo-agent"
+  display_name: InsERT Nexo On-Premise Agent
+  description: Windows agent that connects directly to the InsERT Nexo ERP system (Subiekt, Rachmistrz, Rewizor, Gestor) via
+    the Nexo SDK. Must be installed on a Windows machine with access to the Nexo SQL Server database.
+  source_directory: onpremise/nexo-agent
   platform: windows
   requirements:
-    - "Windows 10/11 or Windows Server 2016+"
-    - "Python 3.12+"
-    - ".NET 8.0 Runtime"
-    - "InsERT Nexo SDK (v59.0+)"
-    - "Network access to Nexo SQL Server"
+  - Windows 10/11 or Windows Server 2016+
+  - Python 3.12+
+  - .NET 8.0 Runtime
+  - InsERT Nexo SDK (v59.0+)
+  - Network access to Nexo SQL Server
   install_steps:
-    - "Download and extract the agent package"
-    - "Run the installer wizard (nexo-agent-setup.exe) or configure manually"
-    - "Provide SQL Server connection details and Nexo credentials"
-    - "Enter the Cloud Platform URL and API key"
-    - "Start the agent as a Windows Service or manually"
+  - Download and extract the agent package
+  - Run the installer wizard (nexo-agent-setup.exe) or configure manually
+  - Provide SQL Server connection details and Nexo credentials
+  - Enter the Cloud Platform URL and API key
+  - Start the agent as a Windows Service or manually
 capabilities:
-  - list_contractors
-  - get_contractor
-  - create_contractor
-  - update_contractor
-  - delete_contractor
-  - list_products
-  - get_product
-  - create_product
-  - update_product
-  - delete_product
-  - list_sales_documents
-  - get_sales_document
-  - create_sales_document
-  - list_warehouse_documents
-  - get_warehouse_document
-  - create_warehouse_document
-  - list_orders
-  - get_order
-  - create_order
-  - update_order
-  - get_stock_levels
-  - get_stock_for_product
+- list_contractors
+- get_contractor
+- create_contractor
+- update_contractor
+- delete_contractor
+- list_products
+- get_product
+- create_product
+- update_product
+- delete_product
+- list_sales_documents
+- get_sales_document
+- create_sales_document
+- list_warehouse_documents
+- get_warehouse_document
+- create_warehouse_document
+- list_orders
+- get_order
+- create_order
+- update_order
+- get_stock_levels
+- get_stock_for_product
 events:
-  - contractor.created
-  - contractor.updated
-  - product.created
-  - product.updated
-  - product.price_changed
-  - document.sales.created
-  - document.warehouse.created
-  - order.created
-  - order.status_changed
-  - stock.level_changed
+- contractor.created
+- contractor.updated
+- product.created
+- product.updated
+- product.price_changed
+- document.sales.created
+- document.warehouse.created
+- order.created
+- order.status_changed
+- stock.level_changed
 actions:
-  - contractor.create
-  - contractor.update
-  - contractor.delete
-  - contractor.list
-  - contractor.get
-  - product.create
-  - product.update
-  - product.delete
-  - product.list
-  - product.get
-  - document.sales.create
-  - document.sales.list
-  - document.sales.get
-  - document.warehouse.create
-  - document.warehouse.list
-  - document.warehouse.get
-  - order.create
-  - order.update
-  - order.list
-  - order.get
-  - stock.levels
-  - stock.get
+- contractor.create
+- contractor.update
+- contractor.delete
+- contractor.list
+- contractor.get
+- product.create
+- product.update
+- product.delete
+- product.list
+- product.get
+- document.sales.create
+- document.sales.list
+- document.sales.get
+- document.warehouse.create
+- document.warehouse.list
+- document.warehouse.get
+- order.create
+- order.update
+- order.list
+- order.get
+- stock.levels
+- stock.get
 event_fields:
   contractor.created:
-    - { field: id, label: "Contractor ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: contractor_type, label: "Type (company/person)", type: string }
-    - { field: short_name, label: "Short name", type: string }
-    - { field: full_name, label: "Full name", type: string }
-    - { field: nip, label: "NIP", type: string }
-    - { field: regon, label: "REGON", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: addresses.0.street, label: "Street", type: string }
-    - { field: addresses.0.city, label: "City", type: string }
-    - { field: addresses.0.postal_code, label: "Postal code", type: string }
-    - { field: addresses.0.country, label: "Country", type: string }
-    - { field: payment_deadline_days, label: "Payment deadline (days)", type: integer }
-    - { field: credit_limit, label: "Credit limit", type: number }
-    - { field: discount_percent, label: "Discount %", type: number }
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: contractor_type
+    label: Type (company/person)
+    type: string
+  - field: short_name
+    label: Short name
+    type: string
+  - field: full_name
+    label: Full name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: addresses.0.street
+    label: Street
+    type: string
+  - field: addresses.0.city
+    label: City
+    type: string
+  - field: addresses.0.postal_code
+    label: Postal code
+    type: string
+  - field: addresses.0.country
+    label: Country
+    type: string
+  - field: payment_deadline_days
+    label: Payment deadline (days)
+    type: integer
+  - field: credit_limit
+    label: Credit limit
+    type: number
+  - field: discount_percent
+    label: Discount %
+    type: number
   contractor.updated:
-    - { field: id, label: "Contractor ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: contractor_type, label: "Type (company/person)", type: string }
-    - { field: short_name, label: "Short name", type: string }
-    - { field: full_name, label: "Full name", type: string }
-    - { field: nip, label: "NIP", type: string }
-    - { field: regon, label: "REGON", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: addresses.0.street, label: "Street", type: string }
-    - { field: addresses.0.city, label: "City", type: string }
-    - { field: addresses.0.postal_code, label: "Postal code", type: string }
-    - { field: addresses.0.country, label: "Country", type: string }
-    - { field: payment_deadline_days, label: "Payment deadline (days)", type: integer }
-    - { field: credit_limit, label: "Credit limit", type: number }
-    - { field: discount_percent, label: "Discount %", type: number }
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: contractor_type
+    label: Type (company/person)
+    type: string
+  - field: short_name
+    label: Short name
+    type: string
+  - field: full_name
+    label: Full name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: addresses.0.street
+    label: Street
+    type: string
+  - field: addresses.0.city
+    label: City
+    type: string
+  - field: addresses.0.postal_code
+    label: Postal code
+    type: string
+  - field: addresses.0.country
+    label: Country
+    type: string
+  - field: payment_deadline_days
+    label: Payment deadline (days)
+    type: integer
+  - field: credit_limit
+    label: Credit limit
+    type: number
+  - field: discount_percent
+    label: Discount %
+    type: number
   product.created:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: product_type, label: "Type (goods/service/set)", type: string }
-    - { field: name, label: "Product name", type: string }
-    - { field: ean, label: "EAN", type: string }
-    - { field: pkwiu, label: "PKWiU", type: string }
-    - { field: vat_rate, label: "VAT rate", type: string }
-    - { field: unit_of_measure, label: "Unit", type: string }
-    - { field: weight_kg, label: "Weight (kg)", type: number }
-    - { field: description, label: "Description", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: prices.0.net_price, label: "Net price", type: number }
-    - { field: prices.0.gross_price, label: "Gross price", type: number }
-    - { field: prices.0.currency, label: "Currency", type: string }
+  - field: id
+    label: Product ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: product_type
+    label: Type (goods/service/set)
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN
+    type: string
+  - field: pkwiu
+    label: PKWiU
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit_of_measure
+    label: Unit
+    type: string
+  - field: weight_kg
+    label: Weight (kg)
+    type: number
+  - field: description
+    label: Description
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: prices.0.net_price
+    label: Net price
+    type: number
+  - field: prices.0.gross_price
+    label: Gross price
+    type: number
+  - field: prices.0.currency
+    label: Currency
+    type: string
   product.updated:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: product_type, label: "Type (goods/service/set)", type: string }
-    - { field: name, label: "Product name", type: string }
-    - { field: ean, label: "EAN", type: string }
-    - { field: pkwiu, label: "PKWiU", type: string }
-    - { field: vat_rate, label: "VAT rate", type: string }
-    - { field: unit_of_measure, label: "Unit", type: string }
-    - { field: weight_kg, label: "Weight (kg)", type: number }
-    - { field: description, label: "Description", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: prices.0.net_price, label: "Net price", type: number }
-    - { field: prices.0.gross_price, label: "Gross price", type: number }
-    - { field: prices.0.currency, label: "Currency", type: string }
+  - field: id
+    label: Product ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: product_type
+    label: Type (goods/service/set)
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN
+    type: string
+  - field: pkwiu
+    label: PKWiU
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit_of_measure
+    label: Unit
+    type: string
+  - field: weight_kg
+    label: Weight (kg)
+    type: number
+  - field: description
+    label: Description
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: prices.0.net_price
+    label: Net price
+    type: number
+  - field: prices.0.gross_price
+    label: Gross price
+    type: number
+  - field: prices.0.currency
+    label: Currency
+    type: string
   product.price_changed:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: name, label: "Product name", type: string }
-    - { field: prices.0.net_price, label: "Net price", type: number }
-    - { field: prices.0.gross_price, label: "Gross price", type: number }
-    - { field: prices.0.currency, label: "Currency", type: string }
-    - { field: prices.0.vat_rate, label: "VAT rate", type: string }
+  - field: id
+    label: Product ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: prices.0.net_price
+    label: Net price
+    type: number
+  - field: prices.0.gross_price
+    label: Gross price
+    type: number
+  - field: prices.0.currency
+    label: Currency
+    type: string
+  - field: prices.0.vat_rate
+    label: VAT rate
+    type: string
   document.sales.created:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: document_type, label: "Document type", type: string }
-    - { field: number, label: "Document number", type: string }
-    - { field: status, label: "Status", type: string }
-    # Buyer
-    - { field: buyer.contractor_symbol, label: "Buyer — symbol", type: string }
-    - { field: buyer.role, label: "Buyer — role", type: string }
-    - { field: buyer.name, label: "Buyer — name", type: string }
-    - { field: buyer.nip, label: "Buyer — NIP", type: string }
-    - { field: buyer.address, label: "Buyer — address", type: string }
-    # Receiver
-    - { field: receiver.contractor_symbol, label: "Receiver — symbol", type: string }
-    - { field: receiver.role, label: "Receiver — role", type: string }
-    - { field: receiver.name, label: "Receiver — name", type: string }
-    - { field: receiver.nip, label: "Receiver — NIP", type: string }
-    - { field: receiver.address, label: "Receiver — address", type: string }
-    # Positions (each item)
-    - { field: "positions[]", label: "Positions (all items raw)", type: "object[]" }
-    - { field: "positions[].product_id", label: "Each position — product ID", type: integer }
-    - { field: "positions[].product_symbol", label: "Each position — product symbol", type: string }
-    - { field: "positions[].product_name", label: "Each position — product name", type: string }
-    - { field: "positions[].quantity", label: "Each position — quantity", type: number }
-    - { field: "positions[].unit", label: "Each position — unit", type: string }
-    - { field: "positions[].net_price", label: "Each position — net price", type: number }
-    - { field: "positions[].gross_price", label: "Each position — gross price", type: number }
-    - { field: "positions[].vat_rate", label: "Each position — VAT rate", type: string }
-    - { field: "positions[].discount_percent", label: "Each position — discount %", type: number }
-    - { field: "positions[].warehouse_symbol", label: "Each position — warehouse", type: string }
-    - { field: "positions[].description", label: "Each position — description", type: string }
-    # Payments (each item)
-    - { field: "payments[]", label: "Payments (all raw)", type: "object[]" }
-    - { field: "payments[].payment_form", label: "Each payment — form", type: string }
-    - { field: "payments[].amount", label: "Each payment — amount", type: number }
-    - { field: "payments[].currency", label: "Each payment — currency", type: string }
-    - { field: "payments[].deadline_days", label: "Each payment — deadline (days)", type: integer }
-    - { field: "payments[].is_paid", label: "Each payment — is paid", type: boolean }
-    - { field: "payments[].paid_amount", label: "Each payment — paid amount", type: number }
-    # Totals
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: vat_total, label: "VAT total", type: number }
-    - { field: currency, label: "Currency", type: string }
-    # Dates & metadata
-    - { field: issue_date, label: "Issue date", type: string }
-    - { field: sale_date, label: "Sale date", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: external_number, label: "External number", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: created_at, label: "Created at", type: string }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: document_type
+    label: Document type
+    type: string
+  - field: number
+    label: Document number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: buyer.contractor_symbol
+    label: Buyer — symbol
+    type: string
+  - field: buyer.role
+    label: Buyer — role
+    type: string
+  - field: buyer.name
+    label: Buyer — name
+    type: string
+  - field: buyer.nip
+    label: Buyer — NIP
+    type: string
+  - field: buyer.address
+    label: Buyer — address
+    type: string
+  - field: receiver.contractor_symbol
+    label: Receiver — symbol
+    type: string
+  - field: receiver.role
+    label: Receiver — role
+    type: string
+  - field: receiver.name
+    label: Receiver — name
+    type: string
+  - field: receiver.nip
+    label: Receiver — NIP
+    type: string
+  - field: receiver.address
+    label: Receiver — address
+    type: string
+  - field: positions[]
+    label: Positions (all items raw)
+    type: object[]
+  - field: positions[].product_id
+    label: Each position — product ID
+    type: integer
+  - field: positions[].product_symbol
+    label: Each position — product symbol
+    type: string
+  - field: positions[].product_name
+    label: Each position — product name
+    type: string
+  - field: positions[].quantity
+    label: Each position — quantity
+    type: number
+  - field: positions[].unit
+    label: Each position — unit
+    type: string
+  - field: positions[].net_price
+    label: Each position — net price
+    type: number
+  - field: positions[].gross_price
+    label: Each position — gross price
+    type: number
+  - field: positions[].vat_rate
+    label: Each position — VAT rate
+    type: string
+  - field: positions[].discount_percent
+    label: Each position — discount %
+    type: number
+  - field: positions[].warehouse_symbol
+    label: Each position — warehouse
+    type: string
+  - field: positions[].description
+    label: Each position — description
+    type: string
+  - field: payments[]
+    label: Payments (all raw)
+    type: object[]
+  - field: payments[].payment_form
+    label: Each payment — form
+    type: string
+  - field: payments[].amount
+    label: Each payment — amount
+    type: number
+  - field: payments[].currency
+    label: Each payment — currency
+    type: string
+  - field: payments[].deadline_days
+    label: Each payment — deadline (days)
+    type: integer
+  - field: payments[].is_paid
+    label: Each payment — is paid
+    type: boolean
+  - field: payments[].paid_amount
+    label: Each payment — paid amount
+    type: number
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: vat_total
+    label: VAT total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  - field: issue_date
+    label: Issue date
+    type: string
+  - field: sale_date
+    label: Sale date
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: external_number
+    label: External number
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: created_at
+    label: Created at
+    type: string
   document.warehouse.created:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: document_type, label: "Document type", type: string }
-    - { field: number, label: "Document number", type: string }
-    - { field: status, label: "Status", type: string }
-    # Buyer / Supplier
-    - { field: buyer.contractor_symbol, label: "Buyer/Supplier — symbol", type: string }
-    - { field: buyer.role, label: "Buyer/Supplier — role", type: string }
-    - { field: buyer.name, label: "Buyer/Supplier — name", type: string }
-    - { field: buyer.nip, label: "Buyer/Supplier — NIP", type: string }
-    - { field: buyer.address, label: "Buyer/Supplier — address", type: string }
-    # Receiver
-    - { field: receiver.contractor_symbol, label: "Receiver — symbol", type: string }
-    - { field: receiver.role, label: "Receiver — role", type: string }
-    - { field: receiver.name, label: "Receiver — name", type: string }
-    - { field: receiver.nip, label: "Receiver — NIP", type: string }
-    - { field: receiver.address, label: "Receiver — address", type: string }
-    # Positions (each item — mapped to all items automatically)
-    - { field: "positions[]", label: "Positions (all items raw)", type: "object[]" }
-    - { field: "positions[].product_id", label: "Each position — product ID", type: integer }
-    - { field: "positions[].product_symbol", label: "Each position — product symbol", type: string }
-    - { field: "positions[].product_name", label: "Each position — product name", type: string }
-    - { field: "positions[].quantity", label: "Each position — quantity", type: number }
-    - { field: "positions[].unit", label: "Each position — unit", type: string }
-    - { field: "positions[].net_price", label: "Each position — net price", type: number }
-    - { field: "positions[].gross_price", label: "Each position — gross price", type: number }
-    - { field: "positions[].vat_rate", label: "Each position — VAT rate", type: string }
-    - { field: "positions[].discount_percent", label: "Each position — discount %", type: number }
-    - { field: "positions[].warehouse_symbol", label: "Each position — warehouse", type: string }
-    - { field: "positions[].description", label: "Each position — description", type: string }
-    # Payments (each item)
-    - { field: "payments[]", label: "Payments (all raw)", type: "object[]" }
-    - { field: "payments[].payment_form", label: "Each payment — form", type: string }
-    - { field: "payments[].amount", label: "Each payment — amount", type: number }
-    - { field: "payments[].currency", label: "Each payment — currency", type: string }
-    - { field: "payments[].deadline_days", label: "Each payment — deadline (days)", type: integer }
-    - { field: "payments[].is_paid", label: "Each payment — is paid", type: boolean }
-    - { field: "payments[].paid_amount", label: "Each payment — paid amount", type: number }
-    # Totals
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: vat_total, label: "VAT total", type: number }
-    - { field: currency, label: "Currency", type: string }
-    # Dates & metadata
-    - { field: issue_date, label: "Issue date", type: string }
-    - { field: sale_date, label: "Sale date", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: external_number, label: "External number", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: created_at, label: "Created at", type: string }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: document_type
+    label: Document type
+    type: string
+  - field: number
+    label: Document number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: buyer.contractor_symbol
+    label: Buyer/Supplier — symbol
+    type: string
+  - field: buyer.role
+    label: Buyer/Supplier — role
+    type: string
+  - field: buyer.name
+    label: Buyer/Supplier — name
+    type: string
+  - field: buyer.nip
+    label: Buyer/Supplier — NIP
+    type: string
+  - field: buyer.address
+    label: Buyer/Supplier — address
+    type: string
+  - field: receiver.contractor_symbol
+    label: Receiver — symbol
+    type: string
+  - field: receiver.role
+    label: Receiver — role
+    type: string
+  - field: receiver.name
+    label: Receiver — name
+    type: string
+  - field: receiver.nip
+    label: Receiver — NIP
+    type: string
+  - field: receiver.address
+    label: Receiver — address
+    type: string
+  - field: positions[]
+    label: Positions (all items raw)
+    type: object[]
+  - field: positions[].product_id
+    label: Each position — product ID
+    type: integer
+  - field: positions[].product_symbol
+    label: Each position — product symbol
+    type: string
+  - field: positions[].product_name
+    label: Each position — product name
+    type: string
+  - field: positions[].quantity
+    label: Each position — quantity
+    type: number
+  - field: positions[].unit
+    label: Each position — unit
+    type: string
+  - field: positions[].net_price
+    label: Each position — net price
+    type: number
+  - field: positions[].gross_price
+    label: Each position — gross price
+    type: number
+  - field: positions[].vat_rate
+    label: Each position — VAT rate
+    type: string
+  - field: positions[].discount_percent
+    label: Each position — discount %
+    type: number
+  - field: positions[].warehouse_symbol
+    label: Each position — warehouse
+    type: string
+  - field: positions[].description
+    label: Each position — description
+    type: string
+  - field: payments[]
+    label: Payments (all raw)
+    type: object[]
+  - field: payments[].payment_form
+    label: Each payment — form
+    type: string
+  - field: payments[].amount
+    label: Each payment — amount
+    type: number
+  - field: payments[].currency
+    label: Each payment — currency
+    type: string
+  - field: payments[].deadline_days
+    label: Each payment — deadline (days)
+    type: integer
+  - field: payments[].is_paid
+    label: Each payment — is paid
+    type: boolean
+  - field: payments[].paid_amount
+    label: Each payment — paid amount
+    type: number
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: vat_total
+    label: VAT total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  - field: issue_date
+    label: Issue date
+    type: string
+  - field: sale_date
+    label: Sale date
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: external_number
+    label: External number
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: created_at
+    label: Created at
+    type: string
   order.created:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: order_type, label: "Order type", type: string }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: contractor_symbol, label: "Contractor symbol", type: string }
-    - { field: contractor_name, label: "Contractor name", type: string }
-    # Positions (each item)
-    - { field: "positions[]", label: "Positions (all items raw)", type: "object[]" }
-    - { field: "positions[].product_id", label: "Each position — product ID", type: integer }
-    - { field: "positions[].product_symbol", label: "Each position — product symbol", type: string }
-    - { field: "positions[].product_name", label: "Each position — product name", type: string }
-    - { field: "positions[].quantity", label: "Each position — quantity", type: number }
-    - { field: "positions[].unit", label: "Each position — unit", type: string }
-    - { field: "positions[].net_price", label: "Each position — net price", type: number }
-    - { field: "positions[].gross_price", label: "Each position — gross price", type: number }
-    - { field: "positions[].vat_rate", label: "Each position — VAT rate", type: string }
-    - { field: "positions[].discount_percent", label: "Each position — discount %", type: number }
-    - { field: "positions[].realized_quantity", label: "Each position — realized qty", type: number }
-    # Totals
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: currency, label: "Currency", type: string }
-    # Dates & metadata
-    - { field: expected_date, label: "Expected date", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: external_number, label: "External number", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: realization_percent, label: "Realization %", type: number }
-    - { field: created_at, label: "Created at", type: string }
+  - field: id
+    label: Order ID
+    type: integer
+  - field: order_type
+    label: Order type
+    type: string
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: contractor_symbol
+    label: Contractor symbol
+    type: string
+  - field: contractor_name
+    label: Contractor name
+    type: string
+  - field: positions[]
+    label: Positions (all items raw)
+    type: object[]
+  - field: positions[].product_id
+    label: Each position — product ID
+    type: integer
+  - field: positions[].product_symbol
+    label: Each position — product symbol
+    type: string
+  - field: positions[].product_name
+    label: Each position — product name
+    type: string
+  - field: positions[].quantity
+    label: Each position — quantity
+    type: number
+  - field: positions[].unit
+    label: Each position — unit
+    type: string
+  - field: positions[].net_price
+    label: Each position — net price
+    type: number
+  - field: positions[].gross_price
+    label: Each position — gross price
+    type: number
+  - field: positions[].vat_rate
+    label: Each position — VAT rate
+    type: string
+  - field: positions[].discount_percent
+    label: Each position — discount %
+    type: number
+  - field: positions[].realized_quantity
+    label: Each position — realized qty
+    type: number
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  - field: expected_date
+    label: Expected date
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: external_number
+    label: External number
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: realization_percent
+    label: Realization %
+    type: number
+  - field: created_at
+    label: Created at
+    type: string
   order.status_changed:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: order_type, label: "Order type", type: string }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "New status", type: string }
-    - { field: contractor_symbol, label: "Contractor symbol", type: string }
-    - { field: contractor_name, label: "Contractor name", type: string }
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: currency, label: "Currency", type: string }
-    - { field: realization_percent, label: "Realization %", type: number }
-    - { field: expected_date, label: "Expected date", type: string }
-    - { field: external_number, label: "External number", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
+  - field: id
+    label: Order ID
+    type: integer
+  - field: order_type
+    label: Order type
+    type: string
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: New status
+    type: string
+  - field: contractor_symbol
+    label: Contractor symbol
+    type: string
+  - field: contractor_name
+    label: Contractor name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  - field: realization_percent
+    label: Realization %
+    type: number
+  - field: expected_date
+    label: Expected date
+    type: string
+  - field: external_number
+    label: External number
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
   stock.level_changed:
-    - { field: product_symbol, label: "Product symbol", type: string }
-    - { field: product_name, label: "Product name", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: warehouse_name, label: "Warehouse name", type: string }
-    - { field: quantity_available, label: "Available quantity", type: number }
-    - { field: quantity_reserved, label: "Reserved quantity", type: number }
-    - { field: quantity_ordered, label: "Ordered quantity", type: number }
-    - { field: quantity_total, label: "Total quantity", type: number }
-    - { field: unit, label: "Unit", type: string }
-
+  - field: product_symbol
+    label: Product symbol
+    type: string
+  - field: product_name
+    label: Product name
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: warehouse_name
+    label: Warehouse name
+    type: string
+  - field: quantity_available
+    label: Available quantity
+    type: number
+  - field: quantity_reserved
+    label: Reserved quantity
+    type: number
+  - field: quantity_ordered
+    label: Ordered quantity
+    type: number
+  - field: quantity_total
+    label: Total quantity
+    type: number
+  - field: unit
+    label: Unit
+    type: string
 action_fields:
   contractor.create:
-    - { field: contractor_type, label: "Type (company/person)", type: string }
-    - { field: short_name, label: "Short name", type: string, required: true }
-    - { field: full_name, label: "Full name", type: string }
-    - { field: nip, label: "NIP", type: string }
-    - { field: regon, label: "REGON", type: string }
-    - { field: pesel, label: "PESEL", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: payment_deadline_days, label: "Payment deadline (days)", type: integer }
-    - { field: credit_limit, label: "Credit limit", type: number }
-    - { field: discount_percent, label: "Discount %", type: number }
+  - field: contractor_type
+    label: Type (company/person)
+    type: string
+  - field: short_name
+    label: Short name
+    type: string
+    required: true
+  - field: full_name
+    label: Full name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: pesel
+    label: PESEL
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: payment_deadline_days
+    label: Payment deadline (days)
+    type: integer
+  - field: credit_limit
+    label: Credit limit
+    type: number
+  - field: discount_percent
+    label: Discount %
+    type: number
   contractor.update:
-    - { field: symbol, label: "Contractor symbol", type: string, required: true }
-    - { field: short_name, label: "Short name", type: string }
-    - { field: full_name, label: "Full name", type: string }
-    - { field: nip, label: "NIP", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
-    - { field: group, label: "Group", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: payment_deadline_days, label: "Payment deadline (days)", type: integer }
-    - { field: credit_limit, label: "Credit limit", type: number }
-    - { field: discount_percent, label: "Discount %", type: number }
+  - field: symbol
+    label: Contractor symbol
+    type: string
+    required: true
+  - field: short_name
+    label: Short name
+    type: string
+  - field: full_name
+    label: Full name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
+  - field: group
+    label: Group
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: payment_deadline_days
+    label: Payment deadline (days)
+    type: integer
+  - field: credit_limit
+    label: Credit limit
+    type: number
+  - field: discount_percent
+    label: Discount %
+    type: number
   contractor.delete:
-    - { field: symbol, label: "Contractor symbol", type: string, required: true }
+  - field: symbol
+    label: Contractor symbol
+    type: string
+    required: true
   contractor.list:
-    - { field: search, label: "Search query", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: search
+    label: Search query
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   contractor.get:
-    - { field: symbol, label: "Contractor symbol", type: string, required: true }
+  - field: symbol
+    label: Contractor symbol
+    type: string
+    required: true
   product.create:
-    - { field: product_type, label: "Type (goods/service/set)", type: string }
-    - { field: name, label: "Product name", type: string, required: true }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: ean, label: "EAN", type: string }
-    - { field: pkwiu, label: "PKWiU", type: string }
-    - { field: vat_rate, label: "VAT rate", type: string }
-    - { field: unit_of_measure, label: "Unit of measure", type: string }
-    - { field: weight_kg, label: "Weight (kg)", type: number }
-    - { field: description, label: "Description", type: string }
-    - { field: group, label: "Group", type: string }
+  - field: product_type
+    label: Type (goods/service/set)
+    type: string
+  - field: name
+    label: Product name
+    type: string
+    required: true
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: ean
+    label: EAN
+    type: string
+  - field: pkwiu
+    label: PKWiU
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit_of_measure
+    label: Unit of measure
+    type: string
+  - field: weight_kg
+    label: Weight (kg)
+    type: number
+  - field: description
+    label: Description
+    type: string
+  - field: group
+    label: Group
+    type: string
   product.update:
-    - { field: symbol, label: "Product symbol", type: string, required: true }
-    - { field: name, label: "Product name", type: string }
-    - { field: ean, label: "EAN", type: string }
-    - { field: pkwiu, label: "PKWiU", type: string }
-    - { field: vat_rate, label: "VAT rate", type: string }
-    - { field: weight_kg, label: "Weight (kg)", type: number }
-    - { field: description, label: "Description", type: string }
-    - { field: group, label: "Group", type: string }
+  - field: symbol
+    label: Product symbol
+    type: string
+    required: true
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN
+    type: string
+  - field: pkwiu
+    label: PKWiU
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: weight_kg
+    label: Weight (kg)
+    type: number
+  - field: description
+    label: Description
+    type: string
+  - field: group
+    label: Group
+    type: string
   product.delete:
-    - { field: symbol, label: "Product symbol", type: string, required: true }
+  - field: symbol
+    label: Product symbol
+    type: string
+    required: true
   product.list:
-    - { field: search, label: "Search query", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: search
+    label: Search query
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   product.get:
-    - { field: symbol, label: "Product symbol", type: string, required: true }
+  - field: symbol
+    label: Product symbol
+    type: string
+    required: true
   document.sales.create:
-    - { field: document_type, label: "Document type", type: string, required: true }
-    - { field: buyer_symbol, label: "Buyer symbol", type: string, required: true }
-    - { field: receiver_symbol, label: "Receiver symbol", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: issue_date, label: "Issue date", type: string }
-    - { field: sale_date, label: "Sale date", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: external_number, label: "External number", type: string }
+  - field: document_type
+    label: Document type
+    type: string
+    required: true
+  - field: buyer_symbol
+    label: Buyer symbol
+    type: string
+    required: true
+  - field: receiver_symbol
+    label: Receiver symbol
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: issue_date
+    label: Issue date
+    type: string
+  - field: sale_date
+    label: Sale date
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: external_number
+    label: External number
+    type: string
   document.sales.list:
-    - { field: search, label: "Search query", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: search
+    label: Search query
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   document.sales.get:
-    - { field: id, label: "Document ID", type: integer, required: true }
+  - field: id
+    label: Document ID
+    type: integer
+    required: true
   document.warehouse.create:
-    - { field: document_type, label: "Document type", type: string, required: true }
-    - { field: buyer_symbol, label: "Buyer/Supplier symbol", type: string, required: true }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: issue_date, label: "Issue date", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: external_number, label: "External number", type: string }
+  - field: document_type
+    label: Document type
+    type: string
+    required: true
+  - field: buyer_symbol
+    label: Buyer/Supplier symbol
+    type: string
+    required: true
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: issue_date
+    label: Issue date
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: external_number
+    label: External number
+    type: string
   document.warehouse.list:
-    - { field: search, label: "Search query", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: search
+    label: Search query
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   document.warehouse.get:
-    - { field: id, label: "Document ID", type: integer, required: true }
+  - field: id
+    label: Document ID
+    type: integer
+    required: true
   order.create:
-    - { field: order_type, label: "Order type (from_customer/to_supplier)", type: string }
-    - { field: contractor_symbol, label: "Contractor symbol", type: string, required: true }
-    - { field: expected_date, label: "Expected date", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: external_number, label: "External number", type: string }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
+  - field: order_type
+    label: Order type (from_customer/to_supplier)
+    type: string
+  - field: contractor_symbol
+    label: Contractor symbol
+    type: string
+    required: true
+  - field: expected_date
+    label: Expected date
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: external_number
+    label: External number
+    type: string
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
   order.update:
-    - { field: id, label: "Order ID", type: integer, required: true }
-    - { field: status, label: "Status", type: string }
-    - { field: expected_date, label: "Expected date", type: string }
-    - { field: notes, label: "Notes", type: string }
-    - { field: external_number, label: "External number", type: string }
+  - field: id
+    label: Order ID
+    type: integer
+    required: true
+  - field: status
+    label: Status
+    type: string
+  - field: expected_date
+    label: Expected date
+    type: string
+  - field: notes
+    label: Notes
+    type: string
+  - field: external_number
+    label: External number
+    type: string
   order.list:
-    - { field: search, label: "Search query", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: search
+    label: Search query
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   order.get:
-    - { field: id, label: "Order ID", type: integer, required: true }
+  - field: id
+    label: Order ID
+    type: integer
+    required: true
   stock.levels:
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-    - { field: page, label: "Page", type: integer }
-    - { field: page_size, label: "Page size", type: integer }
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
   stock.get:
-    - { field: product_symbol, label: "Product symbol", type: string, required: true }
-    - { field: warehouse_symbol, label: "Warehouse symbol", type: string }
-
+  - field: product_symbol
+    label: Product symbol
+    type: string
+    required: true
+  - field: warehouse_symbol
+    label: Warehouse symbol
+    type: string
 output_fields:
   contractor.create:
-    - { field: id, label: "Contractor ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: short_name, label: "Short name", type: string }
-    - { field: nip, label: "NIP", type: string }
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: short_name
+    label: Short name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
   contractor.get:
-    - { field: id, label: "Contractor ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: contractor_type, label: "Type", type: string }
-    - { field: short_name, label: "Short name", type: string }
-    - { field: full_name, label: "Full name", type: string }
-    - { field: nip, label: "NIP", type: string }
-    - { field: first_name, label: "First name", type: string }
-    - { field: last_name, label: "Last name", type: string }
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: contractor_type
+    label: Type
+    type: string
+  - field: short_name
+    label: Short name
+    type: string
+  - field: full_name
+    label: Full name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: first_name
+    label: First name
+    type: string
+  - field: last_name
+    label: Last name
+    type: string
   contractor.list:
-    - { field: items, label: "Contractors list", type: "object[]" }
-    - { field: total, label: "Total count", type: integer }
+  - field: items
+    label: Contractors list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
   product.create:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: name, label: "Product name", type: string }
+  - field: id
+    label: Product ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: name
+    label: Product name
+    type: string
   product.get:
-    - { field: id, label: "Product ID", type: integer }
-    - { field: symbol, label: "Symbol", type: string }
-    - { field: name, label: "Product name", type: string }
-    - { field: ean, label: "EAN", type: string }
-    - { field: vat_rate, label: "VAT rate", type: string }
-    - { field: unit_of_measure, label: "Unit", type: string }
-    - { field: weight_kg, label: "Weight (kg)", type: number }
+  - field: id
+    label: Product ID
+    type: integer
+  - field: symbol
+    label: Symbol
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit_of_measure
+    label: Unit
+    type: string
+  - field: weight_kg
+    label: Weight (kg)
+    type: number
   product.list:
-    - { field: items, label: "Products list", type: "object[]" }
-    - { field: total, label: "Total count", type: integer }
+  - field: items
+    label: Products list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
   document.sales.create:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: number, label: "Document number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: gross_total, label: "Gross total", type: number }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: gross_total
+    label: Gross total
+    type: number
   document.sales.get:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: number, label: "Document number", type: string }
-    - { field: document_type, label: "Document type", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: currency, label: "Currency", type: string }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
   document.sales.list:
-    - { field: items, label: "Documents list", type: "object[]" }
-    - { field: total, label: "Total count", type: integer }
+  - field: items
+    label: Documents list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
   document.warehouse.create:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: number, label: "Document number", type: string }
-    - { field: status, label: "Status", type: string }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: status
+    label: Status
+    type: string
   document.warehouse.get:
-    - { field: id, label: "Document ID", type: integer }
-    - { field: number, label: "Document number", type: string }
-    - { field: document_type, label: "Document type", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
   document.warehouse.list:
-    - { field: items, label: "Documents list", type: "object[]" }
-    - { field: total, label: "Total count", type: integer }
+  - field: items
+    label: Documents list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
   order.create:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: gross_total, label: "Gross total", type: number }
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: gross_total
+    label: Gross total
+    type: number
   order.get:
-    - { field: id, label: "Order ID", type: integer }
-    - { field: number, label: "Order number", type: string }
-    - { field: order_type, label: "Order type", type: string }
-    - { field: status, label: "Status", type: string }
-    - { field: contractor_symbol, label: "Contractor symbol", type: string }
-    - { field: contractor_name, label: "Contractor name", type: string }
-    - { field: net_total, label: "Net total", type: number }
-    - { field: gross_total, label: "Gross total", type: number }
-    - { field: realization_percent, label: "Realization %", type: number }
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: order_type
+    label: Order type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: contractor_symbol
+    label: Contractor symbol
+    type: string
+  - field: contractor_name
+    label: Contractor name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: realization_percent
+    label: Realization %
+    type: number
   order.list:
-    - { field: items, label: "Orders list", type: "object[]" }
-    - { field: total, label: "Total count", type: integer }
+  - field: items
+    label: Orders list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
   stock.levels:
-    - { field: items, label: "Stock levels list", type: "object[]" }
-    - { field: total_products, label: "Total products", type: integer }
+  - field: items
+    label: Stock levels list
+    type: object[]
+  - field: total_products
+    label: Total products
+    type: integer
   stock.get:
-    - { field: product_symbol, label: "Product symbol", type: string }
-    - { field: product_name, label: "Product name", type: string }
-    - { field: quantity_available, label: "Available quantity", type: number }
-    - { field: quantity_reserved, label: "Reserved quantity", type: number }
-    - { field: quantity_total, label: "Total quantity", type: number }
-    - { field: unit, label: "Unit", type: string }
-
+  - field: product_symbol
+    label: Product symbol
+    type: string
+  - field: product_name
+    label: Product name
+    type: string
+  - field: quantity_available
+    label: Available quantity
+    type: number
+  - field: quantity_reserved
+    label: Reserved quantity
+    type: number
+  - field: quantity_total
+    label: Total quantity
+    type: number
+  - field: unit
+    label: Unit
+    type: string
 config_schema:
   required:
-    - agent_url
+  - agent_url
   optional:
-    - agent_api_key
-    - sync_enabled
+  - agent_api_key
+  - sync_enabled
   field_types:
     agent_url:
       type: string
-      label: "On-premise agent URL (e.g. https://agent.client.local:8000)"
+      label: On-premise agent URL (e.g. https://agent.client.local:8000)
     agent_api_key:
       type: password
-      label: "Agent API key for authentication"
+      label: Agent API key for authentication
     sync_enabled:
       type: boolean
-      label: "Enable automatic sync from agent"
+      label: Enable automatic sync from agent
       default: true
 health_endpoint: /health
 docs_url: /docs
+service_name: connector-insert-nexo

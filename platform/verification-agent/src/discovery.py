@@ -1,4 +1,8 @@
-"""Connector discovery — finds all connectors to verify using manifests + DB."""
+"""Connector discovery — finds all connectors to verify using manifests + DB.
+
+Service names and URLs are resolved from each connector's ``connector.yaml``
+(the ``service_name`` field), eliminating the need for a hardcoded registry.
+"""
 
 import logging
 from dataclasses import dataclass, field
@@ -14,49 +18,13 @@ from src.db import ConnectorInstance, Credential
 
 logger = logging.getLogger(__name__)
 
-_CONNECTOR_SERVICE_NAMES: dict[str, str] = {
-    "email-client": "connector-email-client",
-    "inpost": "connector-inpost",
-    "dhl": "connector-dhl",
-    "dhl-express": "connector-dhl-express",
-    "dpd": "connector-dpd",
-    "fedex": "connector-fedex",
-    "fedexpl": "connector-fedexpl",
-    "geis": "connector-geis",
-    "gls": "connector-gls",
-    "orlenpaczka": "connector-orlenpaczka",
-    "packeta": "connector-packeta",
-    "paxy": "connector-paxy",
-    "pocztapolska": "connector-pocztapolska",
-    "schenker": "connector-schenker",
-    "sellasist": "connector-sellasist",
-    "suus": "connector-suus",
-    "ups": "connector-ups",
-    "allegro": "connector-allegro",
-    "amazon": "connector-amazon",
-    "shoper": "connector-shoper",
-    "idosell": "connector-idosell",
-    "baselinker": "connector-baselinker",
-    "woocommerce": "connector-woocommerce",
-    "shopify": "connector-shopify",
-    "pinquark-wms": "connector-pinquark-wms",
-    "ai-agent": "connector-ai-agent",
-    "ftp-sftp": "connector-ftp-sftp",
-    "skanuj-fakture": "connector-skanuj-fakture",
-    "raben": "connector-raben",
-    "fxcouriers": "connector-fxcouriers",
-    "slack": "connector-slack",
-    "bulkgate": "connector-bulkgate",
-    "apilo": "connector-apilo",
-}
-
 
 @dataclass
 class ApiVersionCheck:
     """Describes how to check the external API for newer versions."""
     current_api_version: str
     check_url: str
-    check_type: str = "openapi"  # openapi | json | html
+    check_type: str = "openapi"
     version_field: str = "info.version"
     docs_url: str = ""
 
@@ -75,7 +43,12 @@ class ConnectorManifest:
     health_endpoint: str = "/health"
     docs_url: str = "/docs"
     config_schema: dict = field(default_factory=dict)
+    service_name: str = ""
     api_version_check: ApiVersionCheck | None = None
+
+    @property
+    def resolved_service_name(self) -> str:
+        return self.service_name or f"connector-{self.name}"
 
 
 @dataclass
@@ -88,16 +61,19 @@ class VerificationTarget:
     is_deployed: bool = True
 
 
-def resolve_service_url(connector_name: str, version: str | None = None, version_count: int = 1) -> str:
-    """Resolve Docker service URL for a connector.
+def resolve_service_url(
+    manifest: ConnectorManifest,
+    version_count: int = 1,
+) -> str:
+    """Resolve Docker service URL for a connector using its manifest.
 
     When multiple versions of the same connector exist, the service name
     includes the major version suffix: ``connector-inpost-v3``.
     Single-version connectors keep the plain name for backward compat.
     """
-    base = _CONNECTOR_SERVICE_NAMES.get(connector_name, f"connector-{connector_name}")
-    if version_count > 1 and version:
-        major = version.split(".")[0]
+    base = manifest.resolved_service_name
+    if version_count > 1 and manifest.version:
+        major = manifest.version.split(".")[0]
         service = f"{base}-v{major}"
     else:
         service = base
@@ -141,6 +117,7 @@ def discover_manifests() -> list[ConnectorManifest]:
                 health_endpoint=data.get("health_endpoint", "/health"),
                 docs_url=data.get("docs_url", "/docs"),
                 config_schema=data.get("config_schema", {}),
+                service_name=data.get("service_name", ""),
                 api_version_check=avc,
             ))
         except Exception as exc:
@@ -174,7 +151,7 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
 
         for manifest in versions:
             base_url = resolve_service_url(
-                name, version=manifest.version, version_count=len(versions),
+                manifest, version_count=len(versions),
             )
             targets.append(VerificationTarget(
                 manifest=manifest,

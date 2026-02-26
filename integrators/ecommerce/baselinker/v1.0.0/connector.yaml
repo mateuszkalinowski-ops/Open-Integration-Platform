@@ -1,64 +1,117 @@
 name: baselinker
 category: ecommerce
 version: 1.0.0
-display_name: "BaseLinker"
-description: "BaseLinker — multi-channel e-commerce management platform. Order management, product catalog sync, stock levels, courier shipments, invoicing."
-website_url: "https://baselinker.com"
+display_name: BaseLinker
+description: BaseLinker — multi-channel e-commerce management platform. Order management, product catalog sync, stock levels,
+  courier shipments, invoicing.
+website_url: https://baselinker.com
 country: PL
 logo_url: /assets/logos/baselinker.svg
 interface: ecommerce
 capabilities:
-  - fetch_orders
-  - get_order
-  - update_order_status
-  - sync_stock
-  - get_product
-  - search_products
-  - sync_products
-  - create_parcel
+- fetch_orders
+- get_order
+- update_order_status
+- sync_stock
+- get_product
+- search_products
+- sync_products
+- create_parcel
 events:
-  - order.created
-  - order.status_changed
-  - product.created
-  - product.updated
+- order.created
+- order.status_changed
+- product.created
+- product.updated
 actions:
-  - order.fetch
-  - order.get
-  - order.status_update
-  - stock.sync
-  - product.get
-  - product.search
-  - product.sync
-  - parcel.create
+- order.fetch
+- order.get
+- order.status_update
+- stock.sync
+- product.get
+- product.search
+- product.sync
+- parcel.create
 config_schema:
   required:
-    - api_token
+  - api_token
   optional:
-    - inventory_id
-    - warehouse_id
-    - scraping_enabled
-    - scraping_interval_seconds
+  - inventory_id
+  - warehouse_id
+  - scraping_enabled
+  - scraping_interval_seconds
   field_types:
     api_token:
       type: password
-      label: "API Token (from BaseLinker panel)"
+      label: API Token (from BaseLinker panel)
     inventory_id:
       type: integer
-      label: "Catalog/inventory ID"
+      label: Catalog/inventory ID
       default: 0
     warehouse_id:
       type: integer
-      label: "Warehouse ID"
+      label: Warehouse ID
       default: 0
     scraping_enabled:
       type: boolean
-      label: "Automatic order polling"
+      label: Automatic order polling
       default: true
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0"
-  check_url: "https://api.baselinker.com/"
+  current_api_version: '1.0'
+  check_url: https://api.baselinker.com/
   check_type: html
-  version_field: "v(\\d+\\.\\d+)"
-  docs_url: "https://api.baselinker.com/"
+  version_field: v(\d+\.\d+)
+  docs_url: https://api.baselinker.com/
+service_name: connector-baselinker
+action_routes:
+  order.fetch:
+    method: GET
+    path: /orders
+    query_from_payload:
+    - account_name
+  order.get:
+    method: GET
+    path: /orders/{order_id}
+    query_from_payload:
+    - account_name
+  order.status_update:
+    method: PUT
+    path: /orders/{order_id}/status
+    query_from_payload:
+    - account_name
+  stock.sync:
+    method: POST
+    path: /stock/sync
+    query_from_payload:
+    - account_name
+  product.get:
+    method: GET
+    path: /products/{product_id}
+    query_from_payload:
+    - account_name
+  product.search:
+    method: GET
+    path: /products/search
+    query_from_payload:
+    - account_name
+    - query
+    - page
+    - page_size
+  parcel.create:
+    method: POST
+    path: /parcels
+    query_from_payload:
+    - account_name
+credential_validation:
+  required_fields:
+  - api_token
+  test_request:
+    method: POST
+    url_template: https://api.baselinker.com/connector.php
+    headers_template:
+      X-BLToken: '{api_token}'
+    form_data_template:
+      method: getOrderStatusList
+      parameters: '{}'
+    success_status: 200

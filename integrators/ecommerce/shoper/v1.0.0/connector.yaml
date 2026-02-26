@@ -1,74 +1,122 @@
 name: shoper
 category: ecommerce
 version: 1.0.0
-display_name: "Shoper"
-description: "Polish e-commerce platform Shoper. Order, product, stock level and user synchronization."
-website_url: "https://www.shoper.pl"
+display_name: Shoper
+description: Polish e-commerce platform Shoper. Order, product, stock level and user synchronization.
+website_url: https://www.shoper.pl
 country: PL
 logo_url: /assets/logos/shoper.svg
 interface: ecommerce
 capabilities:
-  - fetch_orders
-  - get_order
-  - update_order_status
-  - sync_stock
-  - get_product
-  - search_products
-  - create_product
-  - update_product
-  - fetch_users
-  - manage_parcels
+- fetch_orders
+- get_order
+- update_order_status
+- sync_stock
+- get_product
+- search_products
+- create_product
+- update_product
+- fetch_users
+- manage_parcels
 events:
-  - order.created
-  - order.status_changed
-  - product.created
-  - product.updated
-  - user.created
+- order.created
+- order.status_changed
+- product.created
+- product.updated
+- user.created
 actions:
-  - order.fetch
-  - order.get
-  - order.status_update
-  - stock.sync
-  - product.get
-  - product.search
-  - product.create
-  - product.update
-  - user.fetch
-  - parcel.create
-  - parcel.update
+- order.fetch
+- order.get
+- order.status_update
+- stock.sync
+- product.get
+- product.search
+- product.create
+- product.update
+- user.fetch
+- parcel.create
+- parcel.update
 config_schema:
   required:
-    - shop_url
-    - login
-    - password
+  - shop_url
+  - login
+  - password
   optional:
-    - language_id
-    - scraping_enabled
-    - scraping_interval_seconds
+  - language_id
+  - scraping_enabled
+  - scraping_interval_seconds
   field_types:
     shop_url:
       type: string
-      label: "URL sklepu Shoper"
-      placeholder: "https://myshop.shoparena.pl"
+      label: URL sklepu Shoper
+      placeholder: https://myshop.shoparena.pl
     login:
       type: string
-      label: "Login administratora"
+      label: Login administratora
     password:
       type: password
-      label: "Haslo administratora"
+      label: Haslo administratora
     language_id:
       type: string
-      label: "ID jezyka"
-      default: "pl_PL"
+      label: ID jezyka
+      default: pl_PL
     scraping_enabled:
       type: boolean
-      label: "Automatyczny polling zamowien"
+      label: Automatyczny polling zamowien
       default: true
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "1.0"
-  check_url: "https://developers.shoper.pl/"
+  current_api_version: '1.0'
+  check_url: https://developers.shoper.pl/
   check_type: html
-  version_field: "v(\\d+\\.\\d+)"
-  docs_url: "https://developers.shoper.pl/"
+  version_field: v(\d+\.\d+)
+  docs_url: https://developers.shoper.pl/
+service_name: connector-shoper
+action_routes:
+  order.fetch:
+    method: GET
+    path: /orders
+    query_from_payload:
+    - account_name
+  order.get:
+    method: GET
+    path: /orders/{order_id}
+    query_from_payload:
+    - account_name
+  order.status_update:
+    method: PUT
+    path: /orders/{order_id}/status
+    query_from_payload:
+    - account_name
+  stock.sync:
+    method: POST
+    path: /stock/sync
+    query_from_payload:
+    - account_name
+  product.get:
+    method: GET
+    path: /products/{product_id}
+    query_from_payload:
+    - account_name
+  product.search:
+    method: GET
+    path: /products/search
+    query_from_payload:
+    - account_name
+    - query
+    - page
+    - page_size
+credential_validation:
+  required_fields:
+  - shop_url
+  - login
+  - password
+  test_request:
+    method: POST
+    url_template: '{shop_url}/webapi/rest/auth'
+    auth: basic
+    auth_fields:
+    - login
+    - password
+    success_status: 200

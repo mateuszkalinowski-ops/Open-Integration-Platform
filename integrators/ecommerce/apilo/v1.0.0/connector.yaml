@@ -1,89 +1,90 @@
 name: apilo
 category: ecommerce
 version: 2.0.0
-display_name: "Apilo"
-description: "Apilo multi-channel e-commerce platform — order management, product catalog, warehouse, shipments, finance documents."
-website_url: "https://apilo.com"
+display_name: Apilo
+description: Apilo multi-channel e-commerce platform — order management, product catalog, warehouse, shipments, finance documents.
+website_url: https://apilo.com
 country: PL
 logo_url: /assets/logos/apilo.svg
 interface: ecommerce
 capabilities:
-  - fetch_orders
-  - get_order
-  - create_order
-  - update_order_status
-  - sync_stock
-  - get_product
-  - search_products
-  - create_product
-  - update_product
-  - create_shipment
-  - get_shipment
-  - manage_tags
-  - manage_documents
-  - manage_notes
+- fetch_orders
+- get_order
+- create_order
+- update_order_status
+- sync_stock
+- get_product
+- search_products
+- create_product
+- update_product
+- create_shipment
+- get_shipment
+- manage_tags
+- manage_documents
+- manage_notes
 events:
-  - order.created
-  - order.status_changed
-  - order.cancelled
-  - product.created
-  - product.updated
-  - shipment.created
+- order.created
+- order.status_changed
+- order.cancelled
+- product.created
+- product.updated
+- shipment.created
 actions:
-  - order.fetch
-  - order.get
-  - order.create
-  - order.status_update
-  - order.payment_add
-  - order.note_add
-  - order.tag_add
-  - order.tag_remove
-  - order.document_create
-  - order.shipment_add
-  - stock.sync
-  - product.get
-  - product.search
-  - product.create
-  - product.update
-  - product.delete
-  - shipment.create
-  - shipment.get
-  - shipment.confirm
-  - category.list
-  - category.create
-  - media.upload
+- order.fetch
+- order.get
+- order.create
+- order.status_update
+- order.payment_add
+- order.note_add
+- order.tag_add
+- order.tag_remove
+- order.document_create
+- order.shipment_add
+- stock.sync
+- product.get
+- product.search
+- product.create
+- product.update
+- product.delete
+- shipment.create
+- shipment.get
+- shipment.confirm
+- category.list
+- category.create
+- media.upload
 config_schema:
   required:
-    - client_id
-    - client_secret
-    - authorization_code
+  - client_id
+  - client_secret
+  - authorization_code
   optional:
-    - base_url
-    - scraping_enabled
-    - scraping_interval_seconds
+  - base_url
+  - scraping_enabled
+  - scraping_interval_seconds
   field_types:
     client_id:
       type: string
-      label: "Client ID (from Apilo Admin > API)"
+      label: Client ID (from Apilo Admin > API)
     client_secret:
       type: password
-      label: "Client Secret"
+      label: Client Secret
     authorization_code:
       type: password
-      label: "Authorization Code (initial exchange)"
+      label: Authorization Code (initial exchange)
     base_url:
       type: string
-      label: "Apilo API Base URL"
-      default: "https://app.apilo.com"
+      label: Apilo API Base URL
+      default: https://app.apilo.com
     scraping_enabled:
       type: boolean
-      label: "Automatic order polling"
+      label: Automatic order polling
       default: true
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
-  current_api_version: "2.0.0.5"
-  check_url: "https://developer.apilo.com/uploads/apilo/swagger.json"
+  current_api_version: 2.0.0.5
+  check_url: https://developer.apilo.com/uploads/apilo/swagger.json
   check_type: openapi
-  version_field: "info.version"
-  docs_url: "https://developer.apilo.com/api/"
+  version_field: info.version
+  docs_url: https://developer.apilo.com/api/
+service_name: connector-apilo
