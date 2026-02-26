@@ -148,16 +148,40 @@ class MappingResolver:
         return mapped
 
     def _get_nested(self, data: dict, key: str) -> Any:
+        if "[]" in key:
+            return self._get_nested_array(data, key)
         parts = key.split(".")
         current: Any = data
         for part in parts:
             if isinstance(current, dict):
                 current = current.get(part)
+            elif isinstance(current, list):
+                try:
+                    current = current[int(part)]
+                except (ValueError, IndexError):
+                    return None
             else:
                 return None
         return current
 
+    def _get_nested_array(self, data: dict, key: str) -> Any:
+        bracket_pos = key.index("[]")
+        array_path = key[:bracket_pos]
+        rest = key[bracket_pos + 2:]
+        if rest.startswith("."):
+            rest = rest[1:]
+
+        arr = self._get_nested(data, array_path) if array_path else data
+        if not isinstance(arr, list):
+            return None
+        if not rest:
+            return arr
+        return [self._get_nested(item, rest) if isinstance(item, dict) else None for item in arr]
+
     def _set_nested(self, data: dict, key: str, value: Any) -> None:
+        if "[]" in key:
+            self._set_nested_array(data, key, value)
+            return
         parts = key.split(".")
         current = data
         for part in parts[:-1]:
@@ -165,6 +189,42 @@ class MappingResolver:
                 current[part] = {}
             current = current[part]
         current[parts[-1]] = value
+
+    def _set_nested_array(self, data: dict, key: str, value: Any) -> None:
+        bracket_pos = key.index("[]")
+        array_path = key[:bracket_pos]
+        rest = key[bracket_pos + 2:]
+        if rest.startswith("."):
+            rest = rest[1:]
+
+        parts = array_path.split(".") if array_path else []
+        current: Any = data
+        for part in parts[:-1]:
+            if part not in current:
+                current[part] = {}
+            current = current[part]
+
+        arr_key = parts[-1] if parts else ""
+        if not arr_key:
+            return
+
+        if arr_key not in current or not isinstance(current[arr_key], list):
+            current[arr_key] = []
+        arr = current[arr_key]
+
+        if not isinstance(value, list):
+            value = [value]
+
+        while len(arr) < len(value):
+            arr.append({})
+
+        for i, v in enumerate(value):
+            if rest:
+                if not isinstance(arr[i], dict):
+                    arr[i] = {}
+                self._set_nested(arr[i], rest, v)
+            else:
+                arr[i] = v
 
     def _apply_transform(self, values: list[Any], transform: dict) -> Any:
         """Apply a transform to resolved source values.

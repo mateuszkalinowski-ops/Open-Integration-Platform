@@ -20,6 +20,7 @@ class OrderStatus(str, Enum):
 
 
 class OrderPosition(BaseModel):
+    product_id: int | None = None
     product_symbol: str
     product_name: str = ""
     quantity: float = 1.0

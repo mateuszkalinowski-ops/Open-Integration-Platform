@@ -35,6 +35,7 @@ class DocumentParty(BaseModel):
 
 
 class DocumentPosition(BaseModel):
+    product_id: int | None = None
     product_symbol: str
     product_name: str = ""
     quantity: float = 1.0

@@ -211,9 +211,60 @@ event_fields:
     - field: deliveryAddress.name
       label: "Adres dostawy - nazwa"
       type: string
-    - field: positions
-      label: "Pozycje dokumentu"
+    - field: "positions[]"
+      label: "Pozycje dokumentu (wszystkie)"
       type: "object[]"
+    - field: "positions[].no"
+      label: "Pozycja — numer"
+      type: integer
+    - field: "positions[].erpId"
+      label: "Pozycja — ID ERP"
+      type: integer
+    - field: "positions[].quantity"
+      label: "Pozycja — ilosc"
+      type: number
+    - field: "positions[].statusSymbol"
+      label: "Pozycja — symbol statusu"
+      type: string
+    - field: "positions[].note"
+      label: "Pozycja — uwagi"
+      type: string
+    - field: "positions[].article.erpId"
+      label: "Pozycja — artykul ID ERP"
+      type: integer
+    - field: "positions[].article.wmsId"
+      label: "Pozycja — artykul ID WMS"
+      type: integer
+    - field: "positions[].article.name"
+      label: "Pozycja — artykul nazwa"
+      type: string
+    - field: "positions[].article.symbol"
+      label: "Pozycja — artykul symbol"
+      type: string
+    - field: "positions[].article.ean"
+      label: "Pozycja — artykul EAN"
+      type: string
+    - field: "positions[].article.unit"
+      label: "Pozycja — artykul jednostka"
+      type: string
+    - field: "positions[].article.group"
+      label: "Pozycja — artykul grupa"
+      type: string
+    - field: "positions[].article.source"
+      label: "Pozycja — artykul zrodlo"
+      type: string
+    - field: "positions[].articleBatch.batchNumber"
+      label: "Pozycja — numer partii"
+      type: string
+    - field: "positions[].articleBatch.erpArticleId"
+      label: "Pozycja — partia ID artykulu"
+      type: integer
+    - field: "positions[].articleBatch.eanCode"
+      label: "Pozycja — partia EAN"
+      type: string
+    - field: "positions[].articleBatch.termValidity"
+      label: "Pozycja — partia data waznosci"
+      type: date
     - field: procedures
       label: "Procedury WMS"
       type: "string[]"
@@ -285,9 +336,39 @@ event_fields:
     - field: documentSource
       label: "Zrodlo dokumentu"
       type: string
-    - field: positions
-      label: "Lista pozycji"
+    - field: "positions[]"
+      label: "Lista pozycji (wszystkie)"
       type: "object[]"
+    - field: "positions[].no"
+      label: "Pozycja — numer"
+      type: integer
+    - field: "positions[].erpId"
+      label: "Pozycja — ID ERP"
+      type: integer
+    - field: "positions[].quantity"
+      label: "Pozycja — ilosc"
+      type: number
+    - field: "positions[].statusSymbol"
+      label: "Pozycja — symbol statusu"
+      type: string
+    - field: "positions[].note"
+      label: "Pozycja — uwagi"
+      type: string
+    - field: "positions[].article.erpId"
+      label: "Pozycja — artykul ID ERP"
+      type: integer
+    - field: "positions[].article.name"
+      label: "Pozycja — artykul nazwa"
+      type: string
+    - field: "positions[].article.symbol"
+      label: "Pozycja — artykul symbol"
+      type: string
+    - field: "positions[].article.ean"
+      label: "Pozycja — artykul EAN"
+      type: string
+    - field: "positions[].article.unit"
+      label: "Pozycja — artykul jednostka"
+      type: string
   feedback.received:
     - field: id
       label: "ID feedbacku"
@@ -491,9 +572,62 @@ action_fields:
     - field: deliveryAddress.name
       label: "Adres dostawy - nazwa"
       type: string
-    - field: positions
-      label: "Pozycje dokumentu"
+    - field: "positions[]"
+      label: "Pozycje dokumentu (wszystkie)"
       type: "object[]"
+    - field: "positions[].no"
+      label: "Pozycja — numer"
+      type: integer
+    - field: "positions[].erpId"
+      label: "Pozycja — ID ERP"
+      type: integer
+    - field: "positions[].quantity"
+      label: "Pozycja — ilosc"
+      type: number
+      required: true
+    - field: "positions[].statusSymbol"
+      label: "Pozycja — symbol statusu"
+      type: string
+    - field: "positions[].note"
+      label: "Pozycja — uwagi"
+      type: string
+    - field: "positions[].article.erpId"
+      label: "Pozycja — artykul ID ERP"
+      type: integer
+      required: true
+    - field: "positions[].article.wmsId"
+      label: "Pozycja — artykul ID WMS"
+      type: integer
+    - field: "positions[].article.name"
+      label: "Pozycja — artykul nazwa"
+      type: string
+    - field: "positions[].article.symbol"
+      label: "Pozycja — artykul symbol"
+      type: string
+    - field: "positions[].article.ean"
+      label: "Pozycja — artykul EAN"
+      type: string
+    - field: "positions[].article.unit"
+      label: "Pozycja — artykul jednostka"
+      type: string
+    - field: "positions[].article.group"
+      label: "Pozycja — artykul grupa"
+      type: string
+    - field: "positions[].article.source"
+      label: "Pozycja — artykul zrodlo"
+      type: string
+    - field: "positions[].articleBatch.batchNumber"
+      label: "Pozycja — numer partii"
+      type: string
+    - field: "positions[].articleBatch.erpArticleId"
+      label: "Pozycja — partia ID artykulu"
+      type: integer
+    - field: "positions[].articleBatch.eanCode"
+      label: "Pozycja — partia EAN"
+      type: string
+    - field: "positions[].articleBatch.termValidity"
+      label: "Pozycja — partia data waznosci"
+      type: date
     - field: procedures
       label: "Procedury WMS"
       type: "string[]"
@@ -541,10 +675,45 @@ action_fields:
       label: "Zrodlo dokumentu"
       type: string
       required: true
-    - field: positions
-      label: "Pozycje"
+    - field: "positions[]"
+      label: "Pozycje (wszystkie)"
       type: "object[]"
       required: true
+    - field: "positions[].no"
+      label: "Pozycja — numer"
+      type: integer
+    - field: "positions[].erpId"
+      label: "Pozycja — ID ERP"
+      type: integer
+    - field: "positions[].quantity"
+      label: "Pozycja — ilosc"
+      type: number
+      required: true
+    - field: "positions[].statusSymbol"
+      label: "Pozycja — symbol statusu"
+      type: string
+    - field: "positions[].note"
+      label: "Pozycja — uwagi"
+      type: string
+    - field: "positions[].article.erpId"
+      label: "Pozycja — artykul ID ERP"
+      type: integer
+      required: true
+    - field: "positions[].article.name"
+      label: "Pozycja — artykul nazwa"
+      type: string
+    - field: "positions[].article.symbol"
+      label: "Pozycja — artykul symbol"
+      type: string
+    - field: "positions[].article.ean"
+      label: "Pozycja — artykul EAN"
+      type: string
+    - field: "positions[].article.unit"
+      label: "Pozycja — artykul jednostka"
+      type: string
+    - field: "positions[].article.source"
+      label: "Pozycja — artykul zrodlo"
+      type: string
   position.delete:
     - field: documentId
       label: "ID dokumentu"

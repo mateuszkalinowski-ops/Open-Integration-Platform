@@ -198,6 +198,7 @@ def nexo_sales_document_to_model(dokument: Any) -> DocumentResponse:
         for poz in _iterate_net_collection(getattr(dane, "Pozycje", None)):
             positions.append(
                 DocumentPosition(
+                    product_id=_safe_int(getattr(poz, "IdAsortymentu", 0)) or None,
                     product_symbol=_safe_str(getattr(poz, "SymbolAsortymentu", "")),
                     product_name=_safe_str(getattr(poz, "NazwaAsortymentu", "")),
                     quantity=_safe_float(getattr(poz, "Ilosc", 1)),
@@ -234,6 +235,7 @@ def nexo_warehouse_document_to_model(dokument: Any) -> DocumentResponse:
         for poz in _iterate_net_collection(getattr(dane, "Pozycje", None)):
             positions.append(
                 DocumentPosition(
+                    product_id=_safe_int(getattr(poz, "IdAsortymentu", 0)) or None,
                     product_symbol=_safe_str(getattr(poz, "SymbolAsortymentu", "")),
                     product_name=_safe_str(getattr(poz, "NazwaAsortymentu", "")),
                     quantity=_safe_float(getattr(poz, "Ilosc", 1)),
@@ -263,6 +265,7 @@ def nexo_order_to_model(zamowienie: Any, order_type: OrderType = OrderType.FROM_
         for poz in _iterate_net_collection(getattr(dane, "Pozycje", None)):
             positions.append(
                 OrderPosition(
+                    product_id=_safe_int(getattr(poz, "IdAsortymentu", 0)) or None,
                     product_symbol=_safe_str(getattr(poz, "SymbolAsortymentu", "")),
                     product_name=_safe_str(getattr(poz, "NazwaAsortymentu", "")),
                     quantity=_safe_float(getattr(poz, "Ilosc", 1)),
