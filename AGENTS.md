@@ -27,17 +27,21 @@ The platform is designed to be **autonomous** — integrations are continuously 
 ### Existing Codebases
 
 
-| Directory                | Stack                                 | Purpose                                                            |
-| ------------------------ | ------------------------------------- | ------------------------------------------------------------------ |
-| `platform/`              | FastAPI, SQLAlchemy, asyncpg, Redis   | API Gateway, Flow Engine, Workflow Engine, Credential Vault        |
-| `platform/dashboard/`    | Angular, `@pinquark/integrations`     | Admin Dashboard (standalone + embeddable library)                  |
-| `integrators/courier/`   | FastAPI, httpx, zeep (SOAP)           | 15 courier connectors (InPost, DHL, DPD, GLS, FedEx, UPS, ...)     |
-| `integrators/ecommerce/` | FastAPI, httpx, aiokafka              | E-commerce connectors (Allegro)                                    |
-| `integrators/wms/`       | FastAPI, httpx                        | WMS connector (Pinquark WMS)                                       |
-| `shared/python/`         | Pydantic, aiokafka, httpx, prometheus | Shared library: schemas, Kafka, REST/SOAP clients, circuit breaker |
-| `sdk/python/`            | httpx                                 | Python SDK for Platform API                                        |
-| `k8s/`                   | Kubernetes, Strimzi, Nginx Ingress    | Deployment manifests, HPA, Kafka cluster/topics                    |
-| `onpremise/`             | Docker, SQLite                        | On-premise agent for local ERP connectivity                        |
+| Directory                | Stack                                 | Purpose                                                                          |
+| ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------- |
+| `platform/`              | FastAPI, SQLAlchemy, asyncpg, Redis   | API Gateway, Flow Engine, Workflow Engine, Credential Vault                      |
+| `platform/dashboard/`    | Angular, `@pinquark/integrations`     | Admin Dashboard (standalone + embeddable library)                                |
+| `platform/verification-agent/` | FastAPI, APScheduler, httpx     | 3-tier connector verification & health monitoring                                |
+| `integrators/courier/`   | FastAPI, httpx, zeep (SOAP)           | 18 courier connectors (InPost, DHL, DPD, GLS, FedEx, UPS, Raben, ...)           |
+| `integrators/ecommerce/` | FastAPI, httpx, aiokafka              | 8 e-commerce connectors (Allegro, Amazon, Apilo, BaseLinker, Shopify, ...)       |
+| `integrators/erp/`       | FastAPI, Python.NET                   | ERP connectors (InsERT Nexo — hybrid on-premise + cloud)                         |
+| `integrators/wms/`       | FastAPI, httpx                        | WMS connector (Pinquark WMS)                                                     |
+| `integrators/ai/`        | FastAPI, httpx                        | AI Agent (Gemini — risk analysis, courier recommendations, data extraction)      |
+| `integrators/other/`     | FastAPI, httpx                        | 5 connectors (Email Client, SkanujFakture, FTP/SFTP, Slack, BulkGate SMS)        |
+| `shared/python/`         | Pydantic, aiokafka, httpx, prometheus | Shared library: schemas, Kafka, REST/SOAP clients, circuit breaker               |
+| `sdk/python/`            | httpx                                 | Python SDK for Platform API                                                      |
+| `k8s/`                   | Kubernetes, Strimzi, Nginx Ingress    | Deployment manifests, HPA, Kafka cluster/topics                                  |
+| `onpremise/`             | Docker, Python.NET, SQLite            | On-premise agent for local ERP connectivity + Windows installer                  |
 
 
 ### Platform Documentation
@@ -812,27 +816,17 @@ Available utilities from `checks/common.py`:
 | `req_check(client, method, url, name, *, params?, json_body?, files?, accept_statuses?)` | Execute any HTTP method, return `(check_result, response)` |
 | `PDF_STUB` | Minimal valid PDF bytes for upload tests |
 
-**Step 3 — Register in the dispatcher**
+**Step 3 — Auto-discovery (no registration needed)**
 
-Add the connector to `platform/verification-agent/src/checks/functional.py`. The dispatcher uses three registries, checked in order:
+The dispatcher in `platform/verification-agent/src/checks/functional.py` uses `importlib` to auto-discover test modules by convention. No manual registration is required — placing a file in the correct category folder is enough:
 
 ```python
-from src.checks.{category} import {connector_name} as {category}_{connector_name}
-
-# 1. Connector-specific (highest priority — matches by connector name)
-_CONNECTOR_REGISTRY: dict[str, Any] = {
-    "new-connector": category_new_connector,
-    # ...
-}
-
-# 2. Interface-based (matches by connector.yaml `interface` field)
-_INTERFACE_REGISTRY: dict[str, Any] = { ... }
-
-# 3. Category-based fallback (matches by connector.yaml `category` field)
-_CATEGORY_REGISTRY: dict[str, Any] = { ... }
+# Resolution order (automatic):
+# 1. src.checks.{category}.{connector_name}  — connector-specific
+# 2. src.checks.{category}.generic           — category fallback
 ```
 
-For a connector-specific test file, add an entry to `_CONNECTOR_REGISTRY`. For a generic category fallback, add to `_CATEGORY_REGISTRY`.
+For example, adding `checks/courier/inpost.py` automatically makes it the test module for the InPost connector. If no connector-specific file exists, `checks/courier/generic.py` is used as fallback.
 
 **Step 4 — Test checklist**
 

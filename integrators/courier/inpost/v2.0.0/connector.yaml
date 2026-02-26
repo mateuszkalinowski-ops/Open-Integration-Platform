@@ -43,7 +43,7 @@ api_version_check:
   check_type: html
   version_field: shipping/(v\d+)
   docs_url: https://developers.inpost-group.com/
-service_name: connector-inpost
+service_name: connector-inpost-v2
 action_routes:
   shipment.create:
     method: POST

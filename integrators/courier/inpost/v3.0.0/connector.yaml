@@ -193,7 +193,7 @@ api_version_check:
   check_type: html
   version_field: shipping/(v\d+)
   docs_url: https://developers.inpost-group.com/shipping
-service_name: connector-inpost
+service_name: connector-inpost-v3
 action_routes:
   shipment.create:
     method: POST

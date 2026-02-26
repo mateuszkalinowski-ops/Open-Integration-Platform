@@ -2,7 +2,7 @@
 
 **Open-source integration hub that connects any system with any other system.**
 
-Courier services, e-commerce platforms, ERP systems, WMS, automation — all connected through configurable flows with a visual dashboard.
+Courier services, e-commerce platforms, ERP systems, WMS, automation — all connected through configurable flows and workflows with a visual dashboard.
 
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
@@ -17,43 +17,53 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 | Self-hosted | No | Yes |
 | Open-source | No | Yes (Apache 2.0) |
 | Any-to-any flows | No (hub-and-spoke) | Yes (Flow Engine) |
-| Plugin system | Closed | Open (connector.yaml) |
+| Zero-impact connectors | Closed | Yes (connector.yaml) |
 | Embeddable UI | No | Yes (Angular library) |
 | API + SDK | REST only | REST + Python/JS SDK |
 | Custom connectors | No | Yes |
+| On-premise ERP agents | No | Yes (Docker-based) |
+| Verification agent | No | Yes (3-tier automated testing) |
 
 ## Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                    Pinquark Platform Core                    │
-│                                                             │
-│  ┌──────────┐  ┌─────────────┐  ┌────────────────────────┐ │
-│  │API Gateway│  │ Flow Engine │  │  Admin Dashboard       │ │
-│  │ (FastAPI) │  │ (any→any)   │  │  (Angular / npm lib)   │ │
-│  └────┬─────┘  └──────┬──────┘  └────────────────────────┘ │
-│       │               │                                     │
-│  ┌────┴───────────────┴──────────────────────────────────┐  │
-│  │  Connector Registry  │  Credential Vault  │  Mappings │  │
-│  └───────────────────────────────────────────────────────┘  │
-└──────────────────────────┬──────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────┐
+│                     Pinquark Platform Core                       │
+│                                                                  │
+│  ┌──────────┐  ┌─────────────┐  ┌──────────┐  ┌──────────────┐ │
+│  │API Gateway│  │ Flow Engine │  │ Workflow │  │  Dashboard   │ │
+│  │ (FastAPI) │  │ (any→any)   │  │  Engine  │  │ (Angular)    │ │
+│  └────┬─────┘  └──────┬──────┘  └────┬─────┘  └──────────────┘ │
+│       │               │              │                           │
+│  ┌────┴───────────────┴──────────────┴───────────────────────┐  │
+│  │  Connector Registry  │  Credential Vault  │  Mapping       │  │
+│  │  (connector.yaml)    │  (AES-256-GCM)     │  Resolver      │  │
+│  └───────────────────────────────────────────────────────────┘  │
+│                                                                  │
+│  ┌──────────────────────────────────────────────────────────┐   │
+│  │  Verification Agent (3-tier: health → auth → functional) │   │
+│  └──────────────────────────────────────────────────────────┘   │
+└──────────────────────────┬───────────────────────────────────────┘
                            │
-        ┌──────────────────┼──────────────────────┐
-        │                  │                      │
-  ┌─────┴─────┐    ┌──────┴──────┐    ┌──────────┴──────────┐
-  │  Courier   │    │  E-commerce │    │  ERP / WMS / Other  │
-  │            │    │             │    │                     │
-  │ InPost     │    │ Allegro     │    │ Pinquark WMS        │
-  │ DHL        │    │ Shopify     │    │ WAPRO               │
-  │ DPD        │    │ WooCommerce │    │ SAP                 │
-  │ FedEx      │    │ Shoper      │    │ Comarch             │
-  │ GLS        │    │ IdoSell     │    │ Custom              │
-  │ UPS        │    │ BaseLinker  │    │                     │
-  │ 12 more... │    │ ...         │    │                     │
-  └────────────┘    └─────────────┘    └─────────────────────┘
+     ┌─────────────────────┼─────────────────────────┐
+     │                     │                         │
+┌────┴──────┐    ┌─────────┴─────────┐    ┌──────────┴──────────┐
+│  Courier  │    │    E-commerce     │    │  ERP / WMS / Other  │
+│  (18)     │    │    (8)            │    │                     │
+│ InPost    │    │ Allegro           │    │ Pinquark WMS        │
+│ DHL       │    │ Amazon            │    │ InsERT Nexo         │
+│ DPD       │    │ Apilo             │    │ AI Agent            │
+│ FedEx     │    │ BaseLinker        │    │ SkanujFakture       │
+│ GLS       │    │ Shopify           │    │ Email Client        │
+│ UPS       │    │ WooCommerce       │    │ FTP/SFTP            │
+│ Raben     │    │ Shoper            │    │ Slack               │
+│ 11 more…  │    │ IdoSell           │    │ BulkGate SMS        │
+└───────────┘    └───────────────────┘    └─────────────────────┘
 ```
 
 **Every system is an equal peer.** Connectors act as both **source** (emit events) and **destination** (receive actions). The Flow Engine connects any source event to any destination action.
+
+**Zero-impact connector architecture.** Adding a new connector requires only creating a folder with a `connector.yaml` manifest — no platform code changes needed. The platform discovers connectors automatically at startup.
 
 ## Screenshots
 
@@ -74,7 +84,7 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
     <td><a href="./docs/Screenshots/operation-log.png"><img src="./docs/Screenshots/operation-log.png" alt="Operation log" width="260"/></a></td>
   </tr>
   <tr>
-    <td style="text-align:center;">Flows &amp; Workflows</td>
+    <td style="text-align:center;">Flows & Workflows</td>
     <td style="text-align:center;">Workflow Editor</td>
     <td style="text-align:center;">Operation Log</td>
   </tr>
@@ -173,31 +183,100 @@ flows:
       - from: order.point_id        -> to: extras.target_point
 ```
 
-Flows are configured via the dashboard UI or REST API. Default field mappings ship with each connector; tenants can override them.
+Flows and workflows are configured via the dashboard UI or REST API. Default field mappings ship with each connector; tenants can override them per-instance.
 
-## Connectors — 28 and growing
+## Connectors — 34 and growing
 
 Every connector is a self-contained microservice with its own API, versioning, and documentation. Browse them all in the [dashboard](#screenshots) or via the REST API.
 
 | Category | # | Connectors |
 |----------|---|------------|
-| **Courier** | 18 | InPost (v1–v3) · DHL · DHL Express · DPD · FedEx · FedEx PL · GLS · UPS · Poczta Polska · Orlen Paczka · Packeta · Paxy · Raben Group · DB Schenker · Geis · SUUS · SellAsist |
-| **E-commerce** | 6 | Allegro · BaseLinker · Shopify · WooCommerce · Shoper · IdoSell |
+| **Courier** | 18 | InPost (v1–v3) · DHL · DHL Express · DPD · FedEx · FedEx PL · FX Couriers · GLS · UPS · Poczta Polska · Orlen Paczka · Packeta · Paxy · Raben Group · DB Schenker · Geis · SUUS · SellAsist |
+| **E-commerce** | 8 | Allegro · Amazon · Apilo · BaseLinker · Shopify · WooCommerce · Shoper · IdoSell |
+| **ERP** | 1 | InsERT Nexo (Subiekt) — hybrid: on-premise agent + cloud connector |
 | **WMS** | 1 | Pinquark WMS |
 | **AI** | 1 | AI Agent (Gemini) — risk analysis, courier recommendations, data extraction |
-| **Other** | 2 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) |
+| **Other** | 5 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) · FTP/SFTP · Slack · BulkGate SMS |
 
-> **Coming soon:** PrestaShop, WAPRO, Comarch ERP, SAP, Subiekt GT, and more.
+> **Coming soon:** PrestaShop, WAPRO, Comarch ERP, SAP, enova365, and more.
 >
 > See [docs/CONNECTORS.md](docs/CONNECTORS.md) for full configuration reference.
+
+## Zero-impact connector architecture
+
+Adding a new connector requires **zero changes** to the platform core. Each connector is fully defined by its `connector.yaml` manifest:
+
+```yaml
+name: my-connector
+category: ecommerce
+version: 1.0.0
+display_name: "My Connector"
+service_name: connector-my-connector
+
+action_routes:
+  order.list:
+    method: GET
+    path: /orders
+    query_from_payload: [account_name, page, page_size]
+
+credential_validation:
+  required_fields: [api_key]
+  test_request:
+    method: GET
+    url_template: "{api_url}/ping"
+    headers_template:
+      Authorization: "Bearer {api_key}"
+    success_status: 200
+```
+
+The platform reads `connector.yaml` at startup for action routing, credential provisioning, credential validation, and verification agent test discovery. No platform files (`gateway.py`, `action_dispatcher.py`, `discovery.py`) need modification.
+
+See [AGENTS.md](AGENTS.md) section 2.1.1 for the full connector.yaml field reference.
+
+## On-premise agents
+
+For ERP systems that run behind firewalls (InsERT Nexo, WAPRO, SAP), the platform provides a Docker-based on-premise agent:
+
+```
+┌──────────────────────────┐
+│    Client's Network      │
+│                          │
+│  ┌─────────┐ ┌────────┐ │         ┌─────────────────┐
+│  │Local ERP│◀▶│On-Prem │─│────────▶│ Pinquark Cloud  │
+│  │(Nexo)   │ │Agent   │ │  HTTPS  │ Integration Hub  │
+│  └─────────┘ └────────┘ │         └─────────────────┘
+│                  │       │
+│             ┌────┴────┐  │
+│             │ SQLite  │  │
+│             └─────────┘  │
+└──────────────────────────┘
+```
+
+- Auto-update, offline resilience (local queue), heartbeat monitoring
+- Windows installer wizard for easy client deployment
+- Downloadable from the connector's detail page in the dashboard
+
+## Verification agent
+
+A built-in 3-tier verification agent continuously monitors all connectors:
+
+| Tier | Scope | Checks |
+|------|-------|--------|
+| **1 — Infrastructure** | All connectors | `/health`, `/readiness`, `/docs` |
+| **2 — Authentication** | With credentials | Account provisioning, auth status, connection status |
+| **3 — Functional** | Per-connector | All endpoints, CRUD cycles, error paths, response times |
+
+Runs on schedule (default: every 7 days), on-demand via API, or from the dashboard.
 
 ## Project Structure
 
 ```
-├── platform/                  # Core platform (API Gateway, Flow Engine)
-│   ├── api/                   # FastAPI application
-│   ├── core/                  # Business logic (flows, mappings, tenants)
+├── platform/                  # Core platform (API Gateway, Flow & Workflow Engine)
+│   ├── api/                   # FastAPI application + credential validator
+│   ├── core/                  # Business logic (action dispatcher, connector registry,
+│   │                          #   flow engine, workflow engine, mapping resolver)
 │   ├── db/                    # PostgreSQL models & migrations
+│   ├── verification-agent/    # 3-tier connector verification service
 │   └── dashboard/             # Angular workspace
 │       ├── projects/
 │       │   ├── integrations-lib/   # @pinquark/integrations (npm library)
@@ -205,10 +284,12 @@ Every connector is a self-contained microservice with its own API, versioning, a
 │       └── angular.json
 │
 ├── integrators/               # All connectors by category
-│   ├── courier/               # InPost, DHL, DPD, FedEx, GLS, UPS, ...
-│   ├── ecommerce/             # Allegro, (Shopify, WooCommerce, ...)
-│   ├── erp/                   # (WAPRO, SAP, Comarch, ...)
-│   └── other/                 # Custom connectors
+│   ├── courier/               # InPost, DHL, DPD, FedEx, GLS, UPS, Raben, ...
+│   ├── ecommerce/             # Allegro, Amazon, Apilo, BaseLinker, Shopify, ...
+│   ├── erp/                   # InsERT Nexo (on-premise + cloud)
+│   ├── wms/                   # Pinquark WMS
+│   ├── ai/                    # AI Agent (Gemini)
+│   └── other/                 # Email, SkanujFakture, FTP/SFTP, Slack, BulkGate
 │
 ├── shared/                    # Shared Python library (pinquark-common)
 │   └── python/
@@ -218,10 +299,23 @@ Every connector is a self-contained microservice with its own API, versioning, a
 │   ├── python/                # pinquark-sdk (PyPI)
 │   └── javascript/            # @pinquark/sdk (npm)
 │
-├── docs/                      # Per-connector documentation
+├── onpremise/                 # On-premise agent for local ERP connectivity
+│   ├── agent/                 # Docker-based agent (Python.NET + FastAPI)
+│   └── installers/            # Windows installer wizard
+│
+├── docs/                      # Per-connector documentation & architecture
+│   ├── ARCHITECTURE.md        # System architecture & scalability
+│   ├── CONNECTORS.md          # Connector configuration reference
+│   ├── courier/
+│   ├── ecommerce/
+│   ├── erp/
+│   └── other/
+│
 ├── k8s/                       # Kubernetes deployment configs
 ├── ci/                        # CI/CD pipelines
-└── monitoring/                # Prometheus, Grafana configs
+├── monitoring/                # Prometheus, Grafana configs
+├── AGENTS.md                  # Agent guidelines, coding standards, full reference
+└── README.md
 ```
 
 ## Tech Stack
@@ -231,7 +325,17 @@ Every connector is a self-contained microservice with its own API, versioning, a
 - **Frontend**: Angular 18+, Angular Material, TypeScript strict
 - **Messaging**: Kafka / Redis Streams (event bus)
 - **Connectors**: FastAPI microservices, httpx (async HTTP), zeep (SOAP)
+- **On-premise**: Python.NET (pythonnet) for .NET SDK bridges, SQLite for local queuing
 - **Infrastructure**: Docker, Kubernetes, Helm, Prometheus, Grafana
+- **Security**: AES-256-GCM credential encryption, TLS 1.2+, non-root containers
+
+## Documentation
+
+| Document | Path | Description |
+|----------|------|-------------|
+| Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, scalability, deployment |
+| Connectors | [docs/CONNECTORS.md](docs/CONNECTORS.md) | Configuration reference for all connectors |
+| Agent Guidelines | [AGENTS.md](AGENTS.md) | Coding standards, CI/CD, security, interfaces |
 
 ## Contributing
 

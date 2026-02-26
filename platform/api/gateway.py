@@ -276,20 +276,24 @@ async def list_connectors(
 async def get_connector_openapi(name: str):
     """Proxy to connector's /openapi.json endpoint for Swagger UI embedding."""
     manifests = registry.get_by_name(name)
-    base_url = manifests[0].base_url if manifests else _resolve_service_url(name, registry)
-    url = f"{base_url}/openapi.json"
+    if not manifests:
+        raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
+
+    sorted_manifests = sorted(manifests, key=lambda m: m.version, reverse=True)
 
     async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp = await client.get(url)
-            resp.raise_for_status()
-            spec = resp.json()
-            spec["servers"] = [{"url": f"/connector-proxy/{name}", "description": "Connector API"}]
-            return spec
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable")
-        except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail="Failed to fetch OpenAPI spec")
+        for manifest in sorted_manifests:
+            url = f"{manifest.base_url}/openapi.json"
+            try:
+                resp = await client.get(url)
+                resp.raise_for_status()
+                spec = resp.json()
+                spec["servers"] = [{"url": f"/connector-proxy/{name}", "description": "Connector API"}]
+                return spec
+            except (httpx.ConnectError, httpx.HTTPStatusError):
+                continue
+
+        raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable")
 
 
 @app.get("/api/v1/connectors/{name}/onpremise-agent", tags=["connectors"])
