@@ -363,7 +363,7 @@ services:
       APP_PORT: 8000
       KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
-      PLATFORM_EVENT_NOTIFY: "false"
+      PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
     restart: unless-stopped

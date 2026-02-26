@@ -139,6 +139,19 @@ class DocumentAttribute(BaseModel):
     model_config = {"populate_by_name": True}
 
 
+class DocumentDecret(BaseModel):
+    id: int | None = None
+    dict_type: str | None = Field(default=None, alias="type")
+    symbol: str | None = None
+    description: str | None = None
+    value: str | None = None
+    amount: float | None = None
+    dict_item_id: int | None = Field(default=None, alias="dictItemId")
+    ordinal_number: int | None = Field(default=None, alias="ordinalNumber")
+
+    model_config = {"populate_by_name": True}
+
+
 class PaymentType(BaseModel):
     id: int | None = None
     name: str | None = None
@@ -202,6 +215,7 @@ class Document(BaseModel):
     scan: str | None = None
     payment_type: PaymentType | None = Field(default=None, alias="paymentType")
     attributes: list[DocumentAttribute] = Field(default_factory=list)
+    decrets: list[DocumentDecret] = Field(default_factory=list)
     document_vats: list[DocumentVat] = Field(default_factory=list, alias="documentVats")
     document_items: list[DocumentItem] = Field(default_factory=list, alias="documentItems")
     ocrs: list[OcrField] = Field(default_factory=list)

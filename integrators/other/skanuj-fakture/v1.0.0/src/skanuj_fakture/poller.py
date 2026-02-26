@@ -5,10 +5,13 @@ import logging
 from datetime import datetime, timezone
 from typing import Any
 
+import httpx
+
 from src.config import settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.skanuj_fakture.client import SkanujFaktureClient
+from src.skanuj_fakture.schemas import Document
 from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
@@ -97,28 +100,49 @@ class DocumentPoller:
             if doc_id is None:
                 continue
             await self._state_store.save_document_id(account_name, doc_id)
+            await self._publish_document_event(account_name, doc)
 
-            if self._kafka_producer:
-                await self._publish_document_event(account_name, doc)
+    def _normalize_document(self, raw: dict[str, Any]) -> dict[str, Any]:
+        """Parse raw API response through Pydantic model to normalize keys to snake_case."""
+        try:
+            doc = Document(**raw)
+            normalized = doc.model_dump(by_alias=False, exclude_none=False)
+            normalized["document_id"] = normalized.pop("id", None)
+            return normalized
+        except Exception:
+            logger.warning("Failed to normalize document via Pydantic, using raw data")
+            result: dict[str, Any] = {"document_id": raw.get("id")}
+            result.update(raw)
+            return result
 
     async def _publish_document_event(self, account_name: str, document: dict[str, Any]) -> None:
-        if self._kafka_producer is None:
-            return
-        event = {
-            "account_name": account_name,
-            "document_id": document.get("id"),
-            "number": document.get("number"),
-            "date": document.get("date"),
-            "netto": document.get("netto"),
-            "brutto": document.get("brutto"),
-            "contractor": document.get("contractor", {}).get("name") if document.get("contractor") else None,
-            "status": document.get("documentStatus", {}).get("name") if document.get("documentStatus") else None,
-            "invoice_type": document.get("invoiceType"),
-            "polled_at": datetime.now(timezone.utc).isoformat(),
+        event = self._normalize_document(document)
+        event["account_name"] = account_name
+        event["polled_at"] = datetime.now(timezone.utc).isoformat()
+
+        if self._kafka_producer:
+            await self._kafka_producer.send(
+                settings.kafka_topic_documents_scanned,
+                value=event,
+                key=str(event.get("document_id", "")),
+            )
+
+        if settings.platform_event_notify:
+            await self._notify_platform(event)
+
+        logger.debug("Published document event for doc %s", event.get("document_id"))
+
+    async def _notify_platform(self, event: dict[str, Any]) -> None:
+        url = f"{settings.platform_api_url}/internal/events"
+        payload = {
+            "connector": "skanuj-fakture",
+            "event": "document.scanned",
+            "data": event,
         }
-        await self._kafka_producer.send(
-            settings.kafka_topic_documents_scanned,
-            value=event,
-            key=str(document.get("id", "")),
-        )
-        logger.debug("Published document event for doc %s", document.get("id"))
+        try:
+            async with httpx.AsyncClient(timeout=10.0) as client:
+                resp = await client.post(url, json=payload)
+                if resp.status_code >= 400:
+                    logger.warning("Platform event notify failed: %s %s", resp.status_code, resp.text[:200])
+        except Exception:
+            logger.warning("Platform event notify unreachable at %s", url)

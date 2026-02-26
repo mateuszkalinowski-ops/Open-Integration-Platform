@@ -82,33 +82,357 @@ config_schema:
       row: polling
 event_fields:
   document.scanned:
+    # --- Podstawowe pola dokumentu ---
     - field: document_id
       label: "ID dokumentu"
       type: integer
+    - field: create_date
+      label: "Data utworzenia"
+      type: string
     - field: number
       label: "Numer faktury"
       type: string
     - field: date
       label: "Data wystawienia"
       type: string
+    - field: operation_date
+      label: "Data operacji"
+      type: string
+    - field: input_date
+      label: "Data wplywu"
+      type: string
+    - field: posting_date
+      label: "Data ksiegowania"
+      type: string
+    - field: payment_date
+      label: "Termin platnosci"
+      type: string
     - field: netto
       label: "Wartosc netto"
+      type: number
+    - field: vat
+      label: "Wartosc VAT"
       type: number
     - field: brutto
       label: "Wartosc brutto"
       type: number
-    - field: contractor
-      label: "Nazwa sprzedawcy"
-      type: string
-    - field: status
-      label: "Status dokumentu"
+    - field: amount_to_pay
+      label: "Kwota do zaplaty"
+      type: number
+    - field: description
+      label: "Opis dokumentu"
       type: string
     - field: invoice_type
-      label: "Typ faktury (PURCHASE/SELL)"
+      label: "Typ faktury (PURCHASE/SELL/OTHER)"
+      type: string
+    - field: account_number
+      label: "Numer konta bankowego"
+      type: string
+    - field: scan
+      label: "Skan (URL/identyfikator)"
+      type: string
+    - field: exchange
+      label: "Kurs waluty"
+      type: number
+    - field: exchange_date
+      label: "Data kursu waluty"
       type: string
     - field: account_name
       label: "Nazwa konta"
       type: string
+
+    # --- Typ dokumentu ---
+    - field: document_type.id
+      label: "Typ dokumentu — ID"
+      type: integer
+    - field: document_type.symbol
+      label: "Typ dokumentu — symbol"
+      type: string
+    - field: document_type.name
+      label: "Typ dokumentu — nazwa"
+      type: string
+
+    # --- Status dokumentu ---
+    - field: document_status.id
+      label: "Status — ID"
+      type: integer
+    - field: document_status.name
+      label: "Status — nazwa"
+      type: string
+
+    # --- Kontrahent (sprzedawca) ---
+    - field: contractor.id
+      label: "Kontrahent — ID"
+      type: integer
+    - field: contractor.name
+      label: "Kontrahent — nazwa"
+      type: string
+    - field: contractor.nip
+      label: "Kontrahent — NIP"
+      type: string
+    - field: contractor.vat_payer
+      label: "Kontrahent — platnik VAT"
+      type: boolean
+    - field: contractor.company_entity_id
+      label: "Kontrahent — ID podmiotu"
+      type: integer
+    - field: contractor.address.city.name
+      label: "Kontrahent — miasto"
+      type: string
+    - field: contractor.address.street.name
+      label: "Kontrahent — ulica"
+      type: string
+    - field: contractor.address.post_code.name
+      label: "Kontrahent — kod pocztowy"
+      type: string
+    - field: contractor.address.house_number
+      label: "Kontrahent — numer domu"
+      type: string
+    - field: contractor.address.apartment_number
+      label: "Kontrahent — numer lokalu"
+      type: string
+
+    # --- Odbiorca ---
+    - field: receiver.id
+      label: "Odbiorca — ID"
+      type: integer
+    - field: receiver.name
+      label: "Odbiorca — nazwa"
+      type: string
+    - field: receiver.nip
+      label: "Odbiorca — NIP"
+      type: string
+    - field: receiver.vat_payer
+      label: "Odbiorca — platnik VAT"
+      type: boolean
+    - field: receiver.address.city.name
+      label: "Odbiorca — miasto"
+      type: string
+    - field: receiver.address.street.name
+      label: "Odbiorca — ulica"
+      type: string
+    - field: receiver.address.post_code.name
+      label: "Odbiorca — kod pocztowy"
+      type: string
+    - field: receiver.address.house_number
+      label: "Odbiorca — numer domu"
+      type: string
+    - field: receiver.address.apartment_number
+      label: "Odbiorca — numer lokalu"
+      type: string
+
+    # --- Podmiot (company entity) ---
+    - field: company_entity.id
+      label: "Podmiot — ID"
+      type: integer
+    - field: company_entity.number_scanned_documents
+      label: "Podmiot — liczba zeskanowanych"
+      type: integer
+    - field: company_entity.status
+      label: "Podmiot — status"
+      type: string
+
+    # --- Waluta ---
+    - field: currency.id
+      label: "Waluta — ID"
+      type: integer
+    - field: currency.symbol
+      label: "Waluta — symbol"
+      type: string
+    - field: currency.name
+      label: "Waluta — nazwa"
+      type: string
+
+    # --- Typ platnosci ---
+    - field: payment_type.id
+      label: "Typ platnosci — ID"
+      type: integer
+    - field: payment_type.name
+      label: "Typ platnosci — nazwa"
+      type: string
+
+    # --- Uzytkownik edytujacy ---
+    - field: edit_user.id
+      label: "Edytujacy — ID"
+      type: integer
+    - field: edit_user.email
+      label: "Edytujacy — email"
+      type: string
+    - field: edit_user.name
+      label: "Edytujacy — imie"
+      type: string
+    - field: edit_user.surname
+      label: "Edytujacy — nazwisko"
+      type: string
+
+    # --- Uzytkownik tworzacy ---
+    - field: create_user.id
+      label: "Tworzacy — ID"
+      type: integer
+    - field: create_user.email
+      label: "Tworzacy — email"
+      type: string
+    - field: create_user.name
+      label: "Tworzacy — imie"
+      type: string
+    - field: create_user.surname
+      label: "Tworzacy — nazwisko"
+      type: string
+
+    # --- KSeF ---
+    - field: ksef.ksef_number
+      label: "KSeF — numer"
+      type: string
+    - field: ksef.invoice_number
+      label: "KSeF — numer faktury"
+      type: string
+    - field: ksef.issue_date
+      label: "KSeF — data wystawienia"
+      type: string
+    - field: ksef.invoicing_date
+      label: "KSeF — data fakturowania"
+      type: string
+    - field: ksef.acquisition_date
+      label: "KSeF — data nabycia"
+      type: string
+    - field: ksef.seller_nip
+      label: "KSeF — NIP sprzedawcy"
+      type: string
+    - field: ksef.seller_name
+      label: "KSeF — nazwa sprzedawcy"
+      type: string
+    - field: ksef.buyer_nip
+      label: "KSeF — NIP nabywcy"
+      type: string
+    - field: ksef.buyer_name
+      label: "KSeF — nazwa nabywcy"
+      type: string
+    - field: ksef.net_amount
+      label: "KSeF — kwota netto"
+      type: number
+    - field: ksef.gross_amount
+      label: "KSeF — kwota brutto"
+      type: number
+    - field: ksef.vat_amount
+      label: "KSeF — kwota VAT"
+      type: number
+    - field: ksef.currency
+      label: "KSeF — waluta"
+      type: string
+    - field: ksef.invoicing_mode
+      label: "KSeF — tryb fakturowania"
+      type: string
+    - field: ksef.invoice_type
+      label: "KSeF — typ faktury"
+      type: string
+
+    # --- Pozycje faktury (tablica) ---
+    - field: document_items[].id
+      label: "Pozycja — ID"
+      type: integer
+    - field: document_items[].ordinal_number
+      label: "Pozycja — numer porzadkowy"
+      type: integer
+    - field: document_items[].name
+      label: "Pozycja — nazwa"
+      type: string
+    - field: document_items[].units
+      label: "Pozycja — jednostka"
+      type: string
+    - field: document_items[].quantity
+      label: "Pozycja — ilosc"
+      type: number
+    - field: document_items[].net_price
+      label: "Pozycja — cena netto"
+      type: number
+    - field: document_items[].vat_rate.symbol
+      label: "Pozycja — stawka VAT symbol"
+      type: string
+    - field: document_items[].vat_rate.rate
+      label: "Pozycja — stawka VAT wartosc"
+      type: number
+    - field: document_items[].net
+      label: "Pozycja — netto"
+      type: number
+    - field: document_items[].vat
+      label: "Pozycja — VAT"
+      type: number
+    - field: document_items[].gross
+      label: "Pozycja — brutto"
+      type: number
+
+    # --- Stawki VAT dokumentu (tablica) ---
+    - field: document_vats[].id
+      label: "Stawka VAT — ID"
+      type: integer
+    - field: document_vats[].ordinal_number
+      label: "Stawka VAT — numer porzadkowy"
+      type: integer
+    - field: document_vats[].is_vat
+      label: "Stawka VAT — czy VAT"
+      type: boolean
+    - field: document_vats[].vat_year
+      label: "Stawka VAT — rok"
+      type: integer
+    - field: document_vats[].vat_month
+      label: "Stawka VAT — miesiac"
+      type: integer
+    - field: document_vats[].rate.symbol
+      label: "Stawka VAT — symbol"
+      type: string
+    - field: document_vats[].rate.rate
+      label: "Stawka VAT — wartosc procentowa"
+      type: number
+    - field: document_vats[].net
+      label: "Stawka VAT — netto"
+      type: number
+    - field: document_vats[].vat
+      label: "Stawka VAT — kwota VAT"
+      type: number
+    - field: document_vats[].brutto
+      label: "Stawka VAT — brutto"
+      type: number
+    - field: document_vats[].count_vat
+      label: "Stawka VAT — licznik"
+      type: integer
+
+    # --- Atrybuty (tablica) ---
+    - field: attributes[].id
+      label: "Atrybut — ID"
+      type: integer
+    - field: attributes[].name
+      label: "Atrybut — nazwa"
+      type: string
+    - field: attributes[].value
+      label: "Atrybut — wartosc"
+      type: string
+
+    # --- Dekrety / dekretacja (tablica) ---
+    - field: decrets[].id
+      label: "Dekret — ID"
+      type: integer
+    - field: decrets[].dict_type
+      label: "Dekret — typ slownika (COST_TYPE/COST_CENTER/ATTRIBUTE)"
+      type: string
+    - field: decrets[].symbol
+      label: "Dekret — symbol"
+      type: string
+    - field: decrets[].description
+      label: "Dekret — opis"
+      type: string
+    - field: decrets[].value
+      label: "Dekret — wartosc"
+      type: string
+    - field: decrets[].amount
+      label: "Dekret — kwota"
+      type: number
+    - field: decrets[].dict_item_id
+      label: "Dekret — ID pozycji slownika"
+      type: integer
+    - field: decrets[].ordinal_number
+      label: "Dekret — numer porzadkowy"
+      type: integer
+
   document.uploaded:
     - field: documents
       label: "Liczba wyslanych dokumentow"
@@ -122,6 +446,7 @@ event_fields:
     - field: account_name
       label: "Nazwa konta"
       type: string
+
 action_fields:
   document.upload:
     - field: account_name
@@ -183,10 +508,212 @@ action_fields:
       label: "ID dokumentu"
       type: integer
       required: true
-    - field: data
-      label: "Dane dokumentu (JSON)"
-      type: object
-      required: true
+    - field: number
+      label: "Numer faktury"
+      type: string
+    - field: date
+      label: "Data wystawienia"
+      type: string
+    - field: operation_date
+      label: "Data operacji"
+      type: string
+    - field: input_date
+      label: "Data wplywu"
+      type: string
+    - field: posting_date
+      label: "Data ksiegowania"
+      type: string
+    - field: payment_date
+      label: "Termin platnosci"
+      type: string
+    - field: netto
+      label: "Wartosc netto"
+      type: number
+    - field: vat
+      label: "Wartosc VAT"
+      type: number
+    - field: brutto
+      label: "Wartosc brutto"
+      type: number
+    - field: amount_to_pay
+      label: "Kwota do zaplaty"
+      type: number
+    - field: description
+      label: "Opis"
+      type: string
+    - field: invoice_type
+      label: "Typ faktury"
+      type: string
+    - field: account_number
+      label: "Numer konta bankowego"
+      type: string
+    # --- Kontrahent ---
+    - field: contractor.id
+      label: "Kontrahent — ID"
+      type: integer
+    - field: contractor.name
+      label: "Kontrahent — nazwa"
+      type: string
+    - field: contractor.nip
+      label: "Kontrahent — NIP"
+      type: string
+    - field: contractor.vat_payer
+      label: "Kontrahent — platnik VAT"
+      type: boolean
+    - field: contractor.company_entity_id
+      label: "Kontrahent — ID podmiotu"
+      type: integer
+    - field: contractor.address.city.name
+      label: "Kontrahent — miasto"
+      type: string
+    - field: contractor.address.street.name
+      label: "Kontrahent — ulica"
+      type: string
+    - field: contractor.address.post_code.name
+      label: "Kontrahent — kod pocztowy"
+      type: string
+    - field: contractor.address.house_number
+      label: "Kontrahent — numer domu"
+      type: string
+    - field: contractor.address.apartment_number
+      label: "Kontrahent — numer lokalu"
+      type: string
+
+    # --- Odbiorca ---
+    - field: receiver.id
+      label: "Odbiorca — ID"
+      type: integer
+    - field: receiver.name
+      label: "Odbiorca — nazwa"
+      type: string
+    - field: receiver.nip
+      label: "Odbiorca — NIP"
+      type: string
+    - field: receiver.vat_payer
+      label: "Odbiorca — platnik VAT"
+      type: boolean
+    - field: receiver.address.city.name
+      label: "Odbiorca — miasto"
+      type: string
+    - field: receiver.address.street.name
+      label: "Odbiorca — ulica"
+      type: string
+    - field: receiver.address.post_code.name
+      label: "Odbiorca — kod pocztowy"
+      type: string
+    - field: receiver.address.house_number
+      label: "Odbiorca — numer domu"
+      type: string
+    - field: receiver.address.apartment_number
+      label: "Odbiorca — numer lokalu"
+      type: string
+
+    # --- Pozycje faktury ---
+    - field: document_items[].id
+      label: "Pozycja — ID"
+      type: integer
+    - field: document_items[].ordinal_number
+      label: "Pozycja — numer porzadkowy"
+      type: integer
+    - field: document_items[].name
+      label: "Pozycja — nazwa"
+      type: string
+    - field: document_items[].units
+      label: "Pozycja — jednostka"
+      type: string
+    - field: document_items[].quantity
+      label: "Pozycja — ilosc"
+      type: number
+    - field: document_items[].net_price
+      label: "Pozycja — cena netto"
+      type: number
+    - field: document_items[].vat_rate.symbol
+      label: "Pozycja — stawka VAT symbol"
+      type: string
+    - field: document_items[].vat_rate.rate
+      label: "Pozycja — stawka VAT wartosc"
+      type: number
+    - field: document_items[].net
+      label: "Pozycja — netto"
+      type: number
+    - field: document_items[].vat
+      label: "Pozycja — VAT"
+      type: number
+    - field: document_items[].gross
+      label: "Pozycja — brutto"
+      type: number
+
+    # --- Stawki VAT ---
+    - field: document_vats[].id
+      label: "Stawka VAT — ID"
+      type: integer
+    - field: document_vats[].ordinal_number
+      label: "Stawka VAT — numer porzadkowy"
+      type: integer
+    - field: document_vats[].is_vat
+      label: "Stawka VAT — czy VAT"
+      type: boolean
+    - field: document_vats[].vat_year
+      label: "Stawka VAT — rok"
+      type: integer
+    - field: document_vats[].vat_month
+      label: "Stawka VAT — miesiac"
+      type: integer
+    - field: document_vats[].rate.symbol
+      label: "Stawka VAT — symbol"
+      type: string
+    - field: document_vats[].rate.rate
+      label: "Stawka VAT — wartosc procentowa"
+      type: number
+    - field: document_vats[].net
+      label: "Stawka VAT — netto"
+      type: number
+    - field: document_vats[].vat
+      label: "Stawka VAT — kwota VAT"
+      type: number
+    - field: document_vats[].brutto
+      label: "Stawka VAT — brutto"
+      type: number
+    - field: document_vats[].count_vat
+      label: "Stawka VAT — licznik"
+      type: integer
+
+    # --- Atrybuty ---
+    - field: attributes[].id
+      label: "Atrybut — ID"
+      type: integer
+    - field: attributes[].name
+      label: "Atrybut — nazwa"
+      type: string
+    - field: attributes[].value
+      label: "Atrybut — wartosc"
+      type: string
+
+    # --- Dekrety / dekretacja ---
+    - field: decrets[].id
+      label: "Dekret — ID"
+      type: integer
+    - field: decrets[].dict_type
+      label: "Dekret — typ slownika (COST_TYPE/COST_CENTER/ATTRIBUTE)"
+      type: string
+    - field: decrets[].symbol
+      label: "Dekret — symbol"
+      type: string
+    - field: decrets[].description
+      label: "Dekret — opis"
+      type: string
+    - field: decrets[].value
+      label: "Dekret — wartosc"
+      type: string
+    - field: decrets[].amount
+      label: "Dekret — kwota"
+      type: number
+    - field: decrets[].dict_item_id
+      label: "Dekret — ID pozycji slownika"
+      type: integer
+    - field: decrets[].ordinal_number
+      label: "Dekret — numer porzadkowy"
+      type: integer
   document.delete:
     - field: account_name
       label: "Nazwa konta"
@@ -199,6 +726,129 @@ action_fields:
     - field: document_ids
       label: "Lista ID dokumentow do usuniecia"
       type: "integer[]"
+      required: true
+  document.file.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+  document.image.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+  document.attributes.edit:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+    - field: status_id
+      label: "ID statusu (opcjonalnie — zmiana statusu)"
+      type: integer
+    - field: attributes[].name
+      label: "Atrybut — nazwa"
+      type: string
+      required: true
+    - field: attributes[].value
+      label: "Atrybut — wartosc"
+      type: string
+      required: true
+  document.attributes.delete:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+  dictionary.list:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: dict_type
+      label: "Typ slownika (COST_TYPE/COST_CENTER/ATTRIBUTE)"
+      type: string
+      required: true
+  dictionary.add:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: dict_type
+      label: "Typ slownika (COST_TYPE/COST_CENTER/ATTRIBUTE)"
+      type: string
+      required: true
+    - field: items[].symbol
+      label: "Element slownika — symbol"
+      type: string
+      required: true
+    - field: items[].description
+      label: "Element slownika — opis"
+      type: string
+      required: true
+  ksef.xml.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+      required: true
+  ksef.qr.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
       required: true
   ksef.invoice.send:
     - field: account_name
@@ -218,5 +868,555 @@ action_fields:
       label: "Nazwa konta"
       type: string
       required: true
+  company.entities.list:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: company_id
+      label: "ID firmy"
+      type: integer
+      required: true
+
+output_fields:
+  document.upload:
+    - field: documents
+      label: "Liczba wyslanych dokumentow"
+      type: integer
+    - field: uploaded_documents
+      label: "Liczba poprawnie wyslanych"
+      type: integer
+    - field: documents_id_list
+      label: "Lista ID wyslanych dokumentow"
+      type: "integer[]"
+  document.list:
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+    - field: create_date
+      label: "Data utworzenia"
+      type: string
+    - field: number
+      label: "Numer faktury"
+      type: string
+    - field: date
+      label: "Data wystawienia"
+      type: string
+    - field: operation_date
+      label: "Data operacji"
+      type: string
+    - field: input_date
+      label: "Data wplywu"
+      type: string
+    - field: posting_date
+      label: "Data ksiegowania"
+      type: string
+    - field: payment_date
+      label: "Termin platnosci"
+      type: string
+    - field: netto
+      label: "Wartosc netto"
+      type: number
+    - field: vat
+      label: "Wartosc VAT"
+      type: number
+    - field: brutto
+      label: "Wartosc brutto"
+      type: number
+    - field: amount_to_pay
+      label: "Kwota do zaplaty"
+      type: number
+    - field: description
+      label: "Opis"
+      type: string
+    - field: invoice_type
+      label: "Typ faktury"
+      type: string
+    - field: account_number
+      label: "Numer konta bankowego"
+      type: string
+    - field: document_type.symbol
+      label: "Typ dokumentu — symbol"
+      type: string
+    - field: document_type.name
+      label: "Typ dokumentu — nazwa"
+      type: string
+    - field: document_status.name
+      label: "Status — nazwa"
+      type: string
+    - field: contractor.name
+      label: "Kontrahent — nazwa"
+      type: string
+    - field: contractor.nip
+      label: "Kontrahent — NIP"
+      type: string
+    - field: receiver.name
+      label: "Odbiorca — nazwa"
+      type: string
+    - field: receiver.nip
+      label: "Odbiorca — NIP"
+      type: string
+    - field: currency.symbol
+      label: "Waluta — symbol"
+      type: string
+    - field: payment_type.name
+      label: "Typ platnosci — nazwa"
+      type: string
+    - field: ksef.ksef_number
+      label: "KSeF — numer"
+      type: string
+    - field: document_items[].name
+      label: "Pozycja — nazwa"
+      type: string
+    - field: document_items[].quantity
+      label: "Pozycja — ilosc"
+      type: number
+    - field: document_items[].net_price
+      label: "Pozycja — cena netto"
+      type: number
+    - field: document_items[].net
+      label: "Pozycja — netto"
+      type: number
+    - field: document_items[].gross
+      label: "Pozycja — brutto"
+      type: number
+    - field: document_vats[].rate.symbol
+      label: "Stawka VAT — symbol"
+      type: string
+    - field: document_vats[].net
+      label: "Stawka VAT — netto"
+      type: number
+    - field: document_vats[].vat
+      label: "Stawka VAT — kwota VAT"
+      type: number
+    - field: document_vats[].brutto
+      label: "Stawka VAT — brutto"
+      type: number
+    - field: attributes[].name
+      label: "Atrybut — nazwa"
+      type: string
+    - field: attributes[].value
+      label: "Atrybut — wartosc"
+      type: string
+    - field: decrets[].id
+      label: "Dekret — ID"
+      type: integer
+    - field: decrets[].dict_type
+      label: "Dekret — typ slownika"
+      type: string
+    - field: decrets[].symbol
+      label: "Dekret — symbol"
+      type: string
+    - field: decrets[].description
+      label: "Dekret — opis"
+      type: string
+    - field: decrets[].value
+      label: "Dekret — wartosc"
+      type: string
+    - field: decrets[].amount
+      label: "Dekret — kwota"
+      type: number
+  document.get:
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+    - field: create_date
+      label: "Data utworzenia"
+      type: string
+    - field: number
+      label: "Numer faktury"
+      type: string
+    - field: date
+      label: "Data wystawienia"
+      type: string
+    - field: operation_date
+      label: "Data operacji"
+      type: string
+    - field: input_date
+      label: "Data wplywu"
+      type: string
+    - field: posting_date
+      label: "Data ksiegowania"
+      type: string
+    - field: payment_date
+      label: "Termin platnosci"
+      type: string
+    - field: netto
+      label: "Wartosc netto"
+      type: number
+    - field: vat
+      label: "Wartosc VAT"
+      type: number
+    - field: brutto
+      label: "Wartosc brutto"
+      type: number
+    - field: amount_to_pay
+      label: "Kwota do zaplaty"
+      type: number
+    - field: description
+      label: "Opis"
+      type: string
+    - field: invoice_type
+      label: "Typ faktury"
+      type: string
+    - field: account_number
+      label: "Numer konta bankowego"
+      type: string
+    - field: exchange
+      label: "Kurs waluty"
+      type: number
+    - field: exchange_date
+      label: "Data kursu"
+      type: string
+    - field: document_type.id
+      label: "Typ dokumentu — ID"
+      type: integer
+    - field: document_type.symbol
+      label: "Typ dokumentu — symbol"
+      type: string
+    - field: document_type.name
+      label: "Typ dokumentu — nazwa"
+      type: string
+    - field: document_status.id
+      label: "Status — ID"
+      type: integer
+    - field: document_status.name
+      label: "Status — nazwa"
+      type: string
+    - field: contractor.id
+      label: "Kontrahent — ID"
+      type: integer
+    - field: contractor.name
+      label: "Kontrahent — nazwa"
+      type: string
+    - field: contractor.nip
+      label: "Kontrahent — NIP"
+      type: string
+    - field: contractor.vat_payer
+      label: "Kontrahent — platnik VAT"
+      type: boolean
+    - field: contractor.address.city.name
+      label: "Kontrahent — miasto"
+      type: string
+    - field: contractor.address.street.name
+      label: "Kontrahent — ulica"
+      type: string
+    - field: contractor.address.post_code.name
+      label: "Kontrahent — kod pocztowy"
+      type: string
+    - field: contractor.address.house_number
+      label: "Kontrahent — numer domu"
+      type: string
+    - field: contractor.address.apartment_number
+      label: "Kontrahent — numer lokalu"
+      type: string
+    - field: receiver.id
+      label: "Odbiorca — ID"
+      type: integer
+    - field: receiver.name
+      label: "Odbiorca — nazwa"
+      type: string
+    - field: receiver.nip
+      label: "Odbiorca — NIP"
+      type: string
+    - field: receiver.address.city.name
+      label: "Odbiorca — miasto"
+      type: string
+    - field: receiver.address.street.name
+      label: "Odbiorca — ulica"
+      type: string
+    - field: receiver.address.post_code.name
+      label: "Odbiorca — kod pocztowy"
+      type: string
+    - field: receiver.address.house_number
+      label: "Odbiorca — numer domu"
+      type: string
+    - field: receiver.address.apartment_number
+      label: "Odbiorca — numer lokalu"
+      type: string
+    - field: company_entity.id
+      label: "Podmiot — ID"
+      type: integer
+    - field: company_entity.status
+      label: "Podmiot — status"
+      type: string
+    - field: currency.symbol
+      label: "Waluta — symbol"
+      type: string
+    - field: currency.name
+      label: "Waluta — nazwa"
+      type: string
+    - field: payment_type.id
+      label: "Typ platnosci — ID"
+      type: integer
+    - field: payment_type.name
+      label: "Typ platnosci — nazwa"
+      type: string
+    - field: edit_user.email
+      label: "Edytujacy — email"
+      type: string
+    - field: edit_user.name
+      label: "Edytujacy — imie"
+      type: string
+    - field: edit_user.surname
+      label: "Edytujacy — nazwisko"
+      type: string
+    - field: create_user.email
+      label: "Tworzacy — email"
+      type: string
+    - field: create_user.name
+      label: "Tworzacy — imie"
+      type: string
+    - field: create_user.surname
+      label: "Tworzacy — nazwisko"
+      type: string
+    - field: ksef.ksef_number
+      label: "KSeF — numer"
+      type: string
+    - field: ksef.invoice_number
+      label: "KSeF — numer faktury"
+      type: string
+    - field: ksef.issue_date
+      label: "KSeF — data wystawienia"
+      type: string
+    - field: ksef.seller_nip
+      label: "KSeF — NIP sprzedawcy"
+      type: string
+    - field: ksef.seller_name
+      label: "KSeF — nazwa sprzedawcy"
+      type: string
+    - field: ksef.buyer_nip
+      label: "KSeF — NIP nabywcy"
+      type: string
+    - field: ksef.buyer_name
+      label: "KSeF — nazwa nabywcy"
+      type: string
+    - field: ksef.net_amount
+      label: "KSeF — kwota netto"
+      type: number
+    - field: ksef.gross_amount
+      label: "KSeF — kwota brutto"
+      type: number
+    - field: ksef.vat_amount
+      label: "KSeF — kwota VAT"
+      type: number
+    - field: ksef.currency
+      label: "KSeF — waluta"
+      type: string
+    - field: document_items[].id
+      label: "Pozycja — ID"
+      type: integer
+    - field: document_items[].ordinal_number
+      label: "Pozycja — numer porzadkowy"
+      type: integer
+    - field: document_items[].name
+      label: "Pozycja — nazwa"
+      type: string
+    - field: document_items[].units
+      label: "Pozycja — jednostka"
+      type: string
+    - field: document_items[].quantity
+      label: "Pozycja — ilosc"
+      type: number
+    - field: document_items[].net_price
+      label: "Pozycja — cena netto"
+      type: number
+    - field: document_items[].vat_rate.symbol
+      label: "Pozycja — stawka VAT symbol"
+      type: string
+    - field: document_items[].vat_rate.rate
+      label: "Pozycja — stawka VAT wartosc"
+      type: number
+    - field: document_items[].net
+      label: "Pozycja — netto"
+      type: number
+    - field: document_items[].vat
+      label: "Pozycja — VAT"
+      type: number
+    - field: document_items[].gross
+      label: "Pozycja — brutto"
+      type: number
+    - field: document_vats[].ordinal_number
+      label: "Stawka VAT — numer porzadkowy"
+      type: integer
+    - field: document_vats[].rate.symbol
+      label: "Stawka VAT — symbol"
+      type: string
+    - field: document_vats[].rate.rate
+      label: "Stawka VAT — wartosc procentowa"
+      type: number
+    - field: document_vats[].net
+      label: "Stawka VAT — netto"
+      type: number
+    - field: document_vats[].vat
+      label: "Stawka VAT — kwota VAT"
+      type: number
+    - field: document_vats[].brutto
+      label: "Stawka VAT — brutto"
+      type: number
+    - field: attributes[].id
+      label: "Atrybut — ID"
+      type: integer
+    - field: attributes[].name
+      label: "Atrybut — nazwa"
+      type: string
+    - field: attributes[].value
+      label: "Atrybut — wartosc"
+      type: string
+    - field: decrets[].id
+      label: "Dekret — ID"
+      type: integer
+    - field: decrets[].dict_type
+      label: "Dekret — typ slownika (COST_TYPE/COST_CENTER/ATTRIBUTE)"
+      type: string
+    - field: decrets[].symbol
+      label: "Dekret — symbol"
+      type: string
+    - field: decrets[].description
+      label: "Dekret — opis"
+      type: string
+    - field: decrets[].value
+      label: "Dekret — wartosc"
+      type: string
+    - field: decrets[].amount
+      label: "Dekret — kwota"
+      type: number
+    - field: decrets[].dict_item_id
+      label: "Dekret — ID pozycji slownika"
+      type: integer
+    - field: decrets[].ordinal_number
+      label: "Dekret — numer porzadkowy"
+      type: integer
+  document.update:
+    - field: document_id
+      label: "ID zaktualizowanego dokumentu"
+      type: integer
+    - field: number
+      label: "Numer faktury"
+      type: string
+    - field: date
+      label: "Data wystawienia"
+      type: string
+    - field: netto
+      label: "Wartosc netto"
+      type: number
+    - field: brutto
+      label: "Wartosc brutto"
+      type: number
+    - field: document_status.name
+      label: "Status — nazwa"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  document.delete:
+    - field: status
+      label: "Status operacji"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  document.file.get:
+    - field: content
+      label: "Zawartosc pliku (bajty/base64)"
+      type: string
+    - field: content_type
+      label: "Typ MIME"
+      type: string
+  document.image.get:
+    - field: content
+      label: "Zawartosc obrazu (bajty/base64)"
+      type: string
+    - field: content_type
+      label: "Typ MIME"
+      type: string
+  document.attributes.edit:
+    - field: status
+      label: "Status operacji"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  document.attributes.delete:
+    - field: status
+      label: "Status operacji"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  dictionary.list:
+    - field: items[].id
+      label: "Element slownika — ID"
+      type: integer
+    - field: items[].symbol
+      label: "Element slownika — symbol"
+      type: string
+    - field: items[].description
+      label: "Element slownika — opis"
+      type: string
+  dictionary.add:
+    - field: status
+      label: "Status operacji"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  ksef.xml.get:
+    - field: xml_content
+      label: "Zawartosc XML KSeF"
+      type: string
+  ksef.qr.get:
+    - field: content
+      label: "Kod QR (bajty/base64)"
+      type: string
+    - field: content_type
+      label: "Typ MIME"
+      type: string
+  ksef.invoice.send:
+    - field: document_id
+      label: "ID dokumentu"
+      type: integer
+    - field: ksef_number
+      label: "Numer KSeF"
+      type: string
+    - field: success
+      label: "Sukces"
+      type: boolean
+  company.list:
+    - field: companies[].id
+      label: "Firma — ID"
+      type: integer
+    - field: companies[].contractor.name
+      label: "Firma — nazwa"
+      type: string
+    - field: companies[].contractor.nip
+      label: "Firma — NIP"
+      type: string
+    - field: companies[].email
+      label: "Firma — email"
+      type: string
+    - field: companies[].date_to
+      label: "Firma — data waznosci"
+      type: string
+    - field: companies[].number_scanned_documents
+      label: "Firma — liczba zeskanowanych"
+      type: integer
+  company.entities.list:
+    - field: entities[].id
+      label: "Podmiot — ID"
+      type: integer
+    - field: entities[].number_scanned_documents
+      label: "Podmiot — liczba zeskanowanych"
+      type: integer
+    - field: entities[].contractor_dto.name
+      label: "Podmiot — nazwa kontrahenta"
+      type: string
+    - field: entities[].contractor_dto.nip
+      label: "Podmiot — NIP kontrahenta"
+      type: string
+    - field: entities[].status
+      label: "Podmiot — status"
+      type: string
+
 health_endpoint: /health
 docs_url: /docs
