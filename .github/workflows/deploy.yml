@@ -74,10 +74,14 @@ jobs:
               "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" \
               "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" \
               "DEFAULT_API_KEY=${DEFAULT_KEY}" \
+              "DEMO_MODE=true" \
               > .env
 
             docker compose -f docker-compose.vps.yml pull
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
+
+            sleep 3
+            docker compose -f docker-compose.vps.yml restart nginx
 
             docker image prune -f
 

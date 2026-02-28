@@ -293,6 +293,49 @@ All REST endpoints use JSON. Error format:
 - **External API**: credentials stored in an encrypted vault (AES-256-GCM), per-tenant
 - **Kafka**: SASL SCRAM-SHA-512
 
+#### Demo Gate (self-service tenant registration)
+
+For demo and evaluation deployments the platform provides a **Demo Gate** — a lightweight registration flow that allows users to create isolated workspaces without a full authentication system. It is enabled by setting `DEMO_MODE=true` and will be replaced by proper login/SSO in production.
+
+```
+User opens dashboard
+       │
+       ▼
+┌──────────────────────┐     ┌─────────────────────────┐
+│ API key in           │ No  │ Gate screen             │
+│ localStorage?        │────▶│  • "Create workspace"   │
+└──────┬───────────────┘     │  • "I have a key"       │
+       │ Yes                 └──────────┬──────────────┘
+       ▼                                │
+┌──────────────────────┐     ┌──────────▼──────────────┐
+│ Validate key         │     │ POST /api/v1/demo/      │
+│ (GET /health)        │     │   register              │
+└──────┬───────────────┘     │ or validate-key         │
+       │ Valid               └──────────┬──────────────┘
+       ▼                                │
+   Load dashboard ◀─────────────────────┘
+   (key in localStorage,                 save key + reload
+    injected via PINQUARK_CONFIG)
+```
+
+**How it works:**
+
+1. On first visit the Angular dashboard shows a full-screen gate page (route `/gate`).
+2. The user either creates a new workspace (enters a name) or provides an existing API key.
+3. `POST /api/v1/demo/register` creates a `Tenant` (with plan `demo`) and an `ApiKey` with prefix `pk_demo_`, returns the raw key once.
+4. The key is stored in `localStorage('pinquark_demo_api_key')` and used as the `X-API-Key` header for all subsequent API calls — the existing `get_current_tenant()` middleware handles tenant resolution identically to production keys.
+5. All data (credentials, flows, workflows, connector instances) is scoped to the tenant via `tenant_id` foreign keys — users cannot see each other's data.
+6. A `canActivate` route guard redirects unauthenticated users to `/gate`; the sidebar shows the workspace name and offers "Copy API key" and "Switch workspace" actions.
+
+**Endpoints (public, no auth required, only available when `DEMO_MODE=true`):**
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/v1/demo/register` | POST | Create workspace + API key. Body: `{ "workspace_name": "..." }`. Rate-limited to 10 per IP per hour. |
+| `/api/v1/demo/validate-key` | POST | Validate an existing key. Body: `{ "api_key": "pk_demo_..." }`. Returns `{ "valid": true, "tenant_name": "..." }`. |
+
+**Transition to production auth:** When login/SSO is implemented, the gate page is replaced by a login screen, the API key in localStorage is replaced by a session token, and the `DEMO_MODE` flag is set to `false` — the demo endpoints return 404 and the backend tenant model remains unchanged.
+
 ### 3.5 Sync State Engine — Incremental Data Synchronization
 
 The Sync State Engine prevents duplicate processing and enables incremental synchronization between systems. It is built into the Workflow Engine and uses the `sync_ledger` PostgreSQL table to track per-entity sync state.
@@ -788,6 +831,14 @@ Response headers:
 | Variable                   | Default        | Description                      |
 | -------------------------- | -------------- | -------------------------------- |
 | `CONNECTOR_DISCOVERY_PATH` | `/integrators` | Path to the connectors directory |
+
+
+#### Demo mode
+
+
+| Variable    | Default | Description                                                                                 |
+| ----------- | ------- | ------------------------------------------------------------------------------------------- |
+| `DEMO_MODE` | `false` | Enable self-service tenant registration via `/api/v1/demo/register` (see section 3.4 above) |
 
 
 ### 7.2 Docker Compose (development)
