@@ -28,6 +28,7 @@ import {
   WorkflowEdge,
   WorkflowExecution as WorkflowExecutionModel,
   WorkflowNodeResult,
+  SyncConfig,
 } from '@pinquark/integrations';
 
 @Component({
@@ -876,17 +877,17 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     triggerNode.config['sync_max_retries'] = sc['max_retries'] ?? 3;
   }
 
-  private buildSyncConfig(): Record<string, unknown> | null {
+  private buildSyncConfig(): SyncConfig | null {
     const triggerNode = this.nodes.find(n => n.type === 'trigger');
     const cfg = triggerNode?.config ?? {};
     if (!cfg['sync_enabled']) return null;
     return {
       enabled: true,
-      entity_key_field: cfg['sync_entity_key'] || undefined,
+      entity_key_field: (cfg['sync_entity_key'] as string) || undefined,
       content_hash_fields: ['*'],
-      mode: cfg['sync_mode'] || 'incremental',
-      on_duplicate: cfg['sync_on_duplicate'] || 'update',
-      max_retries: cfg['sync_max_retries'] ?? 3,
+      mode: (cfg['sync_mode'] as SyncConfig['mode']) || 'incremental',
+      on_duplicate: (cfg['sync_on_duplicate'] as SyncConfig['on_duplicate']) || 'update',
+      max_retries: (cfg['sync_max_retries'] as number) ?? 3,
     };
   }
 
