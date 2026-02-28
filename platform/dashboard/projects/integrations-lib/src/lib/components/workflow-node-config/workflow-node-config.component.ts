@@ -98,6 +98,117 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 }
               </mat-select>
             </mat-form-field>
+
+            <!-- Trigger Filters -->
+            <mat-expansion-panel class="wnc__panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>filter_alt</mat-icon> Event Filters
+                  @if (getTriggerFilterCount() > 0) {
+                    <span class="wnc__badge">{{ getTriggerFilterCount() }}</span>
+                  }
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <p class="wnc__hint">Only trigger the workflow when event data matches these conditions.</p>
+              @if (!cfg['filters']) {
+                <button mat-stroked-button (click)="initTriggerFilters()">
+                  <mat-icon>add</mat-icon> Add Filter
+                </button>
+              } @else {
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Logic</mat-label>
+                  <mat-select [(ngModel)]="$any(cfg['filters']).logic" (ngModelChange)="emitChange()">
+                    <mat-option value="and">All conditions (AND)</mat-option>
+                    <mat-option value="or">Any condition (OR)</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                @for (cond of getTriggerFilterConditions(); track $index) {
+                  <div class="wnc__filter-row">
+                    <mat-form-field appearance="outline" class="wnc__filter-field">
+                      <mat-label>Field</mat-label>
+                      @if (sourceFieldDefs.length > 0) {
+                        <mat-select [(ngModel)]="cond.field" (ngModelChange)="emitChange()">
+                          @for (f of sourceFieldDefs; track f.field) {
+                            <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                          }
+                        </mat-select>
+                      } @else {
+                        <input matInput [(ngModel)]="cond.field" (ngModelChange)="emitChange()" placeholder="path.to.field" />
+                      }
+                    </mat-form-field>
+                    <mat-form-field appearance="outline" class="wnc__filter-op">
+                      <mat-label>Op</mat-label>
+                      <mat-select [(ngModel)]="cond.operator" (ngModelChange)="emitChange()">
+                        @for (op of conditionOperators; track op.value) {
+                          <mat-option [value]="op.value">{{ op.label }}</mat-option>
+                        }
+                      </mat-select>
+                    </mat-form-field>
+                    @if (!isUnaryOp(cond.operator)) {
+                      <mat-form-field appearance="outline" class="wnc__filter-val">
+                        <mat-label>Value</mat-label>
+                        <input matInput [(ngModel)]="cond.value" (ngModelChange)="emitChange()" />
+                      </mat-form-field>
+                    }
+                    <button mat-icon-button (click)="removeTriggerFilter($index)"><mat-icon>delete</mat-icon></button>
+                  </div>
+                }
+                <button mat-stroked-button (click)="addTriggerFilterCondition()">
+                  <mat-icon>add</mat-icon> Add Condition
+                </button>
+              }
+            </mat-expansion-panel>
+
+            <!-- Sync Config -->
+            <mat-expansion-panel class="wnc__panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>sync</mat-icon> Sync Tracking
+                  @if (cfg['sync_enabled']) {
+                    <span class="wnc__badge wnc__badge--active">ON</span>
+                  }
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <p class="wnc__hint">Track which records have been synced to prevent duplicates and detect changes.</p>
+              <mat-slide-toggle
+                [(ngModel)]="cfg['sync_enabled']"
+                (ngModelChange)="onSyncToggle()"
+                class="wnc__sync-toggle"
+              >Enable sync tracking</mat-slide-toggle>
+              @if (cfg['sync_enabled']) {
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Entity Key Field</mat-label>
+                  @if (sourceFieldDefs.length > 0) {
+                    <mat-select [(ngModel)]="cfg['sync_entity_key']" (ngModelChange)="onSyncConfigChange()">
+                      @for (f of sourceFieldDefs; track f.field) {
+                        <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                      }
+                    </mat-select>
+                  } @else {
+                    <input matInput [(ngModel)]="cfg['sync_entity_key']" (ngModelChange)="onSyncConfigChange()" placeholder="e.g. erp_id" />
+                  }
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Sync Mode</mat-label>
+                  <mat-select [(ngModel)]="cfg['sync_mode']" (ngModelChange)="onSyncConfigChange()">
+                    <mat-option value="incremental">Incremental (skip unchanged)</mat-option>
+                    <mat-option value="force">Force (always sync)</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>On Duplicate</mat-label>
+                  <mat-select [(ngModel)]="cfg['sync_on_duplicate']" (ngModelChange)="onSyncConfigChange()">
+                    <mat-option value="update">Update</mat-option>
+                    <mat-option value="skip">Skip</mat-option>
+                    <mat-option value="force">Force re-sync</mat-option>
+                  </mat-select>
+                </mat-form-field>
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Max Retries</mat-label>
+                  <input matInput type="number" [(ngModel)]="cfg['sync_max_retries']" (ngModelChange)="onSyncConfigChange()" />
+                </mat-form-field>
+              }
+            </mat-expansion-panel>
           }
 
           <!-- ACTION -->
@@ -780,6 +891,20 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     ::ng-deep .wnc__search-wrap { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 1; background: #fff; }
     ::ng-deep .wnc__search-wrap mat-icon { color: #999; font-size: 18px; height: 18px; width: 18px; margin-right: 8px; flex-shrink: 0; }
     ::ng-deep .wnc__search-wrap input { flex: 1; border: none; outline: none; font-size: 13px; padding: 4px 0; background: transparent; }
+
+    /* Trigger filter row */
+    .wnc__filter-row { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap; }
+    .wnc__filter-field { flex: 2; min-width: 100px; }
+    .wnc__filter-op { flex: 2; min-width: 100px; }
+    .wnc__filter-val { flex: 1.5; min-width: 80px; }
+
+    /* Expansion panels inside trigger */
+    .wnc__panel { margin: 12px 0 !important; }
+    .wnc__panel .mat-expansion-panel-header { padding: 0 12px; }
+    .wnc__panel mat-panel-title { display: flex; align-items: center; gap: 6px; font-size: 13px; font-weight: 600; }
+    .wnc__badge { background: #1565c0; color: #fff; font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; }
+    .wnc__badge--active { background: #2e7d32; }
+    .wnc__sync-toggle { margin: 8px 0 16px; }
   `],
 })
 export class WorkflowNodeConfigComponent implements OnChanges {
@@ -1243,5 +1368,55 @@ export class WorkflowNodeConfigComponent implements OnChanges {
         this.credentialNames = [];
       },
     });
+  }
+
+  // ── Trigger Filters ──
+
+  initTriggerFilters(): void {
+    this.cfg['filters'] = { logic: 'and', conditions: [{ field: '', operator: 'eq', value: '' }] };
+    this.emitChange();
+  }
+
+  getTriggerFilterConditions(): { field: string; operator: string; value?: unknown }[] {
+    const filters = this.cfg['filters'] as { conditions?: { field: string; operator: string; value?: unknown }[] } | undefined;
+    return filters?.conditions ?? [];
+  }
+
+  getTriggerFilterCount(): number {
+    return this.getTriggerFilterConditions().filter(c => c.field).length;
+  }
+
+  addTriggerFilterCondition(): void {
+    const filters = this.cfg['filters'] as { conditions: { field: string; operator: string; value?: unknown }[] };
+    filters.conditions.push({ field: '', operator: 'eq', value: '' });
+    this.emitChange();
+  }
+
+  removeTriggerFilter(index: number): void {
+    const filters = this.cfg['filters'] as { conditions: { field: string; operator: string; value?: unknown }[] };
+    filters.conditions.splice(index, 1);
+    if (filters.conditions.length === 0) {
+      delete this.cfg['filters'];
+    }
+    this.emitChange();
+  }
+
+  isUnaryOp(op: string): boolean {
+    return ['exists', 'not_exists', 'is_empty', 'is_not_empty'].includes(op);
+  }
+
+  // ── Sync Config ──
+
+  onSyncToggle(): void {
+    if (this.cfg['sync_enabled']) {
+      if (!this.cfg['sync_mode']) this.cfg['sync_mode'] = 'incremental';
+      if (!this.cfg['sync_on_duplicate']) this.cfg['sync_on_duplicate'] = 'update';
+      if (!this.cfg['sync_max_retries']) this.cfg['sync_max_retries'] = 3;
+    }
+    this.emitChange();
+  }
+
+  onSyncConfigChange(): void {
+    this.emitChange();
   }
 }

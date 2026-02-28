@@ -196,6 +196,7 @@ class WorkflowCreate(BaseModel):
     nodes: list[WorkflowNode] = Field(default_factory=list)
     edges: list[WorkflowEdge] = Field(default_factory=list)
     variables: dict[str, Any] = Field(default_factory=dict)
+    sync_config: dict[str, Any] | None = None
     on_error: str = "stop"
     max_retries: int = 3
     timeout_seconds: int = 300
@@ -207,6 +208,7 @@ class WorkflowUpdate(BaseModel):
     nodes: list[WorkflowNode] | None = None
     edges: list[WorkflowEdge] | None = None
     variables: dict[str, Any] | None = None
+    sync_config: dict[str, Any] | None = None
     is_enabled: bool | None = None
     on_error: str | None = None
     max_retries: int | None = None
@@ -224,6 +226,7 @@ class WorkflowResponse(BaseModel):
     nodes: list[dict[str, Any]]
     edges: list[dict[str, Any]]
     variables: dict[str, Any]
+    sync_config: dict[str, Any] | None = None
     on_error: str
     max_retries: int
     timeout_seconds: int

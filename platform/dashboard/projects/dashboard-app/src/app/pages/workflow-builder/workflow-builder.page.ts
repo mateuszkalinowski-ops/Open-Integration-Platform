@@ -308,6 +308,70 @@ import {
                   ></pinquark-workflow-ai-chat>
                 </div>
               </mat-tab>
+
+              <!-- Sync Status Tab -->
+              @if (workflow?.sync_config) {
+                <mat-tab>
+                  <ng-template mat-tab-label>
+                    <mat-icon>sync</mat-icon>
+                    Sync
+                    @if (syncStats && syncStats.failed > 0) {
+                      <span class="wb__sync-badge wb__sync-badge--fail">{{ syncStats.failed }}</span>
+                    }
+                  </ng-template>
+                  <div class="wb__sync-tab">
+                    @if (syncLoading) {
+                      <mat-progress-spinner mode="indeterminate" diameter="32"></mat-progress-spinner>
+                    } @else if (syncStats) {
+                      <div class="wb__sync-stats">
+                        <div class="wb__sync-stat wb__sync-stat--synced">
+                          <span class="wb__sync-num">{{ syncStats.synced }}</span>
+                          <span class="wb__sync-label">Synced</span>
+                        </div>
+                        <div class="wb__sync-stat wb__sync-stat--failed">
+                          <span class="wb__sync-num">{{ syncStats.failed }}</span>
+                          <span class="wb__sync-label">Failed</span>
+                        </div>
+                        <div class="wb__sync-stat wb__sync-stat--pending">
+                          <span class="wb__sync-num">{{ syncStats.pending }}</span>
+                          <span class="wb__sync-label">Pending</span>
+                        </div>
+                        <div class="wb__sync-stat wb__sync-stat--stale">
+                          <span class="wb__sync-num">{{ syncStats.stale }}</span>
+                          <span class="wb__sync-label">Stale</span>
+                        </div>
+                      </div>
+                      <div class="wb__sync-actions">
+                        <button mat-stroked-button (click)="retrySyncs()" [disabled]="syncStats.failed === 0">
+                          <mat-icon>replay</mat-icon> Retry Failed ({{ syncStats.failed }})
+                        </button>
+                        <button mat-stroked-button color="warn" (click)="clearSyncLedger()">
+                          <mat-icon>delete_sweep</mat-icon> Force Full Re-sync
+                        </button>
+                        <button mat-stroked-button (click)="loadSyncStats()">
+                          <mat-icon>refresh</mat-icon> Refresh
+                        </button>
+                      </div>
+                      @if (syncFailedEntries.length > 0) {
+                        <div class="wb__sync-failed-list">
+                          <h4>Failed Entries</h4>
+                          @for (entry of syncFailedEntries; track entry.id) {
+                            <div class="wb__sync-failed-item">
+                              <span class="wb__sync-key">{{ entry.entity_key }}</span>
+                              <span class="wb__sync-attempts">{{ entry.attempt_count }} attempts</span>
+                              @if (entry.last_error) {
+                                <span class="wb__sync-error">{{ entry.last_error }}</span>
+                              }
+                            </div>
+                          }
+                        </div>
+                      }
+                    } @else {
+                      <p>No sync data available. Enable sync tracking in the trigger node.</p>
+                    }
+                  </div>
+                </mat-tab>
+              }
             </mat-tab-group>
           </div>
         }
@@ -546,6 +610,29 @@ import {
       display: flex;
       flex-direction: column;
     }
+
+    .wb__sync-tab { padding: 16px; }
+    .wb__sync-stats { display: flex; gap: 12px; margin-bottom: 16px; flex-wrap: wrap; }
+    .wb__sync-stat { display: flex; flex-direction: column; align-items: center; padding: 12px 16px; border-radius: 8px; min-width: 80px; }
+    .wb__sync-stat--synced { background: #e8f5e9; }
+    .wb__sync-stat--failed { background: #ffebee; }
+    .wb__sync-stat--pending { background: #fff3e0; }
+    .wb__sync-stat--stale { background: #f3e5f5; }
+    .wb__sync-num { font-size: 24px; font-weight: 700; line-height: 1; }
+    .wb__sync-stat--synced .wb__sync-num { color: #2e7d32; }
+    .wb__sync-stat--failed .wb__sync-num { color: #c62828; }
+    .wb__sync-stat--pending .wb__sync-num { color: #e65100; }
+    .wb__sync-stat--stale .wb__sync-num { color: #7b1fa2; }
+    .wb__sync-label { font-size: 11px; color: #666; margin-top: 4px; }
+    .wb__sync-actions { display: flex; gap: 8px; margin-bottom: 16px; flex-wrap: wrap; }
+    .wb__sync-badge { font-size: 10px; padding: 1px 6px; border-radius: 10px; font-weight: 700; margin-left: 6px; }
+    .wb__sync-badge--fail { background: #c62828; color: #fff; }
+    .wb__sync-failed-list { margin-top: 12px; }
+    .wb__sync-failed-list h4 { margin: 0 0 8px; font-size: 13px; font-weight: 600; }
+    .wb__sync-failed-item { padding: 8px 12px; border: 1px solid #ffcdd2; border-radius: 6px; margin-bottom: 6px; background: #fff5f5; }
+    .wb__sync-key { font-weight: 600; font-size: 13px; display: block; }
+    .wb__sync-attempts { font-size: 11px; color: #888; }
+    .wb__sync-error { display: block; font-size: 11px; color: #c62828; margin-top: 4px; word-break: break-word; }
   `],
 })
 export class WorkflowBuilderPage implements OnInit, OnDestroy {
@@ -580,6 +667,10 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   saving = false;
   testing = false;
+
+  syncStats: { synced: number; failed: number; pending: number; stale: number; total: number } | null = null;
+  syncFailedEntries: { id: string; entity_key: string; attempt_count: number; last_error: string | null; updated_at: string | null }[] = [];
+  syncLoading = false;
 
   testDataJson = '{}';
   testExecution: WorkflowExecutionModel | null = null;
@@ -657,6 +748,10 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
         this.workflowTimeout = wf.timeout_seconds;
         this.nodes = wf.nodes;
         this.edges = wf.edges;
+        this.applySyncConfigToTrigger(wf);
+        if (wf.sync_config) {
+          this.loadSyncStats();
+        }
         setTimeout(() => this.canvas?.fitView(), 100);
       });
     }
@@ -769,6 +864,32 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     setTimeout(() => this.canvas?.fitView(), 100);
   }
 
+  private applySyncConfigToTrigger(wf: Workflow): void {
+    if (!wf.sync_config) return;
+    const triggerNode = this.nodes.find(n => n.type === 'trigger');
+    if (!triggerNode) return;
+    const sc = wf.sync_config as Record<string, unknown>;
+    triggerNode.config['sync_enabled'] = sc['enabled'] ?? false;
+    triggerNode.config['sync_entity_key'] = sc['entity_key_field'] ?? '';
+    triggerNode.config['sync_mode'] = sc['mode'] ?? 'incremental';
+    triggerNode.config['sync_on_duplicate'] = sc['on_duplicate'] ?? 'update';
+    triggerNode.config['sync_max_retries'] = sc['max_retries'] ?? 3;
+  }
+
+  private buildSyncConfig(): Record<string, unknown> | null {
+    const triggerNode = this.nodes.find(n => n.type === 'trigger');
+    const cfg = triggerNode?.config ?? {};
+    if (!cfg['sync_enabled']) return null;
+    return {
+      enabled: true,
+      entity_key_field: cfg['sync_entity_key'] || undefined,
+      content_hash_fields: ['*'],
+      mode: cfg['sync_mode'] || 'incremental',
+      on_duplicate: cfg['sync_on_duplicate'] || 'update',
+      max_retries: cfg['sync_max_retries'] ?? 3,
+    };
+  }
+
   save(): void {
     this.saving = true;
     const body = {
@@ -776,6 +897,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
       description: this.workflowDescription,
       nodes: this.nodes,
       edges: this.edges,
+      sync_config: this.buildSyncConfig(),
       on_error: this.workflowOnError,
       max_retries: this.workflowMaxRetries,
       timeout_seconds: this.workflowTimeout,
@@ -870,5 +992,61 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     } catch {
       return String(output);
     }
+  }
+
+  // ── Sync Status ──
+
+  loadSyncStats(): void {
+    if (!this.workflow) return;
+    this.syncLoading = true;
+    this.api.getSyncStats(this.workflow.id).subscribe({
+      next: (data: { stats: { synced: number; failed: number; pending: number; stale: number; total: number } }) => {
+        this.syncStats = data.stats;
+        this.syncLoading = false;
+        if (data.stats.failed > 0) {
+          this.loadSyncFailed();
+        } else {
+          this.syncFailedEntries = [];
+        }
+      },
+      error: () => {
+        this.syncLoading = false;
+      },
+    });
+  }
+
+  private loadSyncFailed(): void {
+    if (!this.workflow) return;
+    this.api.getSyncFailed(this.workflow.id).subscribe({
+      next: (entries: { id: string; entity_key: string; attempt_count: number; last_error: string | null; updated_at: string | null }[]) => {
+        this.syncFailedEntries = entries;
+      },
+    });
+  }
+
+  retrySyncs(): void {
+    if (!this.workflow) return;
+    this.api.retrySyncs(this.workflow.id).subscribe({
+      next: () => {
+        this.snackBar.open('Failed entries reset for retry', 'OK', { duration: 3000 });
+        this.loadSyncStats();
+      },
+      error: () => {
+        this.snackBar.open('Failed to retry syncs', 'OK', { duration: 3000 });
+      },
+    });
+  }
+
+  clearSyncLedger(): void {
+    if (!this.workflow) return;
+    this.api.clearSyncLedger(this.workflow.id).subscribe({
+      next: () => {
+        this.snackBar.open('Sync ledger cleared — next poll will re-sync everything', 'OK', { duration: 5000 });
+        this.loadSyncStats();
+      },
+      error: () => {
+        this.snackBar.open('Failed to clear sync ledger', 'OK', { duration: 3000 });
+      },
+    });
   }
 }

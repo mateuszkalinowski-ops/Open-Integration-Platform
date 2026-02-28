@@ -916,13 +916,124 @@ class WorkflowEngine:
             trigger_cred = _get_trigger_credential(wf.nodes)
             if trigger_cred and event_account and trigger_cred != event_account:
                 continue
+
+            trigger_filters = _get_trigger_filters(wf.nodes)
+            if trigger_filters and not _passes_trigger_filters(trigger_filters, event_data):
+                await logger.ainfo(
+                    "workflow_trigger_filtered",
+                    workflow_id=str(wf.id),
+                    workflow_name=wf.name,
+                    connector=connector_name,
+                    event=event,
+                )
+                continue
+
             matched.append(wf)
 
         executions = []
         for wf in matched:
-            execution = await self.execute_workflow(db, wf, event_data)
+            execution = await self._execute_with_sync(db, wf, connector_name, event, event_data)
             executions.append(execution)
-        return executions
+        return [e for e in executions if e is not None]
+
+    async def _execute_with_sync(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        connector_name: str,
+        event: str,
+        event_data: dict[str, Any],
+    ) -> WorkflowExecution | None:
+        """Execute a workflow with optional sync state tracking."""
+        sync_cfg = workflow.sync_config
+        if not sync_cfg or not sync_cfg.get("enabled"):
+            return await self.execute_workflow(db, workflow, event_data)
+
+        from core.sync_state import (
+            SyncDecision,
+            SyncStateManager,
+            compute_content_hash,
+            resolve_entity_key,
+        )
+
+        key_field = sync_cfg.get("entity_key_field")
+        if not key_field:
+            return await self.execute_workflow(db, workflow, event_data)
+
+        entity_key = resolve_entity_key(event_data, key_field)
+        if not entity_key:
+            return await self.execute_workflow(db, workflow, event_data)
+
+        hash_fields = sync_cfg.get("content_hash_fields")
+        content_hash = compute_content_hash(event_data, hash_fields)
+        mode = sync_cfg.get("mode", "incremental")
+        max_retries = sync_cfg.get("max_retries", 3)
+
+        sync_mgr = SyncStateManager()
+
+        if mode == "force":
+            execution = await self.execute_workflow(db, workflow, event_data)
+            await sync_mgr.record_success(
+                db,
+                tenant_id=workflow.tenant_id,
+                workflow_id=workflow.id,
+                source_connector=connector_name,
+                source_event=event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+            )
+            return execution
+
+        check = await sync_mgr.should_sync(
+            db, workflow.id, entity_key, content_hash, max_retries=max_retries,
+        )
+
+        if check.decision == SyncDecision.SKIP:
+            await logger.ainfo(
+                "sync_skipped",
+                workflow_id=str(workflow.id),
+                entity_key=entity_key,
+                reason="already_synced_same_hash",
+            )
+            return None
+
+        on_dup = sync_cfg.get("on_duplicate", "skip")
+        if check.decision == SyncDecision.UPDATE and on_dup == "skip":
+            await logger.ainfo(
+                "sync_skipped",
+                workflow_id=str(workflow.id),
+                entity_key=entity_key,
+                reason="duplicate_skip_policy",
+            )
+            return None
+
+        execution = await self.execute_workflow(db, workflow, event_data)
+
+        if execution.status == "success":
+            await sync_mgr.record_success(
+                db,
+                tenant_id=workflow.tenant_id,
+                workflow_id=workflow.id,
+                source_connector=connector_name,
+                source_event=event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+                ledger_id=check.ledger_id,
+            )
+        else:
+            await sync_mgr.record_failure(
+                db,
+                tenant_id=workflow.tenant_id,
+                workflow_id=workflow.id,
+                source_connector=connector_name,
+                source_event=event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+                error=execution.error or "unknown error",
+                ledger_id=check.ledger_id,
+            )
+
+        return execution
 
 
 _PII_PLACEHOLDER = "[RODO_REDACTED]"
@@ -1081,6 +1192,109 @@ def _get_trigger_credential(nodes: list[dict]) -> str | None:
             if cred and cred != "default":
                 return cred
     return None
+
+
+def _get_trigger_filters(nodes: list[dict]) -> dict | None:
+    """Extract filter config from the trigger node."""
+    for node in nodes:
+        if node.get("type") == "trigger":
+            return node.get("config", {}).get("filters")
+    return None
+
+
+def _evaluate_trigger_filter(
+    condition: dict[str, Any],
+    data: dict[str, Any],
+) -> bool:
+    """Evaluate a single filter condition against raw event data.
+
+    Supports the same operators as the workflow condition node but operates
+    on flat event data without requiring a WorkflowContext.
+    """
+    field = condition.get("field", "")
+    op = condition.get("operator", "eq")
+    expected = condition.get("value")
+
+    actual = _get_nested(data, field)
+
+    if op in ("equals", "eq"):
+        try:
+            if actual == expected:
+                return True
+        except TypeError:
+            pass
+        a, b = _coerce_types(actual, expected)
+        try:
+            return a == b
+        except TypeError:
+            return False
+    elif op in ("not_equals", "neq"):
+        try:
+            return actual != expected
+        except TypeError:
+            return True
+    elif op == "contains":
+        return expected in actual if actual else False
+    elif op == "not_contains":
+        return expected not in actual if actual else True
+    elif op == "starts_with":
+        return str(actual).startswith(str(expected)) if actual else False
+    elif op == "ends_with":
+        return str(actual).endswith(str(expected)) if actual else False
+    elif op == "gt":
+        a, b = _coerce_types(actual, expected)
+        try:
+            return a > b
+        except TypeError:
+            return False
+    elif op == "lt":
+        a, b = _coerce_types(actual, expected)
+        try:
+            return a < b
+        except TypeError:
+            return False
+    elif op == "gte":
+        a, b = _coerce_types(actual, expected)
+        try:
+            return a >= b
+        except TypeError:
+            return False
+    elif op == "lte":
+        a, b = _coerce_types(actual, expected)
+        try:
+            return a <= b
+        except TypeError:
+            return False
+    elif op == "exists":
+        return actual is not None
+    elif op == "not_exists":
+        return actual is None
+    elif op == "in":
+        values = condition.get("values", expected if isinstance(expected, list) else [expected])
+        return actual in values
+    elif op == "not_in":
+        values = condition.get("values", expected if isinstance(expected, list) else [expected])
+        return actual not in values
+    elif op == "regex":
+        return bool(re.search(str(expected), str(actual))) if actual is not None else False
+    elif op == "is_empty":
+        return not actual
+    elif op == "is_not_empty":
+        return bool(actual)
+    return False
+
+
+def _passes_trigger_filters(
+    filters: dict[str, Any],
+    event_data: dict[str, Any],
+) -> bool:
+    """Evaluate trigger filter conditions against event data."""
+    conditions = filters.get("conditions", [])
+    if not conditions:
+        return True
+    logic = filters.get("logic", "and")
+    results = [_evaluate_trigger_filter(c, event_data) for c in conditions]
+    return all(results) if logic == "and" else any(results)
 
 
 class WorkflowGraph:

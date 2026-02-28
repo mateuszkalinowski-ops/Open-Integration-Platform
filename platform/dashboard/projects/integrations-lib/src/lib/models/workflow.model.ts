@@ -42,6 +42,44 @@ export interface WorkflowVariable {
   description?: string;
 }
 
+export interface SyncConfig {
+  enabled: boolean;
+  entity_key_field?: string | string[];
+  content_hash_fields?: string[];
+  mode?: 'incremental' | 'full_sync' | 'force';
+  on_duplicate?: 'skip' | 'update' | 'force';
+  retry_failed?: boolean;
+  max_retries?: number;
+}
+
+export interface TriggerFilter {
+  logic?: 'and' | 'or';
+  conditions: TriggerFilterCondition[];
+}
+
+export interface TriggerFilterCondition {
+  field: string;
+  operator: string;
+  value?: unknown;
+  values?: unknown[];
+}
+
+export interface SyncStats {
+  synced: number;
+  failed: number;
+  pending: number;
+  stale: number;
+  total: number;
+}
+
+export interface SyncFailedEntry {
+  id: string;
+  entity_key: string;
+  attempt_count: number;
+  last_error: string | null;
+  updated_at: string | null;
+}
+
 export interface Workflow {
   id: string;
   name: string;
@@ -53,6 +91,7 @@ export interface Workflow {
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   variables: Record<string, WorkflowVariable>;
+  sync_config: SyncConfig | null;
   on_error: string;
   max_retries: number;
   timeout_seconds: number;
@@ -66,6 +105,7 @@ export interface WorkflowCreateRequest {
   nodes: WorkflowNode[];
   edges: WorkflowEdge[];
   variables?: Record<string, unknown>;
+  sync_config?: SyncConfig | null;
   on_error?: string;
   max_retries?: number;
   timeout_seconds?: number;
@@ -77,6 +117,7 @@ export interface WorkflowUpdateRequest {
   nodes?: WorkflowNode[];
   edges?: WorkflowEdge[];
   variables?: Record<string, unknown>;
+  sync_config?: SyncConfig | null;
   is_enabled?: boolean;
   on_error?: string;
   max_retries?: number;

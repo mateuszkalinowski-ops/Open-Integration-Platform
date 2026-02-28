@@ -1342,6 +1342,7 @@ async def create_workflow(
         nodes=nodes_raw,
         edges=edges_raw,
         variables=body.variables,
+        sync_config=body.sync_config,
         trigger_connector=trigger_connector,
         trigger_event=trigger_event,
         on_error=body.on_error,
@@ -1520,6 +1521,93 @@ async def toggle_workflow(
         await _provision_trigger_account(db, tenant.id, workflow.nodes or [])
 
     return {"status": "enabled" if workflow.is_enabled else "disabled", "is_enabled": workflow.is_enabled}
+
+
+# --- Sync Ledger ---
+
+
+@app.get("/api/v1/workflows/{workflow_id}/sync-stats", tags=["sync"])
+async def get_sync_stats(
+    workflow_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Get sync ledger statistics for a workflow."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    workflow = result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from core.sync_state import SyncStateManager
+    mgr = SyncStateManager()
+    stats = await mgr.get_stats(db, workflow.id)
+    return {
+        "workflow_id": str(workflow.id),
+        "workflow_name": workflow.name,
+        "sync_config": workflow.sync_config,
+        "stats": stats,
+    }
+
+
+@app.get("/api/v1/workflows/{workflow_id}/sync-failed", tags=["sync"])
+async def get_sync_failed(
+    workflow_id: str,
+    limit: int = Query(50, le=200),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    """List failed sync entries for a workflow."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from core.sync_state import SyncStateManager
+    mgr = SyncStateManager()
+    return await mgr.get_failed_entries(db, uuid.UUID(workflow_id), limit=limit)
+
+
+@app.post("/api/v1/workflows/{workflow_id}/sync-retry", tags=["sync"])
+async def retry_failed_syncs(
+    workflow_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Reset all failed sync entries to pending for retry."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from core.sync_state import SyncStateManager
+    mgr = SyncStateManager()
+    reset_count = await mgr.reset_failed(db, uuid.UUID(workflow_id))
+    await db.commit()
+    return {"reset_count": reset_count}
+
+
+@app.post("/api/v1/workflows/{workflow_id}/sync-clear", tags=["sync"])
+async def clear_sync_ledger(
+    workflow_id: str,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Delete all sync ledger entries for a workflow (force full re-sync)."""
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    if not result.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    from core.sync_state import SyncStateManager
+    mgr = SyncStateManager()
+    deleted = await mgr.clear_ledger(db, uuid.UUID(workflow_id))
+    await db.commit()
+    return {"deleted_count": deleted}
 
 
 @app.get(

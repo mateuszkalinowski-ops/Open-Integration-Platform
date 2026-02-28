@@ -379,4 +379,36 @@ export class PinquarkApiService {
       headers: this.headers,
     });
   }
+
+  // ── Sync Ledger ──
+
+  getSyncStats(workflowId: string): Observable<{ workflow_id: string; workflow_name: string; sync_config: unknown; stats: { synced: number; failed: number; pending: number; stale: number; total: number } }> {
+    return this.http.get<{ workflow_id: string; workflow_name: string; sync_config: unknown; stats: { synced: number; failed: number; pending: number; stale: number; total: number } }>(
+      `${this.apiUrl}/api/v1/workflows/${workflowId}/sync-stats`,
+      { headers: this.headers },
+    );
+  }
+
+  getSyncFailed(workflowId: string, limit = 50): Observable<{ id: string; entity_key: string; attempt_count: number; last_error: string | null; updated_at: string | null }[]> {
+    return this.http.get<{ id: string; entity_key: string; attempt_count: number; last_error: string | null; updated_at: string | null }[]>(
+      `${this.apiUrl}/api/v1/workflows/${workflowId}/sync-failed`,
+      { headers: this.headers, params: { limit: limit.toString() } },
+    );
+  }
+
+  retrySyncs(workflowId: string): Observable<{ reset_count: number }> {
+    return this.http.post<{ reset_count: number }>(
+      `${this.apiUrl}/api/v1/workflows/${workflowId}/sync-retry`,
+      {},
+      { headers: this.headers },
+    );
+  }
+
+  clearSyncLedger(workflowId: string): Observable<{ deleted_count: number }> {
+    return this.http.post<{ deleted_count: number }>(
+      `${this.apiUrl}/api/v1/workflows/${workflowId}/sync-clear`,
+      {},
+      { headers: this.headers },
+    );
+  }
 }

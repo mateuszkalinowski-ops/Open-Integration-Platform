@@ -200,6 +200,7 @@ class Workflow(Base):
     nodes: Mapped[list] = mapped_column(JSONB, default=list)
     edges: Mapped[list] = mapped_column(JSONB, default=list)
     variables: Mapped[dict] = mapped_column(JSONB, default=dict)
+    sync_config: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     on_error: Mapped[str] = mapped_column(String(20), default="stop")
     max_retries: Mapped[int] = mapped_column(Integer, default=3)
@@ -239,6 +240,35 @@ class WorkflowExecution(Base):
     completed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 
     workflow: Mapped["Workflow"] = relationship(back_populates="executions")
+
+
+class SyncLedger(Base):
+    """Tracks sync state per entity per workflow for incremental synchronization.
+
+    Keyed by (workflow_id, entity_key) to detect duplicates, track changes
+    via content_hash, and record sync success/failure for retry logic.
+    """
+
+    __tablename__ = "sync_ledger"
+    __table_args__ = (UniqueConstraint("workflow_id", "entity_key"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("workflows.id"), nullable=False)
+    source_connector: Mapped[str] = mapped_column(String(100), nullable=False)
+    source_event: Mapped[str] = mapped_column(String(100), nullable=False)
+    entity_key: Mapped[str] = mapped_column(String(500), nullable=False)
+    content_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    sync_status: Mapped[str] = mapped_column(String(20), nullable=False, default="pending")
+    attempt_count: Mapped[int] = mapped_column(Integer, default=0)
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    synced_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    workflow: Mapped["Workflow"] = relationship("Workflow")
 
 
 class VerificationReport(Base):
