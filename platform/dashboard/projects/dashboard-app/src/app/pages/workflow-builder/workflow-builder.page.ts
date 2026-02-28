@@ -869,12 +869,12 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     if (!wf.sync_config) return;
     const triggerNode = this.nodes.find(n => n.type === 'trigger');
     if (!triggerNode) return;
-    const sc = wf.sync_config as Record<string, unknown>;
-    triggerNode.config['sync_enabled'] = sc['enabled'] ?? false;
-    triggerNode.config['sync_entity_key'] = sc['entity_key_field'] ?? '';
-    triggerNode.config['sync_mode'] = sc['mode'] ?? 'incremental';
-    triggerNode.config['sync_on_duplicate'] = sc['on_duplicate'] ?? 'update';
-    triggerNode.config['sync_max_retries'] = sc['max_retries'] ?? 3;
+    const sc = wf.sync_config;
+    triggerNode.config['sync_enabled'] = sc.enabled ?? false;
+    triggerNode.config['sync_entity_key'] = sc.entity_key_field ?? '';
+    triggerNode.config['sync_mode'] = sc.mode ?? 'incremental';
+    triggerNode.config['sync_on_duplicate'] = sc.on_duplicate ?? 'update';
+    triggerNode.config['sync_max_retries'] = sc.max_retries ?? 3;
   }
 
   private buildSyncConfig(): SyncConfig | null {
