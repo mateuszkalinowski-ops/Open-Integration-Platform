@@ -111,6 +111,27 @@ jobs:
           - name: connector-shopify
             context: .
             dockerfile: integrators/ecommerce/shopify/v1.0.0/Dockerfile
+          - name: connector-fxcouriers
+            context: ./integrators/courier/fxcouriers/v1.0.0
+            dockerfile: ./integrators/courier/fxcouriers/v1.0.0/Dockerfile
+          - name: connector-pinquark-wms
+            context: ./integrators/wms/pinquark-wms/v1.0.0
+            dockerfile: ./integrators/wms/pinquark-wms/v1.0.0/Dockerfile
+          - name: connector-email-client
+            context: .
+            dockerfile: integrators/other/email-client/v1.0.0/Dockerfile
+          - name: connector-skanuj-fakture
+            context: .
+            dockerfile: integrators/other/skanuj-fakture/v1.0.0/Dockerfile
+          - name: connector-ftp-sftp
+            context: .
+            dockerfile: integrators/other/ftp-sftp/v1.0.0/Dockerfile
+          - name: connector-slack
+            context: .
+            dockerfile: integrators/other/slack/v1.0.0/Dockerfile
+          - name: connector-bulkgate
+            context: ./integrators/other/bulkgate/v1.0.0
+            dockerfile: ./integrators/other/bulkgate/v1.0.0/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
