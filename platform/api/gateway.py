@@ -1,6 +1,7 @@
 """API Gateway -- main FastAPI application for Open Integration Platform by Pinquark.com."""
 
 import io
+import os
 import time
 import zipfile
 from contextlib import asynccontextmanager
@@ -17,7 +18,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.auth import generate_api_key, get_current_tenant
+from api.auth import generate_api_key, get_current_tenant, hash_api_key
 from api.schemas import (
     ApiKeyCreate,
     ApiKeyResponse,
@@ -78,6 +79,36 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     await get_redis()
     await logger.ainfo("redis_connected")
+
+    async with async_session_factory() as db_session:
+        tenant_result = await db_session.execute(select(Tenant).limit(1))
+        if not tenant_result.scalar_one_or_none():
+            default_tenant = Tenant(name="Default", slug="default", is_active=True, plan="free")
+            db_session.add(default_tenant)
+            await db_session.flush()
+
+            preset_key = os.environ.get("DEFAULT_API_KEY", "")
+            if preset_key:
+                raw_key = preset_key
+                key_hash = hash_api_key(raw_key)
+            else:
+                raw_key, key_hash = generate_api_key()
+
+            api_key = ApiKey(
+                tenant_id=default_tenant.id,
+                key_hash=key_hash,
+                key_prefix=raw_key[:10],
+                name="dashboard",
+                is_active=True,
+            )
+            db_session.add(api_key)
+            await db_session.commit()
+            await logger.ainfo(
+                "default_tenant_created",
+                tenant_id=str(default_tenant.id),
+                api_key_prefix=raw_key[:10],
+                api_key=raw_key if not preset_key else "***set-from-env***",
+            )
 
     count = registry.discover()
     await logger.ainfo("connectors_discovered", count=count)

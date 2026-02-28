@@ -21,6 +21,7 @@ services:
       REDIS_URL: redis://redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
+      DEFAULT_API_KEY: ${DEFAULT_API_KEY:-pk_live_default_key_change_me}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
@@ -44,7 +45,7 @@ services:
       - "80"
     environment:
       PINQUARK_API_URL: ""
-      PINQUARK_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
+      PINQUARK_API_KEY: ${DEFAULT_API_KEY:-pk_live_default_key_change_me}
     depends_on:
       - platform
     restart: unless-stopped

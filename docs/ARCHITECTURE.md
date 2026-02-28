@@ -8,11 +8,13 @@
 2. [System architecture](#2-system-architecture)
 3. [Data exchange](#3-data-exchange)
   - [3.2 Integration paths](#32-integration-paths) — event-driven, on-demand, and external API trigger
-4. [Scaling mechanisms](#4-scaling-mechanisms)
-5. [Throughput](#5-throughput)
-6. [Platform configuration](#6-platform-configuration)
-7. [Integration configuration](#7-integration-configuration) *(separate file: [CONNECTORS.md](CONNECTORS.md))*
-8. [Deployment](#8-deployment)
+  - [3.5 Sync State Engine](#35-sync-state-engine--incremental-data-synchronization) — deduplication, change detection, retry logic
+4. [Database schema](#4-database-schema)
+5. [Scaling mechanisms](#5-scaling-mechanisms)
+6. [Throughput](#6-throughput)
+7. [Platform configuration](#7-platform-configuration)
+8. [Integration configuration](#8-integration-configuration) *(separate file: [CONNECTORS.md](CONNECTORS.md))*
+9. [Deployment](#9-deployment)
 
 ---
 
@@ -291,11 +293,213 @@ All REST endpoints use JSON. Error format:
 - **External API**: credentials stored in an encrypted vault (AES-256-GCM), per-tenant
 - **Kafka**: SASL SCRAM-SHA-512
 
+### 3.5 Sync State Engine — Incremental Data Synchronization
+
+The Sync State Engine prevents duplicate processing and enables incremental synchronization between systems. It is built into the Workflow Engine and uses the `sync_ledger` PostgreSQL table to track per-entity sync state.
+
+#### Problem it solves
+
+When polling external systems (e.g., fetching orders from Allegro every 5 minutes), the same data arrives repeatedly. Without deduplication:
+- The same order would create duplicate shipments in a courier system
+- Unchanged records would trigger unnecessary API calls
+- Failed syncs would have no retry mechanism
+
+#### How it works
+
+```
+Event arrives
+     │
+     ▼
+┌─────────────────────────────┐
+│  Resolve entity_key from    │  e.g. event_data["erpId"] → "12345"
+│  event data                 │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  Compute content_hash       │  SHA-256 of selected fields (or entire payload)
+│  (deterministic SHA-256)    │
+└─────────────┬───────────────┘
+              │
+              ▼
+┌─────────────────────────────┐
+│  Query sync_ledger          │  SELECT WHERE workflow_id = ? AND entity_key = ?
+│  for existing entry         │
+└─────────────┬───────────────┘
+              │
+     ┌────────┴────────┬──────────────┬──────────────┐
+     ▼                 ▼              ▼              ▼
+  No entry          Same hash      Diff hash     Status=failed
+  found             & synced       (changed)     & retries left
+     │                 │              │              │
+     ▼                 ▼              ▼              ▼
+   SYNC              SKIP          UPDATE         RETRY
+ (new entity)    (no change)    (re-sync)      (retry sync)
+     │                 │              │              │
+     ▼                 ▼              ▼              ▼
+  Execute          Return None    Execute         Execute
+  workflow         (no action)    workflow         workflow
+     │                              │              │
+     ▼                              ▼              ▼
+  Record success/failure in sync_ledger
+```
+
+#### Sync decisions
+
+| Decision | Condition | Action |
+| --- | --- | --- |
+| **SYNC** | Entity key not found in ledger | Execute workflow, create new ledger entry |
+| **SKIP** | Same `content_hash` and `sync_status = "synced"` | Do nothing — data unchanged |
+| **UPDATE** | Different `content_hash` | Re-execute workflow, update ledger entry |
+| **RETRY** | `sync_status = "failed"` and `attempt_count < max_retries` | Re-execute workflow, increment attempt count |
+
+#### Sync modes
+
+| Mode | Behavior |
+| --- | --- |
+| `incremental` (default) | Check ledger before executing — skip unchanged, sync new/changed entities |
+| `force` | Always execute the workflow, then record success in ledger (bypass dedup checks) |
+| `full_sync` | Mark all existing entries as `stale`, then sync everything — useful for periodic full reconciliation |
+
+#### Duplicate handling policy (`on_duplicate`)
+
+When the content hash has changed (decision = `UPDATE`):
+
+| Policy | Behavior |
+| --- | --- |
+| `skip` | Do not re-sync — only new entities are processed |
+| `update` | Re-sync the entity with the new data |
+| `force` | Always re-sync regardless of hash |
+
+#### Workflow `sync_config` schema
+
+Sync is enabled per-workflow via the `sync_config` JSONB field:
+
+```json
+{
+  "enabled": true,
+  "entity_key_field": "erpId",
+  "content_hash_fields": ["erpStatusSymbol", "deliveryAddress", "contact"],
+  "mode": "incremental",
+  "on_duplicate": "update",
+  "max_retries": 3
+}
+```
+
+| Field | Type | Description |
+| --- | --- | --- |
+| `enabled` | `boolean` | Enable/disable sync tracking for this workflow |
+| `entity_key_field` | `string \| string[]` | Field path(s) in event data to build the unique entity key. Supports dot-notation (`document.erp_id`) and composite keys (`["source", "erp_id"]` → `"allegro:12345"`) |
+| `content_hash_fields` | `string[]` | Fields to include in the SHA-256 hash. `["*"]` or omitted = hash entire payload (excluding internal metadata) |
+| `mode` | `string` | `incremental` (default), `force`, or `full_sync` |
+| `on_duplicate` | `string` | `skip` (default), `update`, or `force` |
+| `retry_failed` | `boolean` | Whether to automatically retry failed entries |
+| `max_retries` | `integer` | Maximum retry attempts before giving up (default: 3) |
+
+#### Content hash computation
+
+The hash is a deterministic SHA-256 of selected event data fields:
+
+1. If `content_hash_fields` is specified (e.g., `["status", "address"]`), only those fields are hashed
+2. If `content_hash_fields` is `["*"]` or omitted, the entire payload is hashed (excluding internal metadata fields like `_`, `account_name`, `polled_at`)
+3. Data is serialized via `json.dumps(sort_keys=True)` for determinism
+
+This allows fine-grained control — e.g., only re-sync when `erpStatusSymbol` or `deliveryAddress` changes, ignoring timestamp changes.
+
+#### Entity key resolution
+
+The entity key uniquely identifies a record across sync runs. It supports:
+
+- **Simple field**: `"erpId"` → `"12345"`
+- **Nested dot-notation**: `"document.erp_id"` → `"67890"`
+- **Composite key**: `["source", "erp_id"]` → `"allegro:12345"` (joined with `:`)
+
+#### Ledger states
+
+| Status | Meaning |
+| --- | --- |
+| `pending` | Entry created, not yet processed |
+| `synced` | Successfully synchronized |
+| `failed` | Sync failed (will be retried up to `max_retries`) |
+| `stale` | Marked for re-sync during `full_sync` mode |
+
+#### REST API endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/v1/workflows/{id}/sync-stats` | GET | Get sync ledger statistics (synced/failed/pending/stale counts) |
+| `/api/v1/workflows/{id}/sync-failed` | GET | List failed sync entries with error details (max 200) |
+| `/api/v1/workflows/{id}/sync-retry` | POST | Reset all failed entries to pending for retry |
+| `/api/v1/workflows/{id}/sync-clear` | POST | Delete all ledger entries (force full re-sync) |
+
+#### Example: sync stats response
+
+```json
+{
+  "workflow_id": "abc-123",
+  "workflow_name": "Allegro → InPost",
+  "sync_config": {
+    "enabled": true,
+    "entity_key_field": "erpId",
+    "mode": "incremental"
+  },
+  "stats": {
+    "synced": 1250,
+    "failed": 3,
+    "pending": 0,
+    "stale": 0,
+    "total": 1253
+  }
+}
+```
+
+#### Implementation
+
+| Component | File | Responsibility |
+| --- | --- | --- |
+| `SyncStateManager` | `platform/core/sync_state.py` | Ledger queries, decision logic, record success/failure |
+| `WorkflowEngine._execute_with_sync` | `platform/core/workflow_engine.py` | Orchestrates sync check → workflow execution → ledger update |
+| `SyncLedger` | `platform/db/models.py` | SQLAlchemy model for the `sync_ledger` table |
+| `SyncConfig` | `dashboard/.../workflow.model.ts` | TypeScript interface for UI configuration |
+
 ---
 
-## 4. Scaling mechanisms
+## 4. Database schema
 
-### 4.1 Horizontal Pod Autoscaler (HPA)
+> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`.
+
+![Database Schema ERD](database-schema.png)
+
+### 4.1 Table overview
+
+| Table | Purpose | Key relationships |
+| --- | --- | --- |
+| `tenants` | Multi-tenant isolation — central table for all tenant-scoped data | Parent of all tenant-scoped tables |
+| `api_keys` | Hashed API keys for platform authentication | FK → `tenants` |
+| `connector_instances` | Connectors activated by a tenant with version and config | FK → `tenants`, UQ(tenant, name, version) |
+| `credentials` | AES-256-GCM encrypted credentials per connector per tenant | FK → `tenants`, UQ(tenant, connector, name, key) |
+| `flows` | Flow rules: source event → destination action | FK → `tenants`, parent of `flow_executions` |
+| `flow_executions` | Audit log of flow executions with results and timing | FK → `flows`, FK → `tenants` |
+| `field_mappings` | Per-tenant field mapping overrides (layer 2 of hybrid model) | FK → `tenants` |
+| `workflows` | Graph-based workflow definitions with nodes/edges in JSONB | FK → `tenants`, parent of `workflow_executions`, `sync_ledger` |
+| `workflow_executions` | Audit log of workflow executions with per-node results and graph snapshots | FK → `workflows`, FK → `tenants` |
+| `sync_ledger` | Tracks per-entity sync state for incremental synchronization | FK → `workflows`, FK → `tenants`, UQ(workflow, entity_key) |
+| `verification_reports` | Results of connector verification runs (3-tier checks) | FK → `tenants` (nullable) |
+| `verification_settings` | Singleton scheduler configuration for the verification agent | Standalone (no FK) |
+
+### 4.2 Key design decisions
+
+- **UUID primary keys** on all main tables for distributed ID generation without coordination
+- **JSONB columns** for flexible schema: workflow nodes/edges, field mappings, execution results, connector config
+- **Row-Level Security** via `tenant_id` foreign key on every tenant-scoped table
+- **Unique constraints** prevent duplicate connector activations, credentials, and field mappings per tenant
+- **Audit trail** via `flow_executions` and `workflow_executions` tables with full input/output snapshots
+
+---
+
+## 5. Scaling mechanisms
+
+### 5.1 Horizontal Pod Autoscaler (HPA)
 
 Every integrator in Kubernetes is covered by HPA:
 
@@ -329,7 +533,7 @@ Resources per pod:
 | Memory    | 256Mi    | 512Mi  |
 
 
-### 4.2 Redis caching
+### 5.2 Redis caching
 
 The caching layer offloads the database and speeds up operations:
 
@@ -342,7 +546,7 @@ The caching layer offloads the database and speeds up operations:
 
 Cache is automatically invalidated when mappings change. When Redis is unavailable, the system continues operating with a fallback to local memory.
 
-### 4.3 PostgreSQL connection pool
+### 5.3 PostgreSQL connection pool
 
 Instead of default SQLAlchemy settings, the platform configures a connection pool:
 
@@ -358,7 +562,7 @@ Instead of default SQLAlchemy settings, the platform configures a connection poo
 
 Total: up to 50 active connections (20 base + 30 overflow) per gateway instance.
 
-### 4.4 Kafka tuning
+### 5.4 Kafka tuning
 
 #### Cluster (3 brokers + 3 ZooKeeper)
 
@@ -417,7 +621,7 @@ Available modes:
 - `consume()` -- one message at a time (backward compatible)
 - `consume_batches()` -- batches via `getmany()` (up to 500 msg at once)
 
-### 4.5 Circuit breaker
+### 5.5 Circuit breaker
 
 Protects against cascading failures from external APIs. Each target host (e.g., `api.allegro.pl`, `api-shipx.inpost.pl`) has its own circuit breaker.
 
@@ -441,7 +645,7 @@ Protects against cascading failures from external APIs. Each target host (e.g., 
 
 When CB is open, requests return an immediate 503 error instead of waiting for a timeout.
 
-### 4.6 HTTP connection pool
+### 5.6 HTTP connection pool
 
 TCP/TLS connection reuse per host instead of creating a new `httpx.AsyncClient` per request:
 
@@ -455,7 +659,7 @@ TCP/TLS connection reuse per host instead of creating a new `httpx.AsyncClient` 
 
 Integration: circuit breaker per host + connection pool per host = full control over outgoing connections.
 
-### 4.7 Rate limiting (per-tenant)
+### 5.7 Rate limiting (per-tenant)
 
 Redis-based sliding window rate limiter:
 
@@ -481,9 +685,9 @@ Response headers:
 
 ---
 
-## 5. Throughput
+## 6. Throughput
 
-### 5.1 Estimated performance per component
+### 6.1 Estimated performance per component
 
 
 | Component         | Throughput (per instance)   | Scaling               |
@@ -496,7 +700,7 @@ Response headers:
 | PostgreSQL        | ~5 000 queries/min          | Pool 50 conn          |
 
 
-### 5.2 Total system throughput
+### 6.2 Total system throughput
 
 
 | Scenario              | Gateway (replicas) | Integrators (replicas) | Kafka     | Total throughput           |
@@ -507,7 +711,7 @@ Response headers:
 | Production (peak)     | 10-20              | 10-20 per type         | 3 brokers | ~500 000-1 000 000 req/min |
 
 
-### 5.3 Bottlenecks and their solutions
+### 6.3 Bottlenecks and their solutions
 
 
 | Bottleneck              | Symptom                | Metric/log                                        | Solution                                                       |
@@ -521,9 +725,9 @@ Response headers:
 
 ---
 
-## 6. Platform configuration
+## 7. Platform configuration
 
-### 6.1 Platform environment variables
+### 7.1 Platform environment variables
 
 #### Application
 
@@ -586,7 +790,7 @@ Response headers:
 | `CONNECTOR_DISCOVERY_PATH` | `/integrators` | Path to the connectors directory |
 
 
-### 6.2 Docker Compose (development)
+### 7.2 Docker Compose (development)
 
 ```bash
 cd platform
@@ -595,7 +799,7 @@ docker compose up -d
 
 Starts: platform gateway, PostgreSQL 16, Redis 7.
 
-### 6.3 Docker Compose (production)
+### 7.3 Docker Compose (production)
 
 ```bash
 docker compose -f docker-compose.prod.yml up -d
@@ -603,7 +807,7 @@ docker compose -f docker-compose.prod.yml up -d
 
 Starts: platform, dashboard, PostgreSQL, Redis, and selected connectors (InPost, DHL, DPD, Allegro, WMS).
 
-### 6.4 Kubernetes
+### 7.4 Kubernetes
 
 Configuration in `k8s/integrators/base/`:
 
@@ -618,7 +822,7 @@ Configuration in `k8s/integrators/base/`:
 
 ---
 
-## 7. Integration configuration
+## 8. Integration configuration
 
 Detailed documentation of configuration parameters for all 25 connectors (16 couriers, Allegro, Shoper, Shopify, IdoSell, Pinquark WMS, Email Client, SkanujFakture, FTP/SFTP) and credentials management via API can be found in a separate file:
 
@@ -634,9 +838,9 @@ It covers:
 
 ---
 
-## 8. Deployment
+## 9. Deployment
 
-### 8.1 Local setup (development)
+### 9.1 Local setup (development)
 
 ```bash
 # Platform + database + Redis
@@ -652,7 +856,7 @@ cp .env.example .env  # fill in secrets
 docker compose -f docker-compose.prod.yml up -d
 ```
 
-### 8.2 Adding a new connector (zero-impact architecture)
+### 9.2 Adding a new connector (zero-impact architecture)
 
 Adding a new connector requires **only two steps** and **zero changes to any platform code**.  The platform discovers connectors automatically by scanning the `integrators/` directory (volume-mounted) for `connector.yaml` manifests at startup.
 
@@ -754,7 +958,7 @@ After startup, verify:
 
 ---
 
-### 8.3 Kubernetes (UAT/production)
+### 9.3 Kubernetes (UAT/production)
 
 ```bash
 # Kafka cluster
@@ -771,7 +975,7 @@ kubectl apply -f k8s/integrators/base/hpa.yaml
 kubectl apply -f k8s/base/ingress/ingress.yaml
 ```
 
-### 8.4 Health check
+### 9.4 Health check
 
 Every component exposes:
 
@@ -798,7 +1002,7 @@ Example `/health` response:
 }
 ```
 
-### 8.5 Monitoring
+### 9.5 Monitoring
 
 Prometheus metrics available at `/metrics`:
 

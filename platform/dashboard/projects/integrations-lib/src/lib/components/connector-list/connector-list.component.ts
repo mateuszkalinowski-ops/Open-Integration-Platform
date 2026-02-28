@@ -15,7 +15,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
-import { forkJoin } from 'rxjs';
+import { forkJoin, of } from 'rxjs';
+import { catchError } from 'rxjs/operators';
 
 import {
   Connector, ConnectorGroup, ConnectorInstance,
@@ -377,8 +378,8 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
     const params = this.selectedCategory ? { category: this.selectedCategory } : undefined;
     forkJoin({
       connectors: this.api.listConnectors(params),
-      instances: this.api.listConnectorInstances(),
-      credentials: this.api.listCredentials(),
+      instances: this.api.listConnectorInstances().pipe(catchError(() => of([] as ConnectorInstance[]))),
+      credentials: this.api.listCredentials().pipe(catchError(() => of([] as CredentialInfo[]))),
     }).subscribe(({ connectors, instances, credentials }: {
       connectors: Connector[];
       instances: ConnectorInstance[];

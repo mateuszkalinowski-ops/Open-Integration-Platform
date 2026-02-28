@@ -7,4 +7,7 @@ window.__PINQUARK_CONFIG__ = {
 };
 EOF
 
+CACHE_BUST=$(date +%s)
+sed -i "s|assets/runtime-config.js[^\"]*|assets/runtime-config.js?v=${CACHE_BUST}|g" /usr/share/nginx/html/index.html
+
 exec nginx -g 'daemon off;'

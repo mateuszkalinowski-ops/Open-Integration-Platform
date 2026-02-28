@@ -51,7 +51,8 @@ The platform is designed to be **autonomous** — integrations are continuously 
 
 | Document             | Path                                           | Contents                                                                                                                      | Update when                                                            |
 | -------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Architecture**     | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` | System architecture, data exchange patterns, scalability mechanisms, throughput estimates, platform configuration, deployment | Changing infrastructure, scaling config, adding communication patterns |
+| **Architecture**     | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` | System architecture, data exchange patterns, database schema, scalability mechanisms, throughput estimates, platform configuration, deployment | Changing infrastructure, scaling config, adding communication patterns |
+| **DB Schema Diagram**| `[docs/database-schema.png](docs/database-schema.png)` | Entity-Relationship Diagram of all PostgreSQL tables and their relationships | Adding/removing tables, columns, or foreign keys (any migration) |
 | **Connectors**       | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`     | Configuration parameters for all 20 connectors, env vars, credentials API                                                     | Adding/modifying connectors, changing config schema                    |
 | **Agent Guidelines** | `[AGENTS.md](AGENTS.md)`                       | This file — coding standards, CI/CD, security, interfaces                                                                     | Changing development standards or workflows                            |
 
@@ -1067,6 +1068,7 @@ The following files document the platform as a whole and MUST be updated when re
 | Document                   | Path                                           | Update trigger                                         |
 | -------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
 | Architecture & scalability | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` | Infrastructure, scaling, data flow, deployment changes |
+| Database schema diagram    | `[docs/database-schema.png](docs/database-schema.png)` | Any migration that adds/removes tables, columns, or foreign keys |
 | Connector configuration    | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`     | New connector, config schema change, new env var       |
 
 
@@ -1075,6 +1077,11 @@ When adding a new connector, the agent MUST:
 1. Add the connector's config parameters to `docs/CONNECTORS.md`
 2. Verify `docs/ARCHITECTURE.md` connector count is still accurate
 3. Update the "Existing Codebases" table in this file if a new category is introduced
+
+When modifying the database schema (new migration), the agent MUST:
+
+1. Regenerate `docs/database-schema.png` to reflect the current state of all tables, columns, and relationships
+2. Verify the table overview in `docs/ARCHITECTURE.md` section 4 is still accurate
 
 ### 10.1 Per-integrator documentation
 
@@ -1364,6 +1371,7 @@ Every agent MUST verify before starting implementation:
 - Follow security standards (section 3)
 - Write tests meeting coverage requirements (section 12)
 - Create documentation (section 10) — including updating `docs/CONNECTORS.md`
+- If database schema was modified: regenerate `docs/database-schema.png` and update section 4 of `docs/ARCHITECTURE.md`
 - Verify CI/CD pipeline passes all stages (section 5)
 - Confirm the integrator passes verification agent checks (section 6.2)
 

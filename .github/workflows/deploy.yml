@@ -61,12 +61,20 @@ jobs:
 
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
-            cat > .env << 'ENVEOF'
-            DB_PASSWORD=${{ secrets.DB_PASSWORD }}
-            ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}
-            JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}
-            PINQUARK_DASHBOARD_API_KEY=${{ secrets.DASHBOARD_API_KEY }}
-            ENVEOF
+            if [ -f .env ] && grep -q DEFAULT_API_KEY .env; then
+              EXISTING_KEY=$(grep DEFAULT_API_KEY .env | cut -d= -f2-)
+            fi
+            DEFAULT_KEY="${{ secrets.DEFAULT_API_KEY }}"
+            if [ -z "$DEFAULT_KEY" ]; then
+              DEFAULT_KEY="${EXISTING_KEY:-pk_live_$(openssl rand -hex 16)}"
+            fi
+
+            printf '%s\n' \
+              "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+              "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" \
+              "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" \
+              "DEFAULT_API_KEY=${DEFAULT_KEY}" \
+              > .env
 
             docker compose -f docker-compose.vps.yml pull
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
