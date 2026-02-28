@@ -25,6 +25,7 @@ services:
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
+      DEMO_MODE: ${DEMO_MODE:-false}
     volumes:
       - ./integrators:/integrators:ro
     depends_on:

@@ -15,6 +15,8 @@ declare global {
 }
 
 const runtimeConfig = window.__PINQUARK_CONFIG__ ?? { apiUrl: '', apiKey: '' };
+const savedKey = localStorage.getItem('pinquark_demo_api_key');
+const effectiveApiKey = savedKey || runtimeConfig.apiKey;
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -22,6 +24,6 @@ bootstrapApplication(AppComponent, {
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(),
-    { provide: PINQUARK_CONFIG, useValue: { apiUrl: runtimeConfig.apiUrl, apiKey: runtimeConfig.apiKey } },
+    { provide: PINQUARK_CONFIG, useValue: { apiUrl: runtimeConfig.apiUrl, apiKey: effectiveApiKey } },
   ],
 }).catch(err => console.error(err));

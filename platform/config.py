@@ -30,6 +30,8 @@ class Settings(BaseSettings):
 
     connector_discovery_path: str = "../integrators"
 
+    demo_mode: bool = False
+
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 
 

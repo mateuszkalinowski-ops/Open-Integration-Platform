@@ -282,6 +282,31 @@ class WorkflowAiGenerateResponse(BaseModel):
 # --- Execution Detail (GDPR-aware) ---
 
 
+# --- Demo Gate ---
+
+
+class DemoRegisterRequest(BaseModel):
+    workspace_name: str = Field(..., min_length=1, max_length=100)
+
+
+class DemoRegisterResponse(BaseModel):
+    api_key: str
+    tenant_name: str
+    tenant_slug: str
+
+
+class DemoValidateKeyRequest(BaseModel):
+    api_key: str
+
+
+class DemoValidateKeyResponse(BaseModel):
+    valid: bool
+    tenant_name: str | None = None
+
+
+# --- Execution Detail (GDPR-aware) ---
+
+
 class FlowExecutionDetailResponse(BaseModel):
     id: uuid.UUID
     flow_id: uuid.UUID

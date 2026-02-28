@@ -2,6 +2,8 @@
 
 import io
 import os
+import re
+import secrets
 import time
 import zipfile
 from contextlib import asynccontextmanager
@@ -11,9 +13,11 @@ from typing import Any
 
 import httpx
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from collections import defaultdict
+
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
@@ -26,6 +30,10 @@ from api.schemas import (
     ConnectorInstanceResponse,
     ConnectorResponse,
     CredentialStore,
+    DemoRegisterRequest,
+    DemoRegisterResponse,
+    DemoValidateKeyRequest,
+    DemoValidateKeyResponse,
     EventTrigger,
     FlowCreate,
     FlowExecutionDetailResponse,
@@ -1814,3 +1822,92 @@ async def verification_list_errors(
 @app.get("/api/verification/reports/latest", tags=["verification"])
 async def verification_latest_reports() -> Any:
     return await _proxy_verification("GET", "/reports/latest")
+
+
+# ── Demo Gate ──────────────────────────────────────────────────────────
+
+_demo_register_counter: dict[str, list[float]] = defaultdict(list)
+_DEMO_RATE_LIMIT = 10
+_DEMO_RATE_WINDOW = 3600  # 1 hour
+
+
+def _slugify(text: str) -> str:
+    slug = re.sub(r"[^\w\s-]", "", text.lower().strip())
+    slug = re.sub(r"[\s_]+", "-", slug)
+    slug = re.sub(r"-+", "-", slug).strip("-")
+    return slug or "workspace"
+
+
+def _demo_rate_check(client_ip: str) -> None:
+    now = time.time()
+    timestamps = _demo_register_counter[client_ip]
+    _demo_register_counter[client_ip] = [t for t in timestamps if now - t < _DEMO_RATE_WINDOW]
+    if len(_demo_register_counter[client_ip]) >= _DEMO_RATE_LIMIT:
+        raise HTTPException(status_code=429, detail="Too many demo registrations. Try again later.")
+    _demo_register_counter[client_ip].append(now)
+
+
+@app.post("/api/v1/demo/register", tags=["demo"], response_model=DemoRegisterResponse)
+async def demo_register(
+    body: DemoRegisterRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> DemoRegisterResponse:
+    if not settings.demo_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    client_ip = request.client.host if request.client else "unknown"
+    _demo_rate_check(client_ip)
+
+    suffix = secrets.token_hex(3)
+    slug = f"{_slugify(body.workspace_name)}-{suffix}"
+
+    tenant = Tenant(name=body.workspace_name, slug=slug, is_active=True, plan="demo")
+    db.add(tenant)
+    await db.flush()
+
+    raw_key, key_hash = generate_api_key(prefix="pk_demo")
+    api_key = ApiKey(
+        tenant_id=tenant.id,
+        key_hash=key_hash,
+        key_prefix=raw_key[:10],
+        name="demo-dashboard",
+        is_active=True,
+    )
+    db.add(api_key)
+    await db.commit()
+
+    await logger.ainfo(
+        "demo_tenant_created",
+        tenant_id=str(tenant.id),
+        tenant_slug=slug,
+        api_key_prefix=raw_key[:10],
+    )
+
+    return DemoRegisterResponse(api_key=raw_key, tenant_name=body.workspace_name, tenant_slug=slug)
+
+
+@app.post("/api/v1/demo/validate-key", tags=["demo"], response_model=DemoValidateKeyResponse)
+async def demo_validate_key(
+    body: DemoValidateKeyRequest,
+    db: AsyncSession = Depends(get_db),
+) -> DemoValidateKeyResponse:
+    if not settings.demo_mode:
+        raise HTTPException(status_code=404, detail="Not found")
+
+    key_hash = hash_api_key(body.api_key)
+    result = await db.execute(
+        select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
+    )
+    api_key_record = result.scalar_one_or_none()
+    if not api_key_record:
+        return DemoValidateKeyResponse(valid=False)
+
+    tenant_result = await db.execute(
+        select(Tenant).where(Tenant.id == api_key_record.tenant_id, Tenant.is_active.is_(True))
+    )
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        return DemoValidateKeyResponse(valid=False)
+
+    return DemoValidateKeyResponse(valid=True, tenant_name=tenant.name)
