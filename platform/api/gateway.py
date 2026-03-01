@@ -997,6 +997,45 @@ async def internal_get_connector_credentials(
     return accounts
 
 
+# --- Internal: connector poller diagnostics ---
+
+
+@app.get("/internal/connector/{connector_name}/poller/status", tags=["internal"])
+async def internal_connector_poller_status(connector_name: str) -> Any:
+    """Proxy GET /poller/status to a connector for debugging."""
+    base = _resolve_service_url(connector_name, registry)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.get(f"{base}/poller/status")
+            return resp.json()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+
+
+@app.post("/internal/connector/{connector_name}/poller/reset", tags=["internal"])
+async def internal_connector_poller_reset(connector_name: str) -> Any:
+    """Proxy POST /poller/reset to a connector."""
+    base = _resolve_service_url(connector_name, registry)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.post(f"{base}/poller/reset")
+            return resp.json()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+
+
+@app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"])
+async def internal_connector_poller_poll_now(connector_name: str) -> Any:
+    """Proxy POST /poller/poll-now to a connector."""
+    base = _resolve_service_url(connector_name, registry)
+    async with httpx.AsyncClient(timeout=10.0) as client:
+        try:
+            resp = await client.post(f"{base}/poller/poll-now")
+            return resp.json()
+        except Exception as exc:
+            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+
+
 # --- Flow Executions (audit log) ---
 
 
