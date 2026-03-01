@@ -390,6 +390,7 @@ export const TRANSFORM_TYPES: TransformTypeDef[] = [
   { value: 'to_float', label: 'To Float' },
   { value: 'to_string', label: 'To String' },
   { value: 'default', label: 'Default Value', configFields: ['default_value'] },
+  { value: 'field_resolve', label: 'Field Resolve', configFields: ['fallback_field', 'default'] },
 ];
 
 export type AiModelType = 'gemini' | 'opus';

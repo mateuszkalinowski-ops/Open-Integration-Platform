@@ -384,6 +384,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                       <ng-container *ngSwitchCase="'coalesce'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
                       <ng-container *ngSwitchCase="'map'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Map (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
                       <ng-container *ngSwitchCase="'lookup'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Table (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
+                      <ng-container *ngSwitchCase="'field_resolve'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Fallback Field</mat-label><input matInput [value]="step['fallback_field'] || ''" (input)="setStepProp(m,ti,'fallback_field',$any($event.target).value)" placeholder="vars.fallback" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default'] || ''" (input)="setStepProp(m,ti,'default',$any($event.target).value)" /></mat-form-field></ng-container>
                     </ng-container>
                     <button mat-icon-button class="wnc__ts-rm" (click)="removeTransformStep(m, ti)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
                   </div>
@@ -623,6 +624,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                       <ng-container *ngSwitchCase="'coalesce'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
                       <ng-container *ngSwitchCase="'map'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Map (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
                       <ng-container *ngSwitchCase="'lookup'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Table (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
+                      <ng-container *ngSwitchCase="'field_resolve'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Fallback Field</mat-label><input matInput [value]="step['fallback_field'] || ''" (input)="setStepProp(m,ti,'fallback_field',$any($event.target).value)" placeholder="vars.fallback" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default'] || ''" (input)="setStepProp(m,ti,'default',$any($event.target).value)" /></mat-form-field></ng-container>
                     </ng-container>
                     <button mat-icon-button class="wnc__ts-rm" (click)="removeTransformStep(m, ti)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
                   </div>
@@ -1478,6 +1480,55 @@ export class WorkflowNodeConfigComponent implements OnChanges {
           label: `[${displayLabel}] ${varName}`,
           type: 'string',
         });
+      }
+    }
+
+    const httpNodes = this.allNodes.filter(
+      n => n.type === 'http_request' && n.id !== this.node?.id,
+    );
+    for (const hn of httpNodes) {
+      const displayLabel = hn.label || hn.id;
+      for (const sub of ['body', 'status_code', 'headers']) {
+        const fieldPath = `nodes.${hn.id}.${sub}`;
+        if (!seen.has(fieldPath)) {
+          seen.add(fieldPath);
+          fields.push({
+            field: fieldPath,
+            label: `[${displayLabel}] ${sub}`,
+            type: sub === 'status_code' ? 'number' : 'object',
+          });
+        }
+      }
+    }
+
+    const loopNodes = this.allNodes.filter(
+      n => n.type === 'loop' && n.id !== this.node?.id,
+    );
+    for (const ln of loopNodes) {
+      const itemVar = ln.config['item_variable'] as string;
+      const indexVar = ln.config['index_variable'] as string;
+      const displayLabel = ln.label || 'Loop';
+      if (itemVar) {
+        const fieldPath = `vars.${itemVar}`;
+        if (!seen.has(fieldPath)) {
+          seen.add(fieldPath);
+          fields.push({
+            field: fieldPath,
+            label: `[${displayLabel}] ${itemVar}`,
+            type: 'object',
+          });
+        }
+      }
+      if (indexVar) {
+        const fieldPath = `vars.${indexVar}`;
+        if (!seen.has(fieldPath)) {
+          seen.add(fieldPath);
+          fields.push({
+            field: fieldPath,
+            label: `[${displayLabel}] ${indexVar}`,
+            type: 'number',
+          });
+        }
       }
     }
 
