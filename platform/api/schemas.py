@@ -238,7 +238,8 @@ class WorkflowResponse(BaseModel):
 
 class WorkflowExecutionResponse(BaseModel):
     id: uuid.UUID
-    workflow_id: uuid.UUID
+    workflow_id: uuid.UUID | None
+    workflow_name: str | None = None
     status: str
     trigger_data: dict[str, Any]
     node_results: list[dict[str, Any]]
@@ -329,7 +330,7 @@ class FlowExecutionDetailResponse(BaseModel):
 
 class WorkflowExecutionDetailResponse(BaseModel):
     id: uuid.UUID
-    workflow_id: uuid.UUID
+    workflow_id: uuid.UUID | None
     status: str
     trigger_data: dict[str, Any]
     node_results: list[dict[str, Any]]

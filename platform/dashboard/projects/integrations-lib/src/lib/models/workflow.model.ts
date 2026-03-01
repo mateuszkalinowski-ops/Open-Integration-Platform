@@ -136,7 +136,8 @@ export interface WorkflowNodeResult {
 
 export interface WorkflowExecution {
   id: string;
-  workflow_id: string;
+  workflow_id: string | null;
+  workflow_name?: string | null;
   status: 'running' | 'success' | 'failed';
   trigger_data: Record<string, unknown>;
   node_results: WorkflowNodeResult[];

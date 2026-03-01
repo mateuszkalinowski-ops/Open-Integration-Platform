@@ -1159,7 +1159,7 @@ export class OperationLogComponent implements OnInit, OnDestroy {
 
   private mapWorkflowExecutions(execs: WorkflowExecution[]): UnifiedExecution[] {
     return execs.map(e => {
-      const wf = this.workflowMap.get(e.workflow_id);
+      const wf = e.workflow_id ? this.workflowMap.get(e.workflow_id) : undefined;
       const actionConnectors = (wf?.nodes || [])
         .filter((n: WorkflowNode) => n.type === 'action' && n.config?.['connector_name'])
         .map((n: WorkflowNode) => n.config?.['connector_name'])
@@ -1170,7 +1170,7 @@ export class OperationLogComponent implements OnInit, OnDestroy {
       return {
         id: e.id,
         type: 'workflow' as const,
-        name: wf?.name ?? e.workflow_id.slice(0, 8) + '...',
+        name: wf?.name ?? e.workflow_name ?? '(usunięty workflow)',
         status: e.status,
         connectors: connStr,
         duration_ms: e.duration_ms,
@@ -1252,7 +1252,7 @@ export class OperationLogComponent implements OnInit, OnDestroy {
             this.workflowNodes = detail.workflow_nodes_snapshot as unknown as WorkflowNode[];
             this.workflowEdges = (detail.workflow_edges_snapshot || []) as unknown as { id: string; source: string; target: string; sourceHandle: string; label: string }[];
             this.patchTriggerNodeResult(this.workflowNodes);
-          } else {
+          } else if (detail.workflow_id) {
             this.loadWorkflowDefinition(detail.workflow_id);
           }
         },

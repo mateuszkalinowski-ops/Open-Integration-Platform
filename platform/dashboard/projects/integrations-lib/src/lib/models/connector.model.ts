@@ -301,7 +301,7 @@ export interface FlowExecutionDetail {
 
 export interface WorkflowExecutionDetail {
   id: string;
-  workflow_id: string;
+  workflow_id: string | null;
   status: 'running' | 'success' | 'failed';
   trigger_data: Record<string, unknown>;
   node_results: WorkflowNodeResultDetail[];

@@ -1830,7 +1830,7 @@ async def get_workflow_execution_detail(
         duration_ms=execution.duration_ms,
         started_at=execution.started_at,
         completed_at=execution.completed_at,
-        workflow_name=workflow.name if workflow else None,
+        workflow_name=workflow.name if workflow else (execution.workflow_name or "(usunięty)"),
         workflow_description=workflow.description if workflow else None,
         trigger_connector=workflow.trigger_connector if workflow else None,
         trigger_event=workflow.trigger_event if workflow else None,

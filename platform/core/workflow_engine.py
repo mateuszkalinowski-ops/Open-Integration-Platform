@@ -121,13 +121,15 @@ class WorkflowEngine:
         execution = WorkflowExecution(
             workflow_id=workflow.id,
             tenant_id=workflow.tenant_id,
+            workflow_name=workflow.name,
             status="running",
             trigger_data=trigger_data,
             workflow_nodes_snapshot=workflow.nodes,
             workflow_edges_snapshot=workflow.edges,
         )
         db.add(execution)
-        await db.flush()
+        await db.commit()
+        await db.refresh(execution)
 
         try:
             graph = WorkflowGraph(workflow.nodes, workflow.edges)
@@ -619,6 +621,9 @@ class WorkflowEngine:
         op = condition.get("operator", "eq")
         expected = condition.get("value")
 
+        if isinstance(expected, str) and "{{" in expected:
+            expected = self._interpolate_string(expected, ctx)
+
         actual = self._resolve_value(field, ctx)
 
         if op in OPERATOR_MAP:
@@ -935,7 +940,7 @@ class WorkflowEngine:
         await logger.ainfo(
             "workflow_event_received",
             connector=connector_name,
-            event=event,
+            event_name=event,
             tenant_id=str(tenant_id),
             matching_workflows=len(workflows),
             workflow_names=[w.name for w in workflows],
@@ -954,7 +959,7 @@ class WorkflowEngine:
                     workflow_id=str(wf.id),
                     workflow_name=wf.name,
                     connector=connector_name,
-                    event=event,
+                    event_name=event,
                 )
                 continue
 

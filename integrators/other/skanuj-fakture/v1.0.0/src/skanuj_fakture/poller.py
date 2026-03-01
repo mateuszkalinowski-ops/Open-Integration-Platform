@@ -105,8 +105,9 @@ class DocumentPoller:
             doc_id = doc.get("id")
             if doc_id is None:
                 continue
-            await self._state_store.save_document_id(account_name, doc_id)
-            await self._publish_document_event(account_name, doc)
+            success = await self._publish_document_event(account_name, doc)
+            if success:
+                await self._state_store.save_document_id(account_name, doc_id)
 
     def _normalize_document(self, raw: dict[str, Any]) -> dict[str, Any]:
         """Parse raw API response through Pydantic model to normalize keys to snake_case."""
@@ -121,7 +122,7 @@ class DocumentPoller:
             result.update(raw)
             return result
 
-    async def _publish_document_event(self, account_name: str, document: dict[str, Any]) -> None:
+    async def _publish_document_event(self, account_name: str, document: dict[str, Any]) -> bool:
         event = self._normalize_document(document)
         event["account_name"] = account_name
         event["polled_at"] = datetime.now(timezone.utc).isoformat()
@@ -134,11 +135,14 @@ class DocumentPoller:
             )
 
         if settings.platform_event_notify:
-            await self._notify_platform(event)
+            ok = await self._notify_platform(event)
+            if not ok:
+                return False
 
         logger.debug("Published document event for doc %s", event.get("document_id"))
+        return True
 
-    async def _notify_platform(self, event: dict[str, Any]) -> None:
+    async def _notify_platform(self, event: dict[str, Any]) -> bool:
         url = f"{settings.platform_api_url}/internal/events"
         payload = {
             "connector_name": "skanuj-fakture",
@@ -153,10 +157,12 @@ class DocumentPoller:
                         "Platform event notify FAILED: status=%s body=%s doc_id=%s",
                         resp.status_code, resp.text[:500], event.get("document_id"),
                     )
-                else:
-                    logger.info(
-                        "Platform event notify OK: status=%s doc_id=%s workflows=%s",
-                        resp.status_code, event.get("document_id"), resp.text[:200],
-                    )
+                    return False
+                logger.info(
+                    "Platform event notify OK: status=%s doc_id=%s workflows=%s",
+                    resp.status_code, event.get("document_id"), resp.text[:200],
+                )
+                return True
         except Exception:
             logger.exception("Platform event notify unreachable at %s", url)
+            return False
