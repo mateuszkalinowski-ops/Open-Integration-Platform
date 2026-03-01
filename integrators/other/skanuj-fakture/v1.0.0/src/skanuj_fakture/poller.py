@@ -135,7 +135,7 @@ class DocumentPoller:
     async def _notify_platform(self, event: dict[str, Any]) -> None:
         url = f"{settings.platform_api_url}/internal/events"
         payload = {
-            "connector": "skanuj-fakture",
+            "connector_name": "skanuj-fakture",
             "event": "document.scanned",
             "data": event,
         }
