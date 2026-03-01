@@ -42,7 +42,8 @@ class DocumentPoller:
 
     async def start(self) -> None:
         self._running = True
-        logger.info("Document poller started (interval=%ds)", settings.polling_interval_seconds)
+        logger.info("Document poller started (interval=%ds), waiting 30s for account provisioning...", settings.polling_interval_seconds)
+        await asyncio.sleep(30)
         while self._running:
             try:
                 await self._poll_all_accounts()
@@ -57,7 +58,12 @@ class DocumentPoller:
         self._clients.clear()
 
     async def _poll_all_accounts(self) -> None:
-        for account in self._account_manager.list_accounts():
+        accounts = self._account_manager.list_accounts()
+        if not accounts:
+            logger.warning("No accounts configured — skipping poll cycle. Provision accounts via POST /accounts.")
+            return
+        logger.info("Polling %d account(s): %s", len(accounts), [a.name for a in accounts])
+        for account in accounts:
             try:
                 await self._poll_account(account.name)
             except Exception:
@@ -143,6 +149,14 @@ class DocumentPoller:
             async with httpx.AsyncClient(timeout=10.0) as client:
                 resp = await client.post(url, json=payload)
                 if resp.status_code >= 400:
-                    logger.warning("Platform event notify failed: %s %s", resp.status_code, resp.text[:200])
+                    logger.error(
+                        "Platform event notify FAILED: status=%s body=%s doc_id=%s",
+                        resp.status_code, resp.text[:500], event.get("document_id"),
+                    )
+                else:
+                    logger.info(
+                        "Platform event notify OK: status=%s doc_id=%s workflows=%s",
+                        resp.status_code, event.get("document_id"), resp.text[:200],
+                    )
         except Exception:
-            logger.warning("Platform event notify unreachable at %s", url)
+            logger.exception("Platform event notify unreachable at %s", url)

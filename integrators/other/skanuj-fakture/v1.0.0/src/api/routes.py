@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query, UploadFile, File
 from pydantic import BaseModel, Field
 
 from src.api.dependencies import app_state
-from src.config import SkanujFaktureAccountConfig
+from src.config import SkanujFaktureAccountConfig, settings
 from src.skanuj_fakture.schemas import (
     AuthStatusResponse,
     ConnectionStatus,
@@ -50,6 +50,35 @@ async def readiness() -> dict[str, Any]:
             raise HTTPException(status_code=503, detail=data)
         return data
     return {"status": "ready"}
+
+
+# -- Debug / Diagnostics -------------------------------------------------------
+
+
+@router.get("/debug/poller")
+async def debug_poller() -> dict[str, Any]:
+    accounts = app_state.account_manager.list_accounts()
+    account_info = [
+        {"name": a.name, "company_id": a.company_id, "api_url": a.api_url}
+        for a in accounts
+    ]
+    poller_running = app_state.poller is not None and app_state.poller._running
+    known_docs: dict[str, int] = {}
+    if app_state.state_store:
+        for a in accounts:
+            ids = await app_state.state_store.load_known_document_ids(a.name)
+            known_docs[a.name] = len(ids)
+    return {
+        "poller_running": poller_running,
+        "polling_enabled": settings.polling_enabled,
+        "polling_interval_seconds": settings.polling_interval_seconds,
+        "polling_status_filter": settings.polling_status_filter,
+        "platform_api_url": settings.platform_api_url,
+        "platform_event_notify": settings.platform_event_notify,
+        "accounts_count": len(accounts),
+        "accounts": account_info,
+        "known_document_counts": known_docs,
+    }
 
 
 # -- Auth / Connection ---------------------------------------------------------

@@ -932,6 +932,14 @@ class WorkflowEngine:
         workflows = await self.get_workflows_for_event(
             db, tenant_id, connector_name, event
         )
+        await logger.ainfo(
+            "workflow_event_received",
+            connector=connector_name,
+            event=event,
+            tenant_id=str(tenant_id),
+            matching_workflows=len(workflows),
+            workflow_names=[w.name for w in workflows],
+        )
         event_account = event_data.get("account_name")
         matched: list[Workflow] = []
         for wf in workflows:
