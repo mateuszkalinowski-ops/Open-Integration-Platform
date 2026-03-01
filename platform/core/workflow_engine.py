@@ -238,11 +238,8 @@ class WorkflowEngine:
                     await asyncio.sleep(seconds)
                 output = ctx.data
             elif node_type == "loop":
-                await self._exec_loop(db, graph, node, config, ctx, workflow, depth)
-                result_entry["status"] = "success"
-                result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
-                ctx.node_results.append(result_entry)
-                return
+                output = await self._exec_loop(db, graph, node, config, ctx, workflow, depth)
+                next_handle = "done"
             elif node_type == "http_request":
                 output = await self._exec_http_request(config, ctx)
             elif node_type == "set_variable":
@@ -435,7 +432,7 @@ class WorkflowEngine:
         ctx: WorkflowContext,
         workflow: Workflow,
         depth: int,
-    ) -> None:
+    ) -> dict[str, Any]:
         array_field = config.get("array_field", "")
         item_var = config.get("item_variable", "item")
         index_var = config.get("index_variable", "index")
@@ -443,9 +440,9 @@ class WorkflowEngine:
 
         array_data = self._resolve_value(array_field, ctx)
         if not isinstance(array_data, list):
-            return
+            return {"loop_iterations": 0, "loop_results": []}
 
-        loop_body_nodes = graph.get_successors(node["id"])
+        loop_body_nodes = graph.get_successors(node["id"], handle="default")
         loop_results: list[Any] = []
 
         for i, item in enumerate(array_data[:max_iterations]):
@@ -456,6 +453,7 @@ class WorkflowEngine:
             loop_results.append(copy.deepcopy(ctx.variables.get(item_var)))
 
         ctx.variables[f"{item_var}_results"] = loop_results
+        return {"loop_iterations": len(loop_results), "loop_results": loop_results}
 
     async def _exec_parallel(
         self,
@@ -602,6 +600,8 @@ class WorkflowEngine:
 
         if isinstance(value_expr, str) and value_expr.startswith("{{") and value_expr.endswith("}}"):
             resolved = self._resolve_value(value_expr[2:-2].strip(), ctx)
+        elif isinstance(value_expr, (dict, list)):
+            resolved = self._interpolate_dict(value_expr, ctx)
         else:
             resolved = value_expr
 
@@ -715,7 +715,7 @@ class WorkflowEngine:
                 steps = raw_transform if isinstance(raw_transform, list) else [raw_transform]
                 pipe: list[Any] = resolved
                 for step in steps:
-                    pipe = [self._apply_transform(pipe, step)]
+                    pipe = [self._apply_transform(pipe, step, ctx)]
                 value = pipe[0]
             elif len(resolved) == 1:
                 value = resolved[0]
@@ -757,7 +757,7 @@ class WorkflowEngine:
 
         return result
 
-    def _apply_transform(self, values: list[Any], transform: dict) -> Any:
+    def _apply_transform(self, values: list[Any], transform: dict, ctx: WorkflowContext | None = None) -> Any:
         """Apply a transform to resolved source values.
 
         ``values`` is always a list (single-element for 1:1 mappings).
@@ -831,6 +831,21 @@ class WorkflowEngine:
                 except IndexError:
                     return match.group(0)
             return None
+        if t == "field_resolve":
+            if val is None or val == "":
+                fallback_field = transform.get("fallback_field")
+                if fallback_field and ctx is not None:
+                    return self._resolve_value(fallback_field, ctx)
+                return transform.get("default", val)
+            field_path = str(val)
+            if ctx is not None:
+                resolved = self._resolve_value(field_path, ctx)
+                if resolved is not None:
+                    return resolved
+            fallback_field = transform.get("fallback_field")
+            if fallback_field and ctx is not None:
+                return self._resolve_value(fallback_field, ctx)
+            return transform.get("default", val)
         if t == "regex_replace":
             pattern = transform.get("pattern", "")
             replacement = transform.get("replacement", "")
@@ -852,6 +867,13 @@ class WorkflowEngine:
         if t == "math":
             op = transform.get("operation", "add")
             operand = transform.get("operand", 0)
+            operand_field = transform.get("operand_field")
+            if operand_field and ctx is not None:
+                resolved = self._resolve_value(operand_field, ctx)
+                try:
+                    operand = float(resolved)
+                except (ValueError, TypeError):
+                    return val
             try:
                 n = float(val)
             except (ValueError, TypeError):

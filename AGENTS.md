@@ -2,6 +2,8 @@
 
 This document governs all agent activity across the Open Integration Platform by Pinquark.com. Every agent (implementation, verification, maintenance) MUST read and follow these rules before writing any code, building any Docker image, or deploying to any environment. Use only English language for implementation and documentation. For every connector download logo and setup proper origin country (don't use global). Create validator for every connector.
 
+**CRITICAL: Before every `git commit` and `git push`, the agent MUST ask the user for explicit permission. Never commit or push changes without the user's confirmation.**
+
 ---
 
 ## 1. Project Overview
@@ -27,21 +29,21 @@ The platform is designed to be **autonomous** — integrations are continuously 
 ### Existing Codebases
 
 
-| Directory                | Stack                                 | Purpose                                                                          |
-| ------------------------ | ------------------------------------- | -------------------------------------------------------------------------------- |
-| `platform/`              | FastAPI, SQLAlchemy, asyncpg, Redis   | API Gateway, Flow Engine, Workflow Engine, Credential Vault                      |
-| `platform/dashboard/`    | Angular, `@pinquark/integrations`     | Admin Dashboard (standalone + embeddable library)                                |
-| `platform/verification-agent/` | FastAPI, APScheduler, httpx     | 3-tier connector verification & health monitoring                                |
-| `integrators/courier/`   | FastAPI, httpx, zeep (SOAP)           | 18 courier connectors (InPost, DHL, DPD, GLS, FedEx, UPS, Raben, ...)           |
-| `integrators/ecommerce/` | FastAPI, httpx, aiokafka              | 8 e-commerce connectors (Allegro, Amazon, Apilo, BaseLinker, Shopify, ...)       |
-| `integrators/erp/`       | FastAPI, Python.NET                   | ERP connectors (InsERT Nexo — hybrid on-premise + cloud)                         |
-| `integrators/wms/`       | FastAPI, httpx                        | WMS connector (Pinquark WMS)                                                     |
-| `integrators/ai/`        | FastAPI, httpx                        | AI Agent (Gemini — risk analysis, courier recommendations, data extraction)      |
-| `integrators/other/`     | FastAPI, httpx                        | 5 connectors (Email Client, SkanujFakture, FTP/SFTP, Slack, BulkGate SMS)        |
-| `shared/python/`         | Pydantic, aiokafka, httpx, prometheus | Shared library: schemas, Kafka, REST/SOAP clients, circuit breaker               |
-| `sdk/python/`            | httpx                                 | Python SDK for Platform API                                                      |
-| `k8s/`                   | Kubernetes, Strimzi, Nginx Ingress    | Deployment manifests, HPA, Kafka cluster/topics                                  |
-| `onpremise/`             | Docker, Python.NET, SQLite            | On-premise agent for local ERP connectivity + Windows installer                  |
+| Directory                      | Stack                                 | Purpose                                                                     |
+| ------------------------------ | ------------------------------------- | --------------------------------------------------------------------------- |
+| `platform/`                    | FastAPI, SQLAlchemy, asyncpg, Redis   | API Gateway, Flow Engine, Workflow Engine, Credential Vault                 |
+| `platform/dashboard/`          | Angular, `@pinquark/integrations`     | Admin Dashboard (standalone + embeddable library)                           |
+| `platform/verification-agent/` | FastAPI, APScheduler, httpx           | 3-tier connector verification & health monitoring                           |
+| `integrators/courier/`         | FastAPI, httpx, zeep (SOAP)           | 18 courier connectors (InPost, DHL, DPD, GLS, FedEx, UPS, Raben, ...)       |
+| `integrators/ecommerce/`       | FastAPI, httpx, aiokafka              | 8 e-commerce connectors (Allegro, Amazon, Apilo, BaseLinker, Shopify, ...)  |
+| `integrators/erp/`             | FastAPI, Python.NET                   | ERP connectors (InsERT Nexo — hybrid on-premise + cloud)                    |
+| `integrators/wms/`             | FastAPI, httpx                        | WMS connector (Pinquark WMS)                                                |
+| `integrators/ai/`              | FastAPI, httpx                        | AI Agent (Gemini — risk analysis, courier recommendations, data extraction) |
+| `integrators/other/`           | FastAPI, httpx                        | 5 connectors (Email Client, SkanujFakture, FTP/SFTP, Slack, BulkGate SMS)   |
+| `shared/python/`               | Pydantic, aiokafka, httpx, prometheus | Shared library: schemas, Kafka, REST/SOAP clients, circuit breaker          |
+| `sdk/python/`                  | httpx                                 | Python SDK for Platform API                                                 |
+| `k8s/`                         | Kubernetes, Strimzi, Nginx Ingress    | Deployment manifests, HPA, Kafka cluster/topics                             |
+| `onpremise/`                   | Docker, Python.NET, SQLite            | On-premise agent for local ERP connectivity + Windows installer             |
 
 
 ### Platform Documentation
@@ -49,12 +51,12 @@ The platform is designed to be **autonomous** — integrations are continuously 
 > **IMPORTANT**: The following documentation files MUST be kept up to date when making architectural changes, adding new connectors, or modifying scalability configuration.
 
 
-| Document             | Path                                           | Contents                                                                                                                      | Update when                                                            |
-| -------------------- | ---------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Architecture**     | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` | System architecture, data exchange patterns, database schema, scalability mechanisms, throughput estimates, platform configuration, deployment | Changing infrastructure, scaling config, adding communication patterns |
-| **DB Schema Diagram**| `[docs/database-schema.png](docs/database-schema.png)` | Entity-Relationship Diagram of all PostgreSQL tables and their relationships | Adding/removing tables, columns, or foreign keys (any migration) |
-| **Connectors**       | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`     | Configuration parameters for all 20 connectors, env vars, credentials API                                                     | Adding/modifying connectors, changing config schema                    |
-| **Agent Guidelines** | `[AGENTS.md](AGENTS.md)`                       | This file — coding standards, CI/CD, security, interfaces                                                                     | Changing development standards or workflows                            |
+| Document              | Path                                                   | Contents                                                                                                                                       | Update when                                                            |
+| --------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| **Architecture**      | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)`         | System architecture, data exchange patterns, database schema, scalability mechanisms, throughput estimates, platform configuration, deployment | Changing infrastructure, scaling config, adding communication patterns |
+| **DB Schema Diagram** | `[docs/database-schema.png](docs/database-schema.png)` | Entity-Relationship Diagram of all PostgreSQL tables and their relationships                                                                   | Adding/removing tables, columns, or foreign keys (any migration)       |
+| **Connectors**        | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`             | Configuration parameters for all 20 connectors, env vars, credentials API                                                                      | Adding/modifying connectors, changing config schema                    |
+| **Agent Guidelines**  | `[AGENTS.md](AGENTS.md)`                               | This file — coding standards, CI/CD, security, interfaces                                                                                      | Changing development standards or workflows                            |
 
 
 ---
@@ -155,26 +157,28 @@ docs_url: /docs
 
 #### connector.yaml field reference
 
-| Field | Required | Description |
-| --- | --- | --- |
-| `name` | Yes | Unique connector identifier (kebab-case) |
-| `category` | Yes | One of: `courier`, `ecommerce`, `erp`, `wms`, `ai`, `automation`, `other` |
-| `version` | Yes | Semantic version |
-| `display_name` | Yes | Human-readable name |
-| `description` | Yes | Short description |
-| `interface` | Yes | Category interface type |
-| `service_name` | No | Docker service name (default: `connector-{name}`) |
-| `capabilities` | No | List of supported capabilities |
-| `events` | No | List of events the connector emits |
-| `actions` | No | List of actions the connector accepts |
-| `config_schema` | No | Required/optional configuration fields |
-| `action_routes` | No | Maps action names to HTTP method + path on the connector |
-| `credential_provisioning` | No | How credentials are provisioned on the connector (see below) |
-| `credential_validation` | No | How the platform validates credentials (see below) |
-| `payload_hints` | No | Field coercion hints (list fields, enum mappings) |
-| `event_fields` | No | Per-event field schemas for workflow builder |
-| `action_fields` | No | Per-action input field schemas |
-| `output_fields` | No | Per-action output field schemas |
+
+| Field                     | Required | Description                                                               |
+| ------------------------- | -------- | ------------------------------------------------------------------------- |
+| `name`                    | Yes      | Unique connector identifier (kebab-case)                                  |
+| `category`                | Yes      | One of: `courier`, `ecommerce`, `erp`, `wms`, `ai`, `automation`, `other` |
+| `version`                 | Yes      | Semantic version                                                          |
+| `display_name`            | Yes      | Human-readable name                                                       |
+| `description`             | Yes      | Short description                                                         |
+| `interface`               | Yes      | Category interface type                                                   |
+| `service_name`            | No       | Docker service name (default: `connector-{name}`)                         |
+| `capabilities`            | No       | List of supported capabilities                                            |
+| `events`                  | No       | List of events the connector emits                                        |
+| `actions`                 | No       | List of actions the connector accepts                                     |
+| `config_schema`           | No       | Required/optional configuration fields                                    |
+| `action_routes`           | No       | Maps action names to HTTP method + path on the connector                  |
+| `credential_provisioning` | No       | How credentials are provisioned on the connector (see below)              |
+| `credential_validation`   | No       | How the platform validates credentials (see below)                        |
+| `payload_hints`           | No       | Field coercion hints (list fields, enum mappings)                         |
+| `event_fields`            | No       | Per-event field schemas for workflow builder                              |
+| `action_fields`           | No       | Per-action input field schemas                                            |
+| `output_fields`           | No       | Per-action output field schemas                                           |
+
 
 #### action_routes
 
@@ -195,12 +199,14 @@ Path parameters like `{company_id}` are resolved from the action payload. Fields
 
 Defines how the platform provisions credentials on the connector before dispatching actions:
 
-| Mode | Description |
-| --- | --- |
-| `account` | POST credentials to `account_endpoint` (e.g. `/accounts`), inject `payload_field` into action payload |
-| `inject` | Inject credential fields flat into action payload |
-| `inject_nested` | Inject credentials as `payload[inject_key] = {...}` |
-| `none` / omitted | Default: set `account_name` from credentials |
+
+| Mode             | Description                                                                                           |
+| ---------------- | ----------------------------------------------------------------------------------------------------- |
+| `account`        | POST credentials to `account_endpoint` (e.g. `/accounts`), inject `payload_field` into action payload |
+| `inject`         | Inject credential fields flat into action payload                                                     |
+| `inject_nested`  | Inject credentials as `payload[inject_key] = {...}`                                                   |
+| `none` / omitted | Default: set `account_name` from credentials                                                          |
+
 
 ```yaml
 credential_provisioning:
@@ -647,8 +653,8 @@ platform/verification-agent/
 
 The directory layout mirrors `integrators/` categories. Each category folder contains:
 
-- **`generic.py`** — fallback tests for connectors without a dedicated file (tests common endpoints based on `connector.yaml` capabilities)
-- **`{connector_name}.py`** — connector-specific tests that exercise all documented endpoints
+- `**generic.py**` — fallback tests for connectors without a dedicated file (tests common endpoints based on `connector.yaml` capabilities)
+- `**{connector_name}.py**` — connector-specific tests that exercise all documented endpoints
 
 #### 6.2.2 Three-tier verification
 
@@ -656,19 +662,23 @@ Every connector goes through all three tiers in sequence. If a tier fails critic
 
 **Tier 1 — Infrastructure (all connectors, no credentials needed)**
 
-| Check | Endpoint | Pass condition |
-| --- | --- | --- |
-| Health | `GET /health` | HTTP 200, `status: "healthy"` |
-| Readiness | `GET /readiness` | HTTP 200, all dependency checks pass |
-| API docs | `GET /docs` | HTTP 200, Swagger/OpenAPI UI reachable |
+
+| Check     | Endpoint         | Pass condition                         |
+| --------- | ---------------- | -------------------------------------- |
+| Health    | `GET /health`    | HTTP 200, `status: "healthy"`          |
+| Readiness | `GET /readiness` | HTTP 200, all dependency checks pass   |
+| API docs  | `GET /docs`      | HTTP 200, Swagger/OpenAPI UI reachable |
+
 
 **Tier 2 — Authentication (requires credentials from Credential Vault)**
 
-| Check | Endpoint | Pass condition |
-| --- | --- | --- |
-| Account provisioning | `POST /accounts` | Account created or already exists |
-| Auth status | `GET /auth/{account}/status` | `authenticated: true` |
-| Connection status | `GET /connection/{account}/status` | `connected: true` |
+
+| Check                | Endpoint                           | Pass condition                    |
+| -------------------- | ---------------------------------- | --------------------------------- |
+| Account provisioning | `POST /accounts`                   | Account created or already exists |
+| Auth status          | `GET /auth/{account}/status`       | `authenticated: true`             |
+| Connection status    | `GET /connection/{account}/status` | `connected: true`                 |
+
 
 **Tier 3 — Functional smoke tests (per-connector, requires credentials)**
 
@@ -681,12 +691,14 @@ Each connector has its own test module in `checks/`. Tests exercise all document
 
 #### 6.2.3 Scheduling & triggers
 
-| Mode | How | Description |
-| --- | --- | --- |
-| Scheduled | APScheduler `IntervalTrigger` | Runs every `VERIFICATION_INTERVAL_DAYS` (default: 7). Configurable via API or dashboard. |
-| On-demand (all) | `POST /api/verification/run` | Verifies all discovered connectors. |
-| On-demand (single) | `POST /api/verification/run?connector_filter={name}` | Verifies a single connector. |
-| Dashboard | Verification page toggle + "Run now" button | UI controls for scheduler enable/disable and manual triggers. |
+
+| Mode               | How                                                  | Description                                                                              |
+| ------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Scheduled          | APScheduler `IntervalTrigger`                        | Runs every `VERIFICATION_INTERVAL_DAYS` (default: 7). Configurable via API or dashboard. |
+| On-demand (all)    | `POST /api/verification/run`                         | Verifies all discovered connectors.                                                      |
+| On-demand (single) | `POST /api/verification/run?connector_filter={name}` | Verifies a single connector.                                                             |
+| Dashboard          | Verification page toggle + "Run now" button          | UI controls for scheduler enable/disable and manual triggers.                            |
+
 
 #### 6.2.4 Maintenance responsibilities
 
@@ -742,11 +754,13 @@ Results are persisted to the `verification_reports` table and exposed via the AP
 
 Check statuses:
 
-| Status | Meaning |
-| --- | --- |
-| `PASS` | Endpoint responded correctly within thresholds |
-| `FAIL` | Unexpected status code, timeout, or exception |
+
+| Status | Meaning                                                                             |
+| ------ | ----------------------------------------------------------------------------------- |
+| `PASS` | Endpoint responded correctly within thresholds                                      |
+| `FAIL` | Unexpected status code, timeout, or exception                                       |
 | `SKIP` | Check not applicable (e.g., no credentials, expected 404, capability not supported) |
+
 
 #### 6.2.6 Adding tests for a new connector
 
@@ -810,12 +824,14 @@ Cross-reference the connector's `connector.yaml` to ensure every documented capa
 
 Available utilities from `checks/common.py`:
 
-| Function | Purpose |
-| --- | --- |
-| `result(name, status, ms, error?, suggestion?)` | Build a check result dict |
-| `get_check(client, url, name, params?)` | Execute GET, return check result |
+
+| Function                                                                                 | Purpose                                                    |
+| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
+| `result(name, status, ms, error?, suggestion?)`                                          | Build a check result dict                                  |
+| `get_check(client, url, name, params?)`                                                  | Execute GET, return check result                           |
 | `req_check(client, method, url, name, *, params?, json_body?, files?, accept_statuses?)` | Execute any HTTP method, return `(check_result, response)` |
-| `PDF_STUB` | Minimal valid PDF bytes for upload tests |
+| `PDF_STUB`                                                                               | Minimal valid PDF bytes for upload tests                   |
+
 
 **Step 3 — Auto-discovery (no registration needed)**
 
@@ -833,13 +849,13 @@ For example, adding `checks/courier/inpost.py` automatically makes it the test m
 
 Every connector test file SHOULD cover:
 
-- [ ] `list_accounts` — verify account listing works
-- [ ] All read-only listing endpoints (companies, documents, orders, products, etc.)
-- [ ] All detail/get endpoints with a valid resource ID
-- [ ] At least one full write cycle (create → read → update → delete) with cleanup
-- [ ] Authentication-dependent endpoints with the provisioned account
-- [ ] Error cases where applicable (expected 404s, invalid IDs)
-- [ ] All endpoint variants (e.g., `/documents` vs `/documents/simple`, upload v1 vs v2)
+- `list_accounts` — verify account listing works
+- All read-only listing endpoints (companies, documents, orders, products, etc.)
+- All detail/get endpoints with a valid resource ID
+- At least one full write cycle (create → read → update → delete) with cleanup
+- Authentication-dependent endpoints with the provisioned account
+- Error cases where applicable (expected 404s, invalid IDs)
+- All endpoint variants (e.g., `/documents` vs `/documents/simple`, upload v1 vs v2)
 
 **Naming conventions for checks:**
 
@@ -1065,11 +1081,11 @@ Every integrator MUST expose Prometheus metrics:
 The following files document the platform as a whole and MUST be updated when relevant changes are made:
 
 
-| Document                   | Path                                           | Update trigger                                         |
-| -------------------------- | ---------------------------------------------- | ------------------------------------------------------ |
-| Architecture & scalability | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` | Infrastructure, scaling, data flow, deployment changes |
+| Document                   | Path                                                   | Update trigger                                                   |
+| -------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
+| Architecture & scalability | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)`         | Infrastructure, scaling, data flow, deployment changes           |
 | Database schema diagram    | `[docs/database-schema.png](docs/database-schema.png)` | Any migration that adds/removes tables, columns, or foreign keys |
-| Connector configuration    | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`     | New connector, config schema change, new env var       |
+| Connector configuration    | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`             | New connector, config schema change, new env var                 |
 
 
 When adding a new connector, the agent MUST:

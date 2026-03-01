@@ -185,12 +185,14 @@ async def list_documents(
     document_statuses: list[str] | None = Query(None, description="Filter by statuses"),
     is_sale: bool | None = Query(None, description="Filter purchase/sale"),
     check_document_ids: list[int] | None = Query(None, description="Filter by document IDs"),
+    contractor: list[str] | None = Query(None, description="Filter by contractor NIP"),
 ) -> list[dict[str, Any]]:
     _require_account(account_name)
     try:
         return await app_state.integration.get_documents(
             account_name, company_id, document_statuses=document_statuses,
             is_sale=is_sale, check_document_ids=check_document_ids,
+            contractor=contractor,
         )
     except httpx.HTTPStatusError as exc:
         raise _forward_http_error(exc)

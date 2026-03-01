@@ -82,11 +82,12 @@ class SkanujFaktureIntegration:
         document_statuses: list[str] | None = None,
         is_sale: bool | None = None,
         check_document_ids: list[int] | None = None,
+        contractor: list[str] | None = None,
     ) -> list[dict[str, Any]]:
         client = self._get_client(account_name)
         return await client.get_documents(
             company_id, document_statuses=document_statuses, is_sale=is_sale,
-            check_document_ids=check_document_ids,
+            check_document_ids=check_document_ids, contractor=contractor,
         )
 
     async def get_documents_simple(
