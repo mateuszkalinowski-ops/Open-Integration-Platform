@@ -742,8 +742,8 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
               @if (setVarValueMode === 'template') {
                 <mat-form-field appearance="outline" class="wnc__field">
                   <mat-label>Template</mat-label>
-                  <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" [placeholder]="'e.g. Order {{'{{order_id}}'}} from {{'{{customer}}'}}'" />
-                  <mat-hint>Use {{'{{ field_name }}'}} to insert field references</mat-hint>
+                  <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" [placeholder]="'e.g. Order \u007B\u007Border_id\u007D\u007D from \u007B\u007Bcustomer\u007D\u007D'" />
+                  <mat-hint>Wrap field names in double curly braces to reference data</mat-hint>
                 </mat-form-field>
               }
             } @else {
