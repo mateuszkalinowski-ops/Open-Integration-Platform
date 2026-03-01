@@ -198,6 +198,7 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       KAFKA_ENABLED: "false"
+      POLLING_INTERVAL_SECONDS: "60"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:

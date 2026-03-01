@@ -130,6 +130,8 @@ class AccountCreateRequest(BaseModel):
     api_url: str = "https://skanujfakture.pl:8443/SFApi"
     company_id: int | None = None
     environment: str = "production"
+    polling_interval_seconds: int | None = None
+    polling_status_filter: str | None = None
 
 
 @router.get("/accounts")
@@ -143,8 +145,10 @@ async def list_accounts() -> list[dict[str, Any]]:
 
 @router.post("/accounts", status_code=201)
 async def add_account(req: AccountCreateRequest) -> dict[str, str]:
-    account = SkanujFaktureAccountConfig(**req.model_dump())
+    data = {k: v for k, v in req.model_dump().items() if k not in ("polling_interval_seconds", "polling_status_filter") or v is not None}
+    account = SkanujFaktureAccountConfig(**{k: v for k, v in data.items() if k not in ("polling_interval_seconds", "polling_status_filter")})
     app_state.account_manager.add_account(account)
+    _apply_polling_settings(req)
     return {"status": "created", "name": account.name}
 
 
@@ -152,9 +156,19 @@ async def add_account(req: AccountCreateRequest) -> dict[str, str]:
 async def update_account(account_name: str, req: AccountCreateRequest) -> dict[str, str]:
     app_state.account_manager.remove_account(account_name)
     app_state.integration.reset_client(account_name)
-    account = SkanujFaktureAccountConfig(**req.model_dump())
+    account = SkanujFaktureAccountConfig(**{k: v for k, v in req.model_dump().items() if k not in ("polling_interval_seconds", "polling_status_filter")})
     app_state.account_manager.add_account(account)
+    _apply_polling_settings(req)
     return {"status": "updated", "name": account.name}
+
+
+def _apply_polling_settings(req: AccountCreateRequest) -> None:
+    if req.polling_interval_seconds is not None and req.polling_interval_seconds > 0:
+        settings.polling_interval_seconds = req.polling_interval_seconds
+        logger.info("Polling interval updated to %ds", req.polling_interval_seconds)
+    if req.polling_status_filter is not None:
+        settings.polling_status_filter = req.polling_status_filter
+        logger.info("Polling status filter updated to '%s'", req.polling_status_filter)
 
 
 @router.delete("/accounts/{account_name}")

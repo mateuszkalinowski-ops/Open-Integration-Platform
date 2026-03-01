@@ -19,7 +19,7 @@ class SkanujFaktureAccountConfig(BaseSettings):
 
 
 class Settings(BaseSettings):
-    model_config = {"env_prefix": "SF_", "env_nested_delimiter": "__"}
+    model_config = {"env_prefix": "SF_", "env_nested_delimiter": "__", "populate_by_name": True}
 
     app_name: str = "skanuj-fakture-integrator"
     app_version: str = "1.0.0"
@@ -48,9 +48,9 @@ class Settings(BaseSettings):
     kafka_topic_documents_scanned: str = "skanujfakture.output.other.documents.scanned"
     kafka_topic_documents_uploaded: str = "skanujfakture.output.other.documents.uploaded"
 
-    polling_enabled: bool = True
-    polling_interval_seconds: int = 300
-    polling_status_filter: str = "zeskanowany"
+    polling_enabled: bool = Field(default=True, alias="POLLING_ENABLED")
+    polling_interval_seconds: int = Field(default=300, alias="POLLING_INTERVAL_SECONDS")
+    polling_status_filter: str = Field(default="zeskanowany", alias="POLLING_STATUS_FILTER")
 
     api_timeout: float = 60.0
     max_retries: int = 3

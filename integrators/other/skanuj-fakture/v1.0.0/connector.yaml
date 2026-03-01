@@ -1452,6 +1452,13 @@ credential_provisioning:
     environment:
       source: environment
       default: production
+    polling_interval_seconds:
+      source: polling_interval_seconds
+      type: integer
+      optional: true
+    polling_status_filter:
+      source: polling_status_filter
+      optional: true
 credential_validation:
   required_fields:
   - login
