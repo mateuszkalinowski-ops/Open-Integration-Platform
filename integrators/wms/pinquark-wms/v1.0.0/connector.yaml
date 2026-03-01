@@ -899,25 +899,71 @@ config_schema:
 health_endpoint: /health
 docs_url: /docs
 service_name: connector-pinquark-wms
+credential_provisioning:
+  mode: inject_nested
+  inject_key: credentials
+  credential_mapping:
+    api_url:
+      source: api_url
+    username:
+      source: username
+    password:
+      source: password
 action_routes:
   article.create:
     method: POST
-    path: /articles
+    path: /articles/create
   article.delete:
-    method: DELETE
-    path: /articles/{article_id}
+    method: POST
+    path: /articles/delete
+  articles.create_list:
+    method: POST
+    path: /articles/create-list
+  articles.delete_list:
+    method: POST
+    path: /articles/delete-list
+  article_batch.create:
+    method: POST
+    path: /article-batches/create
+  article_batches.create_list:
+    method: POST
+    path: /article-batches/create-list
   document.create:
     method: POST
-    path: /documents
+    path: /documents/create
   document.delete:
-    method: DELETE
-    path: /documents/{document_id}
+    method: POST
+    path: /documents/delete
+  documents.create_wrapper:
+    method: POST
+    path: /documents/create-list
+  documents.delete_list:
+    method: POST
+    path: /documents/delete-list
+  position.create:
+    method: POST
+    path: /positions/create
+  position.delete:
+    method: POST
+    path: /positions/delete
+  positions.create_list:
+    method: POST
+    path: /positions/create-list
+  positions.delete_list:
+    method: POST
+    path: /positions/delete-list
   contractor.create:
     method: POST
-    path: /contractors
+    path: /contractors/create
   contractor.delete:
-    method: DELETE
-    path: /contractors/{contractor_id}
+    method: POST
+    path: /contractors/delete
+  contractors.create_list:
+    method: POST
+    path: /contractors/create-list
+  contractors.delete_list:
+    method: POST
+    path: /contractors/delete-list
 credential_validation:
   required_fields:
   - api_url
