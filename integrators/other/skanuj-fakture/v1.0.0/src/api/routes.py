@@ -81,6 +81,24 @@ async def debug_poller() -> dict[str, Any]:
     }
 
 
+@router.post("/debug/poll-now")
+async def debug_poll_now() -> dict[str, Any]:
+    """Manually trigger an immediate poll cycle for diagnostics."""
+    if not app_state.poller:
+        return {"error": "Poller not initialized"}
+    accounts = app_state.account_manager.list_accounts()
+    if not accounts:
+        return {"error": "No accounts configured", "accounts": []}
+    try:
+        await app_state.poller._poll_all_accounts()
+        return {
+            "status": "poll_completed",
+            "accounts_polled": [a.name for a in accounts],
+        }
+    except Exception as exc:
+        return {"error": str(exc)}
+
+
 # -- Auth / Connection ---------------------------------------------------------
 
 

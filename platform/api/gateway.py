@@ -1033,14 +1033,17 @@ async def internal_get_connector_credentials(
 
 @app.get("/internal/connector/{connector_name}/poller/status", tags=["internal"])
 async def internal_connector_poller_status(connector_name: str) -> Any:
-    """Proxy GET /poller/status to a connector for debugging."""
+    """Proxy GET to connector debug/poller endpoint."""
     base = _resolve_service_url(connector_name, registry)
     async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp = await client.get(f"{base}/poller/status")
-            return resp.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+        for path in ("/debug/poller", "/poller/status"):
+            try:
+                resp = await client.get(f"{base}{path}")
+                if resp.status_code < 400:
+                    return resp.json()
+            except Exception:
+                continue
+        raise HTTPException(status_code=502, detail="Cannot reach connector poller status")
 
 
 @app.post("/internal/connector/{connector_name}/poller/reset", tags=["internal"])
@@ -1057,14 +1060,17 @@ async def internal_connector_poller_reset(connector_name: str) -> Any:
 
 @app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"])
 async def internal_connector_poller_poll_now(connector_name: str) -> Any:
-    """Proxy POST /poller/poll-now to a connector."""
+    """Proxy POST to connector debug/poll-now endpoint."""
     base = _resolve_service_url(connector_name, registry)
-    async with httpx.AsyncClient(timeout=10.0) as client:
-        try:
-            resp = await client.post(f"{base}/poller/poll-now")
-            return resp.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+    async with httpx.AsyncClient(timeout=30.0) as client:
+        for path in ("/debug/poll-now", "/poller/poll-now"):
+            try:
+                resp = await client.post(f"{base}{path}")
+                if resp.status_code < 400:
+                    return resp.json()
+            except Exception:
+                continue
+        raise HTTPException(status_code=502, detail="Cannot reach connector poll-now")
 
 
 @app.get("/internal/connector/{connector_name}/poller/diagnose", tags=["internal"])
@@ -1072,11 +1078,14 @@ async def internal_connector_poller_diagnose(connector_name: str) -> Any:
     """Proxy GET /poller/diagnose to a connector for WMS API testing."""
     base = _resolve_service_url(connector_name, registry)
     async with httpx.AsyncClient(timeout=30.0) as client:
-        try:
-            resp = await client.get(f"{base}/poller/diagnose")
-            return resp.json()
-        except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+        for path in ("/poller/diagnose", "/debug/diagnose"):
+            try:
+                resp = await client.get(f"{base}{path}")
+                if resp.status_code < 400:
+                    return resp.json()
+            except Exception:
+                continue
+        raise HTTPException(status_code=502, detail="Cannot reach connector diagnose")
 
 
 # --- Flow Executions (audit log) ---
