@@ -151,7 +151,11 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                     @if (!isUnaryOp(cond.operator)) {
                       <mat-form-field appearance="outline" class="wnc__filter-val">
                         <mat-label>Value</mat-label>
-                        <input matInput [(ngModel)]="cond.value" (ngModelChange)="emitChange()" />
+                        @if (isDateField(cond.field)) {
+                          <input matInput type="datetime-local" [(ngModel)]="cond.value" (ngModelChange)="emitChange()" />
+                        } @else {
+                          <input matInput [(ngModel)]="cond.value" (ngModelChange)="emitChange()" />
+                        }
                       </mat-form-field>
                     }
                     <button mat-icon-button (click)="removeTriggerFilter($index)"><mat-icon>delete</mat-icon></button>
@@ -451,7 +455,11 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 @if (!isUnaryOperator(c.operator)) {
                   <mat-form-field appearance="outline" class="wnc__cond-val">
                     <mat-label>Value</mat-label>
-                    <input matInput [(ngModel)]="c.value" (ngModelChange)="emitChange()" />
+                    @if (isDateField(c.field)) {
+                      <input matInput type="datetime-local" [(ngModel)]="c.value" (ngModelChange)="emitChange()" />
+                    } @else {
+                      <input matInput [(ngModel)]="c.value" (ngModelChange)="emitChange()" />
+                    }
                   </mat-form-field>
                 }
                 <button mat-icon-button (click)="removeCondition(i)"><mat-icon>delete</mat-icon></button>
@@ -1764,6 +1772,18 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   isUnaryOp(op: string): boolean {
     return ['exists', 'not_exists', 'is_empty', 'is_not_empty'].includes(op);
+  }
+
+  isDateField(fieldName: string): boolean {
+    if (!fieldName) return false;
+    const lc = fieldName.toLowerCase();
+    if (lc === 'date' || lc.endsWith('_date') || lc.startsWith('date_')) return true;
+    const def = this.sourceFieldDefs.find(f => f.field === fieldName);
+    if (def) {
+      const label = def.label.toLowerCase();
+      if (label.startsWith('data ') || label.includes(' data ') || label.startsWith('termin ')) return true;
+    }
+    return false;
   }
 
   // ── Sync Config ──
