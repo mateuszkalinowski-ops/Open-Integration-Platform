@@ -8,6 +8,8 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 [![Python](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
 [![Angular](https://img.shields.io/badge/Angular-18+-red.svg)](https://angular.dev)
 
+**[Live Demo](http://46.224.229.166)** — try it instantly, no installation required. Create a workspace, connect your systems, and build flows in minutes.
+
 ---
 
 ## Why Pinquark?
