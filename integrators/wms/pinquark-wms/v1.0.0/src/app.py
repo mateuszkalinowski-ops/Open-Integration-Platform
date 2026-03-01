@@ -617,3 +617,28 @@ async def poller_poll_now() -> dict[str, str]:
         raise HTTPException(status_code=400, detail="Poller is not running")
     asyncio.create_task(event_poller._poll_cycle())
     return {"status": "triggered", "message": "Poll cycle started"}
+
+
+@app.get("/poller/diagnose", tags=["poller"])
+async def poller_diagnose() -> dict[str, Any]:
+    """Test WMS API connectivity for all registered accounts and return raw responses."""
+    results: dict[str, Any] = {}
+    for account_name, creds in event_poller._credential_store.items():
+        acct_result: dict[str, Any] = {"base_url": wms_client._base_url(creds)}
+        for entity, fetch_fn in [
+            ("documents", wms_client.get_documents),
+            ("articles", wms_client.get_articles),
+            ("contractors", wms_client.get_contractors),
+        ]:
+            try:
+                data, status = await fetch_fn(creds)
+                acct_result[entity] = {
+                    "http_status": status,
+                    "type": type(data).__name__,
+                    "count": len(data) if isinstance(data, list) else None,
+                    "sample": data[:2] if isinstance(data, list) and data else data,
+                }
+            except Exception as exc:
+                acct_result[entity] = {"error": str(exc)}
+        results[account_name] = acct_result
+    return results
