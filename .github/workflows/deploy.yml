@@ -20,41 +20,60 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Prepare connector manifests
+      - name: Build deploy bundle
         run: |
-          mkdir -p _manifests
+          mkdir -p _bundle/deploy _bundle/integrators
+          cp docker-compose.vps.yml _bundle/
+          cp deploy/nginx.conf _bundle/deploy/
           find integrators -name "connector.yaml" | while read f; do
-            dir="_manifests/$(dirname "$f")"
+            dir="_bundle/integrators/$(dirname "$f" | sed 's|^integrators/||')"
             mkdir -p "$dir"
             cp "$f" "$dir/"
           done
+          tar czf /tmp/pinquark-deploy.tar.gz -C _bundle .
 
-      - name: Copy files to VPS
-        uses: appleboy/scp-action@v0.1.7
-        with:
-          host: ${{ secrets.VPS_HOST }}
-          username: ${{ secrets.VPS_USER }}
-          key: ${{ secrets.VPS_SSH_KEY }}
-          source: "docker-compose.vps.yml,deploy/nginx.conf,_manifests/integrators"
-          target: /opt/pinquark
-          overwrite: true
-
-      - name: Deploy and verify
+      - name: Deploy, configure and verify
         uses: appleboy/ssh-action@v1.2.0
+        env:
+          DEPLOY_BUNDLE: ${{ github.workspace }}/pinquark-deploy.tar.gz
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
           key: ${{ secrets.VPS_SSH_KEY }}
           command_timeout: 15m
           script: |
+            set -e
             cd /opt/pinquark
 
-            rm -rf /opt/pinquark/integrators
-            mv /opt/pinquark/_manifests/integrators /opt/pinquark/integrators
-            rm -rf /opt/pinquark/_manifests
+            # ── Fetch deploy bundle via GitHub API (single HTTPS call, no SCP) ──
+            REPO="${{ github.repository }}"
+            SHA="${{ github.sha }}"
+            curl -sL \
+              -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github.v3+json" \
+              "https://api.github.com/repos/${REPO}/tarball/${SHA}" \
+              -o /tmp/repo.tar.gz
 
+            TMPDIR=$(mktemp -d)
+            tar xzf /tmp/repo.tar.gz -C "$TMPDIR" --strip-components=1
+            cp "$TMPDIR/docker-compose.vps.yml" /opt/pinquark/docker-compose.vps.yml
+            mkdir -p /opt/pinquark/deploy
+            cp "$TMPDIR/deploy/nginx.conf" /opt/pinquark/deploy/nginx.conf
+
+            rm -rf /opt/pinquark/integrators
+            mkdir -p /opt/pinquark/integrators
+            find "$TMPDIR/integrators" -name "connector.yaml" | while read f; do
+              REL="${f#$TMPDIR/integrators/}"
+              DIR="/opt/pinquark/integrators/$(dirname "$REL")"
+              mkdir -p "$DIR"
+              cp "$f" "$DIR/"
+            done
+            rm -rf "$TMPDIR" /tmp/repo.tar.gz
+
+            # ── Docker login & pull ──
             echo "${{ secrets.GITHUB_TOKEN }}" | docker login ghcr.io -u ${{ github.actor }} --password-stdin
 
+            # ── Preserve or generate API key ──
             if [ -f .env ] && grep -q DEFAULT_API_KEY .env; then
               EXISTING_KEY=$(grep DEFAULT_API_KEY .env | cut -d= -f2-)
             fi
@@ -79,6 +98,7 @@ jobs:
 
             docker image prune -f
 
+            # ── Health check ──
             echo "Waiting for platform to start..."
             for i in $(seq 1 30); do
               if curl -sf http://localhost:80/health > /dev/null 2>&1; then
