@@ -54,8 +54,6 @@ services:
   # --- Infrastructure ---
   postgres:
     image: postgres:16-alpine
-    ports:
-      - "5432:5432"
     environment:
       POSTGRES_DB: pinquark_platform
       POSTGRES_USER: pinquark
