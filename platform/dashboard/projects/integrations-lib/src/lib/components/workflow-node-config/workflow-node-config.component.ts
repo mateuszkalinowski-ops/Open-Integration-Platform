@@ -699,17 +699,77 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 <mat-option value="DELETE">DELETE</mat-option>
               </mat-select>
             </mat-form-field>
-            <mat-form-field appearance="outline" class="wnc__field">
-              <mat-label>URL</mat-label>
-              <input matInput [(ngModel)]="cfg['url']" (ngModelChange)="emitChange()" [placeholder]="'https://api.example.com/\u007B\u007Bdata.id\u007D\u007D'" />
-            </mat-form-field>
+
+            <div class="wnc__url-builder">
+              <mat-form-field appearance="outline" class="wnc__field">
+                <mat-label>URL (Path)</mat-label>
+                <input matInput [(ngModel)]="httpUrlPath" (ngModelChange)="onHttpUrlPathChange()" placeholder="http://service:8000/endpoint" />
+              </mat-form-field>
+              @if (sourceFieldDefs.length > 0) {
+                <mat-form-field appearance="outline" class="wnc__field wnc__url-var-select">
+                  <mat-label>Insert Variable in Path</mat-label>
+                  <mat-select [(ngModel)]="httpUrlVarInsert" (ngModelChange)="onInsertUrlVariable($event)">
+                    @for (f of sourceFieldDefs; track f.field) {
+                      <mat-option [value]="f.field">
+                        <mat-icon class="wnc__opt-icon">data_object</mat-icon>
+                        {{ f.label || f.field }}
+                      </mat-option>
+                    }
+                  </mat-select>
+                </mat-form-field>
+              }
+            </div>
+
+            <div class="wnc__qp-section">
+              <div class="wnc__qp-header">
+                <span class="wnc__qp-title">Query Parameters</span>
+                <button mat-icon-button (click)="addHttpQueryParam()" class="wnc__qp-add">
+                  <mat-icon>add_circle_outline</mat-icon>
+                </button>
+              </div>
+              @for (param of httpQueryParams; track $index) {
+                <div class="wnc__qp-row">
+                  <mat-form-field appearance="outline" class="wnc__qp-key">
+                    <mat-label>Key</mat-label>
+                    <input matInput [(ngModel)]="param.key" (ngModelChange)="onHttpQpKeyChange()" placeholder="param_name" />
+                  </mat-form-field>
+                  <mat-form-field appearance="outline" class="wnc__qp-value">
+                    <mat-label>Value</mat-label>
+                    <mat-select [value]="getHttpQpSelectValue(param)" (selectionChange)="onHttpQpValueSelect(param, $event.value)">
+                      <mat-option value="__static__"><mat-icon class="wnc__opt-icon">edit</mat-icon> Static Value</mat-option>
+                      @for (f of sourceFieldDefs; track f.field) {
+                        <mat-option [value]="f.field">
+                          <mat-icon class="wnc__opt-icon">data_object</mat-icon>
+                          {{ f.label || f.field }}
+                        </mat-option>
+                      }
+                    </mat-select>
+                  </mat-form-field>
+                  @if (param.mode === 'static') {
+                    <mat-form-field appearance="outline" class="wnc__qp-static">
+                      <mat-label>Value</mat-label>
+                      <input matInput [(ngModel)]="param.value" (ngModelChange)="onHttpQpStaticValueChange()" />
+                    </mat-form-field>
+                  }
+                  <button mat-icon-button color="warn" (click)="removeHttpQueryParam($index)" class="wnc__qp-remove">
+                    <mat-icon>remove_circle_outline</mat-icon>
+                  </button>
+                </div>
+              }
+              @if (httpQueryParams.length === 0) {
+                <p class="wnc__hint">No query parameters. Click + to add.</p>
+              }
+            </div>
+
+            <mat-divider style="margin: 8px 0"></mat-divider>
+
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Timeout (seconds)</mat-label>
               <input matInput type="number" [(ngModel)]="cfg['timeout_seconds']" (ngModelChange)="emitChange()" />
             </mat-form-field>
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Request Body (JSON)</mat-label>
-              <textarea matInput [(ngModel)]="httpBodyJson" (ngModelChange)="onHttpBodyChange()" rows="4" [placeholder]="'{&quot;key&quot;: &quot;\u007B\u007Bdata.value\u007D\u007D&quot;}'"></textarea>
+              <textarea matInput [(ngModel)]="httpBodyJson" (ngModelChange)="onHttpBodyChange()" rows="4" [placeholder]="'{&quot;key&quot;: &quot;value&quot;}'"></textarea>
             </mat-form-field>
           }
 
@@ -952,6 +1012,19 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     ::ng-deep .wnc__array-opt { border-left: 3px solid #1565c0; }
     ::ng-deep .wnc__arr-icon { font-size: 14px !important; height: 14px !important; width: 14px !important; color: #1565c0; margin-right: 6px; vertical-align: middle; }
 
+    /* URL Builder */
+    .wnc__url-builder { margin-bottom: 4px; }
+    .wnc__url-var-select { margin-top: -8px; }
+    .wnc__qp-section { margin: 4px 0 12px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; }
+    .wnc__qp-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 4px; }
+    .wnc__qp-title { font-size: 13px; font-weight: 600; color: #555; }
+    .wnc__qp-add { color: #1565c0; }
+    .wnc__qp-row { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap; }
+    .wnc__qp-key { flex: 1; min-width: 80px; }
+    .wnc__qp-value { flex: 1.5; min-width: 100px; }
+    .wnc__qp-static { flex: 1; min-width: 80px; }
+    .wnc__qp-remove { flex-shrink: 0; margin-top: 4px; }
+
     /* Search inside mat-select dropdowns */
     ::ng-deep .wnc__search-wrap { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 1; background: #fff; }
     ::ng-deep .wnc__search-wrap mat-icon { color: #999; font-size: 18px; height: 18px; width: 18px; margin-right: 8px; flex-shrink: 0; }
@@ -989,6 +1062,9 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   loadingCredentialNames = false;
   httpBodyJson = '';
   responseBodyJson = '';
+  httpUrlPath = '';
+  httpQueryParams: Array<{key: string; value: string; mode: 'field' | 'static'}> = [];
+  httpUrlVarInsert: string | null = null;
   setVarValueMode: 'field' | 'static' | 'template' = 'static';
   setVarFieldPath = '';
   selectFilter: Record<string, string> = {};
@@ -1020,6 +1096,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       }
       if (this.node.type === 'http_request') {
         try { this.httpBodyJson = JSON.stringify(this.cfg['body'] || {}, null, 2); } catch { this.httpBodyJson = '{}'; }
+        this.parseHttpUrl();
       }
       if (this.node.type === 'response') {
         try { this.responseBodyJson = JSON.stringify(this.cfg['body'] || {}, null, 2); } catch { this.responseBodyJson = '{}'; }
@@ -1292,6 +1369,86 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       // keep raw
     }
     this.emitChange();
+  }
+
+  private parseHttpUrl(): void {
+    const url = (this.cfg['url'] as string) || '';
+    this.httpUrlVarInsert = null;
+    const qIndex = url.indexOf('?');
+    if (qIndex === -1) {
+      this.httpUrlPath = url;
+      this.httpQueryParams = [];
+      return;
+    }
+    this.httpUrlPath = url.substring(0, qIndex);
+    const queryString = url.substring(qIndex + 1);
+    this.httpQueryParams = queryString.split('&').filter(Boolean).map(pair => {
+      const eqIdx = pair.indexOf('=');
+      const key = eqIdx === -1 ? pair : pair.substring(0, eqIdx);
+      const rawValue = eqIdx === -1 ? '' : pair.substring(eqIdx + 1);
+      const templateMatch = /^\{\{\s*(.+?)\s*\}\}$/.exec(rawValue);
+      if (templateMatch) {
+        return { key, value: templateMatch[1].trim(), mode: 'field' as const };
+      }
+      return { key, value: rawValue, mode: 'static' as const };
+    });
+  }
+
+  private composeHttpUrl(): void {
+    let url = this.httpUrlPath;
+    const validParams = this.httpQueryParams.filter(p => p.key);
+    if (validParams.length > 0) {
+      const qs = validParams.map(p => {
+        const val = p.mode === 'field' ? `{{ ${p.value} }}` : p.value;
+        return `${p.key}=${val}`;
+      }).join('&');
+      url += '?' + qs;
+    }
+    this.cfg['url'] = url;
+    this.emitChange();
+  }
+
+  onHttpUrlPathChange(): void {
+    this.composeHttpUrl();
+  }
+
+  addHttpQueryParam(): void {
+    this.httpQueryParams.push({ key: '', value: '', mode: 'static' });
+  }
+
+  removeHttpQueryParam(index: number): void {
+    this.httpQueryParams.splice(index, 1);
+    this.composeHttpUrl();
+  }
+
+  onHttpQpValueSelect(param: {key: string; value: string; mode: 'field' | 'static'}, selectValue: string): void {
+    if (selectValue === '__static__') {
+      param.mode = 'static';
+      param.value = '';
+    } else {
+      param.mode = 'field';
+      param.value = selectValue;
+    }
+    this.composeHttpUrl();
+  }
+
+  onHttpQpKeyChange(): void {
+    this.composeHttpUrl();
+  }
+
+  onHttpQpStaticValueChange(): void {
+    this.composeHttpUrl();
+  }
+
+  getHttpQpSelectValue(param: {key: string; value: string; mode: 'field' | 'static'}): string {
+    return param.mode === 'static' ? '__static__' : param.value;
+  }
+
+  onInsertUrlVariable(field: string): void {
+    if (!field) return;
+    this.httpUrlPath += `{{ ${field} }}`;
+    setTimeout(() => { this.httpUrlVarInsert = null; });
+    this.composeHttpUrl();
   }
 
   onResponseBodyChange(): void {
