@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, ElementRef, OnInit, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router } from '@angular/router';
 import { MatCardModule } from '@angular/material/card';
@@ -9,12 +9,14 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatExpansionModule } from '@angular/material/expansion';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 
 import {
   FlowDesignerComponent,
   PinquarkApiService,
   Flow,
   Workflow,
+  WorkflowCreateRequest,
 } from '@pinquark/integrations';
 
 @Component({
@@ -30,6 +32,7 @@ import {
     MatMenuModule,
     MatTooltipModule,
     MatExpansionModule,
+    MatSnackBarModule,
     FlowDesignerComponent,
   ],
   template: `
@@ -45,6 +48,16 @@ import {
           <button mat-raised-button color="primary" (click)="createWorkflow()">
             <mat-icon>add</mat-icon> New Workflow
           </button>
+          <button mat-stroked-button (click)="importFileInput.click()" matTooltip="Import workflow from JSON file">
+            <mat-icon>upload_file</mat-icon> Import
+          </button>
+          <input
+            #importFileInput
+            type="file"
+            accept=".json"
+            hidden
+            (change)="onImportFile($event)"
+          />
           <button mat-stroked-button (click)="toggleSimpleDesigner()">
             <mat-icon>{{ showDesigner && !editingFlow ? 'close' : 'add' }}</mat-icon>
             {{ showDesigner && !editingFlow ? 'Cancel' : 'Quick Flow' }}
@@ -113,6 +126,9 @@ import {
                     <mat-card-actions>
                       <button mat-button color="primary" (click)="openWorkflow(wf); $event.stopPropagation()">
                         <mat-icon>edit</mat-icon> Edit
+                      </button>
+                      <button mat-button (click)="exportWorkflow(wf, $event)">
+                        <mat-icon>download</mat-icon> Export
                       </button>
                       <button mat-button color="warn" (click)="deleteWorkflow(wf.id, $event)">
                         <mat-icon>delete</mat-icon> Delete
@@ -218,6 +234,8 @@ import {
   `],
 })
 export class FlowsPage implements OnInit {
+  @ViewChild('importFileInput') importFileInput!: ElementRef<HTMLInputElement>;
+
   flows: Flow[] = [];
   workflows: Workflow[] = [];
   showDesigner = false;
@@ -227,6 +245,7 @@ export class FlowsPage implements OnInit {
   constructor(
     private readonly api: PinquarkApiService,
     private readonly router: Router,
+    private readonly snackBar: MatSnackBar,
   ) {}
 
   ngOnInit(): void {
@@ -283,5 +302,72 @@ export class FlowsPage implements OnInit {
 
   deleteFlow(flowId: string): void {
     this.api.deleteFlow(flowId).subscribe(() => this.loadFlows());
+  }
+
+  exportWorkflow(wf: Workflow, event: MouseEvent): void {
+    event.stopPropagation();
+    const exportData: WorkflowCreateRequest = {
+      name: wf.name,
+      description: wf.description,
+      nodes: wf.nodes,
+      edges: wf.edges,
+      variables: wf.variables,
+      on_error: wf.on_error,
+      max_retries: wf.max_retries,
+      timeout_seconds: wf.timeout_seconds,
+    };
+    if (wf.sync_config) {
+      exportData.sync_config = wf.sync_config;
+    }
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `${wf.name.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        if (!data.name || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+          this.snackBar.open('Invalid workflow file — missing name, nodes, or edges', 'OK', { duration: 5000 });
+          return;
+        }
+        const body: WorkflowCreateRequest = {
+          name: data.name,
+          description: data.description ?? '',
+          nodes: data.nodes,
+          edges: data.edges,
+          variables: data.variables ?? {},
+          sync_config: data.sync_config ?? null,
+          on_error: data.on_error ?? 'stop',
+          max_retries: data.max_retries ?? 3,
+          timeout_seconds: data.timeout_seconds ?? 300,
+        };
+        this.api.createWorkflow(body).subscribe({
+          next: (wf) => {
+            this.snackBar.open(`Workflow "${wf.name}" imported`, 'Open', { duration: 5000 })
+              .onAction()
+              .subscribe(() => this.router.navigate(['/workflows', wf.id]));
+            this.loadWorkflows();
+          },
+          error: (err) => {
+            this.snackBar.open('Import failed: ' + (err.error?.detail || 'Unknown error'), 'OK', { duration: 5000 });
+          },
+        });
+      } catch {
+        this.snackBar.open('Invalid JSON file', 'OK', { duration: 5000 });
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
   }
 }

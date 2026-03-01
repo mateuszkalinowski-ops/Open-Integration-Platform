@@ -15,6 +15,7 @@ import { MatTabsModule } from '@angular/material/tabs';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatMenuModule } from '@angular/material/menu';
 import { forkJoin } from 'rxjs';
 
 import {
@@ -49,6 +50,7 @@ import {
     MatChipsModule,
     MatTooltipModule,
     MatProgressSpinnerModule,
+    MatMenuModule,
     ClipboardModule,
     WorkflowCanvasComponent,
     WorkflowNodeConfigComponent,
@@ -87,6 +89,24 @@ import {
           <button mat-stroked-button (click)="openTestPanel()" matTooltip="Test workflow with sample data">
             <mat-icon>science</mat-icon> Test
           </button>
+          <button mat-icon-button [matMenuTriggerFor]="importExportMenu" matTooltip="Import / Export">
+            <mat-icon>swap_vert</mat-icon>
+          </button>
+          <mat-menu #importExportMenu="matMenu">
+            <button mat-menu-item (click)="exportWorkflow()">
+              <mat-icon>download</mat-icon> Export as JSON
+            </button>
+            <button mat-menu-item (click)="builderImportInput.click()">
+              <mat-icon>upload_file</mat-icon> Import from JSON
+            </button>
+          </mat-menu>
+          <input
+            #builderImportInput
+            type="file"
+            accept=".json"
+            hidden
+            (change)="onImportFile($event)"
+          />
           <button mat-raised-button color="primary" (click)="save()" [disabled]="saving">
             <mat-icon>save</mat-icon> {{ saving ? 'Saving...' : 'Save' }}
           </button>
@@ -993,6 +1013,60 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     } catch {
       return String(output);
     }
+  }
+
+  // ── Import / Export ──
+
+  exportWorkflow(): void {
+    const exportData = {
+      name: this.workflowName,
+      description: this.workflowDescription,
+      nodes: this.nodes,
+      edges: this.edges,
+      variables: this.workflow?.variables ?? {},
+      sync_config: this.buildSyncConfig(),
+      on_error: this.workflowOnError,
+      max_retries: this.workflowMaxRetries,
+      timeout_seconds: this.workflowTimeout,
+    };
+    const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = this.doc.createElement('a');
+    a.href = url;
+    a.download = `${this.workflowName.replace(/[^a-zA-Z0-9_-]/g, '_').toLowerCase()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    this.snackBar.open('Workflow exported', '', { duration: 2000 });
+  }
+
+  onImportFile(event: Event): void {
+    const input = event.target as HTMLInputElement;
+    const file = input.files?.[0];
+    if (!file) return;
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result as string);
+        if (!data.name || !Array.isArray(data.nodes) || !Array.isArray(data.edges)) {
+          this.snackBar.open('Invalid workflow file — missing name, nodes, or edges', 'OK', { duration: 5000 });
+          return;
+        }
+        this.workflowName = data.name;
+        this.workflowDescription = data.description ?? '';
+        this.nodes = data.nodes;
+        this.edges = data.edges;
+        this.workflowOnError = data.on_error ?? 'stop';
+        this.workflowMaxRetries = data.max_retries ?? 3;
+        this.workflowTimeout = data.timeout_seconds ?? 300;
+        setTimeout(() => this.canvas?.fitView(), 100);
+        this.snackBar.open('Workflow loaded from file — click Save to persist', 'OK', { duration: 5000 });
+      } catch {
+        this.snackBar.open('Invalid JSON file', 'OK', { duration: 5000 });
+      }
+      input.value = '';
+    };
+    reader.readAsText(file);
   }
 
   // ── Sync Status ──
