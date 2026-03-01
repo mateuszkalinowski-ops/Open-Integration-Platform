@@ -128,8 +128,11 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                       <mat-label>Field</mat-label>
                       @if (sourceFieldDefs.length > 0) {
                         <mat-select [(ngModel)]="cond.field" (ngModelChange)="emitChange()">
+                          @if (isUnknownField(cond.field, sourceFieldDefs)) {
+                            <mat-option [value]="cond.field" [class.wnc__array-opt]="isArrayField(cond.field)">@if (isArrayField(cond.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ cond.field }}</mat-option>
+                          }
                           @for (f of sourceFieldDefs; track f.field) {
-                            <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                            <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
                           }
                         </mat-select>
                       } @else {
@@ -180,8 +183,11 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   <mat-label>Entity Key Field</mat-label>
                   @if (sourceFieldDefs.length > 0) {
                     <mat-select [(ngModel)]="cfg['sync_entity_key']" (ngModelChange)="onSyncConfigChange()">
+                      @if (isUnknownField(cfg['sync_entity_key'], sourceFieldDefs)) {
+                        <mat-option [value]="cfg['sync_entity_key']" [class.wnc__array-opt]="isArrayField($any(cfg['sync_entity_key']))">@if (isArrayField($any(cfg['sync_entity_key']))) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ cfg['sync_entity_key'] }}</mat-option>
+                      }
                       @for (f of sourceFieldDefs; track f.field) {
-                        <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                        <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
                       }
                     </mat-select>
                   } @else {
@@ -276,6 +282,9 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                             <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
                             <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
                               <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
+                              @if (isUnknownField(src, sourceFieldDefs)) {
+                                <mat-option [value]="src">{{ src }}</mat-option>
+                              }
                               @for (f of sourceFieldDefs; track f.field) {
                                 @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
                                 <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
@@ -311,6 +320,9 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                       <mat-label>Target</mat-label>
                       <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
                         <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
+                        @if (isUnknownField(m.to, destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs)) {
+                          <mat-option [value]="m.to">{{ m.to }}</mat-option>
+                        }
                         @if (destFieldDefs.length > 0) {
                           @for (f of destFieldDefs; track f.field) {
                             @if (matchesFilter('destField', f.label + ' ' + f.field)) {
@@ -401,9 +413,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                     <mat-label>Field</mat-label>
                     <mat-select [(ngModel)]="c.field" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('condField', $event)">
                       <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['condField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['condField'] = $any($event.target).value" placeholder="Search..." /></div>
+                      @if (isUnknownField(c.field, sourceFieldDefs)) {
+                        <mat-option [value]="c.field" [class.wnc__array-opt]="isArrayField(c.field)">@if (isArrayField(c.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ c.field }}</mat-option>
+                      }
                       @for (f of sourceFieldDefs; track f.field) {
                         @if (matchesFilter('condField', f.label + ' ' + f.field)) {
-                        <mat-option [value]="f.field">{{ f.label }}</mat-option>
+                        <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
                         }
                       }
                       <mat-option value="__custom__">-- Custom value --</mat-option>
@@ -449,9 +464,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 <mat-label>Field to switch on</mat-label>
                 <mat-select [(ngModel)]="cfg['field']" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('switchField', $event)">
                   <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['switchField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['switchField'] = $any($event.target).value" placeholder="Search..." /></div>
+                  @if (isUnknownField(cfg['field'], sourceFieldDefs)) {
+                    <mat-option [value]="cfg['field']" [class.wnc__array-opt]="isArrayField($any(cfg['field']))">@if (isArrayField($any(cfg['field']))) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ cfg['field'] }}</mat-option>
+                  }
                   @for (f of sourceFieldDefs; track f.field) {
                     @if (matchesFilter('switchField', f.label + ' ' + f.field)) {
-                    <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                    <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }} ({{ f.field }})</mat-option>
                     }
                   }
                   <mat-option value="__custom__">-- Custom value --</mat-option>
@@ -511,6 +529,9 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                             <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
                             <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
                               <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
+                              @if (isUnknownField(src, sourceFieldDefs)) {
+                                <mat-option [value]="src">{{ src }}</mat-option>
+                              }
                               @for (f of sourceFieldDefs; track f.field) {
                                 @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
                                 <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
@@ -546,6 +567,9 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                       <mat-label>Target</mat-label>
                       <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
                         <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
+                        @if (isUnknownField(m.to, destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs)) {
+                          <mat-option [value]="m.to">{{ m.to }}</mat-option>
+                        }
                         @for (f of destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs; track f.field) {
                           @if (matchesFilter('destField', f.label + ' ' + f.field)) {
                           <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
@@ -623,9 +647,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                 <mat-label>Array Field</mat-label>
                 <mat-select [(ngModel)]="cfg['array_field']" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('loopField', $event)">
                   <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['loopField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['loopField'] = $any($event.target).value" placeholder="Search..." /></div>
+                  @if (isUnknownField(cfg['array_field'], sourceFieldDefs)) {
+                    <mat-option [value]="cfg['array_field']" [class.wnc__array-opt]="isArrayField($any(cfg['array_field']))">@if (isArrayField($any(cfg['array_field']))) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ cfg['array_field'] }}</mat-option>
+                  }
                   @for (f of sourceFieldDefs; track f.field) {
                     @if (matchesFilter('loopField', f.label + ' ' + f.field)) {
-                    <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                    <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }} ({{ f.field }})</mat-option>
                     }
                   }
                   <mat-option value="__custom__">-- Custom value --</mat-option>
@@ -689,10 +716,42 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
               <mat-label>Variable Name</mat-label>
               <input matInput [(ngModel)]="cfg['variable_name']" (ngModelChange)="emitChange()" />
             </mat-form-field>
-            <mat-form-field appearance="outline" class="wnc__field">
-              <mat-label>Value</mat-label>
-              <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" [placeholder]="'\u007B\u007Bdata.field\u007D\u007D or literal'" />
-            </mat-form-field>
+            @if (sourceFieldDefs.length > 0) {
+              <mat-form-field appearance="outline" class="wnc__field">
+                <mat-label>Value Source</mat-label>
+                <mat-select [value]="getSetVarSelectValue()" (selectionChange)="onSetVarSourceSelect($event.value)" (openedChange)="onSelectOpen('setVarSrc', $event)">
+                  <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['setVarSrc'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['setVarSrc'] = $any($event.target).value" placeholder="Search..." /></div>
+                  @if (setVarValueMode === 'field' && isUnknownField(setVarFieldPath, sourceFieldDefs)) {
+                    <mat-option [value]="setVarFieldPath" [class.wnc__array-opt]="isArrayField(setVarFieldPath)">@if (isArrayField(setVarFieldPath)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ setVarFieldPath }}</mat-option>
+                  }
+                  @for (f of sourceFieldDefs; track f.field) {
+                    @if (matchesFilter('setVarSrc', f.label + ' ' + f.field)) {
+                    <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
+                    }
+                  }
+                  <mat-option value="__static__"><mat-icon class="wnc__opt-icon">text_fields</mat-icon> Static value</mat-option>
+                  <mat-option value="__template__"><mat-icon class="wnc__opt-icon">code</mat-icon> Template</mat-option>
+                </mat-select>
+              </mat-form-field>
+              @if (setVarValueMode === 'static') {
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Static Value</mat-label>
+                  <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" placeholder="Enter a literal value" />
+                </mat-form-field>
+              }
+              @if (setVarValueMode === 'template') {
+                <mat-form-field appearance="outline" class="wnc__field">
+                  <mat-label>Template</mat-label>
+                  <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" [placeholder]="'e.g. Order {{'{{order_id}}'}} from {{'{{customer}}'}}'" />
+                  <mat-hint>Use {{'{{ field_name }}'}} to insert field references</mat-hint>
+                </mat-form-field>
+              }
+            } @else {
+              <mat-form-field appearance="outline" class="wnc__field">
+                <mat-label>Value</mat-label>
+                <input matInput [(ngModel)]="cfg['value']" (ngModelChange)="emitChange()" [placeholder]="'\u007B\u007Bdata.field\u007D\u007D or literal'" />
+              </mat-form-field>
+            }
           }
 
           <!-- MERGE -->
@@ -883,9 +942,12 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .wnc__mc-add-fx { font-size: 11px; color: #1565c0; padding: 0 4px; min-height: 24px; line-height: 24px; margin-top: 2px; }
     .wnc__mc-add-fx mat-icon { margin-right: 2px; vertical-align: middle; }
 
+    /* Set Variable option icons */
+    ::ng-deep .wnc__opt-icon { font-size: 18px !important; height: 18px !important; width: 18px !important; color: #666; margin-right: 6px; vertical-align: middle; }
+
     /* Array field indicator in mat-option */
-    ::ng-deep .wnc__array-opt { border-left: 3px solid #7c4dff; }
-    ::ng-deep .wnc__arr-icon { font-size: 14px !important; height: 14px !important; width: 14px !important; color: #7c4dff; margin-right: 6px; vertical-align: middle; }
+    ::ng-deep .wnc__array-opt { border-left: 3px solid #1565c0; }
+    ::ng-deep .wnc__arr-icon { font-size: 14px !important; height: 14px !important; width: 14px !important; color: #1565c0; margin-right: 6px; vertical-align: middle; }
 
     /* Search inside mat-select dropdowns */
     ::ng-deep .wnc__search-wrap { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 1; background: #fff; }
@@ -923,6 +985,8 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   loadingCredentialNames = false;
   httpBodyJson = '';
   responseBodyJson = '';
+  setVarValueMode: 'field' | 'static' | 'template' = 'static';
+  setVarFieldPath = '';
   selectFilter: Record<string, string> = {};
   private _lastNodeId = '';
   private _selfEmit = false;
@@ -955,6 +1019,9 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       }
       if (this.node.type === 'response') {
         try { this.responseBodyJson = JSON.stringify(this.cfg['body'] || {}, null, 2); } catch { this.responseBodyJson = '{}'; }
+      }
+      if (this.node.type === 'set_variable') {
+        this.detectSetVarValueMode();
       }
     }
   }
@@ -1106,6 +1173,11 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     return ['exists', 'not_exists', 'is_empty', 'is_not_empty'].includes(op);
   }
 
+  isUnknownField(value: unknown, defs: ConnectorFieldDef[]): boolean {
+    if (!value || value === '__custom__' || typeof value !== 'string') return false;
+    return !defs.some(f => f.field === value);
+  }
+
   // ── Trigger ──
 
   onTriggerConnectorChange(): void {
@@ -1227,6 +1299,48 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     this.emitChange();
   }
 
+  // ── Set Variable ──
+
+  private detectSetVarValueMode(): void {
+    const val = (this.cfg['value'] as string) || '';
+    const singleRef = /^\{\{\s*([^}]+?)\s*\}\}$/.exec(val);
+    if (singleRef) {
+      this.setVarValueMode = 'field';
+      this.setVarFieldPath = singleRef[1].trim();
+    } else if (val.includes('{{')) {
+      this.setVarValueMode = 'template';
+      this.setVarFieldPath = '';
+    } else {
+      this.setVarValueMode = 'static';
+      this.setVarFieldPath = '';
+    }
+  }
+
+  onSetVarSourceSelect(value: string): void {
+    if (value === '__static__') {
+      this.setVarValueMode = 'static';
+      this.setVarFieldPath = '';
+      this.cfg['value'] = '';
+      this.emitChange();
+    } else if (value === '__template__') {
+      this.setVarValueMode = 'template';
+      this.setVarFieldPath = '';
+      this.cfg['value'] = this.cfg['value'] || '';
+      this.emitChange();
+    } else {
+      this.setVarValueMode = 'field';
+      this.setVarFieldPath = value;
+      this.cfg['value'] = `{{${value}}}`;
+      this.emitChange();
+    }
+  }
+
+  getSetVarSelectValue(): string {
+    if (this.setVarValueMode === 'static') return '__static__';
+    if (this.setVarValueMode === 'template') return '__template__';
+    return this.setVarFieldPath;
+  }
+
   // ── Type helpers ──
 
   asConditions(val: unknown): ConditionRule[] {
@@ -1346,6 +1460,24 @@ export class WorkflowNodeConfigComponent implements OnChanges {
         }
       } catch {
         // invalid JSON — skip
+      }
+    }
+
+    const setVarNodes = this.allNodes.filter(
+      n => n.type === 'set_variable' && n.id !== this.node?.id,
+    );
+    for (const sv of setVarNodes) {
+      const varName = sv.config['variable_name'] as string;
+      if (!varName) continue;
+      const fieldPath = `vars.${varName}`;
+      if (!seen.has(fieldPath)) {
+        seen.add(fieldPath);
+        const displayLabel = sv.label || 'Set Variable';
+        fields.push({
+          field: fieldPath,
+          label: `[${displayLabel}] ${varName}`,
+          type: 'string',
+        });
       }
     }
 
