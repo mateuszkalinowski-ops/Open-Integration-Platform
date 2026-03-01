@@ -37,11 +37,14 @@ wms_client = PinquarkWmsClient()
 event_poller = EventPoller(wms_client)
 
 
-async def _auto_register_credentials() -> None:
-    """Fetch WMS credentials from platform vault for active workflows/flows."""
-    await asyncio.sleep(10)
+_CREDENTIAL_REFRESH_INTERVAL = 300
+
+
+async def _fetch_credentials_once() -> int:
+    """Fetch WMS credentials from platform vault. Returns count of accounts registered."""
     if not settings.platform_api_url:
-        return
+        return 0
+    registered = 0
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(
@@ -60,6 +63,7 @@ async def _auto_register_credentials() -> None:
                                 password=creds_data.get("password", ""),
                             )
                             event_poller.register_credentials(name, creds)
+                            registered += 1
                 elif isinstance(accounts, dict) and accounts.get("api_url"):
                     creds = WmsCredentials(
                         api_url=accounts["api_url"],
@@ -67,20 +71,35 @@ async def _auto_register_credentials() -> None:
                         password=accounts.get("password", ""),
                     )
                     event_poller.register_credentials("default", creds)
+                    registered = 1
+                logger.info(
+                    "Credential refresh: %d account(s) registered from platform",
+                    registered,
+                )
             else:
-                logger.debug(
-                    "No credentials from platform (HTTP %d), poller will wait for manual registration",
+                logger.info(
+                    "No credentials from platform (HTTP %d), poller waiting",
                     resp.status_code,
                 )
     except Exception:
-        logger.debug("Could not auto-register credentials from platform", exc_info=True)
+        logger.warning("Could not fetch credentials from platform", exc_info=True)
+    return registered
+
+
+async def _credential_refresh_loop() -> None:
+    """Periodically re-fetch credentials so new ones are picked up without restart."""
+    await asyncio.sleep(10)
+    while True:
+        await _fetch_credentials_once()
+        await asyncio.sleep(_CREDENTIAL_REFRESH_INTERVAL)
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await event_poller.start()
-    asyncio.create_task(_auto_register_credentials())
+    cred_task = asyncio.create_task(_credential_refresh_loop())
     yield
+    cred_task.cancel()
     await event_poller.stop()
     await wms_client.close()
 
@@ -582,3 +601,19 @@ async def poller_status() -> dict[str, Any]:
         "initialized_entities": list(event_poller._initialized),
         "platform_url": settings.platform_api_url,
     }
+
+
+@app.post("/poller/reset", tags=["poller"])
+async def poller_reset() -> dict[str, str]:
+    """Reset poller state so the next cycle treats all entities as new."""
+    event_poller.reset_state()
+    return {"status": "reset", "message": "Next poll cycle will emit events for all entities"}
+
+
+@app.post("/poller/poll-now", tags=["poller"])
+async def poller_poll_now() -> dict[str, str]:
+    """Trigger an immediate poll cycle (does not wait for result)."""
+    if not event_poller._running:
+        raise HTTPException(status_code=400, detail="Poller is not running")
+    asyncio.create_task(event_poller._poll_cycle())
+    return {"status": "triggered", "message": "Poll cycle started"}

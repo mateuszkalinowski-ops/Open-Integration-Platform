@@ -96,11 +96,22 @@ class EventPoller:
             await self._poll_cycle()
             await asyncio.sleep(settings.event_polling_interval_seconds)
 
+    def reset_state(self) -> None:
+        """Clear in-memory state so next poll treats everything as new."""
+        self._state.clear()
+        self._initialized.clear()
+        logger.info("Poller state reset — next cycle will emit events for all entities")
+
     async def _poll_cycle(self) -> None:
         if not self._credential_store:
-            logger.debug("No credentials registered, skipping poll cycle")
+            logger.info("No credentials registered, skipping poll cycle")
             return
 
+        logger.info(
+            "Poll cycle starting for %d account(s): %s",
+            len(self._credential_store),
+            ", ".join(self._credential_store.keys()),
+        )
         for account_name, creds in list(self._credential_store.items()):
             try:
                 await self._poll_account(account_name, creds)
@@ -133,10 +144,14 @@ class EventPoller:
         try:
             data, status = await fetch_fn(creds)
         except Exception:
-            logger.debug("Failed to fetch %ss for account=%s", entity_type, account_name)
+            logger.warning("Failed to fetch %ss for account=%s", entity_type, account_name, exc_info=True)
             return
 
-        if status >= 400 or not isinstance(data, list):
+        if status >= 400:
+            logger.warning("Fetch %ss returned HTTP %d for account=%s", entity_type, status, account_name)
+            return
+        if not isinstance(data, list):
+            logger.warning("Fetch %ss returned non-list (%s) for account=%s", entity_type, type(data).__name__, account_name)
             return
 
         state_key = f"{account_name}:{entity_type}"
@@ -163,11 +178,18 @@ class EventPoller:
         self._state[state_key] = new_state
         self._initialized.add(state_key)
 
-        if events_emitted > 0:
+        if is_first_run:
+            logger.info(
+                "Baseline snapshot: %d %s(s) for account=%s (events start from next cycle)",
+                len(data), entity_type, account_name,
+            )
+        elif events_emitted > 0:
             logger.info(
                 "Emitted %d %s events for account=%s",
                 events_emitted, event_name, account_name,
             )
+        else:
+            logger.info("No changes in %s for account=%s (%d items)", entity_type, account_name, len(data))
 
     async def _poll_positions(self, account_name: str, creds: WmsCredentials) -> None:
         try:
@@ -248,7 +270,7 @@ class EventPoller:
 
     async def _emit_event(self, event_name: str, data: dict[str, Any]) -> None:
         if not settings.platform_api_url or not self._http_client:
-            logger.debug("Platform URL not configured, event %s not sent", event_name)
+            logger.warning("Platform URL not configured, event %s not sent", event_name)
             return
 
         payload = {
@@ -263,11 +285,17 @@ class EventPoller:
                 json=payload,
             )
             if resp.status_code < 300:
-                logger.debug("Event %s sent to platform (HTTP %d)", event_name, resp.status_code)
+                resp_body = resp.json()
+                logger.info(
+                    "Event %s -> platform: flows=%s workflows=%s",
+                    event_name,
+                    resp_body.get("flows_triggered", "?"),
+                    resp_body.get("workflows_triggered", "?"),
+                )
             else:
-                logger.warning(
+                logger.error(
                     "Platform rejected event %s: HTTP %d %s",
-                    event_name, resp.status_code, resp.text[:200],
+                    event_name, resp.status_code, resp.text[:300],
                 )
         except Exception:
-            logger.debug("Failed to send event %s to platform", event_name, exc_info=True)
+            logger.error("Failed to send event %s to platform", event_name, exc_info=True)
