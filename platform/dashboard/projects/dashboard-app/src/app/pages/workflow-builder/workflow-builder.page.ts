@@ -167,6 +167,7 @@ import {
                       [node]="selectedNode"
                       [connectors]="connectors"
                       [allNodes]="nodes"
+                      [allEdges]="edges"
                       (nodeChange)="onNodeConfigChange($event)"
                       (close)="closeRightPanel()"
                     ></pinquark-workflow-node-config>

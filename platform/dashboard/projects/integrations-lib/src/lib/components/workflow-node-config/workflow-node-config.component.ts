@@ -14,6 +14,7 @@ import {
   Connector,
   ConnectorFieldDef,
   WorkflowNode,
+  WorkflowEdge,
   CONDITION_OPERATORS,
   TRANSFORM_TYPES,
   NODE_TYPE_DEFINITIONS,
@@ -975,6 +976,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   @Input() node: WorkflowNode | null = null;
   @Input() connectors: Connector[] = [];
   @Input() allNodes: WorkflowNode[] = [];
+  @Input() allEdges: WorkflowEdge[] = [];
   @Output() nodeChange = new EventEmitter<WorkflowNode>();
   @Output() close = new EventEmitter<void>();
 
@@ -1390,9 +1392,28 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
   }
 
+  private getUpstreamNodeIds(): Set<string> {
+    if (!this.node || this.allEdges.length === 0) {
+      return new Set(this.allNodes.map(n => n.id));
+    }
+    const upstream = new Set<string>();
+    const queue = [this.node.id];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const edge of this.allEdges) {
+        if (edge.target === current && !upstream.has(edge.source)) {
+          upstream.add(edge.source);
+          queue.push(edge.source);
+        }
+      }
+    }
+    return upstream;
+  }
+
   private getSourceFieldsFromTriggers(): ConnectorFieldDef[] {
     const fields: ConnectorFieldDef[] = [];
     const seen = new Set<string>();
+    const upstreamIds = this.getUpstreamNodeIds();
 
     const triggerNodes = this.allNodes.filter(n => n.type === 'trigger');
     for (const tn of triggerNodes) {
@@ -1411,7 +1432,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
 
     const actionNodes = this.allNodes.filter(
-      n => n.type === 'action' && n.id !== this.node?.id,
+      n => n.type === 'action' && n.id !== this.node?.id && upstreamIds.has(n.id),
     );
     for (const an of actionNodes) {
       const connectorName = an.config['connector_name'] as string;
@@ -1437,7 +1458,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
 
     const thinkNodes = this.allNodes.filter(
-      n => n.type === 'think' && n.id !== this.node?.id,
+      n => n.type === 'think' && n.id !== this.node?.id && upstreamIds.has(n.id),
     );
     for (const tn of thinkNodes) {
       const schemaJson = tn.config['output_schema_json'] as string;
@@ -1466,7 +1487,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
 
     const setVarNodes = this.allNodes.filter(
-      n => n.type === 'set_variable' && n.id !== this.node?.id,
+      n => n.type === 'set_variable' && n.id !== this.node?.id && upstreamIds.has(n.id),
     );
     for (const sv of setVarNodes) {
       const varName = sv.config['variable_name'] as string;
@@ -1484,7 +1505,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
 
     const httpNodes = this.allNodes.filter(
-      n => n.type === 'http_request' && n.id !== this.node?.id,
+      n => n.type === 'http_request' && n.id !== this.node?.id && upstreamIds.has(n.id),
     );
     for (const hn of httpNodes) {
       const displayLabel = hn.label || hn.id;
@@ -1502,7 +1523,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     }
 
     const loopNodes = this.allNodes.filter(
-      n => n.type === 'loop' && n.id !== this.node?.id,
+      n => n.type === 'loop' && n.id !== this.node?.id && upstreamIds.has(n.id),
     );
     for (const ln of loopNodes) {
       const itemVar = ln.config['item_variable'] as string;
