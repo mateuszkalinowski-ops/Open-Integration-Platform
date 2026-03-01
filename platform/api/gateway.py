@@ -616,12 +616,43 @@ async def store_credentials(
                 )
 
     await db.commit()
+
+    account_provisioned = False
+    manifests = registry.get_by_name(body.connector_name)
+    if manifests:
+        manifest = manifests[0]
+        provisioning = manifest.credential_provisioning
+        if provisioning and provisioning.get("mode") == "account":
+            try:
+                creds = await vault.retrieve_all(
+                    db, tenant.id, body.connector_name,
+                    credential_name=body.credential_name,
+                )
+                if creds:
+                    if "account_name" not in creds:
+                        creds["account_name"] = body.credential_name
+                    base_url = manifest.base_url
+                    await _ensure_account_generic(base_url, creds, provisioning, force_update=True)
+                    account_provisioned = True
+                    await logger.ainfo(
+                        "credential_account_reprovisioned",
+                        connector=body.connector_name,
+                        credential=body.credential_name,
+                    )
+            except Exception:
+                await logger.aexception(
+                    "credential_account_reprovision_failed",
+                    connector=body.connector_name,
+                    credential=body.credential_name,
+                )
+
     return {
         "status": "stored",
         "connector": body.connector_name,
         "credential_name": body.credential_name,
         "keys": list(body.credentials.keys()),
         "workflows_updated": workflows_updated,
+        "account_provisioned": account_provisioned,
     }
 
 

@@ -118,37 +118,46 @@ async def _ensure_account_generic(
     base_url: str,
     credentials: dict[str, str],
     provisioning: dict,
+    *,
+    force_update: bool = False,
 ) -> str:
     """Generic account provisioning driven by credential_provisioning config."""
     mapping = provisioning.get("credential_mapping", {})
     account_endpoint = provisioning.get("account_endpoint", "/accounts")
-    payload_field = provisioning.get("payload_field", "account_name")
 
     account_name = credentials.get("account_name", "default")
+    account_payload = _apply_credential_mapping(credentials, mapping)
+
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.get(f"{base_url}{account_endpoint}")
         existing = resp.json() if resp.status_code == 200 else []
-        for acc in existing:
-            if acc.get("name") == account_name:
-                return account_name
+        already_exists = any(acc.get("name") == account_name for acc in existing)
 
-        account_payload = _apply_credential_mapping(credentials, mapping)
-        resp = await client.post(
-            f"{base_url}{account_endpoint}", json=account_payload
-        )
-        if resp.status_code < 300:
-            await logger.ainfo(
-                "account_provisioned",
-                account=account_name,
-                endpoint=account_endpoint,
+        if already_exists and force_update:
+            resp = await client.put(
+                f"{base_url}{account_endpoint}/{account_name}",
+                json=account_payload,
             )
+            if resp.status_code < 300:
+                await logger.ainfo("account_updated", account=account_name)
+            else:
+                await logger.awarning(
+                    "account_update_failed", account=account_name,
+                    status=resp.status_code, body=resp.text[:200],
+                )
+        elif already_exists:
+            return account_name
         else:
-            await logger.awarning(
-                "account_provision_failed",
-                account=account_name,
-                status=resp.status_code,
-                body=resp.text[:200],
+            resp = await client.post(
+                f"{base_url}{account_endpoint}", json=account_payload
             )
+            if resp.status_code < 300:
+                await logger.ainfo("account_provisioned", account=account_name)
+            else:
+                await logger.awarning(
+                    "account_provision_failed", account=account_name,
+                    status=resp.status_code, body=resp.text[:200],
+                )
     return account_name
 
 

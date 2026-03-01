@@ -130,6 +130,15 @@ async def add_account(req: AccountCreateRequest) -> dict[str, str]:
     return {"status": "created", "name": account.name}
 
 
+@router.put("/accounts/{account_name}")
+async def update_account(account_name: str, req: AccountCreateRequest) -> dict[str, str]:
+    app_state.account_manager.remove_account(account_name)
+    app_state.integration.reset_client(account_name)
+    account = SkanujFaktureAccountConfig(**req.model_dump())
+    app_state.account_manager.add_account(account)
+    return {"status": "updated", "name": account.name}
+
+
 @router.delete("/accounts/{account_name}")
 async def remove_account(account_name: str) -> dict[str, str]:
     if not app_state.account_manager.remove_account(account_name):
