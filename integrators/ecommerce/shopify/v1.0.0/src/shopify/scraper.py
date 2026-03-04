@@ -17,7 +17,7 @@ from src.shopify.schemas import ShopifyOrder, ShopifyOrdersResponse
 from src.config import ShopifyAccountConfig, settings
 from src.models.database import TokenStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -159,9 +159,15 @@ class OrderScraper:
         order = map_shopify_order_to_order(shopify_order, account.name)
 
         if self._kafka:
+            envelope = wrap_event(
+                connector_name="shopify",
+                event="order.created",
+                data=order.model_dump(mode="json"),
+                account_name=account.name,
+            )
             await self._kafka.send(
                 settings.kafka_topic_orders_out,
-                order.model_dump(mode="json"),
+                envelope,
                 key=order.external_id,
             )
             logger.info(

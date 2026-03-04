@@ -9,7 +9,7 @@ from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.baselinker.client import BaseLinkerClient
 from src.baselinker.mapper import map_bl_order_to_order, map_bl_product_to_product
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -105,9 +105,15 @@ class BaseLinkerScraper:
             if od.get("order_id") in order_ids:
                 order = map_bl_order_to_order(od, account.name, status_defs)
                 if self._kafka:
+                    envelope = wrap_event(
+                        connector_name="baselinker",
+                        event="order.created",
+                        data=order.model_dump(mode="json"),
+                        account_name=account.name,
+                    )
                     await self._kafka.send(
                         settings.kafka_topic_orders_out,
-                        order.model_dump(mode="json"),
+                        envelope,
                         key=order.external_id,
                     )
                 published += 1

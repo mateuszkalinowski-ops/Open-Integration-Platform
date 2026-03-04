@@ -12,7 +12,7 @@ from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.skanuj_fakture.client import SkanujFaktureClient
 from src.skanuj_fakture.schemas import Document
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -128,9 +128,15 @@ class DocumentPoller:
         event["polled_at"] = datetime.now(timezone.utc).isoformat()
 
         if self._kafka_producer:
+            envelope = wrap_event(
+                connector_name="skanuj-fakture",
+                event="document.scanned",
+                data=event,
+                account_name=account_name,
+            )
             await self._kafka_producer.send(
                 settings.kafka_topic_documents_scanned,
-                value=event,
+                value=envelope,
                 key=str(event.get("document_id", "")),
             )
 

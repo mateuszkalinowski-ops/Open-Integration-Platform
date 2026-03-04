@@ -1,5 +1,6 @@
 """Configuration for the Pinquark WMS connector."""
 
+from pydantic import Field
 from pydantic_settings import BaseSettings
 
 
@@ -21,6 +22,15 @@ class Settings(BaseSettings):
 
     platform_api_url: str = "http://platform:8080"
     platform_event_notify: bool = True
+
+    kafka_enabled: bool = Field(default=False, alias="KAFKA_ENABLED")
+    kafka_bootstrap_servers: str = Field(default="kafka:9092", alias="KAFKA_BOOTSTRAP_SERVERS")
+    kafka_security_protocol: str = Field(default="PLAINTEXT", alias="KAFKA_SECURITY_PROTOCOL")
+    kafka_topic_documents: str = "wms.output.wms.documents.synced"
+    kafka_topic_articles: str = "wms.output.wms.articles.synced"
+    kafka_topic_contractors: str = "wms.output.wms.contractors.synced"
+    kafka_topic_positions: str = "wms.output.wms.positions.synced"
+    kafka_topic_feedbacks: str = "wms.output.wms.feedbacks.received"
 
     log_level: str = "INFO"
 

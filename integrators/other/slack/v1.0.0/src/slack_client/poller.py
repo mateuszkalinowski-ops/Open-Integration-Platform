@@ -8,7 +8,7 @@ from src.services.account_manager import AccountManager
 from src.slack_client.client import SlackClient
 from src.slack_client.schemas import SlackMessage
 from src.models.database import StateStore
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -99,9 +99,15 @@ class MessagePoller:
                 )
 
                 if self._kafka:
+                    envelope = wrap_event(
+                        connector_name="slack",
+                        event="message.received",
+                        data=message.model_dump(mode="json"),
+                        account_name=account_name,
+                    )
                     await self._kafka.send(
                         settings.kafka_topic_messages_received,
-                        message.model_dump(mode="json"),
+                        envelope,
                         key=f"{channel_id}:{ts}",
                     )
                 else:

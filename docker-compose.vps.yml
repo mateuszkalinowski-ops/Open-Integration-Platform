@@ -26,12 +26,17 @@ services:
       APP_ENV: production
       LOG_LEVEL: INFO
       DEMO_MODE: ${DEMO_MODE:-false}
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     volumes:
       - ./integrators:/integrators:ro
     depends_on:
       postgres:
         condition: service_healthy
       redis:
+        condition: service_healthy
+      kafka:
         condition: service_healthy
     restart: unless-stopped
     healthcheck:
@@ -52,6 +57,29 @@ services:
     restart: unless-stopped
 
   # --- Infrastructure ---
+  kafka:
+    image: apache/kafka:3.7.0
+    environment:
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
+      KAFKA_LOG_RETENTION_HOURS: 168
+      CLUSTER_ID: "oip-vps-kafka-cluster-01"
+    volumes:
+      - kafkadata:/var/lib/kafka/data
+    healthcheck:
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
   postgres:
     image: postgres:16-alpine
     ports:
@@ -104,7 +132,7 @@ services:
       timeout: 5s
       retries: 3
 
-  # --- Connectors (minimal set for testing) ---
+  # --- Connectors ---
   connector-inpost-v3:
     image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v3:latest
     environment:
@@ -128,8 +156,12 @@ services:
     environment:
       APP_ENV: production
       APP_PORT: 8000
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-baselinker:
@@ -138,9 +170,12 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       BASELINKER_SCRAPING_ENABLED: "false"
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-shopify:
@@ -149,9 +184,12 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       SHOPIFY_SCRAPING_ENABLED: "false"
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-fxcouriers:
@@ -173,8 +211,12 @@ services:
       PINQUARK_WMS_EVENT_POLLING_INTERVAL_SECONDS: "120"
       PINQUARK_WMS_PLATFORM_API_URL: http://platform:8080
       PINQUARK_WMS_PLATFORM_EVENT_NOTIFY: "true"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-email-client:
@@ -184,12 +226,15 @@ services:
       APP_PORT: 8000
       EMAIL_POLLING_ENABLED: "true"
       EMAIL_POLLING_INTERVAL_SECONDS: "60"
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_API_KEY: ${PINQUARK_CONNECTOR_API_KEY:-}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-skanuj-fakture:
@@ -197,12 +242,15 @@ services:
     environment:
       APP_ENV: production
       APP_PORT: 8000
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       POLLING_INTERVAL_SECONDS: "60"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-ftp-sftp:
@@ -211,11 +259,14 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       FTP_POLLING_ENABLED: "false"
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-slack:
@@ -224,9 +275,12 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       SLACK_POLLING_ENABLED: "false"
-      KAFKA_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
     depends_on:
       - platform
+      - kafka
     restart: unless-stopped
 
   connector-bulkgate:
@@ -234,7 +288,251 @@ services:
     environment:
       APP_ENV: production
       APP_PORT: 8000
-      KAFKA_ENABLED: "false"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-ai-agent:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-ai-agent:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  # --- Courier Connectors ---
+  connector-inpost-v1:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v1:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-inpost-v2:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v2:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-dhl-express:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-dhl-express:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-dpd:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-dpd:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-fedex:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-fedex:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-fedexpl:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-fedexpl:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-geis:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-geis:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-gls:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-gls:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-orlenpaczka:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-orlenpaczka:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-packeta:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-packeta:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-paxy:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-paxy:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-pocztapolska:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-pocztapolska:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-schenker:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-schenker:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-sellasist:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-sellasist:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-suus:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-suus:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-ups:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-ups:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-raben:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-raben:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  # --- E-commerce Connectors ---
+  connector-shoper:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-shoper:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      SHOPER_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    depends_on:
+      - platform
+      - kafka
+    restart: unless-stopped
+
+  connector-idosell:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-idosell:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      IDOSELL_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    depends_on:
+      - platform
+      - kafka
+    restart: unless-stopped
+
+  connector-woocommerce:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-woocommerce:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      WOOCOMMERCE_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    depends_on:
+      - platform
+      - kafka
+    restart: unless-stopped
+
+  connector-amazon:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-amazon:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      AMAZON_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    depends_on:
+      - platform
+      - kafka
+    restart: unless-stopped
+
+  connector-apilo:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-apilo:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      APILO_SCRAPING_ENABLED: "false"
+      KAFKA_ENABLED: "true"
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+    depends_on:
+      - platform
+      - kafka
+    restart: unless-stopped
+
+  # --- ERP Connector ---
+  connector-insert-nexo:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-insert-nexo:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      NEXO_CONNECTOR_LOG_LEVEL: INFO
     depends_on:
       - platform
     restart: unless-stopped
@@ -242,3 +540,4 @@ services:
 volumes:
   pgdata:
   redisdata:
+  kafkadata:

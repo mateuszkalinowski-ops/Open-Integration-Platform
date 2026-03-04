@@ -9,7 +9,7 @@ from src.config import settings
 from src.ftp_client.client import FtpSftpClient
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -96,9 +96,15 @@ class FilePoller:
         }
 
         if self._kafka_producer:
+            envelope = wrap_event(
+                connector_name="ftp-sftp",
+                event="file.new",
+                data=event_data,
+                account_name=account_name,
+            )
             await self._kafka_producer.send(
                 settings.kafka_topic_file_new,
-                event_data,
+                envelope,
                 key=account_name,
             )
             logger.debug("Published file.new event to Kafka: %s", file_info.filename)

@@ -10,14 +10,25 @@ from src.allegro.schemas import (
     AllegroCheckoutForm,
     AllegroOrderEvent,
     AllegroOrderEventsResponse,
+    OrderEventType,
     PROCESSABLE_EVENT_TYPES,
 )
 from src.config import AllegroAccountConfig, settings
 from src.models.database import TokenStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
+
+ALLEGRO_EVENT_TYPE_MAP: dict[OrderEventType, str] = {
+    OrderEventType.READY_FOR_PROCESSING: "order.ready_for_processing",
+    OrderEventType.BUYER_CANCELLED: "order.buyer_cancelled",
+    OrderEventType.AUTO_CANCELLED: "order.auto_cancelled",
+    OrderEventType.BUYER_MODIFIED: "order.buyer_modified",
+    OrderEventType.BOUGHT: "order.bought",
+    OrderEventType.FILLED_IN: "order.filled_in",
+    OrderEventType.FULFILLMENT_STATUS_CHANGED: "order.status_changed",
+}
 
 
 class OrderScraper:
@@ -118,15 +129,29 @@ class OrderScraper:
         product_details = await self._fetch_product_details(checkout, account)
         order = map_checkout_to_order(checkout, account.name, product_details)
 
+        event_name = ALLEGRO_EVENT_TYPE_MAP.get(event.type, f"order.{event.type.value.lower()}")
+
         if self._kafka:
+            envelope = wrap_event(
+                connector_name="allegro",
+                event=event_name,
+                data=order.model_dump(mode="json"),
+                account_name=account.name,
+            )
             await self._kafka.send(
                 settings.kafka_topic_orders_out,
-                order.model_dump(mode="json"),
+                envelope,
                 key=order.external_id,
             )
-            logger.info("Published order=%s to Kafka for account=%s", order.external_id, account.name)
+            logger.info(
+                "Published order=%s event=%s to Kafka for account=%s",
+                order.external_id, event_name, account.name,
+            )
         else:
-            logger.info("Order scraped (no Kafka): id=%s account=%s status=%s", order.external_id, account.name, order.status)
+            logger.info(
+                "Order scraped (no Kafka): id=%s account=%s event=%s status=%s",
+                order.external_id, account.name, event_name, order.status,
+            )
 
     async def _fetch_product_details(
         self,

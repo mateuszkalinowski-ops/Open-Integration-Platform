@@ -29,12 +29,15 @@ from src.schemas import (
     PositionWrapper,
     WmsCredentials,
 )
+from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger("pinquark-wms")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
 
 wms_client = PinquarkWmsClient()
-event_poller = EventPoller(wms_client)
+
+_kafka_producer: KafkaMessageProducer | None = None
+event_poller: EventPoller | None = None
 
 
 _CREDENTIAL_REFRESH_INTERVAL = 300
@@ -96,11 +99,24 @@ async def _credential_refresh_loop() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    global _kafka_producer, event_poller
+
+    if settings.kafka_enabled:
+        _kafka_producer = KafkaMessageProducer(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            security_protocol=settings.kafka_security_protocol,
+        )
+        await _kafka_producer.start()
+        logger.info("Kafka producer started: %s", settings.kafka_bootstrap_servers)
+
+    event_poller = EventPoller(wms_client, kafka_producer=_kafka_producer)
     await event_poller.start()
     cred_task = asyncio.create_task(_credential_refresh_loop())
     yield
     cred_task.cancel()
     await event_poller.stop()
+    if _kafka_producer:
+        await _kafka_producer.stop()
     await wms_client.close()
 
 

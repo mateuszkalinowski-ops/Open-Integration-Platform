@@ -2,7 +2,7 @@
 
 Periodically calls GET endpoints for documents, articles, contractors,
 positions, and feedbacks. Compares with previously seen state and emits
-events to the platform via POST /internal/events.
+events to the platform via POST /internal/events and Kafka.
 
 State is stored in-memory keyed by (entity, unique_key). On restart
 the first cycle snapshots current data without emitting events.
@@ -20,8 +20,17 @@ import httpx
 from src.client import PinquarkWmsClient
 from src.config import settings
 from src.schemas import WmsCredentials
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger("pinquark-wms-poller")
+
+EVENT_TOPIC_MAP: dict[str, str] = {
+    "document.synced": settings.kafka_topic_documents,
+    "article.synced": settings.kafka_topic_articles,
+    "contractor.synced": settings.kafka_topic_contractors,
+    "position.synced": settings.kafka_topic_positions,
+    "feedback.received": settings.kafka_topic_feedbacks,
+}
 
 
 def _entity_key(entity: dict[str, Any], entity_type: str) -> str:
@@ -50,8 +59,13 @@ def _content_hash(entity: dict[str, Any]) -> str:
 class EventPoller:
     """Polls Pinquark WMS API for changes and emits events to the platform."""
 
-    def __init__(self, wms_client: PinquarkWmsClient) -> None:
+    def __init__(
+        self,
+        wms_client: PinquarkWmsClient,
+        kafka_producer: KafkaMessageProducer | None = None,
+    ) -> None:
         self._wms_client = wms_client
+        self._kafka_producer = kafka_producer
         self._running = False
         self._task: asyncio.Task[None] | None = None
         self._http_client: httpx.AsyncClient | None = None
@@ -269,33 +283,45 @@ class EventPoller:
             )
 
     async def _emit_event(self, event_name: str, data: dict[str, Any]) -> None:
-        if not settings.platform_api_url or not self._http_client:
-            logger.warning("Platform URL not configured, event %s not sent", event_name)
-            return
+        account_name = data.get("account_name", "")
 
-        payload = {
-            "connector_name": "pinquark-wms",
-            "event": event_name,
-            "data": data,
-        }
-
-        try:
-            resp = await self._http_client.post(
-                f"{settings.platform_api_url}/internal/events",
-                json=payload,
+        if self._kafka_producer:
+            topic = EVENT_TOPIC_MAP.get(event_name, f"wms.output.wms.{event_name}")
+            envelope = wrap_event(
+                connector_name="pinquark-wms",
+                event=event_name,
+                data=data,
+                account_name=account_name,
             )
-            if resp.status_code < 300:
-                resp_body = resp.json()
-                logger.info(
-                    "Event %s -> platform: flows=%s workflows=%s",
-                    event_name,
-                    resp_body.get("flows_triggered", "?"),
-                    resp_body.get("workflows_triggered", "?"),
+            try:
+                await self._kafka_producer.send(topic, envelope, key=account_name or None)
+                logger.debug("Published %s to Kafka topic=%s", event_name, topic)
+            except Exception:
+                logger.error("Failed to publish %s to Kafka", event_name, exc_info=True)
+
+        if settings.platform_event_notify and settings.platform_api_url and self._http_client:
+            payload = {
+                "connector_name": "pinquark-wms",
+                "event": event_name,
+                "data": data,
+            }
+            try:
+                resp = await self._http_client.post(
+                    f"{settings.platform_api_url}/internal/events",
+                    json=payload,
                 )
-            else:
-                logger.error(
-                    "Platform rejected event %s: HTTP %d %s",
-                    event_name, resp.status_code, resp.text[:300],
-                )
-        except Exception:
-            logger.error("Failed to send event %s to platform", event_name, exc_info=True)
+                if resp.status_code < 300:
+                    resp_body = resp.json()
+                    logger.info(
+                        "Event %s -> platform: flows=%s workflows=%s",
+                        event_name,
+                        resp_body.get("flows_triggered", "?"),
+                        resp_body.get("workflows_triggered", "?"),
+                    )
+                else:
+                    logger.error(
+                        "Platform rejected event %s: HTTP %d %s",
+                        event_name, resp.status_code, resp.text[:300],
+                    )
+            except Exception:
+                logger.error("Failed to send event %s to platform", event_name, exc_info=True)

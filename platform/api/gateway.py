@@ -264,8 +264,35 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     asyncio.create_task(_provision_trigger_accounts())
 
+    # Kafka Event Bridge — consume events from Kafka and trigger workflows/flows
+    kafka_bridge = None
+    if settings.kafka_enabled:
+        from core.kafka_event_consumer import KafkaEventBridge
+
+        kafka_bridge = KafkaEventBridge(
+            bootstrap_servers=settings.kafka_bootstrap_servers,
+            group_id=settings.kafka_consumer_group,
+            topics=settings.kafka_event_topics,
+            security_protocol=settings.kafka_security_protocol,
+            session_factory=async_session_factory,
+            workflow_engine=workflow_engine,
+            flow_engine=flow_engine,
+        )
+        try:
+            await kafka_bridge.start()
+            await logger.ainfo(
+                "kafka_event_bridge_started",
+                topics=settings.kafka_event_topics,
+                bootstrap_servers=settings.kafka_bootstrap_servers,
+            )
+        except Exception:
+            await logger.aexception("kafka_event_bridge_start_failed")
+            kafka_bridge = None
+
     yield
 
+    if kafka_bridge:
+        await kafka_bridge.stop()
     await close_redis()
     await logger.ainfo("redis_disconnected")
 

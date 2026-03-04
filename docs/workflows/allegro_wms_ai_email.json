@@ -1,0 +1,132 @@
+{
+  "name": "Allegro → Pinquark WMS + AI Email",
+  "description": "When a new Allegro order is ready for processing: create contractor and WZ document in Pinquark WMS, generate a personalized behavioral email via AI, and send it to the buyer.",
+  "is_enabled": true,
+  "nodes": [
+    {
+      "id": "trigger",
+      "type": "trigger",
+      "label": "Nowe zamówienie Allegro",
+      "position": { "x": 100, "y": 300 },
+      "config": {
+        "connector_name": "allegro",
+        "event": "order.ready_for_processing",
+        "credential_name": "default"
+      }
+    },
+    {
+      "id": "create_contractor",
+      "type": "action",
+      "label": "Utwórz kontrahenta w WMS",
+      "position": { "x": 500, "y": 300 },
+      "config": {
+        "connector_name": "pinquark-wms",
+        "action": "contractor.create",
+        "credential_name": "default",
+        "field_mapping": [
+          { "from": "buyer.external_id", "to": "erpId" },
+          { "from": "buyer.first_name", "to": "name", "transform": "{{buyer.first_name}} {{buyer.last_name}}" },
+          { "from": "buyer.email", "to": "email" },
+          { "from": "delivery_address.phone", "to": "phone" },
+          { "from": "__custom__", "from_custom": "allegro", "to": "source" },
+          { "from": "buyer.external_id", "to": "symbol" }
+        ]
+      }
+    },
+    {
+      "id": "create_document",
+      "type": "action",
+      "label": "Utwórz dokument WZ w WMS",
+      "position": { "x": 900, "y": 300 },
+      "config": {
+        "connector_name": "pinquark-wms",
+        "action": "document.create",
+        "credential_name": "default",
+        "field_mapping": [
+          { "from": "external_id", "to": "erpId" },
+          { "from": "__custom__", "from_custom": "WZ", "to": "documentType" },
+          { "from": "__custom__", "from_custom": "allegro", "to": "source" },
+          { "from": "external_id", "to": "symbol", "transform": "ALG-{{external_id}}" },
+          { "from": "buyer.external_id", "to": "contractor.erpId" },
+          { "from": "__custom__", "from_custom": "allegro", "to": "contractor.source" },
+          { "from": "buyer.first_name", "to": "contractor.name", "transform": "{{buyer.first_name}} {{buyer.last_name}}" },
+          { "from": "buyer.email", "to": "contractor.email" },
+          { "from": "lines", "to": "positions", "transform_array": {
+            "from": "lines[]",
+            "to": "positions[]",
+            "field_mapping": [
+              { "from": "lines[].sku", "to": "positions[].article.erpId" },
+              { "from": "lines[].name", "to": "positions[].article.name" },
+              { "from": "lines[].sku", "to": "positions[].article.symbol" },
+              { "from": "lines[].ean", "to": "positions[].article.ean" },
+              { "from": "lines[].quantity", "to": "positions[].quantity" },
+              { "from": "lines[].unit", "to": "positions[].article.unit" },
+              { "from": "__custom__", "from_custom": "allegro", "to": "positions[].article.source" }
+            ]
+          }}
+        ]
+      }
+    },
+    {
+      "id": "generate_email",
+      "type": "think",
+      "label": "AI: Wygeneruj spersonalizowany email",
+      "position": { "x": 1300, "y": 300 },
+      "config": {
+        "action": "agent.analyze",
+        "credential_name": "default",
+        "prompt": "You are a friendly e-commerce customer service specialist for an online store. A customer just placed an order. Generate a warm, personalized order confirmation email in Polish language.\n\nThe email should:\n1. Address the customer by first name\n2. Confirm the order has been received and is being processed\n3. List the ordered products with quantities and prices\n4. Include a short, creative paragraph about the products they bought — mention why they are great choices, suggest how they might enjoy them, or add a fun fact related to the product category\n5. Mention the total amount and delivery method\n6. End with a warm closing and contact information\n\nCustomer: {{buyer.first_name}} {{buyer.last_name}}\nEmail: {{buyer.email}}\nOrder ID: {{external_id}}\nProducts: {{lines}}\nTotal: {{total_amount}} {{currency}}\nDelivery: {{delivery_method}}\nDelivery address: {{delivery_address.street}}, {{delivery_address.postal_code}} {{delivery_address.city}}",
+        "temperature": 0.7,
+        "output_schema_json": "{\"subject\": \"string\", \"body_html\": \"string\"}",
+        "redact_pii": false
+      }
+    },
+    {
+      "id": "send_email",
+      "type": "action",
+      "label": "Wyślij email do klienta",
+      "position": { "x": 1700, "y": 300 },
+      "config": {
+        "connector_name": "email-client",
+        "action": "email.send",
+        "credential_name": "default",
+        "field_mapping": [
+          { "from": "buyer.email", "to": "to" },
+          { "from": "nodes.generate_email.subject", "to": "subject" },
+          { "from": "nodes.generate_email.body_html", "to": "body_html" },
+          { "from": "__custom__", "from_custom": 3, "to": "priority" }
+        ]
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "edge_1",
+      "source": "trigger",
+      "target": "create_contractor",
+      "source_handle": "default",
+      "target_handle": "default"
+    },
+    {
+      "id": "edge_2",
+      "source": "create_contractor",
+      "target": "create_document",
+      "source_handle": "default",
+      "target_handle": "default"
+    },
+    {
+      "id": "edge_3",
+      "source": "create_document",
+      "target": "generate_email",
+      "source_handle": "default",
+      "target_handle": "default"
+    },
+    {
+      "id": "edge_4",
+      "source": "generate_email",
+      "target": "send_email",
+      "source_handle": "default",
+      "target_handle": "default"
+    }
+  ]
+}

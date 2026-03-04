@@ -1,4 +1,18 @@
+from pydantic import Field
 from pydantic_settings import BaseSettings
+
+KAFKA_DEFAULT_TOPICS: list[str] = [
+    "allegro.output.ecommerce.orders.save",
+    "baselinker.output.ecommerce.orders.save",
+    "shopify.output.ecommerce.orders.save",
+    "email.output.other.emails.received",
+    "skanujfakture.output.other.documents.scanned",
+    "ftp-sftp.output.other.files.new",
+    "slack.output.other.messages.received",
+    "wms.output.wms.documents.synced",
+    "wms.output.wms.articles.synced",
+    "wms.output.wms.contractors.synced",
+]
 
 
 class Settings(BaseSettings):
@@ -31,6 +45,19 @@ class Settings(BaseSettings):
     connector_discovery_path: str = "../integrators"
 
     demo_mode: bool = False
+
+    # Kafka
+    kafka_enabled: bool = Field(default=False, alias="KAFKA_ENABLED")
+    kafka_bootstrap_servers: str = Field(
+        default="kafka:9092", alias="KAFKA_BOOTSTRAP_SERVERS"
+    )
+    kafka_security_protocol: str = Field(
+        default="PLAINTEXT", alias="KAFKA_SECURITY_PROTOCOL"
+    )
+    kafka_consumer_group: str = Field(
+        default="platform-event-bridge", alias="KAFKA_CONSUMER_GROUP"
+    )
+    kafka_event_topics: list[str] = Field(default_factory=lambda: list(KAFKA_DEFAULT_TOPICS))
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
 

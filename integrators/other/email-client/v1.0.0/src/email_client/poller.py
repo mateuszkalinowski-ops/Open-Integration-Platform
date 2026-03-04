@@ -10,7 +10,7 @@ from src.config import EmailAccountConfig, settings
 from src.email_client.imap_client import ImapClient
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -113,9 +113,15 @@ class EmailPoller:
             email_data["account_name"] = account.name
 
             if self._kafka:
+                envelope = wrap_event(
+                    connector_name="email-client",
+                    event="email.received",
+                    data=email_data,
+                    account_name=account.name,
+                )
                 await self._kafka.send(
                     settings.kafka_topic_emails_received,
-                    email_data,
+                    envelope,
                     key=email_msg.message_id or "",
                 )
 
