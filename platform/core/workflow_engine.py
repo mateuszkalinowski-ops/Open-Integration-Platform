@@ -80,14 +80,19 @@ class WorkflowContext:
 
 
 ExecuteActionFn = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
+CredentialResolverFn = Callable[..., Coroutine[Any, Any, tuple[dict[str, str] | None, str]]]
 
 
 class WorkflowEngine:
     def __init__(self) -> None:
         self._action_executor: ExecuteActionFn | None = None
+        self._credential_resolver: CredentialResolverFn | None = None
 
     def set_action_executor(self, fn: ExecuteActionFn) -> None:
         self._action_executor = fn
+
+    def set_credential_resolver(self, fn: CredentialResolverFn) -> None:
+        self._credential_resolver = fn
 
     async def get_workflows_for_event(
         self,
@@ -243,7 +248,7 @@ class WorkflowEngine:
                 output = await self._exec_loop(db, graph, node, config, ctx, workflow, depth)
                 next_handle = "done"
             elif node_type == "http_request":
-                output = await self._exec_http_request(config, ctx)
+                output = await self._exec_http_request(config, ctx, workflow)
             elif node_type == "set_variable":
                 output = self._exec_set_variable(config, ctx)
             elif node_type == "merge":
@@ -437,7 +442,7 @@ class WorkflowEngine:
     ) -> dict[str, Any]:
         array_field = config.get("array_field", "")
         item_var = config.get("item_variable", "item")
-        index_var = config.get("index_variable", "index")
+        index_var = config.get("index_variable") or f"{item_var}.$index"
         max_iterations = min(config.get("max_iterations", 100), 1000)
 
         array_data = self._resolve_value(array_field, ctx)
@@ -569,22 +574,50 @@ class WorkflowEngine:
         return {"aggregated": flat_products, "winner": flat_products[0] if flat_products else None, "total_results": len(flat_products)}
 
     async def _exec_http_request(
-        self, config: dict, ctx: WorkflowContext
+        self, config: dict, ctx: WorkflowContext, workflow: Workflow,
     ) -> dict[str, Any]:
         import httpx
 
-        url = self._interpolate_string(config.get("url", ""), ctx)
+        connector_name = config.get("connector_name", "")
+        credential_name = config.get("credential_name", "default")
+        if not connector_name:
+            raise WorkflowError("HTTP Request node requires connector_name")
+
+        creds: dict[str, str] | None = None
+        base_url = f"http://connector-{connector_name}:8000"
+        if self._credential_resolver:
+            creds, base_url = await self._credential_resolver(
+                connector_name=connector_name,
+                credential_name=credential_name,
+                tenant_id=workflow.tenant_id,
+            )
+
+        path = self._interpolate_string(config.get("url", ""), ctx)
+        url = base_url.rstrip("/") + "/" + path.lstrip("/")
         method = config.get("method", "GET").upper()
+
         headers = {
             k: self._interpolate_string(v, ctx)
             for k, v in config.get("headers", {}).items()
         }
-        body_template = config.get("body", {})
+
+        query_params: dict[str, str] = {}
+        for qp in config.get("query_params", []):
+            key = qp.get("key", "")
+            val = self._interpolate_string(qp.get("value", ""), ctx)
+            if key:
+                query_params[key] = val
+        if creds and "account_name" in creds:
+            query_params.setdefault("account_name", creds["account_name"])
+
+        body_template = config.get("body")
         body = self._interpolate_dict(body_template, ctx) if body_template else None
         timeout = min(config.get("timeout_seconds", 30), 60)
 
         async with httpx.AsyncClient(timeout=timeout) as client:
-            response = await client.request(method, url, headers=headers, json=body)
+            response = await client.request(
+                method, url, headers=headers, params=query_params, json=body,
+            )
             try:
                 response_data = response.json()
             except Exception:
@@ -1368,6 +1401,7 @@ class WorkflowGraph:
             if target:
                 result.append(target)
         return result
+
 
 
 class WorkflowError(Exception):

@@ -125,33 +125,150 @@ class SkanujFaktureClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_documents(
+    async def get_documents(  # noqa: PLR0912,PLR0913
         self,
         company_id: int,
         document_statuses: list[str] | None = None,
         company_entity_id: int | None = None,
+        company_entity_ids: list[int] | None = None,
+        company_entity_nips: list[str] | None = None,
         is_sale: bool | None = None,
+        invoice: list[str] | None = None,
         contractor: list[str] | None = None,
+        contractor_nips: list[str] | None = None,
+        real_contractor: list[str] | None = None,
+        real_contractor_nips: list[str] | None = None,
+        receiver: list[str] | None = None,
+        receiver_nips: list[str] | None = None,
+        buyer: list[str] | None = None,
+        buyer_nips: list[str] | None = None,
+        edit_user: list[str] | None = None,
         number: list[str] | None = None,
+        document_types: list[int] | None = None,
+        payment_types: list[int] | None = None,
+        acceptance_status: list[str] | None = None,
+        category: list[str] | None = None,
+        text: list[str] | None = None,
+        vat_costs: list[str] | None = None,
+        cost_types: list[str] | None = None,
+        cost_centers: list[str] | None = None,
+        decret_attributes: list[str] | None = None,
+        decret_attributes2: list[str] | None = None,
+        decret_attributes3: list[str] | None = None,
+        decret_attributes4: list[str] | None = None,
+        decret_attributes5: list[str] | None = None,
+        decret_attributes6: list[str] | None = None,
+        decret_attributes7: list[str] | None = None,
+        decret_attributes8: list[str] | None = None,
+        descriptions: list[str] | None = None,
+        filenames: list[str] | None = None,
+        account_numbers: list[str] | None = None,
+        ksef_number: list[str] | None = None,
+        company_entity_id_where_users_are_guests: list[int] | None = None,
+        create_date_from: int | None = None,
+        create_date_to: int | None = None,
+        date_from: str | None = None,
+        date_to: str | None = None,
+        operation_date_from: str | None = None,
+        operation_date_to: str | None = None,
+        posting_date_from: str | None = None,
+        posting_date_to: str | None = None,
+        input_date_from: str | None = None,
+        input_date_to: str | None = None,
+        payment_date_from: str | None = None,
+        payment_date_to: str | None = None,
+        netto_from: float | None = None,
+        netto_to: float | None = None,
+        vat_from: float | None = None,
+        vat_to: float | None = None,
+        brutto_from: float | None = None,
+        brutto_to: float | None = None,
+        amount_to_pay_from: float | None = None,
+        amount_to_pay_to: float | None = None,
+        duplicate: int | None = None,
+        decreted: bool | None = None,
+        archive: bool | None = None,
+        in_ksef: bool | None = None,
+        payment_status: str | None = None,
+        comment: str | None = None,
+        attribute: dict[str, Any] | None = None,
         check_document_ids: list[int] | None = None,
         exception_check_document_ids: list[int] | None = None,
     ) -> list[dict[str, Any]]:
         """GET /companies/{companyId}/documents — list documents with filters."""
         params: dict[str, Any] = {}
-        if document_statuses:
-            params["documentStatuses"] = document_statuses
-        if company_entity_id is not None:
-            params["companyEntityId"] = company_entity_id
-        if is_sale is not None:
-            params["isSale"] = is_sale
-        if contractor:
-            params["contractor"] = contractor
-        if number:
-            params["number"] = number
-        if check_document_ids:
-            params["checkDocumentIds"] = check_document_ids
-        if exception_check_document_ids:
-            params["exceptionCheckDocumentIds"] = exception_check_document_ids
+
+        def _add(key: str, val: Any) -> None:
+            if val is not None:
+                params[key] = val
+
+        _add("documentStatuses", document_statuses)
+        _add("companyEntityId", company_entity_id)
+        _add("companyEntityIds", company_entity_ids)
+        _add("companyEntityNips", company_entity_nips)
+        _add("isSale", is_sale)
+        _add("invoice", invoice)
+        _add("contractor", contractor)
+        _add("contractorNips", contractor_nips)
+        _add("realContractor", real_contractor)
+        _add("realContractorNips", real_contractor_nips)
+        _add("receiver", receiver)
+        _add("receiverNips", receiver_nips)
+        _add("buyer", buyer)
+        _add("buyerNips", buyer_nips)
+        _add("editUser", edit_user)
+        _add("number", number)
+        _add("documentTypes", document_types)
+        _add("paymentTypes", payment_types)
+        _add("acceptanceStatus", acceptance_status)
+        _add("category", category)
+        _add("text", text)
+        _add("vatCosts", vat_costs)
+        _add("costTypes", cost_types)
+        _add("costCenters", cost_centers)
+        _add("decretAttributes", decret_attributes)
+        _add("decretAttributes2", decret_attributes2)
+        _add("decretAttributes3", decret_attributes3)
+        _add("decretAttributes4", decret_attributes4)
+        _add("decretAttributes5", decret_attributes5)
+        _add("decretAttributes6", decret_attributes6)
+        _add("decretAttributes7", decret_attributes7)
+        _add("decretAttributes8", decret_attributes8)
+        _add("descriptions", descriptions)
+        _add("filenames", filenames)
+        _add("accountNumbers", account_numbers)
+        _add("ksefNumber", ksef_number)
+        _add("companyEntityIdWhereUsersAreGuests", company_entity_id_where_users_are_guests)
+        _add("createDateFrom", create_date_from)
+        _add("createDateTo", create_date_to)
+        _add("dateFrom", date_from)
+        _add("dateTo", date_to)
+        _add("operationDateFrom", operation_date_from)
+        _add("operationDateTo", operation_date_to)
+        _add("postingDateFrom", posting_date_from)
+        _add("postingDateTo", posting_date_to)
+        _add("inputDateFrom", input_date_from)
+        _add("inputDateTo", input_date_to)
+        _add("paymentDateFrom", payment_date_from)
+        _add("paymentDateTo", payment_date_to)
+        _add("nettoFrom", netto_from)
+        _add("nettoTo", netto_to)
+        _add("vatFrom", vat_from)
+        _add("vatTo", vat_to)
+        _add("bruttoFrom", brutto_from)
+        _add("bruttoTo", brutto_to)
+        _add("amountToPayFrom", amount_to_pay_from)
+        _add("amountToPayTo", amount_to_pay_to)
+        _add("duplicate", duplicate)
+        _add("decreted", decreted)
+        _add("archive", archive)
+        _add("inKsef", in_ksef)
+        _add("paymentStatus", payment_status)
+        _add("comment", comment)
+        _add("attribute", attribute)
+        _add("checkDocumentIds", check_document_ids)
+        _add("exceptionCheckDocumentIds", exception_check_document_ids)
+
         response = await self._client.get(f"/companies/{company_id}/documents", params=params)
         response.raise_for_status()
         return response.json()

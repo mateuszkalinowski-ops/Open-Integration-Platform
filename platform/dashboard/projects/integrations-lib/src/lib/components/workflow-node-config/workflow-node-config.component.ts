@@ -682,13 +682,10 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
               </mat-form-field>
             }
             <mat-form-field appearance="outline" class="wnc__field">
-              <mat-label>Item Variable Name</mat-label>
-              <input matInput [(ngModel)]="cfg['item_variable']" (ngModelChange)="emitChange()" />
+              <mat-label>Variable Name</mat-label>
+              <input matInput [(ngModel)]="cfg['item_variable']" (ngModelChange)="onLoopVarNameChange()" />
             </mat-form-field>
-            <mat-form-field appearance="outline" class="wnc__field">
-              <mat-label>Index Variable Name</mat-label>
-              <input matInput [(ngModel)]="cfg['index_variable']" (ngModelChange)="emitChange()" />
-            </mat-form-field>
+            <p class="wnc__hint">Index available as <code>vars.{{ cfg['item_variable'] || 'item' }}.$index</code></p>
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Max Iterations</mat-label>
               <input matInput type="number" [(ngModel)]="cfg['max_iterations']" (ngModelChange)="emitChange()" />
@@ -697,6 +694,29 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
 
           <!-- HTTP REQUEST -->
           @if (node.type === 'http_request') {
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Connector</mat-label>
+              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onHttpConnectorChange()" (openedChange)="onSelectOpen('httpConn', $event)">
+                <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['httpConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['httpConn'] = $any($event.target).value" placeholder="Search..." /></div>
+                @for (c of connectors; track c.name) {
+                  @if (matchesFilter('httpConn', c.display_name + ' ' + c.name)) {
+                  <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                  }
+                }
+              </mat-select>
+            </mat-form-field>
+            @if (credentialNames.length > 0) {
+              <mat-form-field appearance="outline" class="wnc__field">
+                <mat-label>Credentials</mat-label>
+                <mat-select [(ngModel)]="cfg['credential_name']" (ngModelChange)="emitChange()">
+                  @for (cn of credentialNames; track cn) {
+                    <mat-option [value]="cn">{{ cn }}</mat-option>
+                  }
+                </mat-select>
+              </mat-form-field>
+            } @else if (cfg['connector_name'] && !loadingCredentialNames) {
+              <p class="wnc__hint">No credentials configured for this connector.</p>
+            }
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Method</mat-label>
               <mat-select [(ngModel)]="cfg['method']" (ngModelChange)="emitChange()">
@@ -710,18 +730,21 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
 
             <div class="wnc__url-builder">
               <mat-form-field appearance="outline" class="wnc__field">
-                <mat-label>URL (Path)</mat-label>
-                <input matInput [(ngModel)]="httpUrlPath" (ngModelChange)="onHttpUrlPathChange()" placeholder="http://service:8000/endpoint" />
+                <mat-label>Path</mat-label>
+                <input matInput [(ngModel)]="httpUrlPath" (ngModelChange)="onHttpUrlPathChange()" placeholder="/documents" />
               </mat-form-field>
               @if (sourceFieldDefs.length > 0) {
                 <mat-form-field appearance="outline" class="wnc__field wnc__url-var-select">
                   <mat-label>Insert Variable in Path</mat-label>
-                  <mat-select [(ngModel)]="httpUrlVarInsert" (ngModelChange)="onInsertUrlVariable($event)">
+                  <mat-select [(ngModel)]="httpUrlVarInsert" (ngModelChange)="onInsertUrlVariable($event)" (openedChange)="onSelectOpen('urlVar', $event)">
+                    <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['urlVar'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['urlVar'] = $any($event.target).value" placeholder="Search..." /></div>
                     @for (f of sourceFieldDefs; track f.field) {
+                      @if (matchesFilter('urlVar', (f.label || f.field) + ' ' + f.field)) {
                       <mat-option [value]="f.field">
                         <mat-icon class="wnc__opt-icon">data_object</mat-icon>
                         {{ f.label || f.field }}
                       </mat-option>
+                      }
                     }
                   </mat-select>
                 </mat-form-field>
@@ -743,13 +766,16 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
                   </mat-form-field>
                   <mat-form-field appearance="outline" class="wnc__qp-value">
                     <mat-label>Value</mat-label>
-                    <mat-select [value]="getHttpQpSelectValue(param)" (selectionChange)="onHttpQpValueSelect(param, $event.value)">
+                    <mat-select [value]="getHttpQpSelectValue(param)" (selectionChange)="onHttpQpValueSelect(param, $event.value)" (openedChange)="onSelectOpen('qpValue', $event)">
+                      <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['qpValue'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['qpValue'] = $any($event.target).value" placeholder="Search..." /></div>
                       <mat-option value="__static__"><mat-icon class="wnc__opt-icon">edit</mat-icon> Static Value</mat-option>
                       @for (f of sourceFieldDefs; track f.field) {
+                        @if (matchesFilter('qpValue', (f.label || f.field) + ' ' + f.field)) {
                         <mat-option [value]="f.field">
                           <mat-icon class="wnc__opt-icon">data_object</mat-icon>
                           {{ f.label || f.field }}
                         </mat-option>
+                        }
                       }
                     </mat-select>
                   </mat-form-field>
@@ -1097,7 +1123,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       if (this.node.type === 'think') {
         this.loadCredentialNames('ai-agent');
       }
-      if ((this.node.type === 'action' || this.node.type === 'trigger') && this.cfg['connector_name']) {
+      if ((this.node.type === 'action' || this.node.type === 'trigger' || this.node.type === 'http_request') && this.cfg['connector_name']) {
         this.loadCredentialNames(this.cfg['connector_name'] as string);
       } else {
         this.credentialNames = [];
@@ -1304,6 +1330,16 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     this.emitChange();
   }
 
+  onHttpConnectorChange(): void {
+    this.cfg['credential_name'] = 'default';
+    if (this.cfg['connector_name']) {
+      this.loadCredentialNames(this.cfg['connector_name'] as string);
+    } else {
+      this.credentialNames = [];
+    }
+    this.emitChange();
+  }
+
   onActionChange(): void {
     this.updateFieldDefs();
     this.emitChange();
@@ -1450,6 +1486,12 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   getHttpQpSelectValue(param: {key: string; value: string; mode: 'field' | 'static'}): string {
     return param.mode === 'static' ? '__static__' : param.value;
+  }
+
+  onLoopVarNameChange(): void {
+    const itemVar = (this.cfg['item_variable'] as string) || 'item';
+    this.cfg['index_variable'] = `${itemVar}.$index`;
+    this.emitChange();
   }
 
   onInsertUrlVariable(field: string): void {
@@ -1704,8 +1746,17 @@ export class WorkflowNodeConfigComponent implements OnChanges {
             type: 'object',
           });
         }
+        const idxPath = `vars.${itemVar}.$index`;
+        if (!seen.has(idxPath)) {
+          seen.add(idxPath);
+          fields.push({
+            field: idxPath,
+            label: `[${displayLabel}] ${itemVar}.$index`,
+            type: 'number',
+          });
+        }
       }
-      if (indexVar) {
+      if (indexVar && !indexVar.endsWith('.$index')) {
         const fieldPath = `vars.${indexVar}`;
         if (!seen.has(fieldPath)) {
           seen.add(fieldPath);

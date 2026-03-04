@@ -449,9 +449,198 @@ action_fields:
   - field: document_statuses
     label: Filtry statusow
     type: string[]
+  - field: company_entity_id
+    label: ID podmiotu
+    type: integer
+  - field: company_entity_ids
+    label: Lista ID podmiotow
+    type: integer[]
+  - field: company_entity_nips
+    label: Lista NIP podmiotow
+    type: string[]
   - field: is_sale
     label: Czy sprzedazowe
     type: boolean
+  - field: invoice
+    label: Typ faktury (PURCHASE/SELL/OTHER)
+    type: string[]
+  - field: contractor
+    label: Kontrahent (NIP lub nazwa)
+    type: string[]
+  - field: contractor_nips
+    label: NIP kontrahenta
+    type: string[]
+  - field: real_contractor
+    label: Rzeczywisty kontrahent
+    type: string[]
+  - field: real_contractor_nips
+    label: NIP rzeczywistego kontrahenta
+    type: string[]
+  - field: receiver
+    label: Odbiorca
+    type: string[]
+  - field: receiver_nips
+    label: NIP odbiorcy
+    type: string[]
+  - field: buyer
+    label: Nabywca
+    type: string[]
+  - field: buyer_nips
+    label: NIP nabywcy
+    type: string[]
+  - field: edit_user
+    label: Uzytkownik edytujacy
+    type: string[]
+  - field: number
+    label: Numer faktury
+    type: string[]
+  - field: document_types
+    label: Typy dokumentow (ID)
+    type: integer[]
+  - field: payment_types
+    label: Typy platnosci (ID)
+    type: integer[]
+  - field: acceptance_status
+    label: Status akceptacji
+    type: string[]
+  - field: category
+    label: Kategoria
+    type: string[]
+  - field: text
+    label: Szukaj w tresci
+    type: string[]
+  - field: vat_costs
+    label: Koszty VAT
+    type: string[]
+  - field: cost_types
+    label: Typy kosztow
+    type: string[]
+  - field: cost_centers
+    label: Centra kosztow
+    type: string[]
+  - field: decret_attributes
+    label: Atrybut dekretu 1
+    type: string[]
+  - field: decret_attributes2
+    label: Atrybut dekretu 2
+    type: string[]
+  - field: decret_attributes3
+    label: Atrybut dekretu 3
+    type: string[]
+  - field: decret_attributes4
+    label: Atrybut dekretu 4
+    type: string[]
+  - field: decret_attributes5
+    label: Atrybut dekretu 5
+    type: string[]
+  - field: decret_attributes6
+    label: Atrybut dekretu 6
+    type: string[]
+  - field: decret_attributes7
+    label: Atrybut dekretu 7
+    type: string[]
+  - field: decret_attributes8
+    label: Atrybut dekretu 8
+    type: string[]
+  - field: descriptions
+    label: Opis dokumentu
+    type: string[]
+  - field: filenames
+    label: Nazwa pliku
+    type: string[]
+  - field: account_numbers
+    label: Numer konta bankowego
+    type: string[]
+  - field: ksef_number
+    label: Numer KSeF
+    type: string[]
+  - field: company_entity_id_where_users_are_guests
+    label: ID podmiotu (gosc)
+    type: integer[]
+  - field: create_date_from
+    label: Data utworzenia od (ms epoch)
+    type: integer
+  - field: create_date_to
+    label: Data utworzenia do (ms epoch)
+    type: integer
+  - field: date_from
+    label: Data wystawienia od
+    type: string
+  - field: date_to
+    label: Data wystawienia do
+    type: string
+  - field: operation_date_from
+    label: Data operacji od
+    type: string
+  - field: operation_date_to
+    label: Data operacji do
+    type: string
+  - field: posting_date_from
+    label: Data ksiegowania od
+    type: string
+  - field: posting_date_to
+    label: Data ksiegowania do
+    type: string
+  - field: input_date_from
+    label: Data wplywu od
+    type: string
+  - field: input_date_to
+    label: Data wplywu do
+    type: string
+  - field: payment_date_from
+    label: Termin platnosci od
+    type: string
+  - field: payment_date_to
+    label: Termin platnosci do
+    type: string
+  - field: netto_from
+    label: Netto od
+    type: number
+  - field: netto_to
+    label: Netto do
+    type: number
+  - field: vat_from
+    label: VAT od
+    type: number
+  - field: vat_to
+    label: VAT do
+    type: number
+  - field: brutto_from
+    label: Brutto od
+    type: number
+  - field: brutto_to
+    label: Brutto do
+    type: number
+  - field: amount_to_pay_from
+    label: Kwota do zaplaty od
+    type: number
+  - field: amount_to_pay_to
+    label: Kwota do zaplaty do
+    type: number
+  - field: duplicate
+    label: Duplikat (ID)
+    type: integer
+  - field: decreted
+    label: Czy zadekretowany
+    type: boolean
+  - field: archive
+    label: Czy w archiwum
+    type: boolean
+  - field: in_ksef
+    label: Czy w KSeF
+    type: boolean
+  - field: payment_status
+    label: Status platnosci
+    type: string
+  - field: comment
+    label: Komentarz
+    type: string
+  - field: check_document_ids
+    label: Lista ID dokumentow
+    type: integer[]
+  - field: exception_check_document_ids
+    label: Lista ID wykluczonych
+    type: integer[]
   document.get:
   - field: account_name
     label: Nazwa konta
@@ -1378,6 +1567,47 @@ output_fields:
 health_endpoint: /health
 docs_url: /docs
 service_name: connector-skanuj-fakture
+payload_hints:
+  list_fields:
+    document.list:
+    - document_statuses
+    - company_entity_ids
+    - company_entity_nips
+    - invoice
+    - contractor
+    - contractor_nips
+    - real_contractor
+    - real_contractor_nips
+    - receiver
+    - receiver_nips
+    - buyer
+    - buyer_nips
+    - edit_user
+    - number
+    - document_types
+    - payment_types
+    - acceptance_status
+    - category
+    - text
+    - vat_costs
+    - cost_types
+    - cost_centers
+    - decret_attributes
+    - decret_attributes2
+    - decret_attributes3
+    - decret_attributes4
+    - decret_attributes5
+    - decret_attributes6
+    - decret_attributes7
+    - decret_attributes8
+    - descriptions
+    - filenames
+    - account_numbers
+    - ksef_number
+    - company_entity_id_where_users_are_guests
+    - check_document_ids
+    - exception_check_document_ids
+
 action_routes:
   document.upload:
     method: POST
@@ -1393,7 +1623,70 @@ action_routes:
     query_from_payload:
     - account_name
     - document_statuses
+    - company_entity_id
+    - company_entity_ids
+    - company_entity_nips
     - is_sale
+    - invoice
+    - contractor
+    - contractor_nips
+    - real_contractor
+    - real_contractor_nips
+    - receiver
+    - receiver_nips
+    - buyer
+    - buyer_nips
+    - edit_user
+    - number
+    - document_types
+    - payment_types
+    - acceptance_status
+    - category
+    - text
+    - vat_costs
+    - cost_types
+    - cost_centers
+    - decret_attributes
+    - decret_attributes2
+    - decret_attributes3
+    - decret_attributes4
+    - decret_attributes5
+    - decret_attributes6
+    - decret_attributes7
+    - decret_attributes8
+    - descriptions
+    - filenames
+    - account_numbers
+    - ksef_number
+    - company_entity_id_where_users_are_guests
+    - create_date_from
+    - create_date_to
+    - date_from
+    - date_to
+    - operation_date_from
+    - operation_date_to
+    - posting_date_from
+    - posting_date_to
+    - input_date_from
+    - input_date_to
+    - payment_date_from
+    - payment_date_to
+    - netto_from
+    - netto_to
+    - vat_from
+    - vat_to
+    - brutto_from
+    - brutto_to
+    - amount_to_pay_from
+    - amount_to_pay_to
+    - duplicate
+    - decreted
+    - archive
+    - in_ksef
+    - payment_status
+    - comment
+    - check_document_ids
+    - exception_check_document_ids
   document.get:
     method: GET
     path: /companies/{company_id}/documents/{document_id}
@@ -1419,11 +1712,32 @@ action_routes:
     path: /companies/{company_id}/documents/{document_id}/image
     query_from_payload:
     - account_name
+  document.attributes.edit:
+    method: PUT
+    path: /companies/{company_id}/documents/{document_id}/attributes
+    query_from_payload:
+    - account_name
+  document.attributes.delete:
+    method: DELETE
+    path: /companies/{company_id}/documents/{document_id}/attributes
+    query_from_payload:
+    - account_name
   company.list:
     method: GET
     path: /companies
     query_from_payload:
     - account_name
+  company.entities.list:
+    method: GET
+    path: /companies/{company_id}/entities
+    query_from_payload:
+    - account_name
+  dictionary.list:
+    method: GET
+    path: /companies/{company_id}/dictionaries
+    query_from_payload:
+    - account_name
+    - dict_type
   ksef.xml.get:
     method: GET
     path: /companies/{company_id}/documents/{document_id}/ksef-xml

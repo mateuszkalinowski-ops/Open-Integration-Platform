@@ -146,6 +146,37 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         )
 
     workflow_engine.set_action_executor(_execute_connector_action)
+
+    async def _resolve_credentials(
+        connector_name: str,
+        credential_name: str,
+        tenant_id: Any,
+    ) -> tuple[dict[str, str] | None, str]:
+        credentials: dict[str, str] | None = None
+        try:
+            async with async_session_factory() as db_session:
+                credentials = await vault.retrieve_all(
+                    db_session, tenant_id, connector_name, credential_name=credential_name
+                )
+        except Exception:
+            pass
+
+        manifests = registry.get_by_name(connector_name)
+        manifest = manifests[0] if manifests else None
+        base_url = manifest.base_url if manifest else f"http://connector-{connector_name}:8000"
+
+        if credentials and manifest:
+            from core.action_dispatcher import _provision_credentials
+            dummy: dict[str, Any] = {}
+            await _provision_credentials(base_url, connector_name, dummy, credentials, manifest)
+
+        account_name = credentials.get("account_name", credential_name) if credentials else credential_name
+        creds_with_account = dict(credentials) if credentials else {}
+        creds_with_account.setdefault("account_name", account_name)
+
+        return creds_with_account, base_url
+
+    workflow_engine.set_credential_resolver(_resolve_credentials)
     await logger.ainfo("workflow_engine_action_executor_ready")
 
     import asyncio
@@ -1630,6 +1661,7 @@ async def execute_workflow(
     execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
     await db.commit()
     return WorkflowExecutionResponse.model_validate(execution)
+
 
 
 @app.post("/api/v1/workflows/{workflow_id}/toggle", tags=["workflows"])

@@ -32,8 +32,12 @@ def _resolve_service_url(
 
 def _build_url(
     route: dict, base_url: str, payload: dict[str, Any]
-) -> tuple[str, dict[str, str], dict[str, Any]]:
-    """Build URL, query params, and remaining body from route + payload."""
+) -> tuple[str, dict[str, Any], dict[str, Any]]:
+    """Build URL, query params, and remaining body from route + payload.
+
+    List values are preserved so httpx sends them as multi-value query params
+    (e.g. ?contractor=A&contractor=B).  None values are dropped.
+    """
     path: str = route["path"]
     body = dict(payload)
 
@@ -42,10 +46,12 @@ def _build_url(
         if placeholder in path:
             path = path.replace(placeholder, str(body.pop(key)))
 
-    query_params: dict[str, str] = {}
+    query_params: dict[str, Any] = {}
     for qp in route.get("query_from_payload", []):
         if qp in body:
-            query_params[qp] = str(body.pop(qp))
+            val = body.pop(qp)
+            if val is not None:
+                query_params[qp] = val
 
     return f"{base_url}{path}", query_params, body
 
