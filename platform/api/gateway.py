@@ -358,7 +358,7 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
         content={
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": detail if settings.app_env != "production" else "An internal error occurred",
+                "message": detail,
             }
         },
     )
