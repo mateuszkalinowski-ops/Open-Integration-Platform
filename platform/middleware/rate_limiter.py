@@ -33,6 +33,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         window = settings.rate_limit_window_seconds
         max_requests = settings.rate_limit_requests
 
+        remaining: int | None = None
         try:
             redis = await get_redis()
             now = time.time()
@@ -65,11 +66,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                         "X-RateLimit-Reset": str(int(now) + retry_after),
                     },
                 )
-
-            response = await call_next(request)
-            response.headers["X-RateLimit-Limit"] = str(max_requests)
-            response.headers["X-RateLimit-Remaining"] = str(max(0, max_requests - current_count))
-            return response
+            remaining = max(0, max_requests - current_count)
 
         except Exception:
             logger.warning("Rate limiter unavailable (Redis down?), rejecting request", exc_info=True)
@@ -82,3 +79,9 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
                     }
                 },
             )
+
+        response = await call_next(request)
+        if remaining is not None:
+            response.headers["X-RateLimit-Limit"] = str(max_requests)
+            response.headers["X-RateLimit-Remaining"] = str(remaining)
+        return response
