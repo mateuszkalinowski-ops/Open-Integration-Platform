@@ -158,6 +158,82 @@ jobs:
           - name: connector-bulkgate
             context: ./integrators/other/bulkgate/v1.0.0
             dockerfile: ./integrators/other/bulkgate/v1.0.0/Dockerfile
+          # --- Courier connectors ---
+          - name: connector-inpost-v1
+            context: ./integrators/courier/inpost/v1.0.0
+            dockerfile: ./integrators/courier/inpost/v1.0.0/Dockerfile
+          - name: connector-inpost-v2
+            context: ./integrators/courier/inpost/v2.0.0
+            dockerfile: ./integrators/courier/inpost/v2.0.0/Dockerfile
+          - name: connector-dhl-express
+            context: ./integrators/courier/dhl-express/v1.0.0
+            dockerfile: ./integrators/courier/dhl-express/v1.0.0/Dockerfile
+          - name: connector-dpd
+            context: ./integrators/courier/dpd/v1.0.0
+            dockerfile: ./integrators/courier/dpd/v1.0.0/Dockerfile
+          - name: connector-fedex
+            context: ./integrators/courier/fedex/v1.0.0
+            dockerfile: ./integrators/courier/fedex/v1.0.0/Dockerfile
+          - name: connector-fedexpl
+            context: ./integrators/courier/fedexpl/v1.0.0
+            dockerfile: ./integrators/courier/fedexpl/v1.0.0/Dockerfile
+          - name: connector-geis
+            context: ./integrators/courier/geis/v1.0.0
+            dockerfile: ./integrators/courier/geis/v1.0.0/Dockerfile
+          - name: connector-gls
+            context: ./integrators/courier/gls/v1.0.0
+            dockerfile: ./integrators/courier/gls/v1.0.0/Dockerfile
+          - name: connector-orlenpaczka
+            context: ./integrators/courier/orlenpaczka/v1.0.0
+            dockerfile: ./integrators/courier/orlenpaczka/v1.0.0/Dockerfile
+          - name: connector-packeta
+            context: ./integrators/courier/packeta/v1.0.0
+            dockerfile: ./integrators/courier/packeta/v1.0.0/Dockerfile
+          - name: connector-paxy
+            context: ./integrators/courier/paxy/v1.0.0
+            dockerfile: ./integrators/courier/paxy/v1.0.0/Dockerfile
+          - name: connector-pocztapolska
+            context: ./integrators/courier/pocztapolska/v1.0.0
+            dockerfile: ./integrators/courier/pocztapolska/v1.0.0/Dockerfile
+          - name: connector-schenker
+            context: ./integrators/courier/schenker/v1.0.0
+            dockerfile: ./integrators/courier/schenker/v1.0.0/Dockerfile
+          - name: connector-sellasist
+            context: ./integrators/courier/sellasist/v1.0.0
+            dockerfile: ./integrators/courier/sellasist/v1.0.0/Dockerfile
+          - name: connector-suus
+            context: ./integrators/courier/suus/v1.0.0
+            dockerfile: ./integrators/courier/suus/v1.0.0/Dockerfile
+          - name: connector-ups
+            context: ./integrators/courier/ups/v1.0.0
+            dockerfile: ./integrators/courier/ups/v1.0.0/Dockerfile
+          - name: connector-raben
+            context: ./integrators/courier/raben/v1.0.0
+            dockerfile: ./integrators/courier/raben/v1.0.0/Dockerfile
+          # --- E-commerce connectors ---
+          - name: connector-shoper
+            context: .
+            dockerfile: integrators/ecommerce/shoper/v1.0.0/Dockerfile
+          - name: connector-idosell
+            context: .
+            dockerfile: integrators/ecommerce/idosell/v1.0.0/Dockerfile
+          - name: connector-woocommerce
+            context: .
+            dockerfile: integrators/ecommerce/woocommerce/v1.0.0/Dockerfile
+          - name: connector-amazon
+            context: .
+            dockerfile: integrators/ecommerce/amazon/v1.0.0/Dockerfile
+          - name: connector-apilo
+            context: .
+            dockerfile: integrators/ecommerce/apilo/v1.0.0/Dockerfile
+          # --- ERP connectors ---
+          - name: connector-insert-nexo
+            context: .
+            dockerfile: integrators/erp/insert-nexo/v1.0.0/Dockerfile
+          # --- AI connectors ---
+          - name: connector-ai-agent
+            context: ./integrators/ai/agent/v1.0.0
+            dockerfile: ./integrators/ai/agent/v1.0.0/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
