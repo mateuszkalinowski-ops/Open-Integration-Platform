@@ -57,7 +57,7 @@ async def lifespan(application: FastAPI):
     integration = WooCommerceIntegration(client, account_manager)
     app_state.integration = integration
 
-    # Kafka producer
+    # Kafka producer (with retry to tolerate broker not being ready yet)
     kafka_producer = None
     if settings.kafka_enabled:
         kafka_producer = KafkaMessageProducer(
@@ -67,8 +67,22 @@ async def lifespan(application: FastAPI):
             sasl_username=settings.kafka_sasl_username,
             sasl_password=settings.kafka_sasl_password,
         )
-        await kafka_producer.start()
-        app_state.kafka_producer = kafka_producer
+        for attempt in range(5):
+            try:
+                await kafka_producer.start()
+                app_state.kafka_producer = kafka_producer
+                break
+            except Exception as exc:
+                if attempt < 4:
+                    wait = 2 ** attempt
+                    logger.warning(
+                        "Kafka start attempt %d/5 failed (%s), retrying in %ds",
+                        attempt + 1, exc, wait,
+                    )
+                    await asyncio.sleep(wait)
+                else:
+                    logger.error("Kafka producer failed to start after 5 attempts: %s", exc)
+                    kafka_producer = None
 
     # Health checker
     health_checker = HealthChecker(settings.app_version)

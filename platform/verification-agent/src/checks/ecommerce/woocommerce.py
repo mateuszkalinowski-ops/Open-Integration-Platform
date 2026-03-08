@@ -53,7 +53,7 @@ async def run(
 
     chk, resp = await req_check(
         client, "GET", f"{base}/orders", "list_orders",
-        params={**p, "page": "1", "page_size": "5"},
+        params={**p, "page": 1, "page_size": 5},
         accept_statuses=(200, 401),
     )
     results.append(chk)
@@ -90,7 +90,7 @@ async def run(
 
     chk, resp = await req_check(
         client, "GET", f"{base}/products", "list_products",
-        params={**p, "page": "1", "per_page": "5"},
+        params={**p, "page": 1, "per_page": 5},
         accept_statuses=(200, 401),
     )
     results.append(chk)
@@ -115,7 +115,6 @@ async def run(
         params={**p, "query": "test"},
     ))
 
-    # Product sub-resources
     chk, _ = await req_check(
         client, "GET", f"{base}/products/categories", "list_product_categories",
         params=p,
@@ -155,7 +154,7 @@ async def run(
 
     chk, resp = await req_check(
         client, "GET", f"{base}/customers", "list_customers",
-        params={**p, "page": "1", "per_page": "5"},
+        params={**p, "page": 1, "per_page": 5},
         accept_statuses=(200, 401),
     )
     results.append(chk)

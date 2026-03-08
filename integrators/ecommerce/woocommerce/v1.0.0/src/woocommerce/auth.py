@@ -8,6 +8,7 @@ This module implements both, selecting automatically based on the store URL sche
 The OAuth 1.0a implementation follows the reference Java code from the existing integration.
 """
 
+import base64
 import hashlib
 import hmac
 import logging
@@ -119,7 +120,6 @@ class WooCommerceAuth:
             hashlib.sha256,
         ).digest()
 
-        import base64
         oauth_params["oauth_signature"] = base64.b64encode(signature).decode("utf-8")
         return oauth_params
 

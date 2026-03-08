@@ -6,7 +6,7 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query, UploadFile, File
-from pydantic import BaseModel
+from pydantic import BaseModel, field_validator
 
 from pinquark_common.schemas.ecommerce import (
     Order,
@@ -194,15 +194,31 @@ async def list_orders(
     since: datetime | None = Query(None),
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=100),
+    status: str | None = Query(None),
+    customer: int | None = Query(None),
+    product: int | None = Query(None),
+    after: str | None = Query(None),
+    before: str | None = Query(None),
 ):
     _require_auth(account_name)
-    return await app_state.integration.fetch_orders(account_name, since, page, page_size)
+    return await app_state.integration.fetch_orders(
+        account_name, since, page, page_size, status,
+        customer=customer, product=product, after=after, before=before,
+    )
 
 
 @router.get("/orders/{order_id}", response_model=Order)
 async def get_order(order_id: str, account_name: str = Query(...)):
     _require_auth(account_name)
     return await app_state.integration.get_order(account_name, order_id)
+
+
+_ORDER_STATUSES = {"pending", "processing", "on-hold", "completed", "cancelled", "refunded", "failed", "trash"}
+_PRODUCT_TYPES = {"simple", "grouped", "external", "variable"}
+_PRODUCT_STATUSES = {"draft", "pending", "private", "publish"}
+_STOCK_STATUSES = {"instock", "outofstock", "onbackorder"}
+_DISCOUNT_TYPES = {"percent", "fixed_cart", "fixed_product"}
+_WEBHOOK_STATUSES = {"active", "paused", "disabled"}
 
 
 class OrderCreateRequest(BaseModel):
@@ -220,6 +236,13 @@ class OrderCreateRequest(BaseModel):
     fee_lines: list[dict[str, Any]] | None = None
     coupon_lines: list[dict[str, Any]] | None = None
     meta_data: list[dict[str, Any]] | None = None
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _ORDER_STATUSES:
+            raise ValueError(f"Invalid order status '{v}', must be one of: {', '.join(sorted(_ORDER_STATUSES))}")
+        return v
 
 
 @router.post("/orders", status_code=201)
@@ -451,6 +474,37 @@ class ProductCreateRequest(BaseModel):
     downloadable: bool | None = None
     tax_status: str | None = None
     tax_class: str | None = None
+
+    @field_validator("type")
+    @classmethod
+    def validate_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _PRODUCT_TYPES:
+            raise ValueError(f"Invalid product type '{v}', must be one of: {', '.join(sorted(_PRODUCT_TYPES))}")
+        return v
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _PRODUCT_STATUSES:
+            raise ValueError(f"Invalid product status '{v}', must be one of: {', '.join(sorted(_PRODUCT_STATUSES))}")
+        return v
+
+    @field_validator("stock_status")
+    @classmethod
+    def validate_stock_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _STOCK_STATUSES:
+            raise ValueError(f"Invalid stock_status '{v}', must be one of: {', '.join(sorted(_STOCK_STATUSES))}")
+        return v
+
+    @field_validator("regular_price", "sale_price")
+    @classmethod
+    def validate_price(cls, v: str | None) -> str | None:
+        if v is not None and v != "":
+            try:
+                float(v)
+            except ValueError:
+                raise ValueError(f"Price must be a numeric string, got '{v}'")
+        return v
 
 
 @router.post("/products", status_code=201)
@@ -897,6 +951,23 @@ class CouponCreateRequest(BaseModel):
     email_restrictions: list[str] | None = None
     meta_data: list[dict[str, Any]] | None = None
 
+    @field_validator("discount_type")
+    @classmethod
+    def validate_discount_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in _DISCOUNT_TYPES:
+            raise ValueError(f"Invalid discount_type '{v}', must be one of: {', '.join(sorted(_DISCOUNT_TYPES))}")
+        return v
+
+    @field_validator("amount", "minimum_amount", "maximum_amount")
+    @classmethod
+    def validate_amount(cls, v: str | None) -> str | None:
+        if v is not None and v != "":
+            try:
+                float(v)
+            except ValueError:
+                raise ValueError(f"Amount must be a numeric string, got '{v}'")
+        return v
+
 
 @router.post("/coupons", status_code=201)
 async def create_coupon(body: CouponCreateRequest, account_name: str = Query(...)):
@@ -1061,6 +1132,13 @@ class WebhookCreateRequest(BaseModel):
     delivery_url: str
     secret: str | None = None
     status: str | None = None
+
+    @field_validator("status")
+    @classmethod
+    def validate_status(cls, v: str | None) -> str | None:
+        if v is not None and v not in _WEBHOOK_STATUSES:
+            raise ValueError(f"Invalid webhook status '{v}', must be one of: {', '.join(sorted(_WEBHOOK_STATUSES))}")
+        return v
 
 
 @router.post("/webhooks", status_code=201)

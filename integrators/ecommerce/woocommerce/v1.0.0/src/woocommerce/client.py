@@ -142,6 +142,10 @@ class WooCommerceClient:
         status: str | None = None,
         modified_after: str | None = None,
         modified_before: str | None = None,
+        customer: int | None = None,
+        product: int | None = None,
+        after: str | None = None,
+        before: str | None = None,
     ) -> list[dict[str, Any]]:
         params: dict[str, Any] = {"per_page": per_page, "page": page}
         if status:
@@ -150,6 +154,14 @@ class WooCommerceClient:
             params["modified_after"] = modified_after
         if modified_before:
             params["modified_before"] = modified_before
+        if customer is not None:
+            params["customer"] = customer
+        if product is not None:
+            params["product"] = product
+        if after:
+            params["after"] = after
+        if before:
+            params["before"] = before
 
         resp = await self.get("orders", account_name, params=params)
         resp.raise_for_status()

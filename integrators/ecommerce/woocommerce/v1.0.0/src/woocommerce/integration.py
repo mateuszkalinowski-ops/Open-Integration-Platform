@@ -45,6 +45,12 @@ class WooCommerceIntegration(EcommerceIntegration):
         since: datetime | None = None,
         page: int = 1,
         page_size: int = 50,
+        status: str | None = None,
+        *,
+        customer: int | None = None,
+        product: int | None = None,
+        after: str | None = None,
+        before: str | None = None,
     ) -> OrdersPage:
         self._get_account(account_name)
 
@@ -54,7 +60,12 @@ class WooCommerceIntegration(EcommerceIntegration):
             account_name=account_name,
             per_page=page_size,
             page=page,
+            status=status,
             modified_after=modified_after,
+            customer=customer,
+            product=product,
+            after=after,
+            before=before,
         )
 
         orders: list[Order] = []

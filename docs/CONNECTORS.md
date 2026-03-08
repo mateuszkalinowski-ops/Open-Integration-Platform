@@ -45,7 +45,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 22 | IdoSell | E-commerce | v6.0.0 | REST (API Key / SHA-1 legacy) | `shop_url`, `api_key` or `login`+`password` |
 | 23 | BaseLinker | E-commerce | v1.0.0 | REST (API Token) | `api_token` |
 | 24 | Raben Group | Courier | v1.0.0 | REST (JWT) | `username`, `password` |
-| 25 | WooCommerce | E-commerce | v3.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
+| 25 | WooCommerce | E-commerce | v1.0.0 | REST (API Key / OAuth 1.0a) | `store_url`, `consumer_key`, `consumer_secret` |
 | 26 | Slack | Other | v1.0.0 | REST (Bot Token) | `bot_token` |
 | 27 | BulkGate | Other | v2.0.0 | REST (API Token) | `application_id`, `application_token` |
 | 28 | Amazon | E-commerce | v2024-11-01 | REST (OAuth2 / LWA) | `client_id`, `client_secret`, `refresh_token`, `marketplace_id` |
@@ -632,7 +632,7 @@ Protocol: REST (API Token via X-BLToken header).
 
 ---
 
-### WooCommerce (v3.0.0)
+### WooCommerce (v1.0.0)
 
 | Parameter | Required | Description |
 |----------|----------|------|
