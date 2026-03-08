@@ -199,8 +199,16 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
                         )
             else:
                 for manifest in versions:
+                    base_url = resolve_service_url(
+                        manifest, version_count=len(versions),
+                    )
+                    targets.append(VerificationTarget(
+                        manifest=manifest,
+                        base_url=base_url,
+                        tenant_id=None,
+                    ))
                     logger.info(
-                        "Skipping %s v%s — no enabled instances deployed",
+                        "Including %s v%s for Tier 1 checks (no DB instances)",
                         name, manifest.version,
                     )
 
