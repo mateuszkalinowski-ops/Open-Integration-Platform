@@ -148,6 +148,12 @@ class DocumentPoller:
         logger.debug("Published document event for doc %s", event.get("document_id"))
         return True
 
+    def _platform_headers(self) -> dict[str, str]:
+        headers: dict[str, str] = {}
+        if settings.platform_internal_secret:
+            headers["X-Internal-Secret"] = settings.platform_internal_secret
+        return headers
+
     async def _notify_platform(self, event: dict[str, Any]) -> bool:
         url = f"{settings.platform_api_url}/internal/events"
         payload = {
@@ -157,7 +163,7 @@ class DocumentPoller:
         }
         try:
             async with httpx.AsyncClient(timeout=10.0) as client:
-                resp = await client.post(url, json=payload)
+                resp = await client.post(url, json=payload, headers=self._platform_headers())
                 if resp.status_code >= 400:
                     logger.error(
                         "Platform event notify FAILED: status=%s body=%s doc_id=%s",

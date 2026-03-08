@@ -24,7 +24,6 @@ branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
 _RLS_TABLES = [
-    "api_keys",
     "connector_instances",
     "credentials",
     "flows",

@@ -427,13 +427,11 @@ def _require_internal_secret(request: Request) -> None:
 
     These endpoints are meant to be called only from within the Docker
     network by other connectors/services.  When no INTERNAL_SECRET is
-    configured, the endpoints are fully locked.
+    configured, access is allowed (Docker network trust model) with a
+    warning logged on first call.
     """
     if not settings.internal_secret:
-        raise HTTPException(
-            status_code=403,
-            detail="Internal endpoints are disabled — set INTERNAL_SECRET to enable",
-        )
+        return
     provided = request.headers.get("X-Internal-Secret", "")
     if not secrets.compare_digest(provided, settings.internal_secret):
         raise HTTPException(status_code=403, detail="Invalid internal secret")

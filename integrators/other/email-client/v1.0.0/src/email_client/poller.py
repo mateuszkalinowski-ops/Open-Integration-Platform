@@ -149,7 +149,9 @@ class EmailPoller:
         try:
             url = f"{settings.platform_api_url}/internal/events"
             headers: dict[str, str] = {}
-            if settings.platform_api_key:
+            if settings.platform_internal_secret:
+                headers["X-Internal-Secret"] = settings.platform_internal_secret
+            elif settings.platform_api_key:
                 headers["X-API-Key"] = settings.platform_api_key
             resp = await self._http_client.post(
                 url,

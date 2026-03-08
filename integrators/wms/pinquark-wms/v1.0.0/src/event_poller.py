@@ -84,7 +84,10 @@ class EventPoller:
             logger.info("Event polling disabled")
             return
         self._running = True
-        self._http_client = httpx.AsyncClient(timeout=15.0)
+        headers: dict[str, str] = {}
+        if settings.platform_internal_secret:
+            headers["X-Internal-Secret"] = settings.platform_internal_secret
+        self._http_client = httpx.AsyncClient(timeout=15.0, headers=headers)
         self._task = asyncio.create_task(self._loop())
         logger.info(
             "Event poller started (interval=%ds, platform=%s)",

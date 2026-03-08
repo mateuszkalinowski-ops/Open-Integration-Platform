@@ -21,6 +21,7 @@ class Settings(BaseSettings):
     event_polling_initial_delay: int = 15
 
     platform_api_url: str = "http://platform:8080"
+    platform_internal_secret: str = ""
     platform_event_notify: bool = True
 
     kafka_enabled: bool = Field(default=False, alias="KAFKA_ENABLED")

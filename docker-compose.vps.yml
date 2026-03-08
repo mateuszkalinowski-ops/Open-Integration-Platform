@@ -22,10 +22,12 @@ services:
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DEFAULT_API_KEY: ${DEFAULT_API_KEY:-pk_live_default_key_change_me}
+      ADMIN_SECRET: ${ADMIN_SECRET:-}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
       DEMO_MODE: ${DEMO_MODE:-false}
+      VERIFICATION_AGENT_URL: http://verification-agent:8000
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: PLAINTEXT

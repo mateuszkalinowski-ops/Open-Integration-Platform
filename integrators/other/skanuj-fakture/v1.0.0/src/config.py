@@ -61,6 +61,7 @@ class Settings(BaseSettings):
 
     platform_api_url: str = Field(default="http://platform:8080", alias="PLATFORM_API_URL")
     platform_api_key: str = Field(default="", alias="PLATFORM_API_KEY")
+    platform_internal_secret: str = Field(default="", alias="PLATFORM_INTERNAL_SECRET")
     platform_event_notify: bool = Field(default=True, alias="PLATFORM_EVENT_NOTIFY")
 
 

@@ -115,6 +115,11 @@ class FilePoller:
             try:
                 import httpx
 
+                _headers: dict[str, str] = {}
+                if settings.platform_internal_secret:
+                    _headers["X-Internal-Secret"] = settings.platform_internal_secret
+                elif settings.platform_api_key:
+                    _headers["X-API-Key"] = settings.platform_api_key
                 async with httpx.AsyncClient(timeout=10.0) as http_client:
                     await http_client.post(
                         f"{settings.platform_api_url}/internal/events",
@@ -123,7 +128,7 @@ class FilePoller:
                             "event": "file.new",
                             "data": event_data,
                         },
-                        headers={"X-API-Key": settings.platform_api_key} if settings.platform_api_key else {},
+                        headers=_headers,
                     )
             except Exception:
                 logger.debug("Failed to notify platform about file.new event", exc_info=True)

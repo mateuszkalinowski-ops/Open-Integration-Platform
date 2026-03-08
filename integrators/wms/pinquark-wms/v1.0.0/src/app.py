@@ -49,7 +49,10 @@ async def _fetch_credentials_once() -> int:
         return 0
     registered = 0
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
+        headers: dict[str, str] = {}
+        if settings.platform_internal_secret:
+            headers["X-Internal-Secret"] = settings.platform_internal_secret
+        async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
             resp = await client.get(
                 f"{settings.platform_api_url}/internal/connector-credentials/pinquark-wms",
             )

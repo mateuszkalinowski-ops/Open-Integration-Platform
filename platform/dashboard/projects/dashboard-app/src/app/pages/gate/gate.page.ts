@@ -10,6 +10,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTabsModule } from '@angular/material/tabs';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
+import { MatTooltipModule } from '@angular/material/tooltip';
 
 @Component({
   selector: 'app-gate-page',
@@ -25,6 +26,7 @@ import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
     MatTabsModule,
     MatSnackBarModule,
     MatProgressSpinnerModule,
+    MatTooltipModule,
   ],
   template: `
     <div class="gate">
@@ -301,8 +303,20 @@ export class GatePage {
   }
 
   copyKey(key: string): void {
-    navigator.clipboard.writeText(key).then(() => {
+    if (navigator.clipboard && window.isSecureContext) {
+      navigator.clipboard.writeText(key).then(() => {
+        this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 });
+      });
+    } else {
+      const textarea = document.createElement('textarea');
+      textarea.value = key;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      document.body.appendChild(textarea);
+      textarea.select();
+      document.execCommand('copy');
+      document.body.removeChild(textarea);
       this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 });
-    });
+    }
   }
 }
