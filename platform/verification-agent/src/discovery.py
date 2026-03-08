@@ -152,6 +152,7 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
 
     for name, versions in versions_per_connector.items():
         versions.sort(key=lambda m: m.version)
+        any_matched = False
 
         for manifest in versions:
             base_url = resolve_service_url(
@@ -159,16 +160,35 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
             )
             matched_instances = instance_index.get((name, manifest.version), [])
             if matched_instances:
+                any_matched = True
                 for inst in matched_instances:
                     targets.append(VerificationTarget(
                         manifest=manifest,
                         base_url=base_url,
                         tenant_id=str(inst.tenant_id),
                     ))
+
+        if not any_matched:
+            name_instances = instances_by_name.get(name, [])
+            if name_instances:
+                latest = versions[-1]
+                base_url = resolve_service_url(latest, version_count=len(versions))
+                for inst in name_instances:
+                    logger.warning(
+                        "Version mismatch for %s: manifest=%s, instance=%s "
+                        "— using name-based fallback",
+                        name, latest.version, inst.connector_version,
+                    )
+                    targets.append(VerificationTarget(
+                        manifest=latest,
+                        base_url=base_url,
+                        tenant_id=str(inst.tenant_id),
+                    ))
             else:
-                logger.info(
-                    "Skipping %s v%s — no enabled instances deployed",
-                    name, manifest.version,
-                )
+                for manifest in versions:
+                    logger.info(
+                        "Skipping %s v%s — no enabled instances deployed",
+                        name, manifest.version,
+                    )
 
     return targets

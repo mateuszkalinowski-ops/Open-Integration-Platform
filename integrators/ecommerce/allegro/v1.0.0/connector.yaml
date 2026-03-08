@@ -1262,7 +1262,7 @@ action_fields:
     type: string
     required: true
   product.search:
-  - field: phrase
+  - field: query
     label: Fraza wyszukiwania
     type: string
   - field: category.id
@@ -2272,40 +2272,565 @@ api_version_check:
   version_field: api\s+version[:\s]+(\d+\.?\d*)
   docs_url: https://developer.allegro.pl/documentation
 service_name: connector-allegro
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    client_id: client_id
+    client_secret: client_secret
+    api_url:
+      source: api_url
+      default: "https://api.allegro.pl"
+    auth_url:
+      source: auth_url
+      default: "https://allegro.pl/auth/oauth"
 action_routes:
   order.fetch:
     method: GET
     path: /orders
+    query_from_payload: [account_name, since, page, page_size]
   order.get:
     method: GET
     path: /orders/{order_id}
+    query_from_payload: [account_name]
   order.status_update:
-    method: PATCH
+    method: PUT
     path: /orders/{order_id}/status
+    query_from_payload: [account_name]
   order.invoice_upload:
     method: POST
     path: /orders/{order_id}/invoice
-    query_from_payload:
-    - account_name
+    query_from_payload: [account_name]
   order.invoices_get:
     method: GET
     path: /orders/{order_id}/invoices
-    query_from_payload:
-    - account_name
+    query_from_payload: [account_name]
+  order.events_get:
+    method: GET
+    path: /orders/events
+    query_from_payload: [account_name, from, type, limit]
+  order.events_stats:
+    method: GET
+    path: /orders/event-stats
+    query_from_payload: [account_name]
+  order.tracking_add:
+    method: POST
+    path: /orders/{order_id}/tracking
+    query_from_payload: [account_name]
+  order.tracking_get:
+    method: GET
+    path: /orders/{order_id}/tracking
+    query_from_payload: [account_name]
+  order.carriers_get:
+    method: GET
+    path: /orders/carriers
+    query_from_payload: [account_name]
+  order.billing_upload:
+    method: POST
+    path: /orders/{order_id}/billing
+    query_from_payload: [account_name]
+  offer.get:
+    method: GET
+    path: /offers/{offer_id}
+    query_from_payload: [account_name]
+  offer.get_all:
+    method: GET
+    path: /offers
+    query_from_payload: [account_name, publication.status, selling_mode.format, name, category.id, external.id, sort, limit, offset]
+  offer.create:
+    method: POST
+    path: /offers
+    query_from_payload: [account_name]
+  offer.edit:
+    method: PATCH
+    path: /offers/{offer_id}
+    query_from_payload: [account_name]
+  offer.delete_draft:
+    method: DELETE
+    path: /offers/{offer_id}/draft
+    query_from_payload: [account_name]
+  offer.publish:
+    method: PUT
+    path: /offers/batch/publish
+    query_from_payload: [account_name]
+  offer.events_get:
+    method: GET
+    path: /offers/events
+    query_from_payload: [account_name, from, type, limit]
+  offer.promo_get:
+    method: GET
+    path: /offers/{offer_id}/promo
+    query_from_payload: [account_name]
+  offer.promo_modify:
+    method: POST
+    path: /offers/{offer_id}/promo
+    query_from_payload: [account_name]
+  offer.rating_get:
+    method: GET
+    path: /offers/{offer_id}/rating
+    query_from_payload: [account_name]
+  offer_batch.price_change:
+    method: PUT
+    path: /offers/batch/price
+    query_from_payload: [account_name]
+  offer_batch.quantity_change:
+    method: PUT
+    path: /offers/batch/quantity
+    query_from_payload: [account_name]
+  offer_batch.modify:
+    method: PUT
+    path: /offers/batch/modify
+    query_from_payload: [account_name]
   stock.sync:
     method: POST
     path: /stock/sync
+    query_from_payload: [account_name]
   product.get:
     method: GET
     path: /products/{product_id}
+    query_from_payload: [account_name]
   product.search:
     method: GET
     path: /products/search
-    query_from_payload:
-    - account_name
-    - query
-    - page
-    - page_size
+    query_from_payload: [account_name, query, page, page_size]
+  product.propose:
+    method: POST
+    path: /products/propose
+    query_from_payload: [account_name]
+  product.params_get:
+    method: GET
+    path: /products/{product_id}/params
+    query_from_payload: [account_name]
+  category.list:
+    method: GET
+    path: /categories
+    query_from_payload: [account_name, parent_id]
+  category.get:
+    method: GET
+    path: /categories/{category_id}
+    query_from_payload: [account_name]
+  category.params_get:
+    method: GET
+    path: /categories/{category_id}/params
+    query_from_payload: [account_name]
+  category.suggestions:
+    method: GET
+    path: /categories/suggestions
+    query_from_payload: [account_name, name]
+  image.upload:
+    method: POST
+    path: /images
+    query_from_payload: [account_name]
+  attachment.create:
+    method: POST
+    path: /attachments
+    query_from_payload: [account_name]
+  attachment.upload:
+    method: PUT
+    path: /attachments/{attachment_id}
+    query_from_payload: [account_name]
+  variant.list:
+    method: GET
+    path: /variants
+    query_from_payload: [account_name]
+  variant.get:
+    method: GET
+    path: /variants/{set_id}
+    query_from_payload: [account_name]
+  variant.create:
+    method: POST
+    path: /variants
+    query_from_payload: [account_name]
+  variant.update:
+    method: PUT
+    path: /variants/{set_id}
+    query_from_payload: [account_name]
+  variant.delete:
+    method: DELETE
+    path: /variants/{set_id}
+    query_from_payload: [account_name]
+  tag.list:
+    method: GET
+    path: /tags
+    query_from_payload: [account_name]
+  tag.create:
+    method: POST
+    path: /tags
+    query_from_payload: [account_name]
+  tag.update:
+    method: PUT
+    path: /tags/{tag_id}
+    query_from_payload: [account_name]
+  tag.delete:
+    method: DELETE
+    path: /tags/{tag_id}
+    query_from_payload: [account_name]
+  tag.assign:
+    method: POST
+    path: /offers/{offer_id}/tags
+    query_from_payload: [account_name]
+  promotion.list:
+    method: GET
+    path: /promotions
+    query_from_payload: [account_name, limit, offset]
+  promotion.get:
+    method: GET
+    path: /promotions/{promotion_id}
+    query_from_payload: [account_name]
+  promotion.create:
+    method: POST
+    path: /promotions
+    query_from_payload: [account_name]
+  promotion.update:
+    method: PUT
+    path: /promotions/{promotion_id}
+    query_from_payload: [account_name]
+  promotion.delete:
+    method: DELETE
+    path: /promotions/{promotion_id}
+    query_from_payload: [account_name]
+  turnover_discount.list:
+    method: GET
+    path: /turnover-discounts
+    query_from_payload: [account_name]
+  turnover_discount.create:
+    method: PUT
+    path: /turnover-discounts/{marketplace_id}
+    query_from_payload: [account_name]
+  turnover_discount.deactivate:
+    method: DELETE
+    path: /turnover-discounts/{marketplace_id}
+    query_from_payload: [account_name]
+  bundle.list:
+    method: GET
+    path: /bundles
+    query_from_payload: [account_name, limit, offset]
+  bundle.get:
+    method: GET
+    path: /bundles/{bundle_id}
+    query_from_payload: [account_name]
+  bundle.create:
+    method: POST
+    path: /bundles
+    query_from_payload: [account_name]
+  bundle.delete:
+    method: DELETE
+    path: /bundles/{bundle_id}
+    query_from_payload: [account_name]
+  payment.history:
+    method: GET
+    path: /payments/history
+    query_from_payload: [account_name, wallet_type, payment_id, type, occurred_at.gte, occurred_at.lte, limit, offset]
+  payment.refund_list:
+    method: GET
+    path: /payments/refunds
+    query_from_payload: [account_name, limit, offset]
+  payment.refund_initiate:
+    method: POST
+    path: /payments/refunds
+    query_from_payload: [account_name]
+  shipment.create:
+    method: POST
+    path: /shipments
+    query_from_payload: [account_name]
+  shipment.get:
+    method: GET
+    path: /shipments/{shipment_id}
+    query_from_payload: [account_name]
+  shipment.cancel:
+    method: POST
+    path: /shipments/{shipment_id}/cancel
+    query_from_payload: [account_name]
+  shipment.labels:
+    method: POST
+    path: /shipments/labels
+    query_from_payload: [account_name]
+  shipment.protocol:
+    method: POST
+    path: /shipments/protocol
+    query_from_payload: [account_name]
+  shipment.services_get:
+    method: GET
+    path: /shipments/services
+    query_from_payload: [account_name]
+  shipment.pickup_request:
+    method: POST
+    path: /shipments/pickup-request
+    query_from_payload: [account_name]
+  shipment.pickup_proposals:
+    method: POST
+    path: /shipments/pickup-proposals
+    query_from_payload: [account_name]
+  return.list:
+    method: GET
+    path: /returns
+    query_from_payload: [account_name, buyer_login, status, created_at.gte, created_at.lte, limit, offset]
+  return.get:
+    method: GET
+    path: /returns/{return_id}
+    query_from_payload: [account_name]
+  return.reject:
+    method: POST
+    path: /returns/{return_id}/reject
+    query_from_payload: [account_name]
+  delivery.methods_get:
+    method: GET
+    path: /delivery/methods
+    query_from_payload: [account_name]
+  delivery.settings_get:
+    method: GET
+    path: /delivery/settings
+    query_from_payload: [account_name]
+  delivery.settings_update:
+    method: PUT
+    path: /delivery/settings
+    query_from_payload: [account_name]
+  delivery.shipping_rates_list:
+    method: GET
+    path: /delivery/shipping-rates
+    query_from_payload: [account_name]
+  delivery.shipping_rates_get:
+    method: GET
+    path: /delivery/shipping-rates/{shipping_rates_id}
+    query_from_payload: [account_name]
+  delivery.shipping_rates_create:
+    method: POST
+    path: /delivery/shipping-rates
+    query_from_payload: [account_name]
+  delivery.shipping_rates_update:
+    method: PUT
+    path: /delivery/shipping-rates/{shipping_rates_id}
+    query_from_payload: [account_name]
+  warranty.list:
+    method: GET
+    path: /warranties
+    query_from_payload: [account_name]
+  warranty.get:
+    method: GET
+    path: /warranties/{warranty_id}
+    query_from_payload: [account_name]
+  warranty.create:
+    method: POST
+    path: /warranties
+    query_from_payload: [account_name]
+  warranty.update:
+    method: PUT
+    path: /warranties/{warranty_id}
+    query_from_payload: [account_name]
+  return_policy.list:
+    method: GET
+    path: /return-policies
+    query_from_payload: [account_name]
+  return_policy.get:
+    method: GET
+    path: /return-policies/{policy_id}
+    query_from_payload: [account_name]
+  return_policy.create:
+    method: POST
+    path: /return-policies
+    query_from_payload: [account_name]
+  return_policy.update:
+    method: PUT
+    path: /return-policies/{policy_id}
+    query_from_payload: [account_name]
+  return_policy.delete:
+    method: DELETE
+    path: /return-policies/{policy_id}
+    query_from_payload: [account_name]
+  message.threads_list:
+    method: GET
+    path: /messages/threads
+    query_from_payload: [account_name, limit, offset]
+  message.thread_get:
+    method: GET
+    path: /messages/threads/{thread_id}
+    query_from_payload: [account_name]
+  message.thread_messages:
+    method: GET
+    path: /messages/threads/{thread_id}/messages
+    query_from_payload: [account_name, limit, offset]
+  message.send:
+    method: POST
+    path: /messages
+    query_from_payload: [account_name]
+  message.thread_read:
+    method: PUT
+    path: /messages/threads/{thread_id}/read
+    query_from_payload: [account_name]
+  billing.types_get:
+    method: GET
+    path: /billing/types
+    query_from_payload: [account_name]
+  billing.entries_get:
+    method: GET
+    path: /billing/entries
+    query_from_payload: [account_name, type.id, occurred_at.gte, occurred_at.lte, limit, offset]
+  user.info_get:
+    method: GET
+    path: /user/info
+    query_from_payload: [account_name]
+  user.ratings_get:
+    method: GET
+    path: /user/ratings
+    query_from_payload: [account_name, limit, offset]
+  user.sales_quality:
+    method: GET
+    path: /user/sales-quality
+    query_from_payload: [account_name]
+  commission_refund.list:
+    method: GET
+    path: /commission-refunds
+    query_from_payload: [account_name, limit, offset]
+  commission_refund.get:
+    method: GET
+    path: /commission-refunds/{refund_id}
+    query_from_payload: [account_name]
+  commission_refund.create:
+    method: POST
+    path: /commission-refunds
+    query_from_payload: [account_name]
+  commission_refund.cancel:
+    method: DELETE
+    path: /commission-refunds/{refund_id}
+    query_from_payload: [account_name]
+  additional_service.groups_list:
+    method: GET
+    path: /additional-services/groups
+    query_from_payload: [account_name]
+  additional_service.group_get:
+    method: GET
+    path: /additional-services/groups/{group_id}
+    query_from_payload: [account_name]
+  additional_service.group_create:
+    method: POST
+    path: /additional-services/groups
+    query_from_payload: [account_name]
+  additional_service.group_update:
+    method: PUT
+    path: /additional-services/groups/{group_id}
+    query_from_payload: [account_name]
+  additional_service.definitions_get:
+    method: GET
+    path: /additional-services/definitions
+    query_from_payload: [account_name, category_id]
+  size_table.list:
+    method: GET
+    path: /size-tables
+    query_from_payload: [account_name]
+  size_table.get:
+    method: GET
+    path: /size-tables/{table_id}
+    query_from_payload: [account_name]
+  size_table.create:
+    method: POST
+    path: /size-tables
+    query_from_payload: [account_name]
+  size_table.update:
+    method: PUT
+    path: /size-tables/{table_id}
+    query_from_payload: [account_name]
+  point_of_service.list:
+    method: GET
+    path: /points-of-service
+    query_from_payload: [account_name]
+  point_of_service.get:
+    method: GET
+    path: /points-of-service/{point_id}
+    query_from_payload: [account_name]
+  point_of_service.create:
+    method: POST
+    path: /points-of-service
+    query_from_payload: [account_name]
+  point_of_service.update:
+    method: PUT
+    path: /points-of-service/{point_id}
+    query_from_payload: [account_name]
+  point_of_service.delete:
+    method: DELETE
+    path: /points-of-service/{point_id}
+    query_from_payload: [account_name]
+  contact.list:
+    method: GET
+    path: /contacts
+    query_from_payload: [account_name]
+  contact.get:
+    method: GET
+    path: /contacts/{contact_id}
+    query_from_payload: [account_name]
+  contact.create:
+    method: POST
+    path: /contacts
+    query_from_payload: [account_name]
+  contact.update:
+    method: PUT
+    path: /contacts/{contact_id}
+    query_from_payload: [account_name]
+  pricing.offer_quotes:
+    method: GET
+    path: /pricing/offer-quotes
+    query_from_payload: [account_name]
+  pricing.fee_calculate:
+    method: POST
+    path: /pricing/fee-calculate
+    query_from_payload: [account_name]
+  tax.settings_get:
+    method: GET
+    path: /tax/settings/{category_id}
+    query_from_payload: [account_name]
+  badge.campaigns_list:
+    method: GET
+    path: /badges/campaigns
+    query_from_payload: [account_name]
+  badge.list:
+    method: GET
+    path: /badges
+    query_from_payload: [account_name, offer_id, campaign_id]
+  badge.apply:
+    method: POST
+    path: /badges
+    query_from_payload: [account_name]
+  compatibility.products:
+    method: GET
+    path: /compatibility/products/{offer_id}
+    query_from_payload: [account_name]
+  compatibility.groups:
+    method: GET
+    path: /compatibility/groups/{category_id}
+    query_from_payload: [account_name]
+  compatibility.suggestions:
+    method: GET
+    path: /compatibility/suggestions/{offer_id}
+    query_from_payload: [account_name]
+  compatibility.categories:
+    method: GET
+    path: /compatibility/categories
+    query_from_payload: [account_name]
+  fulfillment.stock_get:
+    method: GET
+    path: /fulfillment/stock
+    query_from_payload: [account_name]
+  fulfillment.parcels_get:
+    method: GET
+    path: /fulfillment/parcels
+    query_from_payload: [account_name]
+  fulfillment.products_get:
+    method: GET
+    path: /fulfillment/products
+    query_from_payload: [account_name]
+  fulfillment.asn_list:
+    method: GET
+    path: /fulfillment/advance-ship-notices
+    query_from_payload: [account_name]
+  fulfillment.asn_get:
+    method: GET
+    path: /fulfillment/advance-ship-notices/{asn_id}
+    query_from_payload: [account_name]
+  fulfillment.asn_create:
+    method: POST
+    path: /fulfillment/advance-ship-notices
+    query_from_payload: [account_name]
 credential_validation:
   required_fields:
   - client_id
