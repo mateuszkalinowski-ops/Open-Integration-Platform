@@ -14,6 +14,8 @@ services:
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
+      ADMIN_SECRET: ${ADMIN_SECRET}
+      INTERNAL_SECRET: ${INTERNAL_SECRET}
       DEMO_MODE: ${DEMO_MODE:-false}
     volumes:
       - ./integrators:/integrators:ro
@@ -39,6 +41,7 @@ services:
     environment:
       PINQUARK_API_URL: ""
       PINQUARK_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
+      PINQUARK_ADMIN_SECRET: ${ADMIN_SECRET:-}
     depends_on:
       - platform
     restart: unless-stopped

@@ -54,6 +54,7 @@ services:
     environment:
       PINQUARK_API_URL: ""
       PINQUARK_API_KEY: ""
+      PINQUARK_ADMIN_SECRET: ${ADMIN_SECRET:-}
     depends_on:
       - platform
     restart: unless-stopped
