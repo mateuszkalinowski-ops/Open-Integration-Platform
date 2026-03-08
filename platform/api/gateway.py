@@ -639,6 +639,40 @@ async def get_connector(category: str, name: str) -> ConnectorResponse:
 # --- Tenant management ---
 
 
+@app.get("/api/v1/tenants", tags=["tenants"])
+async def list_tenants(
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+) -> list[dict[str, Any]]:
+    _require_admin_secret(request)
+    result = await db.execute(select(Tenant).order_by(Tenant.created_at))
+    tenants = result.scalars().all()
+    out: list[dict[str, Any]] = []
+    for t in tenants:
+        keys_result = await db.execute(
+            select(ApiKey).where(ApiKey.tenant_id == t.id)
+        )
+        keys = keys_result.scalars().all()
+        out.append({
+            "id": str(t.id),
+            "name": t.name,
+            "slug": t.slug,
+            "plan": t.plan,
+            "is_active": t.is_active,
+            "created_at": t.created_at.isoformat() if t.created_at else None,
+            "api_keys": [
+                {
+                    "id": str(k.id),
+                    "key_prefix": k.key_prefix,
+                    "name": k.name,
+                    "is_active": k.is_active,
+                }
+                for k in keys
+            ],
+        })
+    return out
+
+
 @app.post("/api/v1/tenants", response_model=TenantResponse, tags=["tenants"])
 async def create_tenant(
     request: Request,
