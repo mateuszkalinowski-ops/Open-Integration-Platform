@@ -148,6 +148,17 @@ class ConnectorRegistry:
     def get_by_name(self, name: str) -> list[ConnectorManifest]:
         return [c for c in self._connectors.values() if c.name == name]
 
+    def get_by_name_version(self, name: str, version: str | None = None) -> ConnectorManifest | None:
+        """Return a specific version manifest, or the latest if *version* is ``None``."""
+        candidates = self.get_by_name(name)
+        if not candidates:
+            return None
+        if version:
+            for c in candidates:
+                if c.version == version:
+                    return c
+        return max(candidates, key=lambda c: _parse_semver(c.version))
+
     def get(self, connector_id: str) -> ConnectorManifest | None:
         return self._connectors.get(connector_id)
 

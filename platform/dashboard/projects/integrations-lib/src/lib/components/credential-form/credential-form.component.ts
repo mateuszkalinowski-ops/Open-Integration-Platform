@@ -29,16 +29,16 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
   ],
   template: `
     <div class="credential-form" *ngIf="connector">
-      <h3>{{ editMode ? 'Edytuj' : 'Dodaj' }} credentials: {{ connector.display_name }}</h3>
+      <h3>{{ editMode ? 'Edit' : 'Add' }} credentials: {{ connector.display_name }}</h3>
 
       <form [formGroup]="form" (ngSubmit)="save()">
         <!-- Credential Name -->
         <div class="credential-form__name-section">
           <mat-form-field appearance="outline" class="credential-form__field">
-            <mat-label>Nazwa credentials</mat-label>
+            <mat-label>Credential name</mat-label>
             <input matInput [ngModel]="credentialName" (ngModelChange)="credentialName = $event"
                    [ngModelOptions]="{standalone: true}"
-                   placeholder="np. Produkcja, Sandbox, Klient-X" />
+                   placeholder="e.g. Production, Sandbox, Client-X" />
             <mat-hint>Assign a unique name to distinguish this credential set from others</mat-hint>
           </mat-form-field>
         </div>
@@ -114,16 +114,16 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             <mat-icon>{{ showPasswords ? 'visibility_off' : 'visibility' }}</mat-icon>
           </button>
           <div>
-            <button mat-button type="button" (click)="cancelled.emit()" style="margin-right: 8px;">Anuluj</button>
+            <button mat-button type="button" (click)="cancelled.emit()" style="margin-right: 8px;">Cancel</button>
             <button mat-stroked-button type="button"
                     (click)="testConnection()"
                     [disabled]="validating"
                     style="margin-right: 8px;">
               <mat-icon style="font-size: 18px; height: 18px; width: 18px; margin-right: 4px;">wifi_tethering</mat-icon>
-              {{ validating ? 'Testowanie...' : 'Test polaczenia' }}
+              {{ validating ? 'Testing...' : 'Test connection' }}
             </button>
             <button mat-raised-button color="primary" type="submit" [disabled]="form.invalid || saving || !credentialName.trim()">
-              {{ saving ? 'Zapisywanie...' : (editMode ? 'Zapisz zmiany' : 'Zapisz credentials') }}
+              {{ saving ? 'Saving...' : (editMode ? 'Save changes' : 'Save credentials') }}
             </button>
           </div>
         </div>

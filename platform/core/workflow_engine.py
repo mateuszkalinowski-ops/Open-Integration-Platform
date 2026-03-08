@@ -293,16 +293,47 @@ class WorkflowEngine:
                 await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
 
         except Exception as exc:
+            on_error = config.get("on_error", workflow.on_error)
+            max_retries = config.get("max_retries", workflow.max_retries)
+            retryable = node_type in ("action", "http_request", "think")
+
+            if on_error == "retry" and max_retries > 0 and retryable:
+                for attempt in range(1, max_retries + 1):
+                    delay = min(1.0 * (2 ** (attempt - 1)), 30.0)
+                    await asyncio.sleep(delay)
+                    try:
+                        if node_type == "action":
+                            output = await self._exec_action(config, ctx, workflow)
+                        elif node_type == "http_request":
+                            output = await self._exec_http_request(config, ctx, workflow)
+                        else:
+                            output = await self._exec_think(config, ctx, workflow)
+                        ctx.set_node_output(node_id, output)
+                        if isinstance(output, dict):
+                            ctx.data = {**ctx.data, **output}
+                        result_entry["status"] = "success"
+                        result_entry["output"] = _safe_truncate(output)
+                        result_entry["retries"] = attempt
+                        result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
+                        ctx.node_results.append(result_entry)
+                        successors = graph.get_successors(node_id)
+                        if successors:
+                            await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
+                        return
+                    except Exception:
+                        if attempt == max_retries:
+                            break
+
             result_entry["status"] = "failed"
             result_entry["error"] = str(exc)
             result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
             ctx.node_results.append(result_entry)
 
-            on_error = config.get("on_error", workflow.on_error)
-            if on_error == "continue":
-                successors = graph.get_successors(node_id)
-                if successors:
-                    await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
+            if on_error in ("continue", "ignore"):
+                if on_error == "continue":
+                    successors = graph.get_successors(node_id)
+                    if successors:
+                        await self._execute_nodes(db, graph, successors, ctx, workflow, depth + 1)
             else:
                 error = WorkflowError(f"Node '{node.get('label', node_id)}' failed: {exc}")
                 error.node_id = node_id  # type: ignore[attr-defined]
@@ -316,6 +347,7 @@ class WorkflowEngine:
         connector_name = config.get("connector_name", "")
         action = config.get("action", "")
         credential_name = config.get("credential_name", "default")
+        connector_version = config.get("connector_version")
         if not connector_name or not action:
             raise WorkflowError("Action node missing connector_name or action")
 
@@ -328,6 +360,7 @@ class WorkflowEngine:
                 payload=payload,
                 tenant_id=workflow.tenant_id,
                 credential_name=credential_name,
+                connector_version=connector_version,
             )
         return {"dispatched": True, "connector": connector_name, "action": action, "payload": payload}
 
@@ -648,10 +681,16 @@ class WorkflowEngine:
             except Exception:
                 response_data = {"text": response.text[:2000]}
 
+        _SENSITIVE_HEADERS = {"authorization", "cookie", "set-cookie", "x-api-key", "x-admin-secret", "x-internal-secret", "proxy-authorization"}
+        safe_headers = {
+            k: ("***" if k.lower() in _SENSITIVE_HEADERS else v)
+            for k, v in response.headers.items()
+        }
+
         return {
             "status_code": response.status_code,
             "body": response_data,
-            "headers": dict(response.headers),
+            "headers": safe_headers,
         }
 
     def _exec_set_variable(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
@@ -1303,10 +1342,14 @@ def _get_trigger_credential(nodes: list[dict]) -> str | None:
 
 
 def _get_trigger_filters(nodes: list[dict]) -> dict | None:
-    """Extract filter config from the trigger node."""
+    """Extract filter config from the trigger node.
+
+    Accepts both ``filters`` (canonical) and ``filter`` (AI prompt alias).
+    """
     for node in nodes:
         if node.get("type") == "trigger":
-            return node.get("config", {}).get("filters")
+            cfg = node.get("config", {})
+            return cfg.get("filters") or cfg.get("filter")
     return None
 
 

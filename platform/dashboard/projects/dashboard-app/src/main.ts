@@ -10,7 +10,7 @@ import { PINQUARK_CONFIG } from '@pinquark/integrations';
 
 declare global {
   interface Window {
-    __PINQUARK_CONFIG__?: { apiUrl: string; apiKey: string };
+    __PINQUARK_CONFIG__?: { apiUrl: string; apiKey: string; adminSecret?: string };
   }
 }
 
@@ -24,6 +24,10 @@ bootstrapApplication(AppComponent, {
     provideRouter(routes),
     provideAnimationsAsync(),
     provideHttpClient(),
-    { provide: PINQUARK_CONFIG, useValue: { apiUrl: runtimeConfig.apiUrl, apiKey: effectiveApiKey } },
+    { provide: PINQUARK_CONFIG, useValue: {
+      apiUrl: runtimeConfig.apiUrl,
+      apiKey: effectiveApiKey,
+      adminSecret: runtimeConfig.adminSecret,
+    } },
   ],
 }).catch(err => console.error(err));

@@ -1,4 +1,4 @@
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -59,6 +59,7 @@ import {
             <mat-slide-toggle
               [checked]="scheduler.enabled"
               (change)="toggleScheduler($event.checked)"
+              [disabled]="!canEditScheduler"
               color="primary"
             >Scheduler</mat-slide-toggle>
           </div>
@@ -66,9 +67,12 @@ import {
             <span>Every</span>
             <mat-form-field appearance="outline" class="interval-field">
               <input matInput type="number" min="1" [(ngModel)]="scheduler.interval_days"
-                     (blur)="updateInterval()" />
+                     (blur)="updateInterval()" [disabled]="!canEditScheduler" />
             </mat-form-field>
             <span>days</span>
+            @if (!canEditScheduler) {
+              <span class="info-label" style="color: #999; font-size: 12px;">(admin only)</span>
+            }
           </div>
           <div class="scheduler-info">
             @if (scheduler.next_run) {
@@ -335,12 +339,14 @@ import {
     }
   `],
 })
-export class VerificationPage implements OnInit {
+export class VerificationPage implements OnInit, OnDestroy {
   scheduler: SchedulerStatus = {
     enabled: false, interval_days: 7, last_run: null, next_run: null, currently_running: false,
   };
   isRunning = false;
   checkingConnector: string | null = null;
+  canEditScheduler = false;
+  private pollIntervalId: ReturnType<typeof setInterval> | null = null;
 
   latest: VerificationLatestResponse | null = null;
   latestConnectors: VerificationConnectorResult[] = [];
@@ -362,6 +368,7 @@ export class VerificationPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.canEditScheduler = this.api.isAdmin;
     this.loadScheduler();
     this.loadLatest();
   }
@@ -386,7 +393,11 @@ export class VerificationPage implements OnInit {
         this.overviewSkipped = this.latestConnectors.filter(c => c.status === 'SKIP').length;
         this.applyFilter();
       },
-      error: () => {},
+      error: (err: { status?: number }) => {
+        if (err.status === 403) {
+          this.snackBar.open('Verification data requires admin access', 'OK', { duration: 5000 });
+        }
+      },
     });
   }
 
@@ -396,7 +407,14 @@ export class VerificationPage implements OnInit {
         this.scheduler.enabled = enabled;
         this.snackBar.open(`Scheduler ${enabled ? 'enabled' : 'disabled'}`, 'OK', { duration: 3000 });
       },
-      error: () => this.snackBar.open('Failed to update scheduler', 'OK', { duration: 3000 }),
+      error: (err: { status?: number }) => {
+        this.scheduler.enabled = !enabled;
+        if (err.status === 403) {
+          this.canEditScheduler = false;
+        }
+        const msg = err.status === 403 ? 'Admin access required to modify scheduler' : 'Failed to update scheduler';
+        this.snackBar.open(msg, 'OK', { duration: 4000 });
+      },
     });
   }
 
@@ -404,7 +422,13 @@ export class VerificationPage implements OnInit {
     if (this.scheduler.interval_days < 1) return;
     this.api.verificationSchedulerUpdate({ interval_days: this.scheduler.interval_days }).subscribe({
       next: () => this.snackBar.open('Interval updated', 'OK', { duration: 2000 }),
-      error: () => this.snackBar.open('Failed to update interval', 'OK', { duration: 3000 }),
+      error: (err: { status?: number }) => {
+        if (err.status === 403) {
+          this.canEditScheduler = false;
+        }
+        const msg = err.status === 403 ? 'Admin access required to modify scheduler' : 'Failed to update interval';
+        this.snackBar.open(msg, 'OK', { duration: 4000 });
+      },
     });
   }
 
@@ -446,18 +470,36 @@ export class VerificationPage implements OnInit {
     return this.checkingConnector === key;
   }
 
+  ngOnDestroy(): void {
+    this.clearPollInterval();
+  }
+
+  private clearPollInterval(): void {
+    if (this.pollIntervalId !== null) {
+      clearInterval(this.pollIntervalId);
+      this.pollIntervalId = null;
+    }
+  }
+
   private pollUntilDone(): void {
-    const interval = setInterval(() => {
+    this.clearPollInterval();
+    this.pollIntervalId = setInterval(() => {
       this.api.verificationSchedulerStatus().subscribe({
         next: (s: SchedulerStatus) => {
           this.isRunning = s.currently_running;
           if (!s.currently_running) {
-            clearInterval(interval);
+            this.clearPollInterval();
             this.checkingConnector = null;
             this.loadLatest();
             this.loadScheduler();
             this.snackBar.open('Verification complete', 'OK', { duration: 3000 });
           }
+        },
+        error: () => {
+          this.clearPollInterval();
+          this.isRunning = false;
+          this.checkingConnector = null;
+          this.snackBar.open('Verification polling failed', 'OK', { duration: 3000 });
         },
       });
     }, 5000);

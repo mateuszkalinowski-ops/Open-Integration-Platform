@@ -34,6 +34,7 @@ import {
 export interface PinquarkConfig {
   apiUrl: string;
   apiKey: string;
+  adminSecret?: string;
 }
 
 export const PINQUARK_CONFIG = new InjectionToken<PinquarkConfig>('PINQUARK_CONFIG');
@@ -42,6 +43,8 @@ export const PINQUARK_CONFIG = new InjectionToken<PinquarkConfig>('PINQUARK_CONF
 export class PinquarkApiService {
   private readonly apiUrl: string;
   private readonly headers: Record<string, string>;
+  private readonly adminHeaders: Record<string, string>;
+  readonly isAdmin: boolean;
 
   constructor(
     private readonly http: HttpClient,
@@ -49,6 +52,10 @@ export class PinquarkApiService {
   ) {
     this.apiUrl = config.apiUrl;
     this.headers = { 'X-API-Key': config.apiKey };
+    this.isAdmin = !!config.adminSecret;
+    this.adminHeaders = config.adminSecret
+      ? { 'X-Admin-Secret': config.adminSecret }
+      : this.headers;
   }
 
   health(): Observable<HealthResponse> {
@@ -361,7 +368,7 @@ export class PinquarkApiService {
 
   verificationSchedulerUpdate(body: SchedulerUpdate): Observable<SchedulerStatus> {
     return this.http.put<SchedulerStatus>(`${this.apiUrl}/api/verification/scheduler`, body, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 
@@ -370,14 +377,14 @@ export class PinquarkApiService {
       .set('page', page.toString())
       .set('page_size', pageSize.toString());
     return this.http.get<VerificationRunsResponse>(`${this.apiUrl}/api/verification/runs`, {
-      headers: this.headers,
+      headers: this.adminHeaders,
       params,
     });
   }
 
   verificationGetRun(runId: string): Observable<VerificationRunDetail> {
     return this.http.get<VerificationRunDetail>(`${this.apiUrl}/api/verification/runs/${runId}`, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 
@@ -395,14 +402,14 @@ export class PinquarkApiService {
     if (params?.page) httpParams = httpParams.set('page', params.page.toString());
     if (params?.page_size) httpParams = httpParams.set('page_size', params.page_size.toString());
     return this.http.get<VerificationErrorsResponse>(`${this.apiUrl}/api/verification/errors`, {
-      headers: this.headers,
+      headers: this.adminHeaders,
       params: httpParams,
     });
   }
 
   verificationLatest(): Observable<VerificationLatestResponse> {
     return this.http.get<VerificationLatestResponse>(`${this.apiUrl}/api/verification/reports/latest`, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 

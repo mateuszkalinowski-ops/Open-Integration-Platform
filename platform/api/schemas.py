@@ -95,6 +95,7 @@ class FlowCreate(BaseModel):
     source_event: str = Field(..., max_length=200)
     source_filter: dict | None = None
     destination_connector: str = Field(..., max_length=100)
+    destination_connector_version: str | None = Field(default=None, max_length=20)
     destination_action: str = Field(..., max_length=200)
     field_mapping: list[dict] = Field(default_factory=list)
     transform: str | None = None
@@ -108,6 +109,7 @@ class FlowUpdate(BaseModel):
     source_event: str | None = Field(default=None, max_length=200)
     source_filter: dict | None = None
     destination_connector: str | None = Field(default=None, max_length=100)
+    destination_connector_version: str | None = Field(default=None, max_length=20)
     destination_action: str | None = Field(default=None, max_length=200)
     field_mapping: list[dict] | None = None
     transform: str | None = None
@@ -124,6 +126,7 @@ class FlowResponse(BaseModel):
     source_event: str
     source_filter: dict | None
     destination_connector: str
+    destination_connector_version: str | None = None
     destination_action: str
     field_mapping: list[dict]
     on_error: str

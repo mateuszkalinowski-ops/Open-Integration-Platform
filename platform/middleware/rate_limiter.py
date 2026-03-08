@@ -69,16 +69,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             remaining = max(0, max_requests - current_count)
 
         except Exception:
-            logger.warning("Rate limiter unavailable (Redis down?), rejecting request", exc_info=True)
-            return JSONResponse(
-                status_code=503,
-                content={
-                    "error": {
-                        "code": "SERVICE_UNAVAILABLE",
-                        "message": "Rate limiter temporarily unavailable",
-                    }
-                },
-            )
+            logger.warning("Rate limiter unavailable (Redis down?) — allowing request without limit")
 
         response = await call_next(request)
         if remaining is not None:

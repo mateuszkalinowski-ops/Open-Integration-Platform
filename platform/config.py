@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
 
     # PostgreSQL
-    database_url: str = "postgresql+asyncpg://pinquark:pinquark@localhost:5432/pinquark_platform"
+    database_url: str = "postgresql+asyncpg://localhost:5432/pinquark_platform"
     db_pool_size: int = 20
     db_max_overflow: int = 30
     db_pool_timeout: int = 30
@@ -57,6 +57,7 @@ class Settings(BaseSettings):
     admin_secret: str = ""
 
     # Internal secret for /internal/* endpoints (empty = endpoints locked)
+    # When empty, all /internal/* endpoints are blocked (403).
     internal_secret: str = ""
 
     demo_mode: bool = False

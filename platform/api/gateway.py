@@ -72,6 +72,21 @@ _start_time = time.time()
 registry = ConnectorRegistry(settings.connector_discovery_path)
 vault = CredentialVault()
 mapping_resolver = MappingResolver(settings.connector_discovery_path)
+
+
+async def _resolve_connector_version(db_session: "AsyncSession", tenant_id: Any, connector_name: str) -> str | None:
+    """Return the connector version activated by a tenant.
+
+    When multiple versions are active, returns the most recently created one.
+    """
+    result = await db_session.execute(
+        select(ConnectorInstance.connector_version).where(
+            ConnectorInstance.tenant_id == tenant_id,
+            ConnectorInstance.connector_name == connector_name,
+            ConnectorInstance.is_enabled.is_(True),
+        ).order_by(ConnectorInstance.created_at.desc()).limit(1)
+    )
+    return result.scalar_one_or_none()
 flow_engine = FlowEngine(mapping_resolver)
 workflow_engine = WorkflowEngine()
 
@@ -127,14 +142,18 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         payload: dict,
         tenant_id: Any,
         credential_name: str = "default",
+        connector_version: str | None = None,
     ) -> dict:
         credentials: dict[str, str] | None = None
+        version: str | None = connector_version
         try:
             async with async_session_factory() as db_session:
                 await set_rls_bypass(db_session)
                 credentials = await vault.retrieve_all(
                     db_session, tenant_id, connector_name, credential_name=credential_name
                 )
+                if not version:
+                    version = await _resolve_connector_version(db_session, tenant_id, connector_name)
         except Exception:
             pass
         return await dispatch_action(
@@ -144,6 +163,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             tenant_id=tenant_id,
             credentials=credentials,
             registry=registry,
+            connector_version=version,
         )
 
     workflow_engine.set_action_executor(_execute_connector_action)
@@ -433,12 +453,14 @@ def _require_internal_secret(request: Request) -> None:
     """Verify internal secret for /internal/* endpoints.
 
     These endpoints are meant to be called only from within the Docker
-    network by other connectors/services.  When no INTERNAL_SECRET is
-    configured, access is allowed (Docker network trust model) with a
-    warning logged on first call.
+    network by other connectors/services.  When INTERNAL_SECRET is not
+    configured, all /internal/* endpoints are blocked (403).
     """
     if not settings.internal_secret:
-        return
+        raise HTTPException(
+            status_code=403,
+            detail="Internal endpoints disabled — INTERNAL_SECRET not configured",
+        )
     provided = request.headers.get("X-Internal-Secret", "")
     if not secrets.compare_digest(provided, settings.internal_secret):
         raise HTTPException(status_code=403, detail="Invalid internal secret")
@@ -470,7 +492,7 @@ async def health_check() -> HealthResponse:
 
 
 @app.get("/readiness", tags=["health"])
-async def readiness_check() -> dict[str, Any]:
+async def readiness_check(response: Response) -> dict[str, Any]:
     redis_ok = await redis_health()
     db_ok = True
     try:
@@ -480,6 +502,8 @@ async def readiness_check() -> dict[str, Any]:
         db_ok = False
 
     all_ok = redis_ok and db_ok
+    if not all_ok:
+        response.status_code = 503
     return {
         "status": "ready" if all_ok else "not_ready",
         "checks": {
@@ -528,27 +552,22 @@ async def list_connectors(
 
 
 @app.get("/api/v1/connectors/{name}/openapi", tags=["connectors"])
-async def get_connector_openapi(name: str):
+async def get_connector_openapi(name: str, version: str | None = Query(None)):
     """Proxy to connector's /openapi.json endpoint for Swagger UI embedding."""
-    manifests = registry.get_by_name(name)
-    if not manifests:
+    manifest = registry.get_by_name_version(name, version)
+    if not manifest:
         raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
 
-    sorted_manifests = sorted(manifests, key=lambda m: m.version, reverse=True)
-
     async with httpx.AsyncClient(timeout=10.0) as client:
-        for manifest in sorted_manifests:
-            url = f"{manifest.base_url}/openapi.json"
-            try:
-                resp = await client.get(url)
-                resp.raise_for_status()
-                spec = resp.json()
-                spec["servers"] = [{"url": f"/connector-proxy/{name}", "description": "Connector API"}]
-                return spec
-            except (httpx.ConnectError, httpx.HTTPStatusError):
-                continue
-
-        raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable")
+        url = f"{manifest.base_url}/openapi.json"
+        try:
+            resp = await client.get(url)
+            resp.raise_for_status()
+            spec = resp.json()
+            spec["servers"] = [{"url": manifest.base_url, "description": f"{manifest.display_name} v{manifest.version}"}]
+            return spec
+        except (httpx.ConnectError, httpx.HTTPStatusError):
+            raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable")
 
 
 @app.get("/api/v1/connectors/{name}/onpremise-agent", tags=["connectors"])
@@ -714,7 +733,7 @@ async def create_api_key(
         raise HTTPException(status_code=404, detail="Tenant not found")
     raw_key, key_hash = generate_api_key()
     api_key = ApiKey(
-        tenant_id=tenant_id,
+        tenant_id=tid,
         key_hash=key_hash,
         key_prefix=raw_key[:10],
         name=body.name,
@@ -1031,7 +1050,19 @@ async def validate_credentials(
     if not merged:
         raise HTTPException(status_code=404, detail="No credentials found for this connector")
 
-    return await generic_validate_credentials(connector_name, merged, registry)
+    instance_version: str | None = None
+    instance_result = await db.execute(
+        select(ConnectorInstance.connector_version).where(
+            ConnectorInstance.tenant_id == tenant.id,
+            ConnectorInstance.connector_name == connector_name,
+            ConnectorInstance.is_enabled.is_(True),
+        ).limit(1)
+    )
+    row = instance_result.scalar_one_or_none()
+    if row:
+        instance_version = row
+
+    return await generic_validate_credentials(connector_name, merged, registry, connector_version=instance_version)
 
 
 # --- Flows ---
@@ -1050,6 +1081,7 @@ async def create_flow(
         source_event=body.source_event,
         source_filter=body.source_filter,
         destination_connector=body.destination_connector,
+        destination_connector_version=body.destination_connector_version,
         destination_action=body.destination_action,
         field_mapping=body.field_mapping,
         transform=body.transform,
@@ -1127,12 +1159,16 @@ async def trigger_event(
         payload: dict,
         tenant_id: Any,
         credential_name: str = "default",
+        connector_version: str | None = None,
     ) -> dict:
         credentials: dict[str, str] | None = None
+        version: str | None = connector_version
         try:
             credentials = await vault.retrieve_all(
                 db, tenant_id, connector_name, credential_name=credential_name
             )
+            if not version:
+                version = await _resolve_connector_version(db, tenant_id, connector_name)
         except Exception:
             pass
         return await dispatch_action(
@@ -1142,6 +1178,7 @@ async def trigger_event(
             tenant_id=tenant_id,
             credentials=credentials,
             registry=registry,
+            connector_version=version,
         )
 
     flow_executions = await flow_engine.process_event(
@@ -1212,12 +1249,16 @@ async def internal_trigger_event(
         payload: dict,
         tenant_id: Any,
         credential_name: str = "default",
+        connector_version: str | None = None,
     ) -> dict:
         credentials: dict[str, str] | None = None
+        version: str | None = connector_version
         try:
             credentials = await vault.retrieve_all(
                 db, tenant_id, connector_name, credential_name=credential_name
             )
+            if not version:
+                version = await _resolve_connector_version(db, tenant_id, connector_name)
         except Exception:
             pass
         return await dispatch_action(
@@ -1227,6 +1268,7 @@ async def internal_trigger_event(
             tenant_id=tenant_id,
             credentials=credentials,
             registry=registry,
+            connector_version=version,
         )
 
     all_flow_executions: list[FlowExecution] = []
@@ -1277,13 +1319,29 @@ async def internal_trigger_event(
 @app.get("/internal/connector-credentials/{connector_name}", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_get_connector_credentials(
     connector_name: str,
+    request: Request,
     db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, Any]]:
-    """Return all stored credentials for a connector across all tenants.
+    """Return stored credentials for a connector across active tenants.
 
     Used internally by connectors (within Docker network) to auto-register
     credentials for event polling.
+
+    Security: the requesting service must identify itself via
+    ``X-Connector-Name`` and may only retrieve its own credentials.
     """
+    caller = request.headers.get("X-Connector-Name", "")
+    if not caller:
+        raise HTTPException(
+            status_code=400,
+            detail="X-Connector-Name header is required",
+        )
+    if caller != connector_name:
+        raise HTTPException(
+            status_code=403,
+            detail="Connector may only retrieve its own credentials",
+        )
+
     await set_rls_bypass(db)
     result = await db.execute(
         select(Tenant).where(Tenant.is_active.is_(True))
@@ -1483,7 +1541,7 @@ A workflow consists of NODES (processing steps) and EDGES (connections between t
 ## Available Node Types
 
 - **trigger**: Starting point — listens for a connector event.
-  Config: { connector_name, event, credential_name?, filter? }
+  Config: { connector_name, event, credential_name?, filters? }
 - **action**: Execute an action on a connector.
   Config: { connector_name, action, credential_name?, field_mapping: [{from, to}], on_error: "stop"|"continue" }
 - **condition**: If/else branching. Outputs: "true" / "false".
@@ -2122,7 +2180,7 @@ async def get_workflow_execution_detail(
         duration_ms=execution.duration_ms,
         started_at=execution.started_at,
         completed_at=execution.completed_at,
-        workflow_name=workflow.name if workflow else (execution.workflow_name or "(usunięty)"),
+        workflow_name=workflow.name if workflow else (execution.workflow_name or "(deleted)"),
         workflow_description=workflow.description if workflow else None,
         trigger_connector=workflow.trigger_connector if workflow else None,
         trigger_event=workflow.trigger_event if workflow else None,
@@ -2166,12 +2224,12 @@ async def verification_scheduler_status() -> Any:
     return await _proxy_verification("GET", "/scheduler/status")
 
 
-@app.put("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.put("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_scheduler_update(body: dict[str, Any]) -> Any:
     return await _proxy_verification("PUT", "/scheduler", body=body)
 
 
-@app.get("/api/verification/runs", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.get("/api/verification/runs", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_list_runs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -2179,12 +2237,12 @@ async def verification_list_runs(
     return await _proxy_verification("GET", "/runs", params={"page": str(page), "page_size": str(page_size)})
 
 
-@app.get("/api/verification/runs/{run_id}", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.get("/api/verification/runs/{run_id}", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_get_run(run_id: str) -> Any:
     return await _proxy_verification("GET", f"/runs/{run_id}")
 
 
-@app.get("/api/verification/errors", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.get("/api/verification/errors", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_list_errors(
     connector_name: str | None = Query(None),
     date_from: str | None = Query(None),
@@ -2202,7 +2260,7 @@ async def verification_list_errors(
     return await _proxy_verification("GET", "/errors", params=params)
 
 
-@app.get("/api/verification/reports/latest", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.get("/api/verification/reports/latest", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_latest_reports() -> Any:
     return await _proxy_verification("GET", "/reports/latest")
 

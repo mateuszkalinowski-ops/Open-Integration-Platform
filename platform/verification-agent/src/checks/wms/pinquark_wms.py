@@ -4,7 +4,9 @@ Exercises all documented endpoints: articles, article batches, documents,
 positions, contractors, feedback, errors, and poller management.
 
 Read-only checks (GET-style POSTs) run unconditionally; write operations
-use safe test data and accept expected error statuses (401/404/422/502).
+use safe test data and accept expected error statuses (401/404/422).
+A 502 from the connector means the upstream WMS is unreachable and is
+treated as FAIL (not masked as PASS).
 """
 
 import logging
@@ -63,14 +65,14 @@ async def run(
         chk, resp = await req_check(
             client, "POST", f"{base}/articles/get", "get_articles",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
             client, "POST", f"{base}/articles/get-delete-commands", "get_articles_delete_commands",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
@@ -85,7 +87,7 @@ async def run(
                     "source": "ERP",
                 },
             },
-            accept_statuses=(200, 401, 422, 502),
+            accept_statuses=(200, 401, 422),
         )
         results.append(chk)
 
@@ -95,7 +97,7 @@ async def run(
                 **creds_body,
                 "command": {"uniqueCode": "VER_TEST_NONEXISTENT"},
             },
-            accept_statuses=(200, 401, 404, 422, 502),
+            accept_statuses=(200, 401, 404, 422),
         )
         results.append(chk)
     else:
@@ -109,7 +111,7 @@ async def run(
         chk, _ = await req_check(
             client, "POST", f"{base}/article-batches/get", "get_article_batches",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
     else:
@@ -121,14 +123,14 @@ async def run(
         chk, _ = await req_check(
             client, "POST", f"{base}/documents/get", "get_documents",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
             client, "POST", f"{base}/documents/get-delete-commands", "get_documents_delete_commands",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
@@ -143,7 +145,7 @@ async def run(
                     "symbol": "VER/TEST/001",
                 },
             },
-            accept_statuses=(200, 401, 422, 502),
+            accept_statuses=(200, 401, 422),
         )
         results.append(chk)
 
@@ -153,7 +155,7 @@ async def run(
                 **creds_body,
                 "command": {"uniqueCode": "VER_TEST_NONEXISTENT"},
             },
-            accept_statuses=(200, 401, 404, 422, 502),
+            accept_statuses=(200, 401, 404, 422),
         )
         results.append(chk)
     else:
@@ -167,14 +169,14 @@ async def run(
         chk, _ = await req_check(
             client, "POST", f"{base}/positions/get", "get_positions",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
             client, "POST", f"{base}/positions/get-delete-commands", "get_positions_delete_commands",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
     else:
@@ -187,14 +189,14 @@ async def run(
         chk, _ = await req_check(
             client, "POST", f"{base}/contractors/get", "get_contractors",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
             client, "POST", f"{base}/contractors/get-delete-commands", "get_contractors_delete_commands",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
@@ -209,7 +211,7 @@ async def run(
                     "source": "ERP",
                 },
             },
-            accept_statuses=(200, 401, 422, 502),
+            accept_statuses=(200, 401, 422),
         )
         results.append(chk)
     else:
@@ -223,14 +225,14 @@ async def run(
         chk, _ = await req_check(
             client, "POST", f"{base}/feedbacks/get", "get_feedbacks",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
             client, "POST", f"{base}/errors/get", "get_errors",
             json_body=creds_body,
-            accept_statuses=(200, 401, 502),
+            accept_statuses=(200, 401),
         )
         results.append(chk)
     else:

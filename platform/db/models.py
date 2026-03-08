@@ -117,6 +117,7 @@ class Flow(Base):
     source_filter: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
 
     destination_connector: Mapped[str] = mapped_column(String(100), nullable=False)
+    destination_connector_version: Mapped[str | None] = mapped_column(String(20), nullable=True)
     destination_action: Mapped[str] = mapped_column(String(100), nullable=False)
 
     field_mapping: Mapped[list] = mapped_column(JSONB, default=list)

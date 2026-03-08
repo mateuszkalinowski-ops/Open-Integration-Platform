@@ -44,6 +44,7 @@ class ConnectorManifest:
     docs_url: str = "/docs"
     config_schema: dict = field(default_factory=dict)
     service_name: str = ""
+    credential_provisioning: dict = field(default_factory=dict)
     api_version_check: ApiVersionCheck | None = None
 
     @property
@@ -70,11 +71,18 @@ def resolve_service_url(
     When multiple versions of the same connector exist, the service name
     includes the major version suffix: ``connector-inpost-v3``.
     Single-version connectors keep the plain name for backward compat.
+
+    Skips the suffix when the service_name already contains a version
+    indicator (e.g. ``connector-inpost-v1``) to avoid double-appending.
     """
     base = manifest.resolved_service_name
     if version_count > 1 and manifest.version:
         major = manifest.version.split(".")[0]
-        service = f"{base}-v{major}"
+        suffix = f"-v{major}"
+        if not base.endswith(suffix):
+            service = f"{base}{suffix}"
+        else:
+            service = base
     else:
         service = base
     return f"http://{service}:{settings.default_connector_port}"
@@ -118,6 +126,7 @@ def discover_manifests() -> list[ConnectorManifest]:
                 docs_url=data.get("docs_url", "/docs"),
                 config_schema=data.get("config_schema", {}),
                 service_name=data.get("service_name", ""),
+                credential_provisioning=data.get("credential_provisioning", {}),
                 api_version_check=avc,
             ))
         except Exception as exc:
@@ -171,19 +180,23 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
         if not any_matched:
             name_instances = instances_by_name.get(name, [])
             if name_instances:
-                latest = versions[-1]
-                base_url = resolve_service_url(latest, version_count=len(versions))
+                version_map = {m.version: m for m in versions}
                 for inst in name_instances:
-                    logger.warning(
-                        "Version mismatch for %s: manifest=%s, instance=%s "
-                        "— using name-based fallback",
-                        name, latest.version, inst.connector_version,
-                    )
-                    targets.append(VerificationTarget(
-                        manifest=latest,
-                        base_url=base_url,
-                        tenant_id=str(inst.tenant_id),
-                    ))
+                    matched_manifest = version_map.get(inst.connector_version)
+                    if matched_manifest:
+                        base_url = resolve_service_url(matched_manifest, version_count=len(versions))
+                        targets.append(VerificationTarget(
+                            manifest=matched_manifest,
+                            base_url=base_url,
+                            tenant_id=str(inst.tenant_id),
+                        ))
+                    else:
+                        logger.warning(
+                            "Skipping %s instance (tenant=%s): instance version %s "
+                            "not found in available manifests %s",
+                            name, inst.tenant_id, inst.connector_version,
+                            [m.version for m in versions],
+                        )
             else:
                 for manifest in versions:
                     logger.info(

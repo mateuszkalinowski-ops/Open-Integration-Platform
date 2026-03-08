@@ -6,6 +6,7 @@ ConnectorRegistry.  No per-connector logic lives here.
 """
 
 import base64
+import json
 import uuid
 from typing import Any
 
@@ -22,11 +23,12 @@ HTTP_TIMEOUT = 30.0
 def _resolve_service_url(
     connector_name: str,
     registry: ConnectorRegistry | None = None,
+    connector_version: str | None = None,
 ) -> str:
     if registry:
-        manifests = registry.get_by_name(connector_name)
-        if manifests:
-            return manifests[0].base_url
+        manifest = registry.get_by_name_version(connector_name, connector_version)
+        if manifest:
+            return manifest.base_url
     return f"http://connector-{connector_name}:{DEFAULT_CONNECTOR_PORT}"
 
 
@@ -255,19 +257,23 @@ async def dispatch_action(
     tenant_id: uuid.UUID,
     credentials: dict[str, str] | None = None,
     registry: ConnectorRegistry | None = None,
+    connector_version: str | None = None,
 ) -> dict[str, Any]:
     """Dispatch an action to a connector service via HTTP.
 
     Fully generic — all routing, credential provisioning, and payload
     coercion is driven by connector.yaml via the registry.
+
+    When *connector_version* is provided, the exact manifest version is
+    used; otherwise the latest discovered version is selected.
     """
     manifest: ConnectorManifest | None = None
     if registry:
-        manifests = registry.get_by_name(connector_name)
-        if manifests:
-            manifest = manifests[0]
+        manifest = registry.get_by_name_version(connector_name, connector_version)
 
-    base_url = manifest.base_url if manifest else _resolve_service_url(connector_name)
+    base_url = manifest.base_url if manifest else _resolve_service_url(
+        connector_name, registry, connector_version
+    )
 
     route: dict | None = None
     if manifest and manifest.action_routes:
@@ -324,7 +330,12 @@ async def dispatch_action(
             if file_result:
                 file_bytes, filename = file_result
                 files = {"file": (filename, file_bytes)}
-                response = await client.post(url, files=files, params=query_params)
+                remaining = {
+                    k: (json.dumps(v) if isinstance(v, (dict, list)) else str(v))
+                    for k, v in body.items()
+                    if k != "file" and v is not None
+                }
+                response = await client.post(url, files=files, data=remaining, params=query_params)
             else:
                 raise ValueError(
                     f"Action '{action}' on connector '{connector_name}' requires a "

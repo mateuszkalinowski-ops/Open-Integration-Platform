@@ -4,6 +4,7 @@ A flow connects a source connector event to a destination connector action,
 with field mapping and optional transformation in between.
 """
 
+import asyncio
 import time
 import uuid
 from collections.abc import Callable
@@ -18,6 +19,9 @@ from core.mapping_resolver import MappingResolver
 from db.models import Flow, FlowExecution
 
 logger = structlog.get_logger()
+
+_RETRY_BASE_DELAY = 1.0
+_RETRY_MAX_DELAY = 30.0
 
 
 class FlowEngine:
@@ -75,27 +79,58 @@ class FlowEngine:
                 source_data=event_data,
                 flow_field_mapping=flow.field_mapping,
             )
+
+            if flow.transform:
+                mapped_data = self._apply_transform(mapped_data, flow.transform)
+
             execution.destination_action_data = mapped_data
 
-            result = await execute_action_fn(
-                connector_name=flow.destination_connector,
-                action=flow.destination_action,
-                payload=mapped_data,
-                tenant_id=flow.tenant_id,
-            )
+            max_attempts = flow.max_retries + 1 if flow.on_error == "retry" else 1
+            last_exc: Exception | None = None
 
-            execution.status = "success"
-            execution.result = result if isinstance(result, dict) else {"result": str(result)}
-            execution.completed_at = datetime.now(timezone.utc)
-            execution.duration_ms = int((time.monotonic() - start_time) * 1000)
+            for attempt in range(max_attempts):
+                try:
+                    result = await execute_action_fn(
+                        connector_name=flow.destination_connector,
+                        action=flow.destination_action,
+                        payload=mapped_data,
+                        tenant_id=flow.tenant_id,
+                        connector_version=getattr(flow, "destination_connector_version", None),
+                    )
 
-            await logger.ainfo(
-                "flow_executed",
-                flow_id=str(flow.id),
-                flow_name=flow.name,
-                status="success",
-                duration_ms=execution.duration_ms,
-            )
+                    execution.status = "success"
+                    execution.retry_count = attempt
+                    execution.result = result if isinstance(result, dict) else {"result": str(result)}
+                    execution.completed_at = datetime.now(timezone.utc)
+                    execution.duration_ms = int((time.monotonic() - start_time) * 1000)
+
+                    await logger.ainfo(
+                        "flow_executed",
+                        flow_id=str(flow.id),
+                        flow_name=flow.name,
+                        status="success",
+                        attempt=attempt + 1,
+                        duration_ms=execution.duration_ms,
+                    )
+                    last_exc = None
+                    break
+                except Exception as exc:
+                    last_exc = exc
+                    execution.retry_count = attempt
+                    if attempt < max_attempts - 1:
+                        delay = min(_RETRY_BASE_DELAY * (2 ** attempt), _RETRY_MAX_DELAY)
+                        await logger.awarning(
+                            "flow_action_retry",
+                            flow_id=str(flow.id),
+                            attempt=attempt + 1,
+                            max_attempts=max_attempts,
+                            delay=delay,
+                            error=str(exc),
+                        )
+                        await asyncio.sleep(delay)
+
+            if last_exc is not None:
+                raise last_exc
 
         except Exception as exc:
             execution.status = "failed"
@@ -108,6 +143,7 @@ class FlowEngine:
                 flow_id=str(flow.id),
                 flow_name=flow.name,
                 error=str(exc),
+                retries=execution.retry_count,
                 duration_ms=execution.duration_ms,
             )
 
@@ -156,3 +192,19 @@ class FlowEngine:
             else:
                 return None
         return current
+
+    @staticmethod
+    def _apply_transform(data: dict[str, Any], transform: str) -> dict[str, Any]:
+        """Apply a JMESPath transform expression to mapped data."""
+        try:
+            import jmespath
+            result = jmespath.search(transform, data)
+            if isinstance(result, dict):
+                return result
+            return {"result": result}
+        except ImportError:
+            logger.warning("jmespath not installed — skipping flow transform")
+            return data
+        except Exception as exc:
+            logger.warning("flow_transform_failed", transform=transform, error=str(exc))
+            return data

@@ -42,10 +42,13 @@ async def _http_credential_check(
     params: dict[str, str] | None = None,
     service_name: str = "API",
     success_msg: str = "",
+    success_status: int | None = None,
 ) -> dict[str, Any]:
     """Execute an HTTP request to validate credentials.
 
-    401/403 → credential failure; 5xx → server error; everything else → success.
+    When *success_status* is set (from manifest ``credential_validation.test_request.success_status``),
+    only that specific status code is treated as success.
+    Otherwise: 401/403 → credential failure; 4xx/5xx → failure; 2xx → success.
     """
     if not success_msg:
         success_msg = f"{service_name} authentication successful"
@@ -57,9 +60,19 @@ async def _http_credential_check(
                 auth=auth, params=params,
             )
         elapsed_ms = int((time.monotonic() - start) * 1000)
+
+        if success_status is not None:
+            if resp.status_code == success_status:
+                return {"status": "success", "message": success_msg, "response_time_ms": elapsed_ms}
+            return {
+                "status": "failed",
+                "message": f"{service_name} responded with HTTP {resp.status_code} (expected {success_status})",
+                "response_time_ms": elapsed_ms,
+            }
+
         if resp.status_code in (401, 403):
             return {"status": "failed", "message": f"Invalid {service_name} credentials", "response_time_ms": elapsed_ms}
-        if resp.status_code >= 500:
+        if resp.status_code >= 400:
             return {"status": "failed", "message": f"{service_name} API error: HTTP {resp.status_code}", "response_time_ms": elapsed_ms}
         return {"status": "success", "message": success_msg, "response_time_ms": elapsed_ms}
     except httpx.ConnectError:
@@ -222,6 +235,8 @@ async def _execute_test_request(
         merged.update(creds)
         auth = (merged.get(auth_fields[0], ""), merged.get(auth_fields[1], ""))
 
+    expected_status = test_cfg.get("success_status")
+
     return await _http_credential_check(
         method, url,
         headers=headers,
@@ -231,6 +246,7 @@ async def _execute_test_request(
         params=params,
         service_name=display_name,
         success_msg=f"{display_name} credentials valid",
+        success_status=expected_status,
     )
 
 
@@ -254,16 +270,17 @@ async def validate_credentials(
     connector_name: str,
     creds: dict[str, str],
     registry: ConnectorRegistry,
+    connector_version: str | None = None,
 ) -> dict[str, Any]:
     """Generic credential validation driven entirely by connector.yaml.
 
+    When *connector_version* is provided, validates against that specific
+    manifest version; otherwise uses the latest discovered version.
     Falls back to config_schema.required if no credential_validation defined.
     """
-    manifests = registry.get_by_name(connector_name)
-    if not manifests:
+    manifest = registry.get_by_name_version(connector_name, connector_version)
+    if not manifest:
         return {"status": "unsupported", "message": f"Unknown connector: {connector_name}"}
-
-    manifest = manifests[0]
     validation = manifest.credential_validation
     display_name = manifest.display_name
 

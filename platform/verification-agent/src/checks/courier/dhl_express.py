@@ -190,7 +190,7 @@ async def run(
         f"{base}/landed-cost",
         "get_landed_cost",
         json_body=landed_payload,
-        accept_statuses=(200, 400, 401, 422, 500),
+        accept_statuses=(200, 400, 401, 422),
     )
     results.append(landed_check)
 

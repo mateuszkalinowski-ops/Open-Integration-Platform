@@ -50,7 +50,7 @@ async def get_current_tenant(
         raise HTTPException(status_code=403, detail="Tenant is disabled")
 
     tid_str = str(tenant.id)
-    await db.execute(text(f"SET LOCAL app.current_tenant_id = '{tid_str}'"))
+    await db.execute(text("SET LOCAL app.current_tenant_id = :tid"), {"tid": tid_str})
 
     return tenant
 

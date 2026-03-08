@@ -1170,7 +1170,7 @@ export class OperationLogComponent implements OnInit, OnDestroy {
       return {
         id: e.id,
         type: 'workflow' as const,
-        name: wf?.name ?? e.workflow_name ?? '(usunięty workflow)',
+        name: wf?.name ?? e.workflow_name ?? '(deleted workflow)',
         status: e.status,
         connectors: connStr,
         duration_ms: e.duration_ms,

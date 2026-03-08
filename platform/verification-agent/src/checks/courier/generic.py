@@ -26,7 +26,7 @@ async def run(
 
     if "get_rates" in target.manifest.capabilities or "rates.get" in target.manifest.actions:
         results.append(await get_check(
-            client, f"{base}/health", "rates_endpoint_reachable",
+            client, f"{base}/rates", "rates_endpoint",
         ))
 
     return results

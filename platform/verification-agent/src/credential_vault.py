@@ -51,7 +51,7 @@ class CredentialVault:
             try:
                 decrypted[c.credential_key] = self._decrypt(c.encrypted_value)
             except Exception as exc:
-                logger.warning("Failed to decrypt %s/%s: %s", connector_name, c.credential_key, exc)
+                logger.warning("Failed to decrypt credential for %s: %s", connector_name, type(exc).__name__)
         return decrypted
 
     async def list_credential_names(

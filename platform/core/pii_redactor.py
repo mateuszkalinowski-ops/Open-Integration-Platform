@@ -51,6 +51,13 @@ _PII_KEY_PATTERNS: set[str] = {
     "api_key",
     "access_token",
     "refresh_token",
+    "authorization",
+    "cookie",
+    "set-cookie",
+    "proxy-authorization",
+    "x-api-key",
+    "x-admin-secret",
+    "x-internal-secret",
 }
 
 _SAFE_KEYS: set[str] = {

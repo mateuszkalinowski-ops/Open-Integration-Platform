@@ -8,7 +8,7 @@ from typing import Any
 
 import httpx
 
-from src.checks.common import get_check, req_check, result
+from src.checks.common import req_check, result
 from src.discovery import VerificationTarget
 
 
@@ -34,49 +34,50 @@ async def run(
 
     account_name = accounts[0].get("name", "")
 
-    r, _ = await req_check(
+    r, resp = await req_check(
         client, "GET", f"{base}/agents/{account_name}/health",
-        "agent_health", accept_statuses=(200, 502),
+        "agent_health",
     )
     results.append(r)
 
+    if resp and resp.status_code == 502:
+        results.append(result("agent_tests", "SKIP", 0,
+                              error="On-premise agent unreachable (502) — skipping agent tests"))
+        return results
+
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/connection/status",
-        "agent_connection_status", accept_statuses=(200, 502),
+        "agent_connection_status",
     )
     results.append(r)
 
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/contractors",
         "list_contractors", params={"page": 1, "page_size": 5},
-        accept_statuses=(200, 502),
     )
     results.append(r)
 
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/products",
         "list_products", params={"page": 1, "page_size": 5},
-        accept_statuses=(200, 502),
     )
     results.append(r)
 
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/documents/sales",
         "list_sales_documents", params={"page": 1, "page_size": 5},
-        accept_statuses=(200, 502),
     )
     results.append(r)
 
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/orders",
         "list_orders", params={"page": 1, "page_size": 5},
-        accept_statuses=(200, 502),
     )
     results.append(r)
 
     r, _ = await req_check(
         client, "GET", f"{base}/agents/{account_name}/stock",
-        "get_stock_levels", accept_statuses=(200, 502),
+        "get_stock_levels",
     )
     results.append(r)
 
