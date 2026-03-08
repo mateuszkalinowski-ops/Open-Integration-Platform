@@ -1,9 +1,14 @@
 # --- Build stage ---
 FROM python:3.12-slim AS build
 WORKDIR /app
-COPY requirements.txt .
+
+COPY integrators/wms/pinquark-wms/v1.0.0/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-COPY . .
+
+COPY shared/python /shared
+RUN pip install --no-cache-dir --prefix=/install /shared
+
+COPY integrators/wms/pinquark-wms/v1.0.0/ .
 
 # --- Production stage ---
 FROM python:3.12-slim
@@ -15,7 +20,8 @@ LABEL system="pinquark-wms"
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 WORKDIR /app
 COPY --from=build /install /usr/local
-COPY --from=build /app .
+COPY --from=build /app/src ./src
+COPY --from=build /app/connector.yaml ./connector.yaml
 RUN chown -R appuser:appuser /app
 USER appuser
 

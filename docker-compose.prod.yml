@@ -323,7 +323,8 @@ services:
 
   connector-pinquark-wms:
     build:
-      context: ./integrators/wms/pinquark-wms/v1.0.0
+      context: .
+      dockerfile: integrators/wms/pinquark-wms/v1.0.0/Dockerfile
     environment:
       WMS_APP_ENV: production
       WMS_APP_PORT: 8000

@@ -141,8 +141,8 @@ jobs:
             context: ./integrators/courier/fxcouriers/v1.0.0
             dockerfile: ./integrators/courier/fxcouriers/v1.0.0/Dockerfile
           - name: connector-pinquark-wms
-            context: ./integrators/wms/pinquark-wms/v1.0.0
-            dockerfile: ./integrators/wms/pinquark-wms/v1.0.0/Dockerfile
+            context: .
+            dockerfile: integrators/wms/pinquark-wms/v1.0.0/Dockerfile
           - name: connector-email-client
             context: .
             dockerfile: integrators/other/email-client/v1.0.0/Dockerfile
