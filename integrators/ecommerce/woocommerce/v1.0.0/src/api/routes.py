@@ -18,6 +18,14 @@ from pinquark_common.schemas.ecommerce import (
 from src.woocommerce.schemas import AuthStatusResponse
 from src.api.dependencies import app_state
 from src.config import WooCommerceAccountConfig
+from src.validators import (
+    ORDER_STATUSES,
+    PRODUCT_TYPES,
+    PRODUCT_STATUSES,
+    STOCK_STATUSES,
+    DISCOUNT_TYPES,
+    WEBHOOK_STATUSES,
+)
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -213,14 +221,6 @@ async def get_order(order_id: str, account_name: str = Query(...)):
     return await app_state.integration.get_order(account_name, order_id)
 
 
-_ORDER_STATUSES = {"pending", "processing", "on-hold", "completed", "cancelled", "refunded", "failed", "trash"}
-_PRODUCT_TYPES = {"simple", "grouped", "external", "variable"}
-_PRODUCT_STATUSES = {"draft", "pending", "private", "publish"}
-_STOCK_STATUSES = {"instock", "outofstock", "onbackorder"}
-_DISCOUNT_TYPES = {"percent", "fixed_cart", "fixed_product"}
-_WEBHOOK_STATUSES = {"active", "paused", "disabled"}
-
-
 class OrderCreateRequest(BaseModel):
     payment_method: str | None = None
     payment_method_title: str | None = None
@@ -240,8 +240,8 @@ class OrderCreateRequest(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is not None and v not in _ORDER_STATUSES:
-            raise ValueError(f"Invalid order status '{v}', must be one of: {', '.join(sorted(_ORDER_STATUSES))}")
+        if v is not None and v not in ORDER_STATUSES:
+            raise ValueError(f"Invalid order status '{v}', must be one of: {', '.join(sorted(ORDER_STATUSES))}")
         return v
 
 
@@ -478,22 +478,22 @@ class ProductCreateRequest(BaseModel):
     @field_validator("type")
     @classmethod
     def validate_type(cls, v: str | None) -> str | None:
-        if v is not None and v not in _PRODUCT_TYPES:
-            raise ValueError(f"Invalid product type '{v}', must be one of: {', '.join(sorted(_PRODUCT_TYPES))}")
+        if v is not None and v not in PRODUCT_TYPES:
+            raise ValueError(f"Invalid product type '{v}', must be one of: {', '.join(sorted(PRODUCT_TYPES))}")
         return v
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is not None and v not in _PRODUCT_STATUSES:
-            raise ValueError(f"Invalid product status '{v}', must be one of: {', '.join(sorted(_PRODUCT_STATUSES))}")
+        if v is not None and v not in PRODUCT_STATUSES:
+            raise ValueError(f"Invalid product status '{v}', must be one of: {', '.join(sorted(PRODUCT_STATUSES))}")
         return v
 
     @field_validator("stock_status")
     @classmethod
     def validate_stock_status(cls, v: str | None) -> str | None:
-        if v is not None and v not in _STOCK_STATUSES:
-            raise ValueError(f"Invalid stock_status '{v}', must be one of: {', '.join(sorted(_STOCK_STATUSES))}")
+        if v is not None and v not in STOCK_STATUSES:
+            raise ValueError(f"Invalid stock_status '{v}', must be one of: {', '.join(sorted(STOCK_STATUSES))}")
         return v
 
     @field_validator("regular_price", "sale_price")
@@ -954,8 +954,8 @@ class CouponCreateRequest(BaseModel):
     @field_validator("discount_type")
     @classmethod
     def validate_discount_type(cls, v: str | None) -> str | None:
-        if v is not None and v not in _DISCOUNT_TYPES:
-            raise ValueError(f"Invalid discount_type '{v}', must be one of: {', '.join(sorted(_DISCOUNT_TYPES))}")
+        if v is not None and v not in DISCOUNT_TYPES:
+            raise ValueError(f"Invalid discount_type '{v}', must be one of: {', '.join(sorted(DISCOUNT_TYPES))}")
         return v
 
     @field_validator("amount", "minimum_amount", "maximum_amount")
@@ -1136,8 +1136,8 @@ class WebhookCreateRequest(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is not None and v not in _WEBHOOK_STATUSES:
-            raise ValueError(f"Invalid webhook status '{v}', must be one of: {', '.join(sorted(_WEBHOOK_STATUSES))}")
+        if v is not None and v not in WEBHOOK_STATUSES:
+            raise ValueError(f"Invalid webhook status '{v}', must be one of: {', '.join(sorted(WEBHOOK_STATUSES))}")
         return v
 
 

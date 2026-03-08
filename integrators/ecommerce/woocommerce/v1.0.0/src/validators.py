@@ -3,11 +3,21 @@
 Each validator is a Pydantic model that enforces field types and constraints
 before the request reaches the WooCommerce API. This catches malformed
 payloads early and returns clear 422 errors instead of opaque upstream failures.
+
+Validation constants (ORDER_STATUSES, PRODUCT_TYPES, etc.) are the canonical
+source of truth and are imported by routes.py for inline field_validators.
 """
 
 from typing import Any
 
 from pydantic import BaseModel, Field, field_validator
+
+ORDER_STATUSES = {"pending", "processing", "on-hold", "completed", "cancelled", "refunded", "failed", "trash"}
+PRODUCT_TYPES = {"simple", "grouped", "external", "variable"}
+PRODUCT_STATUSES = {"draft", "pending", "private", "publish"}
+STOCK_STATUSES = {"instock", "outofstock", "onbackorder"}
+DISCOUNT_TYPES = {"percent", "fixed_cart", "fixed_product"}
+WEBHOOK_STATUSES = {"active", "paused", "disabled"}
 
 
 class OrderCreatePayload(BaseModel):
@@ -29,14 +39,8 @@ class OrderCreatePayload(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {
-            "pending", "processing", "on-hold", "completed",
-            "cancelled", "refunded", "failed", "trash",
-        }
-        if v not in allowed:
-            raise ValueError(f"Invalid order status '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in ORDER_STATUSES:
+            raise ValueError(f"Invalid order status '{v}', must be one of: {', '.join(sorted(ORDER_STATUSES))}")
         return v
 
 
@@ -47,10 +51,7 @@ class OrderStatusUpdatePayload(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str) -> str:
-        allowed = {
-            "pending", "processing", "on-hold", "completed",
-            "cancelled", "refunded", "failed",
-        }
+        allowed = ORDER_STATUSES - {"trash"}
         if v not in allowed:
             raise ValueError(f"Invalid status '{v}', must be one of: {', '.join(sorted(allowed))}")
         return v
@@ -83,31 +84,22 @@ class ProductCreatePayload(BaseModel):
     @field_validator("type")
     @classmethod
     def validate_type(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {"simple", "grouped", "external", "variable"}
-        if v not in allowed:
-            raise ValueError(f"Invalid product type '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in PRODUCT_TYPES:
+            raise ValueError(f"Invalid product type '{v}', must be one of: {', '.join(sorted(PRODUCT_TYPES))}")
         return v
 
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {"draft", "pending", "private", "publish"}
-        if v not in allowed:
-            raise ValueError(f"Invalid product status '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in PRODUCT_STATUSES:
+            raise ValueError(f"Invalid product status '{v}', must be one of: {', '.join(sorted(PRODUCT_STATUSES))}")
         return v
 
     @field_validator("stock_status")
     @classmethod
     def validate_stock_status(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {"instock", "outofstock", "onbackorder"}
-        if v not in allowed:
-            raise ValueError(f"Invalid stock_status '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in STOCK_STATUSES:
+            raise ValueError(f"Invalid stock_status '{v}', must be one of: {', '.join(sorted(STOCK_STATUSES))}")
         return v
 
     @field_validator("regular_price", "sale_price")
@@ -161,11 +153,8 @@ class CouponCreatePayload(BaseModel):
     @field_validator("discount_type")
     @classmethod
     def validate_discount_type(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {"percent", "fixed_cart", "fixed_product"}
-        if v not in allowed:
-            raise ValueError(f"Invalid discount_type '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in DISCOUNT_TYPES:
+            raise ValueError(f"Invalid discount_type '{v}', must be one of: {', '.join(sorted(DISCOUNT_TYPES))}")
         return v
 
     @field_validator("amount", "minimum_amount", "maximum_amount")
@@ -190,11 +179,8 @@ class WebhookCreatePayload(BaseModel):
     @field_validator("status")
     @classmethod
     def validate_status(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        allowed = {"active", "paused", "disabled"}
-        if v not in allowed:
-            raise ValueError(f"Invalid webhook status '{v}', must be one of: {', '.join(sorted(allowed))}")
+        if v is not None and v not in WEBHOOK_STATUSES:
+            raise ValueError(f"Invalid webhook status '{v}', must be one of: {', '.join(sorted(WEBHOOK_STATUSES))}")
         return v
 
 

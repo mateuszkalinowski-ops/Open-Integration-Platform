@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+from src.validators import SOURCES, DOCUMENT_TYPES
 
 
 # --- Auth ---
@@ -126,6 +127,13 @@ class Article(BaseModel):
     unit: str | None = None
     unitsOfMeasure: list[UnitOfMeasure] = Field(default_factory=list)
 
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, v: str | None) -> str | None:
+        if v is not None and v not in SOURCES:
+            raise ValueError(f"Invalid source '{v}', must be one of: {', '.join(sorted(SOURCES))}")
+        return v
+
 
 # --- Article Batches ---
 
@@ -156,6 +164,13 @@ class Contractor(BaseModel):
     symbol: str | None = None
     taxNumber: str | None = None
     wmsId: int | None = None
+
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, v: str | None) -> str | None:
+        if v is not None and v not in SOURCES:
+            raise ValueError(f"Invalid source '{v}', must be one of: {', '.join(sorted(SOURCES))}")
+        return v
 
 
 # --- Document Positions ---
@@ -223,6 +238,20 @@ class Document(BaseModel):
     symbol: str | None = None
     warehouseSymbol: str | None = None
     wmsId: int | None = None
+
+    @field_validator("documentType")
+    @classmethod
+    def validate_document_type(cls, v: str | None) -> str | None:
+        if v is not None and v not in DOCUMENT_TYPES:
+            raise ValueError(f"Invalid documentType '{v}', must be one of: {', '.join(sorted(DOCUMENT_TYPES))}")
+        return v
+
+    @field_validator("source")
+    @classmethod
+    def validate_source(cls, v: str | None) -> str | None:
+        if v is not None and v not in SOURCES:
+            raise ValueError(f"Invalid source '{v}', must be one of: {', '.join(sorted(SOURCES))}")
+        return v
 
 
 class DocumentWrapper(BaseModel):

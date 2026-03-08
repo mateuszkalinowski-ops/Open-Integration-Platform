@@ -446,7 +446,7 @@ action_fields:
     type: object[]
     required: true
   articles.delete_list:
-  - field: deletions
+  - field: commands
     label: Lista do usuniecia
     type: object[]
     required: true
@@ -657,7 +657,7 @@ action_fields:
     type: object[]
     required: true
   documents.delete_list:
-  - field: deletions
+  - field: commands
     label: Lista do usuniecia
     type: object[]
     required: true
@@ -723,12 +723,12 @@ action_fields:
     type: string
     required: true
   positions.create_list:
-  - field: positionWrappers
+  - field: positions
     label: Lista wrapperow pozycji
     type: object[]
     required: true
   positions.delete_list:
-  - field: deletions
+  - field: commands
     label: Lista do usuniecia
     type: object[]
     required: true
@@ -796,7 +796,7 @@ action_fields:
     type: object[]
     required: true
   contractors.delete_list:
-  - field: deletions
+  - field: commands
     label: Lista do usuniecia
     type: object[]
     required: true

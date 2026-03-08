@@ -13,7 +13,7 @@ from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
+from pydantic import BaseModel, model_validator
 
 from src.client import PinquarkWmsClient, WriteResult
 from src.config import settings
@@ -149,9 +149,28 @@ class CredentialsBody(BaseModel):
     credentials: WmsCredentials
 
 
-def _make_creds_body(model_class):
-    """Create a request body model that includes credentials + a payload field."""
-    pass
+def _nest_flat_fields(
+    data: dict[str, Any],
+    nested_key: str,
+    aliases: tuple[str, ...] = (),
+) -> dict[str, Any]:
+    """If *nested_key* is missing, move non-credentials fields into it.
+
+    Supports both nested payloads (direct API calls) and flat payloads
+    (platform action dispatch via inject_nested).
+
+    *aliases* — alternative field names that should be treated as *nested_key*
+    (e.g. legacy ``deletions`` → ``commands``).
+    """
+    if nested_key in data:
+        return data
+    for alias in aliases:
+        if alias in data:
+            out = dict(data)
+            out[nested_key] = out.pop(alias)
+            return out
+    nested = {k: v for k, v in data.items() if k != "credentials"}
+    return {"credentials": data.get("credentials", {}), nested_key: nested}
 
 
 def _error(detail: str, status_code: int = 502) -> HTTPException:
@@ -255,6 +274,13 @@ class CreateArticleRequest(BaseModel):
     credentials: WmsCredentials
     article: Article
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "article")
+        return data
+
 
 @app.post("/articles/create", tags=["articles"])
 async def create_article(req: CreateArticleRequest) -> Any:
@@ -284,6 +310,13 @@ class DeleteArticleRequest(BaseModel):
     credentials: WmsCredentials
     command: DeleteCommand
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "command")
+        return data
+
 
 @app.post("/articles/delete", tags=["articles"])
 async def delete_article(req: DeleteArticleRequest) -> Any:
@@ -297,6 +330,13 @@ async def delete_article(req: DeleteArticleRequest) -> Any:
 class DeleteArticlesRequest(BaseModel):
     credentials: WmsCredentials
     commands: list[DeleteCommand]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "commands" not in data:
+            return _nest_flat_fields(data, "commands", aliases=("deletions",))
+        return data
 
 
 @app.post("/articles/delete-list", tags=["articles"])
@@ -321,6 +361,13 @@ async def get_batches(req: CredentialsBody) -> Any:
 class CreateBatchRequest(BaseModel):
     credentials: WmsCredentials
     batch: ArticleBatch
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "batch")
+        return data
 
 
 @app.post("/article-batches/create", tags=["article-batches"])
@@ -368,6 +415,13 @@ class CreateDocumentRequest(BaseModel):
     credentials: WmsCredentials
     document: Document
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "document")
+        return data
+
 
 @app.post("/documents/create", tags=["documents"])
 async def create_document(req: CreateDocumentRequest) -> Any:
@@ -381,6 +435,13 @@ async def create_document(req: CreateDocumentRequest) -> Any:
 class CreateDocumentsRequest(BaseModel):
     credentials: WmsCredentials
     wrapper: DocumentWrapper
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "wrapper")
+        return data
 
 
 @app.post("/documents/create-list", tags=["documents"])
@@ -396,6 +457,13 @@ class DeleteDocumentRequest(BaseModel):
     credentials: WmsCredentials
     command: DeleteCommand
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "command")
+        return data
+
 
 @app.post("/documents/delete", tags=["documents"])
 async def delete_document(req: DeleteDocumentRequest) -> Any:
@@ -409,6 +477,13 @@ async def delete_document(req: DeleteDocumentRequest) -> Any:
 class DeleteDocumentsRequest(BaseModel):
     credentials: WmsCredentials
     commands: list[DeleteCommand]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "commands" not in data:
+            return _nest_flat_fields(data, "commands", aliases=("deletions",))
+        return data
 
 
 @app.post("/documents/delete-list", tags=["documents"])
@@ -442,6 +517,13 @@ class CreatePositionRequest(BaseModel):
     credentials: WmsCredentials
     position: PositionWrapper
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "position")
+        return data
+
 
 @app.post("/positions/create", tags=["positions"])
 async def create_position(req: CreatePositionRequest) -> Any:
@@ -455,6 +537,13 @@ async def create_position(req: CreatePositionRequest) -> Any:
 class CreatePositionsRequest(BaseModel):
     credentials: WmsCredentials
     positions: list[PositionWrapper]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "positions" not in data:
+            return _nest_flat_fields(data, "positions", aliases=("positionWrappers",))
+        return data
 
 
 @app.post("/positions/create-list", tags=["positions"])
@@ -471,6 +560,13 @@ class DeletePositionRequest(BaseModel):
     credentials: WmsCredentials
     command: PositionDeleteCommand
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "command")
+        return data
+
 
 @app.post("/positions/delete", tags=["positions"])
 async def delete_position(req: DeletePositionRequest) -> Any:
@@ -484,6 +580,13 @@ async def delete_position(req: DeletePositionRequest) -> Any:
 class DeletePositionsRequest(BaseModel):
     credentials: WmsCredentials
     commands: list[PositionDeleteCommand]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "commands" not in data:
+            return _nest_flat_fields(data, "commands", aliases=("deletions",))
+        return data
 
 
 @app.post("/positions/delete-list", tags=["positions"])
@@ -517,6 +620,13 @@ class CreateContractorRequest(BaseModel):
     credentials: WmsCredentials
     contractor: Contractor
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "contractor")
+        return data
+
 
 @app.post("/contractors/create", tags=["contractors"])
 async def create_contractor(req: CreateContractorRequest) -> Any:
@@ -546,6 +656,13 @@ class DeleteContractorRequest(BaseModel):
     credentials: WmsCredentials
     command: DeleteCommand
 
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict):
+            return _nest_flat_fields(data, "command")
+        return data
+
 
 @app.post("/contractors/delete", tags=["contractors"])
 async def delete_contractor(req: DeleteContractorRequest) -> Any:
@@ -559,6 +676,13 @@ async def delete_contractor(req: DeleteContractorRequest) -> Any:
 class DeleteContractorsRequest(BaseModel):
     credentials: WmsCredentials
     commands: list[DeleteCommand]
+
+    @model_validator(mode="before")
+    @classmethod
+    def _accept_flat(cls, data: Any) -> Any:
+        if isinstance(data, dict) and "commands" not in data:
+            return _nest_flat_fields(data, "commands", aliases=("deletions",))
+        return data
 
 
 @app.post("/contractors/delete-list", tags=["contractors"])
