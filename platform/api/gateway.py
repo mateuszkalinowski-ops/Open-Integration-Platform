@@ -353,12 +353,16 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
     await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc))
     detail = f"{type(exc).__name__}: {exc}"
+    show_detail = settings.app_env != "production" or (
+        settings.admin_secret
+        and request.headers.get("X-Admin-Secret", "") == settings.admin_secret
+    )
     return JSONResponse(
         status_code=500,
         content={
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": detail,
+                "message": detail if show_detail else "An internal error occurred",
             }
         },
     )
