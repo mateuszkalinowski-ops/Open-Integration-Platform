@@ -51,7 +51,11 @@ async def cache_get(key: str) -> dict | None:
     raw = await r.get(key)
     if raw is None:
         return None
-    return json.loads(raw)
+    try:
+        return json.loads(raw)
+    except (json.JSONDecodeError, TypeError):
+        logger.warning("Invalid JSON in Redis cache for key=%s, ignoring", key)
+        return None
 
 
 async def cache_set(key: str, value: Any, ttl: int | None = None) -> None:

@@ -2,14 +2,14 @@
 
 import uuid
 from datetime import datetime
-from typing import Any
+from typing import Any, Literal
 
 from pydantic import BaseModel, Field
 
 
 class TenantCreate(BaseModel):
-    name: str
-    slug: str
+    name: str = Field(..., min_length=1, max_length=100)
+    slug: str = Field(..., min_length=1, max_length=50, pattern=r"^[a-z0-9][a-z0-9_-]*$")
 
 
 class TenantResponse(BaseModel):
@@ -24,7 +24,7 @@ class TenantResponse(BaseModel):
 
 
 class ApiKeyCreate(BaseModel):
-    name: str = ""
+    name: str = Field(default="", max_length=200)
 
 
 class ApiKeyResponse(BaseModel):
@@ -90,29 +90,29 @@ class CredentialStore(BaseModel):
 
 
 class FlowCreate(BaseModel):
-    name: str
-    source_connector: str
-    source_event: str
+    name: str = Field(..., max_length=200)
+    source_connector: str = Field(..., max_length=100)
+    source_event: str = Field(..., max_length=200)
     source_filter: dict | None = None
-    destination_connector: str
-    destination_action: str
+    destination_connector: str = Field(..., max_length=100)
+    destination_action: str = Field(..., max_length=200)
     field_mapping: list[dict] = Field(default_factory=list)
     transform: str | None = None
-    on_error: str = "retry"
-    max_retries: int = 3
+    on_error: Literal["retry", "stop", "ignore"] = "retry"
+    max_retries: int = Field(default=3, ge=0, le=20)
 
 
 class FlowUpdate(BaseModel):
-    name: str | None = None
-    source_connector: str | None = None
-    source_event: str | None = None
+    name: str | None = Field(default=None, max_length=200)
+    source_connector: str | None = Field(default=None, max_length=100)
+    source_event: str | None = Field(default=None, max_length=200)
     source_filter: dict | None = None
-    destination_connector: str | None = None
-    destination_action: str | None = None
+    destination_connector: str | None = Field(default=None, max_length=100)
+    destination_action: str | None = Field(default=None, max_length=200)
     field_mapping: list[dict] | None = None
     transform: str | None = None
-    on_error: str | None = None
-    max_retries: int | None = None
+    on_error: Literal["retry", "stop", "ignore"] | None = None
+    max_retries: int | None = Field(default=None, ge=0, le=20)
     is_enabled: bool | None = None
 
 
@@ -191,28 +191,28 @@ class WorkflowEdge(BaseModel):
 
 
 class WorkflowCreate(BaseModel):
-    name: str
-    description: str = ""
+    name: str = Field(..., max_length=200)
+    description: str = Field(default="", max_length=1000)
     nodes: list[WorkflowNode] = Field(default_factory=list)
     edges: list[WorkflowEdge] = Field(default_factory=list)
     variables: dict[str, Any] = Field(default_factory=dict)
     sync_config: dict[str, Any] | None = None
-    on_error: str = "stop"
-    max_retries: int = 3
-    timeout_seconds: int = 300
+    on_error: Literal["retry", "stop", "ignore"] = "stop"
+    max_retries: int = Field(default=3, ge=0, le=20)
+    timeout_seconds: int = Field(default=300, ge=1, le=3600)
 
 
 class WorkflowUpdate(BaseModel):
-    name: str | None = None
-    description: str | None = None
+    name: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
     nodes: list[WorkflowNode] | None = None
     edges: list[WorkflowEdge] | None = None
     variables: dict[str, Any] | None = None
     sync_config: dict[str, Any] | None = None
     is_enabled: bool | None = None
-    on_error: str | None = None
-    max_retries: int | None = None
-    timeout_seconds: int | None = None
+    on_error: Literal["retry", "stop", "ignore"] | None = None
+    max_retries: int | None = Field(default=None, ge=0, le=20)
+    timeout_seconds: int | None = Field(default=None, ge=1, le=3600)
 
 
 class WorkflowResponse(BaseModel):
@@ -258,13 +258,13 @@ class WorkflowTestRequest(BaseModel):
 
 
 class AiChatMessage(BaseModel):
-    role: str  # "user" or "assistant"
+    role: Literal["user", "assistant"] = "user"
     content: str
 
 
 class WorkflowAiGenerateRequest(BaseModel):
     prompt: str
-    model: str = "gemini"  # "gemini" or "opus"
+    model: Literal["gemini", "opus"] = "gemini"
     api_key: str
     conversation: list[AiChatMessage] = Field(default_factory=list)
     current_nodes: list[dict[str, Any]] = Field(default_factory=list)

@@ -27,10 +27,12 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 
 | Category   | Number of connectors             | Examples                                                                                                              |
 | ---------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| Courier    | 19 (including 3 InPost versions) | InPost, DHL, DPD, GLS, FedEx, UPS, Poczta Polska, Orlen Paczka, Schenker, Geis, Paxy, Packeta, SUUS, SellAsist, Raben |
-| E-commerce | 3                                | Allegro, Shoper, IdoSell                                                                                              |
+| Courier    | 18 (including 3 InPost versions) | InPost, DHL, DPD, GLS, FedEx, UPS, Poczta Polska, Orlen Paczka, Schenker, Geis, Paxy, Packeta, SUUS, Raben           |
+| E-commerce | 8                                | Allegro, Amazon, Apilo, BaseLinker, Shopify, Shoper, IdoSell, SellAsist                                               |
+| ERP        | 1                                | InsERT Nexo (hybrid on-premise + cloud)                                                                               |
 | WMS        | 1                                | Pinquark WMS                                                                                                          |
-| Other      | 3                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer)                                       |
+| AI         | 1                                | Gemini AI Agent (risk analysis, courier recommendations, data extraction)                                             |
+| Other      | 5                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer), Slack, BulkGate SMS                 |
 
 
 ### Technology stack
@@ -291,7 +293,7 @@ All REST endpoints use JSON. Error format:
 
 - **Platform API**: API key in the `X-API-Key` header (prefix `pk_live_` / `pk_test_`)
 - **External API**: credentials stored in an encrypted vault (AES-256-GCM), per-tenant
-- **Kafka**: SASL SCRAM-SHA-512
+- **Kafka**: SASL/PLAIN over TLS (SASL_SSL with PLAIN mechanism, configurable via `KAFKA_SASL_MECHANISM`)
 
 #### Demo Gate (self-service tenant registration)
 
@@ -509,7 +511,7 @@ The entity key uniquely identifies a record across sync runs. It supports:
 
 ## 4. Database schema
 
-> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`.
+> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`. Current diagram reflects migrations 001–008.
 
 ![Database Schema ERD](database-schema.png)
 
@@ -530,11 +532,58 @@ The entity key uniquely identifies a record across sync runs. It supports:
 | `verification_reports` | Results of connector verification runs (3-tier checks) | FK → `tenants` (nullable) |
 | `verification_settings` | Singleton scheduler configuration for the verification agent | Standalone (no FK) |
 
-### 4.2 Key design decisions
+### 4.2 Indexes
+
+All tenant-scoped tables have a B-tree index on `tenant_id` for efficient per-tenant queries (migration `006`):
+
+| Index | Table |
+| --- | --- |
+| `ix_api_keys_tenant_id` | `api_keys` |
+| `ix_connector_instances_tenant_id` | `connector_instances` |
+| `ix_credentials_tenant_id` | `credentials` |
+| `ix_flows_tenant_id` | `flows` |
+| `ix_flow_executions_tenant_id` | `flow_executions` |
+| `ix_field_mappings_tenant_id` | `field_mappings` |
+| `ix_workflows_tenant_id` | `workflows` |
+| `ix_workflow_executions_tenant_id` | `workflow_executions` |
+| `ix_sync_ledger_tenant_id` | `sync_ledger` |
+
+Migration `008` adds FK-lookup indexes and fixes cascade behavior:
+
+| Index / Change | Table | Description |
+| --- | --- | --- |
+| `ix_flow_executions_flow_id` | `flow_executions` | B-tree on `flow_id` for JOIN/filter performance |
+| `ix_workflow_executions_workflow_id` | `workflow_executions` | B-tree on `workflow_id` for JOIN/filter performance |
+| `flow_executions.flow_id` FK | `flow_executions` | Changed to `ON DELETE SET NULL` (allows flow deletion without losing audit history) |
+| `sync_ledger.workflow_id` FK | `sync_ledger` | Changed to `ON DELETE CASCADE` (sync state is meaningless without its workflow) |
+| Dropped `ix_sync_ledger_lookup` | `sync_ledger` | Redundant — duplicate of the unique constraint's implicit B-tree index |
+
+Additional indexes: `verification_reports` has indexes on `run_id`, `connector_name`, `status`, `created_at`. `sync_ledger` has composite indexes on `(workflow_id, entity_key)` and `(workflow_id, sync_status)`.
+
+### 4.3 Row Level Security
+
+Migration `007` enables PostgreSQL Row Level Security (RLS) on all nine tenant-scoped tables (the eight listed in § 4.2 plus `api_keys`). Two policies are created per table:
+
+| Policy | Condition | Purpose |
+| --- | --- | --- |
+| `tenant_isolation` | `current_setting('app.current_tenant_id', true) <> '' AND tenant_id = current_setting('app.current_tenant_id', true)::uuid` | Restricts rows to the authenticated tenant. The `true` parameter prevents errors when the variable is unset; the empty-string guard ensures no rows are visible without a tenant context. |
+| `admin_bypass` | `current_setting('app.rls_bypass', true) = 'on'` | Allows unrestricted access for background jobs, Kafka consumer, verification agent |
+
+**Session variable lifecycle:**
+
+1. `get_current_tenant()` authenticates the API key and executes `SET LOCAL app.current_tenant_id = '<uuid>'` on the shared database session.
+2. All subsequent queries in that request are automatically scoped to the tenant by the DB engine.
+3. Cross-tenant operations (Kafka event bridge, verification runner, startup provisioning) call `set_rls_bypass(session)` to set `app.rls_bypass = 'on'`.
+
+**Production requirement:** RLS policies apply only to non-owner roles. Production deployments **MUST** use a dedicated application database role (e.g. `pinquark_app`) that does not own the tables. The migration/admin role (table owner) bypasses RLS for schema changes.
+
+Tables excluded from RLS: `tenants` (no `tenant_id`), `api_keys` (queried during authentication before tenant context is available), `verification_reports` (nullable `tenant_id`, used cross-tenant by the verification agent), `verification_settings` (global singleton).
+
+### 4.4 Key design decisions
 
 - **UUID primary keys** on all main tables for distributed ID generation without coordination
 - **JSONB columns** for flexible schema: workflow nodes/edges, field mappings, execution results, connector config
-- **Row-Level Security** via `tenant_id` foreign key on every tenant-scoped table
+- **Tenant isolation** enforced at two layers: application-level `tenant_id` filtering and database-level RLS policies
 - **Unique constraints** prevent duplicate connector activations, credentials, and field mappings per tenant
 - **Audit trail** via `flow_executions` and `workflow_executions` tables with full input/output snapshots
 
@@ -875,7 +924,7 @@ Configuration in `k8s/integrators/base/`:
 
 ## 8. Integration configuration
 
-Detailed documentation of configuration parameters for all 25 connectors (16 couriers, Allegro, Shoper, Shopify, IdoSell, Pinquark WMS, Email Client, SkanujFakture, FTP/SFTP) and credentials management via API can be found in a separate file:
+Detailed documentation of configuration parameters for all 34 connectors (18 couriers, 8 e-commerce, 1 ERP, 1 WMS, 1 AI, 5 other) and credentials management via API can be found in a separate file:
 
 **[CONNECTORS.md](CONNECTORS.md)**
 

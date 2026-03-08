@@ -30,6 +30,21 @@ class KafkaMessageConsumer:
     ):
         self._topics = topics
         self._max_poll_records = max_poll_records
+        def _safe_value_deserializer(v: bytes) -> dict[str, Any] | None:
+            try:
+                return json.loads(v.decode("utf-8"))
+            except (json.JSONDecodeError, UnicodeDecodeError) as exc:
+                logger.error("Failed to deserialize Kafka message value: %s", exc)
+                return None
+
+        def _safe_key_deserializer(k: bytes | None) -> str | None:
+            if k is None:
+                return None
+            try:
+                return k.decode("utf-8")
+            except UnicodeDecodeError:
+                return k.hex()
+
         self._config: dict[str, Any] = {
             "bootstrap_servers": bootstrap_servers,
             "group_id": group_id,
@@ -37,8 +52,8 @@ class KafkaMessageConsumer:
             "enable_auto_commit": enable_auto_commit,
             "max_poll_records": max_poll_records,
             "fetch_max_bytes": fetch_max_bytes,
-            "value_deserializer": lambda v: json.loads(v.decode("utf-8")),
-            "key_deserializer": lambda k: k.decode("utf-8") if k else None,
+            "value_deserializer": _safe_value_deserializer,
+            "key_deserializer": _safe_key_deserializer,
         }
         if security_protocol != "PLAINTEXT":
             self._config["security_protocol"] = security_protocol
@@ -78,13 +93,18 @@ class KafkaMessageConsumer:
             raise RuntimeError("Consumer not started. Call start() first.")
         async for msg in self._consumer:
             topic = msg.topic
+            if msg.value is None:
+                logger.warning("Skipping poison message on topic=%s (deserialization failed)", topic)
+                await self._consumer.commit()
+                continue
             handler = self._handlers.get(topic)
             if handler:
                 try:
                     await handler(msg.value, msg.key)
-                    await self._consumer.commit()
                 except Exception:
-                    logger.exception("Error processing message from topic=%s", topic)
+                    logger.exception("Error processing message from topic=%s, offset will NOT be committed", topic)
+                    continue
+                await self._consumer.commit()
             else:
                 logger.warning("No handler for topic=%s", topic)
 
@@ -98,6 +118,7 @@ class KafkaMessageConsumer:
             if not batch:
                 continue
 
+            has_error = False
             for tp, messages in batch.items():
                 topic = tp.topic
                 batch_handler = self._batch_handlers.get(topic)
@@ -112,6 +133,7 @@ class KafkaMessageConsumer:
                             topic,
                             len(messages),
                         )
+                        has_error = True
                         continue
                 else:
                     handler = self._handlers.get(topic)
@@ -123,8 +145,10 @@ class KafkaMessageConsumer:
                                 logger.exception(
                                     "Error processing message from topic=%s", topic
                                 )
+                                has_error = True
                     else:
                         logger.warning("No handler for topic=%s", topic)
                         continue
 
-            await self._consumer.commit()
+            if not has_error:
+                await self._consumer.commit()

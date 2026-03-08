@@ -9,7 +9,7 @@ from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import desc, func, select
 
-from src.db import VerificationReport, VerificationSettings, async_session_factory
+from src.db import VerificationReport, async_session_factory
 from src.reporter import ensure_settings
 from src.runner import is_running, run_verification
 
@@ -39,9 +39,9 @@ async def trigger_run() -> RunResponse:
     """Trigger an on-demand full verification run."""
     if is_running():
         raise HTTPException(status_code=409, detail="A verification run is already in progress")
-    run_id = str(uuid.uuid4())
-    asyncio.create_task(run_verification())
-    return RunResponse(run_id=run_id, status="started")
+    rid = uuid.uuid4()
+    asyncio.create_task(run_verification(run_id=rid))
+    return RunResponse(run_id=str(rid), status="started")
 
 
 @router.post("/run/{connector_name}", response_model=RunResponse)
@@ -52,9 +52,11 @@ async def trigger_single_run(
     """Trigger verification for a single connector (optionally a specific version)."""
     if is_running():
         raise HTTPException(status_code=409, detail="A verification run is already in progress")
-    run_id = str(uuid.uuid4())
-    asyncio.create_task(run_verification(connector_filter=connector_name, version_filter=version))
-    return RunResponse(run_id=run_id, status="started")
+    rid = uuid.uuid4()
+    asyncio.create_task(
+        run_verification(connector_filter=connector_name, version_filter=version, run_id=rid)
+    )
+    return RunResponse(run_id=str(rid), status="started")
 
 
 @router.get("/scheduler/status", response_model=SchedulerStatusResponse)
@@ -83,6 +85,11 @@ async def update_scheduler(body: SchedulerUpdate) -> dict[str, Any]:
                 raise HTTPException(status_code=400, detail="interval_days must be >= 1")
             row.interval_days = body.interval_days
         await db.commit()
+
+        if body.interval_days is not None:
+            from src.main import reschedule
+            reschedule(row.interval_days)
+
         return {
             "enabled": row.enabled,
             "interval_days": row.interval_days,
@@ -152,8 +159,8 @@ async def get_run(run_id: str) -> dict[str, Any]:
     """Get detailed results for a specific verification run."""
     try:
         rid = uuid.UUID(run_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid run_id format")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid run_id format") from exc
 
     async with async_session_factory() as db:
         q = (
@@ -206,7 +213,12 @@ async def list_errors(
     page: int = Query(1, ge=1),
     page_size: int = Query(50, ge=1, le=200),
 ) -> dict[str, Any]:
-    """List all FAIL checks across all runs, filterable."""
+    """List all FAIL checks across all runs, filterable.
+
+    Pagination is applied at the report level in SQL, then FAIL checks
+    are extracted in Python.  This avoids loading all historical reports
+    into memory.
+    """
     async with async_session_factory() as db:
         q = select(VerificationReport).where(VerificationReport.status.in_(["FAIL", "PARTIAL"]))
 
@@ -217,13 +229,17 @@ async def list_errors(
         if date_to:
             q = q.where(VerificationReport.created_at <= datetime.fromisoformat(date_to))
 
+        count_q = select(func.count()).select_from(q.subquery())
+        total_reports = (await db.execute(count_q)).scalar() or 0
+
         q = q.order_by(desc(VerificationReport.created_at))
+        q = q.offset((page - 1) * page_size).limit(page_size)
 
         result = await db.execute(q)
-        all_reports = result.scalars().all()
+        reports = result.scalars().all()
 
         errors: list[dict[str, Any]] = []
-        for report in all_reports:
+        for report in reports:
             for check in (report.checks or []):
                 if check.get("status") == "FAIL":
                     errors.append({
@@ -238,11 +254,7 @@ async def list_errors(
                         "created_at": report.created_at.isoformat(),
                     })
 
-        total = len(errors)
-        start = (page - 1) * page_size
-        paginated = errors[start : start + page_size]
-
-        return {"total": total, "page": page, "page_size": page_size, "errors": paginated}
+        return {"total_reports": total_reports, "page": page, "page_size": page_size, "errors": errors}
 
 
 @router.get("/reports/latest")

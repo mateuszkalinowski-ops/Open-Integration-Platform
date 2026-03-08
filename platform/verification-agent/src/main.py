@@ -3,14 +3,18 @@
 import logging
 from contextlib import asynccontextmanager
 from datetime import datetime, timedelta, timezone
+from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from fastapi import FastAPI
+from prometheus_client import CONTENT_TYPE_LATEST, Counter, generate_latest
+from sqlalchemy import text
+from starlette.responses import Response as StarletteResponse
 
 from src.api.routes import router
 from src.config import settings
 from src.reporter import ensure_settings, get_settings
-from src.runner import run_verification
+from src.runner import is_running, run_verification
 from src.db import async_session_factory
 
 logging.basicConfig(
@@ -28,8 +32,21 @@ async def _scheduled_run() -> None:
     if srow and not srow.enabled:
         logger.info("Scheduler is disabled — skipping run")
         return
+    if is_running():
+        logger.warning("Scheduled run skipped — a verification run is already in progress")
+        return
     logger.info("Scheduled verification run starting")
     await run_verification()
+
+
+def reschedule(interval_days: int) -> None:
+    """Reschedule the live APScheduler job with a new interval."""
+    scheduler.reschedule_job(
+        "verification_run",
+        trigger="interval",
+        days=interval_days,
+    )
+    logger.info("Scheduler rescheduled — new interval=%d days", interval_days)
 
 
 async def _init_scheduler() -> None:
@@ -72,6 +89,23 @@ async def health() -> dict[str, str]:
     return {"status": "healthy", "service": settings.app_name, "version": settings.app_version}
 
 
+VERIFICATION_RUNS_TOTAL = Counter(
+    "verification_runs_total", "Total verification runs", ["status"],
+)
+
+
+@app.get("/metrics")
+async def metrics() -> StarletteResponse:
+    return StarletteResponse(content=generate_latest(), media_type=CONTENT_TYPE_LATEST)
+
+
 @app.get("/readiness")
-async def readiness() -> dict[str, str]:
-    return {"status": "ready"}
+async def readiness() -> dict[str, Any]:
+    db_ok = True
+    try:
+        async with async_session_factory() as db:
+            await db.execute(text("SELECT 1"))
+    except Exception:
+        db_ok = False
+    status = "ready" if db_ok else "degraded"
+    return {"status": status, "checks": {"database": "ok" if db_ok else "error"}}

@@ -105,8 +105,15 @@ class MappingResolver:
         mapping_type: str,
         source_data: dict[str, Any],
         flow_field_mapping: list[dict] | None = None,
+        connector_path: str | None = None,
     ) -> dict[str, Any]:
         mapped: dict[str, Any] = {}
+
+        if connector_path:
+            defaults = await self.load_defaults(connector_name, connector_path)
+            if defaults:
+                for key, value in defaults.items():
+                    self._set_nested(mapped, key, value)
 
         if flow_field_mapping:
             for mapping_entry in flow_field_mapping:
@@ -251,7 +258,11 @@ class MappingResolver:
             table = transform.get("values") or transform.get("table", {})
             return table.get(str(val), transform.get("default", val))
         if t == "format":
-            return transform.get("template", "{}").format(val)
+            tpl = transform.get("template", "{0}")
+            try:
+                return tpl.format(val)
+            except (KeyError, IndexError):
+                return str(val) if val is not None else None
         if t == "uppercase":
             return str(val).upper() if val is not None else None
         if t == "lowercase":
@@ -288,7 +299,10 @@ class MappingResolver:
             group = transform.get("group", 0)
             if val is None or not pattern:
                 return val
-            match = re.search(pattern, str(val))
+            try:
+                match = re.search(pattern, str(val))
+            except re.error:
+                return val
             if match:
                 try:
                     return match.group(group)
@@ -300,7 +314,10 @@ class MappingResolver:
             replacement = transform.get("replacement", "")
             if val is None or not pattern:
                 return val
-            return re.sub(pattern, replacement, str(val))
+            try:
+                return re.sub(pattern, replacement, str(val))
+            except re.error:
+                return val
         if t == "substring":
             start = transform.get("start", 0)
             end = transform.get("end")

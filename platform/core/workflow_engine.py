@@ -133,8 +133,10 @@ class WorkflowEngine:
             workflow_edges_snapshot=workflow.edges,
         )
         db.add(execution)
-        await db.commit()
+        await db.flush()
         await db.refresh(execution)
+
+        global_timeout = getattr(workflow, "timeout_seconds", 300) or 300
 
         try:
             graph = WorkflowGraph(workflow.nodes, workflow.edges)
@@ -154,9 +156,15 @@ class WorkflowEngine:
             })
 
             successors = graph.get_successors(trigger_node["id"])
-            await self._execute_nodes(db, graph, successors, ctx, workflow)
+            await asyncio.wait_for(
+                self._execute_nodes(db, graph, successors, ctx, workflow),
+                timeout=global_timeout,
+            )
 
             execution.status = "success"
+        except asyncio.TimeoutError:
+            execution.status = "failed"
+            execution.error = f"Workflow execution timed out after {global_timeout}s"
         except WorkflowError as exc:
             execution.status = "failed"
             execution.error = str(exc)
@@ -340,7 +348,7 @@ class WorkflowEngine:
             try:
                 output_schema = _json.loads(output_schema_json)
             except _json.JSONDecodeError:
-                pass
+                logger.warning("Think node output_schema_json is not valid JSON, ignoring")
 
         if not prompt:
             raise WorkflowError("Think node requires a prompt")
@@ -455,9 +463,19 @@ class WorkflowEngine:
         for i, item in enumerate(array_data[:max_iterations]):
             ctx.variables[item_var] = item
             ctx.variables[index_var] = i
+
+            data_before = copy.deepcopy(ctx.data)
             if loop_body_nodes:
                 await self._execute_nodes(db, graph, loop_body_nodes, ctx, workflow, depth + 1)
-            loop_results.append(copy.deepcopy(ctx.variables.get(item_var)))
+
+            iteration_output: dict[str, Any] = {}
+            for key, val in ctx.data.items():
+                if key not in data_before or data_before[key] != val:
+                    iteration_output[key] = val
+            if not iteration_output:
+                iteration_output = copy.deepcopy(item) if isinstance(item, dict) else {"value": item}
+
+            loop_results.append(iteration_output)
 
         ctx.variables[f"{item_var}_results"] = loop_results
         return {"loop_iterations": len(loop_results), "loop_results": loop_results}
@@ -484,19 +502,22 @@ class WorkflowEngine:
 
         timeout = min(config.get("timeout_seconds", 60), 120)
 
-        async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any]:
+        from db.base import async_session_factory, set_rls_bypass
+
+        async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any, list]:
             branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
             branch_ctx.variables = copy.deepcopy(ctx.variables)
             branch_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
 
             try:
-                await self._execute_single_node(db, graph, branch_node, branch_ctx, workflow, depth + 1)
+                async with async_session_factory() as branch_db:
+                    await set_rls_bypass(branch_db)
+                    await self._execute_single_node(branch_db, graph, branch_node, branch_ctx, workflow, depth + 1)
+                    await branch_db.commit()
                 output = branch_ctx.get_node_output(branch_node["id"])
-                ctx.node_results.extend(branch_ctx.node_results)
-                return branch_node["id"], output
+                return branch_node["id"], output, branch_ctx.node_results
             except Exception as exc:
-                ctx.node_results.extend(branch_ctx.node_results)
-                return branch_node["id"], {"error": str(exc)}
+                return branch_node["id"], {"error": str(exc)}, branch_ctx.node_results
 
         tasks = [asyncio.create_task(_run_branch(s)) for s in successors]
 
@@ -509,10 +530,14 @@ class WorkflowEngine:
 
         results: dict[str, Any] = {}
         for item in done:
+            if isinstance(item, BaseException):
+                await logger.awarning("parallel_branch_failed", error=str(item))
+                continue
             if isinstance(item, tuple):
-                node_id, output = item
+                node_id, output, branch_results = item
                 results[node_id] = output
                 ctx.set_node_output(node_id, output)
+                ctx.node_results.extend(branch_results)
 
         ctx.variables["parallel_results"] = results
         return {"parallel_branches": len(successors), "results": results}
@@ -687,7 +712,12 @@ class WorkflowEngine:
         elif op == "not_in":
             return actual not in (expected if isinstance(expected, list) else [expected])
         elif op == "regex":
-            return bool(re.search(str(expected), str(actual))) if actual is not None else False
+            if actual is None:
+                return False
+            try:
+                return bool(re.search(str(expected), str(actual)))
+            except re.error:
+                return False
         elif op == "is_empty":
             return not actual
         elif op == "is_not_empty":
@@ -825,7 +855,11 @@ class WorkflowEngine:
             table = transform.get("values") or transform.get("table", {})
             return table.get(str(val), transform.get("default", val))
         if t == "format":
-            return transform.get("template", "{}").format(val)
+            tpl = transform.get("template", "{0}")
+            try:
+                return tpl.format(val)
+            except (KeyError, IndexError):
+                return str(val) if val is not None else None
         if t == "uppercase":
             return str(val).upper() if val is not None else None
         if t == "lowercase":
@@ -862,7 +896,10 @@ class WorkflowEngine:
             group = transform.get("group", 0)
             if val is None or not pattern:
                 return val
-            match = re.search(pattern, str(val))
+            try:
+                match = re.search(pattern, str(val))
+            except re.error:
+                return val
             if match:
                 try:
                     return match.group(group)
@@ -889,7 +926,10 @@ class WorkflowEngine:
             replacement = transform.get("replacement", "")
             if val is None or not pattern:
                 return val
-            return re.sub(pattern, replacement, str(val))
+            try:
+                return re.sub(pattern, replacement, str(val))
+            except re.error:
+                return val
         if t == "substring":
             start = transform.get("start", 0)
             end = transform.get("end")
@@ -1344,7 +1384,12 @@ def _evaluate_trigger_filter(
         values = condition.get("values", expected if isinstance(expected, list) else [expected])
         return actual not in values
     elif op == "regex":
-        return bool(re.search(str(expected), str(actual))) if actual is not None else False
+        if actual is None:
+            return False
+        try:
+            return bool(re.search(str(expected), str(actual)))
+        except re.error:
+            return False
     elif op == "is_empty":
         return not actual
     elif op == "is_not_empty":

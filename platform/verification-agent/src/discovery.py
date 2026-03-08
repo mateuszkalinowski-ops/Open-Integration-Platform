@@ -138,7 +138,13 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
     result = await db.execute(
         select(ConnectorInstance).where(ConnectorInstance.is_enabled.is_(True))
     )
-    instances = {row.connector_name: row for row in result.scalars().all()}
+    all_instances = list(result.scalars().all())
+
+    instance_index: dict[tuple[str, str], list[Any]] = {}
+    instances_by_name: dict[str, list[Any]] = {}
+    for row in all_instances:
+        instance_index.setdefault((row.connector_name, row.connector_version), []).append(row)
+        instances_by_name.setdefault(row.connector_name, []).append(row)
 
     versions_per_connector: dict[str, list[ConnectorManifest]] = {}
     for m in manifests:
@@ -146,17 +152,23 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
 
     for name, versions in versions_per_connector.items():
         versions.sort(key=lambda m: m.version)
-        instance = instances.get(name)
-        tenant_id = str(instance.tenant_id) if instance else None
 
         for manifest in versions:
             base_url = resolve_service_url(
                 manifest, version_count=len(versions),
             )
-            targets.append(VerificationTarget(
-                manifest=manifest,
-                base_url=base_url,
-                tenant_id=tenant_id,
-            ))
+            matched_instances = instance_index.get((name, manifest.version), [])
+            if matched_instances:
+                for inst in matched_instances:
+                    targets.append(VerificationTarget(
+                        manifest=manifest,
+                        base_url=base_url,
+                        tenant_id=str(inst.tenant_id),
+                    ))
+            else:
+                logger.info(
+                    "Skipping %s v%s — no enabled instances deployed",
+                    name, manifest.version,
+                )
 
     return targets

@@ -1,3 +1,4 @@
+from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase
 
@@ -22,3 +23,12 @@ class Base(DeclarativeBase):
 async def get_db() -> AsyncSession:  # type: ignore[misc]
     async with async_session_factory() as session:
         yield session
+
+
+async def set_rls_bypass(session: AsyncSession) -> None:
+    """Enable admin bypass for RLS policies on the current transaction.
+
+    Use this for cross-tenant operations: background jobs, verification
+    agent, Kafka consumer, startup provisioning, etc.
+    """
+    await session.execute(text("SET LOCAL app.rls_bypass = 'on'"))

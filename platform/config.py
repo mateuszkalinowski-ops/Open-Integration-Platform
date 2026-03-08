@@ -1,3 +1,6 @@
+import logging
+import warnings
+
 from pydantic import Field
 from pydantic_settings import BaseSettings
 
@@ -44,6 +47,18 @@ class Settings(BaseSettings):
 
     connector_discovery_path: str = "../integrators"
 
+    # CORS
+    cors_allowed_origins: str = ""
+
+    # AI / external API base URLs
+    verification_agent_url: str = "http://verification-agent:8000"
+
+    # Admin secret for tenant management (empty = endpoints locked)
+    admin_secret: str = ""
+
+    # Internal secret for /internal/* endpoints (empty = endpoints locked)
+    internal_secret: str = ""
+
     demo_mode: bool = False
 
     # Kafka
@@ -52,8 +67,14 @@ class Settings(BaseSettings):
         default="kafka:9092", alias="KAFKA_BOOTSTRAP_SERVERS"
     )
     kafka_security_protocol: str = Field(
-        default="PLAINTEXT", alias="KAFKA_SECURITY_PROTOCOL"
+        default="SASL_SSL", alias="KAFKA_SECURITY_PROTOCOL"
     )
+    kafka_sasl_mechanism: str = Field(
+        default="PLAIN", alias="KAFKA_SASL_MECHANISM"
+    )
+    kafka_sasl_username: str = Field(default="", alias="KAFKA_SASL_USERNAME")
+    kafka_sasl_password: str = Field(default="", alias="KAFKA_SASL_PASSWORD")
+    kafka_ssl_cafile: str = Field(default="", alias="KAFKA_SSL_CAFILE")
     kafka_consumer_group: str = Field(
         default="platform-event-bridge", alias="KAFKA_CONSUMER_GROUP"
     )
@@ -63,3 +84,20 @@ class Settings(BaseSettings):
 
 
 settings = Settings()
+
+_logger = logging.getLogger(__name__)
+
+if not settings.encryption_key:
+    _logger.warning(
+        "ENCRYPTION_KEY is not set — credential encryption will fail at runtime. "
+        "Generate one with: python -c \"import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())\""
+    )
+if not settings.jwt_secret_key:
+    _logger.warning(
+        "JWT_SECRET_KEY is not set — JWT operations will fail at runtime. "
+        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+    )
+if not settings.admin_secret:
+    _logger.warning(
+        "ADMIN_SECRET is not set — tenant management endpoints are locked."
+    )

@@ -136,7 +136,13 @@ async def _ensure_account_generic(
 
     async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
         resp = await client.get(f"{base_url}{account_endpoint}")
-        existing = resp.json() if resp.status_code == 200 else []
+        existing: list[dict[str, Any]] = []
+        if resp.status_code == 200:
+            data = resp.json()
+            if isinstance(data, list):
+                existing = data
+            elif isinstance(data, dict) and isinstance(data.get("accounts"), list):
+                existing = data["accounts"]
         already_exists = any(acc.get("name") == account_name for acc in existing)
 
         if already_exists and force_update:
@@ -237,7 +243,7 @@ def _extract_file_from_payload(body: dict[str, Any]) -> tuple[bytes, str] | None
         try:
             return base64.b64decode(file_data), "document.pdf"
         except Exception:
-            pass
+            logger.warning("Failed to base64-decode file payload for extraction")
 
     return None
 
@@ -356,4 +362,11 @@ async def dispatch_action(
         try:
             return response.json()
         except Exception:
-            return {"status": "ok", "text": response.text[:2000]}
+            await logger.awarning(
+                "action_dispatch_non_json_response",
+                connector=connector_name,
+                action=action,
+                status=response.status_code,
+                content_type=response.headers.get("content-type", ""),
+            )
+            return {"status": "ok", "raw_response": True, "status_code": response.status_code}

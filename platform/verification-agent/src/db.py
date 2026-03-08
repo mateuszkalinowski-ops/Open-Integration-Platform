@@ -72,3 +72,9 @@ class Credential(Base):
 async def get_db() -> AsyncSession:  # type: ignore[misc]
     async with async_session_factory() as session:
         yield session
+
+
+async def set_rls_bypass(session: AsyncSession) -> None:
+    """Enable admin bypass for RLS policies on the current transaction."""
+    from sqlalchemy import text
+    await session.execute(text("SET LOCAL app.rls_bypass = 'on'"))

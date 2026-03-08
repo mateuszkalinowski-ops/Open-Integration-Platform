@@ -6,6 +6,7 @@ with field mapping and optional transformation in between.
 
 import time
 import uuid
+from collections.abc import Callable
 from datetime import datetime, timezone
 from typing import Any
 
@@ -45,7 +46,7 @@ class FlowEngine:
         db: AsyncSession,
         flow: Flow,
         event_data: dict[str, Any],
-        execute_action_fn: Any,
+        execute_action_fn: "Callable[..., Any]",
     ) -> FlowExecution:
         start_time = time.monotonic()
 
@@ -120,7 +121,7 @@ class FlowEngine:
         connector_name: str,
         event: str,
         event_data: dict[str, Any],
-        execute_action_fn: Any,
+        execute_action_fn: "Callable[..., Any]",
     ) -> list[FlowExecution]:
         flows = await self.get_flows_for_event(db, tenant_id, connector_name, event)
         executions = []
@@ -143,10 +144,15 @@ class FlowEngine:
 
     def _get_nested(self, data: dict, key: str) -> Any:
         parts = key.split(".")
-        current = data
+        current: Any = data
         for part in parts:
             if isinstance(current, dict):
                 current = current.get(part)
+            elif isinstance(current, list):
+                try:
+                    current = current[int(part)]
+                except (ValueError, IndexError):
+                    return None
             else:
                 return None
         return current

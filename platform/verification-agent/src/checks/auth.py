@@ -13,14 +13,11 @@ async def check_connection_status(
     target: VerificationTarget,
     account_name: str,
 ) -> dict[str, Any]:
-    """Try GET /connection/{account_name}/status or similar auth endpoints."""
+    """Try GET /connection/{account_name}/status."""
     start = time.monotonic()
     try:
-        creds = target.credentials or {}
-        cred_params = {k: v for k, v in creds.items() if k != "account_name"}
         r = await client.get(
             f"{target.base_url}/connection/{account_name}/status",
-            params=cred_params if cred_params else None,
         )
         ms = int((time.monotonic() - start) * 1000)
         if r.status_code == 200:

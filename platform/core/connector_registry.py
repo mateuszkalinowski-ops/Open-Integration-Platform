@@ -8,12 +8,29 @@ requires zero per-connector code.  Adding a new connector means creating its
 folder with a connector.yaml; no platform files need to change.
 """
 
+import logging
 from dataclasses import dataclass, field
 from pathlib import Path
 
 import yaml
 
+logger = logging.getLogger(__name__)
+
 DEFAULT_CONNECTOR_PORT = 8000
+
+
+def _parse_semver(version: str) -> tuple[int, ...]:
+    """Parse a semver string into a tuple of ints for proper comparison."""
+    parts: list[int] = []
+    for segment in version.split("."):
+        digits = ""
+        for ch in segment:
+            if ch.isdigit():
+                digits += ch
+            else:
+                break
+        parts.append(int(digits) if digits else 0)
+    return tuple(parts)
 
 
 @dataclass
@@ -62,7 +79,7 @@ class ConnectorManifest:
 
 class ConnectorRegistry:
     def __init__(self, discovery_path: str = "../integrators") -> None:
-        self._discovery_path = Path(discovery_path)
+        self._discovery_path = Path(discovery_path).resolve()
         self._connectors: dict[str, ConnectorManifest] = {}
 
     def discover(self) -> int:
@@ -70,6 +87,7 @@ class ConnectorRegistry:
         count = 0
 
         if not self._discovery_path.exists():
+            logger.warning("Discovery path %s does not exist", self._discovery_path)
             return 0
 
         for manifest_path in self._discovery_path.rglob("connector.yaml"):
@@ -78,13 +96,17 @@ class ConnectorRegistry:
                 self._connectors[manifest.connector_id] = manifest
                 count += 1
             except Exception:
+                logger.warning("Failed to load connector manifest %s", manifest_path, exc_info=True)
                 continue
 
         return count
 
     def _load_manifest(self, path: Path) -> ConnectorManifest:
-        with open(path) as f:
+        with open(path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
+
+        if not data or not isinstance(data, dict):
+            raise ValueError(f"Empty or invalid manifest: {path}")
 
         return ConnectorManifest(
             name=data["name"],
@@ -135,7 +157,7 @@ class ConnectorRegistry:
         ]
         if not versions:
             return None
-        return max(versions, key=lambda c: c.version)
+        return max(versions, key=lambda c: _parse_semver(c.version))
 
     def search(
         self,

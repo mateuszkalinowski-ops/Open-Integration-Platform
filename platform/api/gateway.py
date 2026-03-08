@@ -14,16 +14,14 @@ from typing import Any
 
 import httpx
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query, Request
+from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
-from collections import defaultdict
-
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.auth import generate_api_key, get_current_tenant, hash_api_key
+from api.auth import api_key_header, generate_api_key, get_current_tenant, hash_api_key
 from api.schemas import (
     ApiKeyCreate,
     ApiKeyResponse,
@@ -63,9 +61,10 @@ from core.flow_engine import FlowEngine
 from core.mapping_resolver import MappingResolver
 from core.redis_client import close_redis, get_redis, redis_health
 from core.workflow_engine import WorkflowEngine
-from db.base import async_session_factory, get_db
+from db.base import async_session_factory, get_db, set_rls_bypass
 from db.models import ApiKey, ConnectorInstance, Credential, Flow, FlowExecution, Tenant, Workflow, WorkflowExecution
 from middleware.rate_limiter import RateLimiterMiddleware
+from middleware.metrics import PrometheusMiddleware, metrics_endpoint
 
 logger = structlog.get_logger()
 
@@ -116,7 +115,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 "default_tenant_created",
                 tenant_id=str(default_tenant.id),
                 api_key_prefix=raw_key[:10],
-                api_key=raw_key if not preset_key else "***set-from-env***",
+                api_key="***auto-generated***" if not preset_key else "***set-from-env***",
             )
 
     count = registry.discover()
@@ -132,6 +131,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         credentials: dict[str, str] | None = None
         try:
             async with async_session_factory() as db_session:
+                await set_rls_bypass(db_session)
                 credentials = await vault.retrieve_all(
                     db_session, tenant_id, connector_name, credential_name=credential_name
                 )
@@ -156,6 +156,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         credentials: dict[str, str] | None = None
         try:
             async with async_session_factory() as db_session:
+                await set_rls_bypass(db_session)
                 credentials = await vault.retrieve_all(
                     db_session, tenant_id, connector_name, credential_name=credential_name
                 )
@@ -198,6 +199,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
         try:
             async with async_session_factory() as db_session:
+                await set_rls_bypass(db_session)
                 for connector_name in account_connectors:
                     wf_result = await db_session.execute(
                         select(Workflow).where(
@@ -278,6 +280,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             session_factory=async_session_factory,
             workflow_engine=workflow_engine,
             flow_engine=flow_engine,
+            registry=registry,
+            sasl_mechanism=settings.kafka_sasl_mechanism,
+            sasl_username=settings.kafka_sasl_username,
+            sasl_password=settings.kafka_sasl_password,
+            ssl_cafile=settings.kafka_ssl_cafile,
         )
         try:
             await kafka_bridge.start()
@@ -298,21 +305,138 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     await logger.ainfo("redis_disconnected")
 
 
+_APP_VERSION = os.environ.get("APP_VERSION", "0.1.0")
+
 app = FastAPI(
     title="Open Integration Platform by Pinquark.com",
-    version="0.1.0",
+    version=_APP_VERSION,
     description="Open-source integration hub — connect any system with any other system.",
     lifespan=lifespan,
 )
 
 app.add_middleware(RateLimiterMiddleware)
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
+app.add_middleware(PrometheusMiddleware)
+
+app.get("/metrics", tags=["health"])(metrics_endpoint)
+
+_cors_origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()] if settings.cors_allowed_origins else []
+if _cors_origins:
+    app.add_middleware(
+        CORSMiddleware,
+        allow_origins=_cors_origins,
+        allow_credentials=True,
+        allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
+        allow_headers=["Authorization", "Content-Type", "X-API-Key", "X-Admin-Secret", "X-Internal-Secret"],
+    )
+
+
+from fastapi.responses import JSONResponse
+from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
+from fastapi import Response
+
+
+class SecurityHeadersMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
+        response = await call_next(request)
+        response.headers["X-Content-Type-Options"] = "nosniff"
+        response.headers["X-Frame-Options"] = "DENY"
+        response.headers["Referrer-Policy"] = "strict-origin-when-cross-origin"
+        return response
+
+
+app.add_middleware(SecurityHeadersMiddleware)
+
+
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
+    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__)
+    return JSONResponse(
+        status_code=500,
+        content={
+            "error": {
+                "code": "INTERNAL_ERROR",
+                "message": "An internal error occurred",
+            }
+        },
+    )
+
+
+@app.exception_handler(ValueError)
+async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    return JSONResponse(
+        status_code=400,
+        content={
+            "error": {
+                "code": "INVALID_INPUT",
+                "message": str(exc),
+            }
+        },
+    )
+
+
+def _require_admin_secret(request: Request) -> None:
+    """Verify admin secret for tenant-management endpoints.
+
+    When no ADMIN_SECRET is configured the endpoints are fully locked
+    to prevent unauthenticated tenant/key creation.  The only exception
+    is demo_mode, which uses its own registration flow.
+    """
+    if not settings.admin_secret:
+        raise HTTPException(
+            status_code=403,
+            detail="Tenant management is disabled — set ADMIN_SECRET to enable",
+        )
+    provided = request.headers.get("X-Admin-Secret", "")
+    if not secrets.compare_digest(provided, settings.admin_secret):
+        raise HTTPException(status_code=403, detail="Invalid admin secret")
+
+
+async def _require_admin_or_api_key(
+    request: Request,
+    api_key: str | None = Security(api_key_header),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    """Allow access via X-Admin-Secret OR a valid X-API-Key.
+
+    Verification proxy endpoints need to be accessible from both:
+    - Admin tooling (using X-Admin-Secret)
+    - Dashboard (using X-API-Key from an authenticated tenant)
+    """
+    admin_ok = False
+    if settings.admin_secret:
+        provided = request.headers.get("X-Admin-Secret", "")
+        if provided and secrets.compare_digest(provided, settings.admin_secret):
+            admin_ok = True
+
+    if admin_ok:
+        return
+
+    if api_key:
+        key_hash = hash_api_key(api_key)
+        result = await db.execute(
+            select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
+        )
+        if result.scalar_one_or_none():
+            return
+
+    raise HTTPException(status_code=403, detail="Admin secret or valid API key required")
+
+
+def _require_internal_secret(request: Request) -> None:
+    """Verify internal secret for /internal/* endpoints.
+
+    These endpoints are meant to be called only from within the Docker
+    network by other connectors/services.  When no INTERNAL_SECRET is
+    configured, the endpoints are fully locked.
+    """
+    if not settings.internal_secret:
+        raise HTTPException(
+            status_code=403,
+            detail="Internal endpoints are disabled — set INTERNAL_SECRET to enable",
+        )
+    provided = request.headers.get("X-Internal-Secret", "")
+    if not secrets.compare_digest(provided, settings.internal_secret):
+        raise HTTPException(status_code=403, detail="Invalid internal secret")
 
 
 # --- Health ---
@@ -321,16 +445,44 @@ app.add_middleware(
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 async def health_check() -> HealthResponse:
     redis_ok = await redis_health()
+    db_ok = True
+    try:
+        async with async_session_factory() as db_session:
+            await db_session.execute(select(func.now()))
+    except Exception:
+        db_ok = False
+    all_ok = redis_ok and db_ok
     return HealthResponse(
-        status="healthy" if redis_ok else "degraded",
-        version="0.1.0",
+        status="healthy" if all_ok else "degraded",
+        version=_APP_VERSION,
         uptime_seconds=round(time.time() - _start_time, 1),
         checks={
-            "database": "ok",
+            "database": "ok" if db_ok else "error",
             "redis": "ok" if redis_ok else "error",
             "registry": "ok",
         },
     )
+
+
+@app.get("/readiness", tags=["health"])
+async def readiness_check() -> dict[str, Any]:
+    redis_ok = await redis_health()
+    db_ok = True
+    try:
+        async with async_session_factory() as db_session:
+            await db_session.execute(select(func.now()))
+    except Exception:
+        db_ok = False
+
+    all_ok = redis_ok and db_ok
+    return {
+        "status": "ready" if all_ok else "not_ready",
+        "checks": {
+            "database": "ok" if db_ok else "error",
+            "redis": "ok" if redis_ok else "error",
+            "connectors": f"{len(registry.get_all())} discovered",
+        },
+    }
 
 
 # --- Connectors (public catalog) ---
@@ -395,7 +547,10 @@ async def get_connector_openapi(name: str):
 
 
 @app.get("/api/v1/connectors/{name}/onpremise-agent", tags=["connectors"])
-async def download_onpremise_agent(name: str) -> StreamingResponse:
+async def download_onpremise_agent(
+    name: str,
+    tenant: Tenant = Depends(get_current_tenant),
+) -> StreamingResponse:
     """Download the on-premise agent package as a ZIP file."""
     connectors = registry.get_by_name(name)
     if not connectors:
@@ -414,17 +569,33 @@ async def download_onpremise_agent(name: str) -> StreamingResponse:
     if not agent_path.is_absolute():
         agent_path = Path(settings.connector_discovery_path).parent / source_dir
 
+    agent_path = agent_path.resolve()
+    safe_base = Path(settings.connector_discovery_path).parent.resolve()
+    try:
+        agent_path.relative_to(safe_base)
+    except ValueError:
+        raise HTTPException(status_code=403, detail="Access denied")
+
     if not agent_path.exists() or not agent_path.is_dir():
         raise HTTPException(status_code=404, detail="On-premise agent files not found on server")
 
-    skip_patterns = {".pyc", "__pycache__", ".git", ".env", "*.egg-info"}
+    _skip_exact = {".pyc", "__pycache__", ".git", ".env"}
+
+    def _should_skip(path: Path) -> bool:
+        parts = path.parts
+        for part in parts:
+            if part in _skip_exact:
+                return True
+            if part.endswith(".egg-info"):
+                return True
+        return False
 
     buf = io.BytesIO()
     with zipfile.ZipFile(buf, "w", zipfile.ZIP_DEFLATED) as zf:
         for file_path in sorted(agent_path.rglob("*")):
             if not file_path.is_file():
                 continue
-            if any(p in str(file_path) for p in skip_patterns):
+            if _should_skip(file_path.relative_to(agent_path)):
                 continue
             arcname = file_path.relative_to(agent_path)
             zf.write(file_path, arcname)
@@ -471,7 +642,15 @@ async def get_connector(category: str, name: str) -> ConnectorResponse:
 
 
 @app.post("/api/v1/tenants", response_model=TenantResponse, tags=["tenants"])
-async def create_tenant(body: TenantCreate, db: AsyncSession = Depends(get_db)) -> TenantResponse:
+async def create_tenant(
+    request: Request,
+    body: TenantCreate,
+    db: AsyncSession = Depends(get_db),
+) -> TenantResponse:
+    _require_admin_secret(request)
+    existing = await db.execute(select(Tenant).where(Tenant.slug == body.slug))
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=409, detail=f"Tenant with slug '{body.slug}' already exists")
     tenant = Tenant(name=body.name, slug=body.slug)
     db.add(tenant)
     await db.commit()
@@ -481,10 +660,19 @@ async def create_tenant(body: TenantCreate, db: AsyncSession = Depends(get_db)) 
 
 @app.post("/api/v1/tenants/{tenant_id}/api-keys", response_model=ApiKeyResponse, tags=["tenants"])
 async def create_api_key(
+    request: Request,
     tenant_id: str,
     body: ApiKeyCreate,
     db: AsyncSession = Depends(get_db),
 ) -> ApiKeyResponse:
+    _require_admin_secret(request)
+    try:
+        tid = uuid.UUID(tenant_id)
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid tenant_id format")
+    tenant = await db.execute(select(Tenant).where(Tenant.id == tid))
+    if not tenant.scalar_one_or_none():
+        raise HTTPException(status_code=404, detail="Tenant not found")
     raw_key, key_hash = generate_api_key()
     api_key = ApiKey(
         tenant_id=tenant_id,
@@ -876,7 +1064,7 @@ async def update_flow(
     if not flow:
         raise HTTPException(status_code=404, detail="Flow not found")
 
-    update_data = body.model_dump(exclude_none=True)
+    update_data = body.model_dump(exclude_unset=True)
     for key, value in update_data.items():
         setattr(flow, key, value)
 
@@ -960,7 +1148,7 @@ async def trigger_event(
     }
 
 
-@app.post("/internal/events", tags=["internal"])
+@app.post("/internal/events", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_trigger_event(
     body: EventTrigger,
     db: AsyncSession = Depends(get_db),
@@ -971,6 +1159,7 @@ async def internal_trigger_event(
     Processes the event for ALL active tenants so every tenant's
     matching flows/workflows are triggered regardless of DB row order.
     """
+    await set_rls_bypass(db)
     result = await db.execute(
         select(Tenant).where(Tenant.is_active.is_(True))
     )
@@ -1046,7 +1235,7 @@ async def internal_trigger_event(
 # --- Internal: connector credential distribution ---
 
 
-@app.get("/internal/connector-credentials/{connector_name}", tags=["internal"])
+@app.get("/internal/connector-credentials/{connector_name}", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_get_connector_credentials(
     connector_name: str,
     db: AsyncSession = Depends(get_db),
@@ -1056,6 +1245,7 @@ async def internal_get_connector_credentials(
     Used internally by connectors (within Docker network) to auto-register
     credentials for event polling.
     """
+    await set_rls_bypass(db)
     result = await db.execute(
         select(Tenant).where(Tenant.is_active.is_(True))
     )
@@ -1090,7 +1280,7 @@ async def internal_get_connector_credentials(
 # --- Internal: connector poller diagnostics ---
 
 
-@app.get("/internal/connector/{connector_name}/poller/status", tags=["internal"])
+@app.get("/internal/connector/{connector_name}/poller/status", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_connector_poller_status(connector_name: str) -> Any:
     """Proxy GET to connector debug/poller endpoint."""
     base = _resolve_service_url(connector_name, registry)
@@ -1105,7 +1295,7 @@ async def internal_connector_poller_status(connector_name: str) -> Any:
         raise HTTPException(status_code=502, detail="Cannot reach connector poller status")
 
 
-@app.post("/internal/connector/{connector_name}/poller/reset", tags=["internal"])
+@app.post("/internal/connector/{connector_name}/poller/reset", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_connector_poller_reset(connector_name: str) -> Any:
     """Proxy POST /poller/reset to a connector."""
     base = _resolve_service_url(connector_name, registry)
@@ -1117,7 +1307,7 @@ async def internal_connector_poller_reset(connector_name: str) -> Any:
             raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
 
 
-@app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"])
+@app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_connector_poller_poll_now(connector_name: str) -> Any:
     """Proxy POST to connector debug/poll-now endpoint."""
     base = _resolve_service_url(connector_name, registry)
@@ -1132,7 +1322,7 @@ async def internal_connector_poller_poll_now(connector_name: str) -> Any:
         raise HTTPException(status_code=502, detail="Cannot reach connector poll-now")
 
 
-@app.get("/internal/connector/{connector_name}/poller/diagnose", tags=["internal"])
+@app.get("/internal/connector/{connector_name}/poller/diagnose", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
 async def internal_connector_poller_diagnose(connector_name: str) -> Any:
     """Proxy GET /poller/diagnose to a connector for WMS API testing."""
     base = _resolve_service_url(connector_name, registry)
@@ -1405,7 +1595,10 @@ def _parse_ai_response(raw_text: str) -> dict:
     response_model=WorkflowAiGenerateResponse,
     tags=["workflows"],
 )
-async def ai_generate_workflow(body: WorkflowAiGenerateRequest) -> WorkflowAiGenerateResponse:
+async def ai_generate_workflow(
+    body: WorkflowAiGenerateRequest,
+    tenant: Tenant = Depends(get_current_tenant),
+) -> WorkflowAiGenerateResponse:
     connector_context = ""
     if body.connectors:
         lines = []
@@ -1589,7 +1782,7 @@ async def update_workflow(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
-    update_data = body.model_dump(exclude_none=True)
+    update_data = body.model_dump(exclude_unset=True)
 
     if "nodes" in update_data:
         update_data["nodes"] = [
@@ -1901,7 +2094,7 @@ async def get_workflow_execution_detail(
 # --- Verification Agent Proxy ---
 
 
-_VERIFICATION_AGENT_URL = "http://verification-agent:8000"
+_VERIFICATION_AGENT_URL = settings.verification_agent_url
 
 
 async def _proxy_verification(method: str, path: str, body: Any = None, params: dict | None = None) -> Any:
@@ -1918,28 +2111,28 @@ async def _proxy_verification(method: str, path: str, body: Any = None, params: 
             raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500])
 
 
-@app.post("/api/verification/run", tags=["verification"])
+@app.post("/api/verification/run", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_run_all() -> Any:
     return await _proxy_verification("POST", "/run")
 
 
-@app.post("/api/verification/run/{connector_name}", tags=["verification"])
+@app.post("/api/verification/run/{connector_name}", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_run_single(connector_name: str, version: str | None = Query(None)) -> Any:
     params = {"version": version} if version else None
     return await _proxy_verification("POST", f"/run/{connector_name}", params=params)
 
 
-@app.get("/api/verification/scheduler", tags=["verification"])
+@app.get("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_scheduler_status() -> Any:
     return await _proxy_verification("GET", "/scheduler/status")
 
 
-@app.put("/api/verification/scheduler", tags=["verification"])
+@app.put("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_scheduler_update(body: dict[str, Any]) -> Any:
     return await _proxy_verification("PUT", "/scheduler", body=body)
 
 
-@app.get("/api/verification/runs", tags=["verification"])
+@app.get("/api/verification/runs", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_list_runs(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
@@ -1947,12 +2140,12 @@ async def verification_list_runs(
     return await _proxy_verification("GET", "/runs", params={"page": str(page), "page_size": str(page_size)})
 
 
-@app.get("/api/verification/runs/{run_id}", tags=["verification"])
+@app.get("/api/verification/runs/{run_id}", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_get_run(run_id: str) -> Any:
     return await _proxy_verification("GET", f"/runs/{run_id}")
 
 
-@app.get("/api/verification/errors", tags=["verification"])
+@app.get("/api/verification/errors", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_list_errors(
     connector_name: str | None = Query(None),
     date_from: str | None = Query(None),
@@ -1970,14 +2163,13 @@ async def verification_list_errors(
     return await _proxy_verification("GET", "/errors", params=params)
 
 
-@app.get("/api/verification/reports/latest", tags=["verification"])
+@app.get("/api/verification/reports/latest", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
 async def verification_latest_reports() -> Any:
     return await _proxy_verification("GET", "/reports/latest")
 
 
 # ── Demo Gate ──────────────────────────────────────────────────────────
 
-_demo_register_counter: dict[str, list[float]] = defaultdict(list)
 _DEMO_RATE_LIMIT = 10
 _DEMO_RATE_WINDOW = 3600  # 1 hour
 
@@ -1989,13 +2181,24 @@ def _slugify(text: str) -> str:
     return slug or "workspace"
 
 
-def _demo_rate_check(client_ip: str) -> None:
-    now = time.time()
-    timestamps = _demo_register_counter[client_ip]
-    _demo_register_counter[client_ip] = [t for t in timestamps if now - t < _DEMO_RATE_WINDOW]
-    if len(_demo_register_counter[client_ip]) >= _DEMO_RATE_LIMIT:
-        raise HTTPException(status_code=429, detail="Too many demo registrations. Try again later.")
-    _demo_register_counter[client_ip].append(now)
+async def _demo_rate_check(client_ip: str) -> None:
+    """Rate limit demo registrations using the Redis-based sliding window."""
+    try:
+        redis = await get_redis()
+        now = time.time()
+        key = f"demo_register:{client_ip}"
+        pipe = redis.pipeline()
+        pipe.zremrangebyscore(key, 0, now - _DEMO_RATE_WINDOW)
+        pipe.zadd(key, {str(now): now})
+        pipe.zcard(key)
+        pipe.expire(key, _DEMO_RATE_WINDOW)
+        results = await pipe.execute()
+        if results[2] > _DEMO_RATE_LIMIT:
+            raise HTTPException(status_code=429, detail="Too many demo registrations. Try again later.")
+    except HTTPException:
+        raise
+    except Exception:
+        pass
 
 
 @app.post("/api/v1/demo/register", tags=["demo"], response_model=DemoRegisterResponse)
@@ -2008,7 +2211,7 @@ async def demo_register(
         raise HTTPException(status_code=404, detail="Not found")
 
     client_ip = request.client.host if request.client else "unknown"
-    _demo_rate_check(client_ip)
+    await _demo_rate_check(client_ip)
 
     suffix = secrets.token_hex(3)
     slug = f"{_slugify(body.workspace_name)}-{suffix}"

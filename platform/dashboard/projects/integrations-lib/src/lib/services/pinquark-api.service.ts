@@ -83,7 +83,33 @@ export class PinquarkApiService {
 
   downloadOnPremiseAgent(connectorName: string): void {
     const url = `${this.apiUrl}/api/v1/connectors/${connectorName}/onpremise-agent`;
-    window.open(url, '_blank');
+    this.http.get(url, {
+      headers: this.headers,
+      responseType: 'blob',
+      observe: 'response',
+    }).subscribe({
+      next: response => {
+        const disposition = response.headers.get('Content-Disposition') || '';
+        const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
+        const filename = filenameMatch?.[1] ?? `${connectorName}-onpremise-agent.zip`;
+        const blob = response.body;
+        if (!blob) return;
+        const a = document.createElement('a');
+        a.href = URL.createObjectURL(blob);
+        a.download = filename;
+        a.click();
+        URL.revokeObjectURL(a.href);
+      },
+      error: (err) => {
+        const status = err?.status ?? 0;
+        const message = status === 401
+          ? 'Authentication required to download the agent.'
+          : status === 404
+            ? 'On-premise agent not found for this connector.'
+            : `Failed to download agent (HTTP ${status}).`;
+        console.error('[PinquarkApi] downloadOnPremiseAgent failed:', message, err);
+      },
+    });
   }
 
   // --- Connector Instances ---

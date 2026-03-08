@@ -1,6 +1,8 @@
 """Authentication and tenant context middleware.
 
 Supports API key authentication (pk_live_xxx / pk_test_xxx).
+Sets PostgreSQL session variable ``app.current_tenant_id`` so that
+Row Level Security policies enforce tenant isolation at the DB level.
 """
 
 import hashlib
@@ -8,7 +10,7 @@ import uuid
 
 from fastapi import Depends, HTTPException, Security
 from fastapi.security import APIKeyHeader
-from sqlalchemy import select
+from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.base import get_db
@@ -46,6 +48,11 @@ async def get_current_tenant(
 
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")
+
+    await db.execute(
+        text("SET LOCAL app.current_tenant_id = :tid"),
+        {"tid": str(tenant.id)},
+    )
 
     return tenant
 

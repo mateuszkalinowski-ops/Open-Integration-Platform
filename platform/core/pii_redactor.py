@@ -54,7 +54,6 @@ _PII_KEY_PATTERNS: set[str] = {
 }
 
 _SAFE_KEYS: set[str] = {
-    "email_address",
     "imap_host",
     "smtp_host",
     "connector",
@@ -99,13 +98,19 @@ def mask_phone(phone: str) -> str:
     return digits[:2] + "*" * (len(digits) - 4) + digits[-2:]
 
 
+_PII_SEGMENT_PATTERNS: set[str] = {
+    "email", "phone", "name", "address", "pesel", "password", "secret", "token",
+}
+
+
 def _is_pii_key(key: str) -> bool:
     normalized = key.lower().strip()
     if normalized in _SAFE_KEYS:
         return False
-    return normalized in _PII_KEY_PATTERNS or any(
-        p in normalized for p in ("email", "phone", "name", "address", "pesel", "password", "secret", "token")
-    )
+    if normalized in _PII_KEY_PATTERNS:
+        return True
+    segments = set(normalized.replace("-", "_").split("_"))
+    return bool(segments & _PII_SEGMENT_PATTERNS)
 
 
 def _redact_string_value(value: str) -> str:
@@ -126,7 +131,7 @@ def redact(data: Any, *, depth: int = 0) -> Any:
     - Recursion is capped at depth 20 to avoid pathological inputs.
     """
     if depth > 20:
-        return data
+        return _REDACTION_MARKER
 
     if isinstance(data, dict):
         out: dict[str, Any] = {}
@@ -135,7 +140,10 @@ def redact(data: Any, *, depth: int = 0) -> Any:
                 if isinstance(value, str):
                     emails = _EMAIL_RE.findall(value)
                     if emails:
-                        out[key] = mask_email(emails[0])
+                        masked = value
+                        for email in emails:
+                            masked = masked.replace(email, mask_email(email))
+                        out[key] = masked
                     elif _PHONE_RE.fullmatch(value.strip()):
                         out[key] = mask_phone(value)
                     else:
