@@ -349,13 +349,16 @@ app.add_middleware(SecurityHeadersMiddleware)
 
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
-    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__)
+    import traceback
+    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc))
+    detail = f"{type(exc).__name__}: {exc}"
     return JSONResponse(
         status_code=500,
         content={
             "error": {
                 "code": "INTERNAL_ERROR",
-                "message": "An internal error occurred",
+                "message": detail if settings.app_env != "production" else "An internal error occurred",
             }
         },
     )
