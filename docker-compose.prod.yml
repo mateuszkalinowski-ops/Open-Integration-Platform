@@ -17,6 +17,7 @@ services:
       ADMIN_SECRET: ${ADMIN_SECRET}
       INTERNAL_SECRET: ${INTERNAL_SECRET}
       DEMO_MODE: ${DEMO_MODE:-false}
+      DEFAULT_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
     volumes:
       - ./integrators:/integrators:ro
       - ./onpremise:/onpremise:ro
@@ -470,6 +471,21 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       FTP_POLLING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
+  connector-s3:
+    build:
+      context: .
+      dockerfile: integrators/other/s3/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      S3_POLLING_ENABLED: "false"
       KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_EVENT_NOTIFY: "true"

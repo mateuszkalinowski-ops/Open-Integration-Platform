@@ -55,6 +55,7 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 | 34 | InsERT Nexo (Subiekt) | ERP | v1.0.0 | .NET SDK (pythonnet) + REST | `sql_server`, `sql_database`, `nexo_operator_login`, `nexo_operator_password` |
+| 35 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
 
 ---
 
@@ -1046,6 +1047,73 @@ Features:
 - Prometheus metrics for file operations
 
 Protocol: FTP (RFC 959) / SFTP (SSH File Transfer Protocol).
+
+---
+
+### Amazon S3 (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `aws_access_key_id` | Yes | AWS Access Key ID |
+| `aws_secret_access_key` | Yes | AWS Secret Access Key |
+| `region` | No | AWS region (default: `us-east-1`) |
+| `endpoint_url` | No | Custom S3 endpoint URL for S3-compatible storage (MinIO, Wasabi, etc.) |
+| `default_bucket` | No | Default bucket name |
+| `use_path_style` | No | Use path-style addressing (default: `false`, required for MinIO) |
+| `polling_enabled` | No | Enable background polling for new objects (default: `false`) |
+| `polling_bucket` | No | Bucket to poll for new objects |
+| `polling_prefix` | No | Key prefix to poll (default: empty) |
+| `polling_interval_seconds` | No | Polling interval in seconds (default: `300`) |
+
+Environment variables:
+```bash
+S3_LOG_LEVEL=INFO
+S3_POLLING_ENABLED=false
+S3_POLLING_INTERVAL_SECONDS=300
+S3_POLLING_BUCKET=
+S3_POLLING_PREFIX=
+S3_CONNECT_TIMEOUT=15.0
+S3_OPERATION_TIMEOUT=60.0
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+S3 account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  # AWS S3
+  - name: production-aws
+    aws_access_key_id: "${AWS_ACCESS_KEY_ID}"
+    aws_secret_access_key: "${AWS_SECRET_ACCESS_KEY}"
+    region: eu-central-1
+    default_bucket: my-data-bucket
+    environment: production
+
+  # MinIO (S3-compatible)
+  - name: local-minio
+    aws_access_key_id: minioadmin
+    aws_secret_access_key: minioadmin
+    region: us-east-1
+    endpoint_url: http://minio:9000
+    use_path_style: true
+    default_bucket: test-bucket
+    environment: development
+```
+
+Features:
+- Object operations: upload (base64), download (base64), list, delete, copy
+- Bucket management: list, create, delete
+- Pre-signed URL generation (GET/PUT) with configurable expiration
+- Background polling for new objects with SQLite state persistence
+- Publishing to Kafka (`s3.output.other.objects.new`, `s3.output.other.objects.uploaded`, `s3.output.other.objects.deleted`)
+- Platform event notification for Flow Engine integration
+- Multi-account S3 support
+- S3-compatible storage: MinIO, Wasabi, DigitalOcean Spaces, Backblaze B2, LocalStack
+- Input validation for bucket names and object keys
+- Connection testing / validation
+- Prometheus metrics for S3 operations
+
+Protocol: REST (Amazon S3 API / AWS Signature V4 authentication).
 
 ---
 
