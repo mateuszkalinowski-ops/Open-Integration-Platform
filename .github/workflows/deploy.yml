@@ -91,18 +91,45 @@ jobs:
               "DEMO_MODE=true" \
               > .env
 
+            # ── SSL certificate (Let's Encrypt) ──
+            CERT_DIR="/opt/pinquark/certbot/conf/live/pq.dotts.pl"
+            mkdir -p /opt/pinquark/certbot/www /opt/pinquark/certbot/conf
+            NEED_CERT=""
+            if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+              echo "No SSL cert found — creating temporary self-signed cert..."
+              mkdir -p "$CERT_DIR"
+              openssl req -x509 -nodes -days 1 -newkey rsa:2048 \
+                -keyout "$CERT_DIR/privkey.pem" \
+                -out "$CERT_DIR/fullchain.pem" \
+                -subj "/CN=pq.dotts.pl" 2>/dev/null
+              NEED_CERT=1
+            fi
+
             docker compose -f docker-compose.vps.yml pull
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
 
             sleep 3
-            docker compose -f docker-compose.vps.yml restart nginx
+
+            # ── Obtain real cert if needed ──
+            if [ "$NEED_CERT" = "1" ]; then
+              echo "Requesting Let's Encrypt certificate..."
+              docker compose -f docker-compose.vps.yml run --rm certbot certonly \
+                --webroot -w /var/www/certbot \
+                --email integrations@pinquark.com \
+                --agree-tos --no-eff-email \
+                --force-renewal \
+                -d pq.dotts.pl
+              docker compose -f docker-compose.vps.yml restart nginx
+            else
+              docker compose -f docker-compose.vps.yml restart nginx
+            fi
 
             docker image prune -f
 
             # ── Health check ──
             echo "Waiting for platform to start..."
             for i in $(seq 1 30); do
-              if curl -sf http://localhost:80/health > /dev/null 2>&1; then
+              if curl -sf https://pq.dotts.pl/health > /dev/null 2>&1 || curl -sf http://localhost:80/health > /dev/null 2>&1; then
                 echo "Platform is healthy!"
                 exit 0
               fi
