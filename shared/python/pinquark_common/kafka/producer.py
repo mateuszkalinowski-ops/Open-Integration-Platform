@@ -31,7 +31,7 @@ class KafkaMessageProducer:
             "key_serializer": lambda k: k.encode("utf-8") if k else None,
             "compression_type": compression_type,
             "linger_ms": linger_ms,
-            "batch_size": batch_size,
+            "max_batch_size": batch_size,
             "max_request_size": max_request_size,
             "acks": "all",
         }
