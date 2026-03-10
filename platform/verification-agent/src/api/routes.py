@@ -299,6 +299,15 @@ async def latest_reports() -> dict[str, Any]:
             if (r.connector_name, r.connector_version) in active_versions
         ]
 
+        seen: set[tuple[str, str]] = set()
+        unique_reports = []
+        for r in reports:
+            key = (r.connector_name, r.connector_version)
+            if key not in seen:
+                seen.add(key)
+                unique_reports.append(r)
+        reports = unique_reports
+
         if not reports:
             return {"connectors": [], "run_id": None, "created_at": None}
 
