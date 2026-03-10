@@ -234,6 +234,10 @@ jobs:
           - name: connector-ai-agent
             context: ./integrators/ai/agent/v1.0.0
             dockerfile: ./integrators/ai/agent/v1.0.0/Dockerfile
+          # --- Other connectors ---
+          - name: connector-s3
+            context: .
+            dockerfile: integrators/other/s3/v1.0.0/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
