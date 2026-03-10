@@ -304,6 +304,19 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-s3:
+    image: ghcr.io/mateuszkalinowski-ops/oip/connector-s3:latest
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      S3_POLLING_ENABLED: "false"
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+    depends_on:
+      - platform
+    restart: unless-stopped
+
   # --- Courier Connectors ---
   connector-inpost-v1:
     image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v1:latest
