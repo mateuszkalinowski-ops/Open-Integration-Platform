@@ -163,6 +163,7 @@ The platform supports three ways to trigger integrations between systems. All th
 | ---------------------------- | ------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------------------------- |
 | **Event-driven** (automatic) | `POST /internal/events`                                | A connector (e.g. WMS poller) detects a change and emits an event automatically. Matching Flows and Workflows execute without user intervention. | Asynchronous — result stored in `FlowExecution` / `WorkflowExecution` audit log |
 | **On-demand** (synchronous)  | `POST /api/v1/workflows/{id}/test` with `trigger_data` | User clicks a button (e.g. "Order courier") in the UI and expects an immediate result (shipment number, label).                                  | Synchronous — full `WorkflowExecution` returned in HTTP response                |
+| **GET call** (URL-triggered) | `GET /api/v1/workflows/{id}/call?param=value`          | Trigger a workflow via URL with query params as `trigger_data`. If the result contains a `url` field, returns **302 redirect**; otherwise JSON.   | 302 redirect to result URL, or JSON with `context_snapshot.data`                |
 | **External API trigger**     | `POST /api/v1/events` with tenant API key              | An external system (ERP, e-commerce) calls the platform API directly to trigger a flow.                                                          | Synchronous response with execution summary                                     |
 
 
@@ -243,6 +244,25 @@ The Workflow executes nodes sequentially and returns the full result (including 
 ```
 
 Data flow between nodes: each node's output is merged into `ctx.data` and accessible via `nodes.{node_id}.{field}` in subsequent nodes. This allows chaining — the `label.get` step references `shipment_id` from the `shipment.create` step.
+
+**Path 3 — GET call (URL-triggered, e.g. S3 file access)**
+
+Execute a workflow by passing parameters directly in the URL. If the workflow produces a `url` field in its output, the endpoint returns a 302 redirect — the browser follows it automatically.
+
+```
+GET /api/v1/workflows/{workflow_id}/call?key=report.pdf&bucket=my-bucket
+```
+
+All query parameters become `trigger_data` for the workflow. Example with S3 presigned URL workflow:
+
+```
+GET /api/v1/workflows/{id}/call?key=Etykieta+towaru.pdf
+  → Workflow executes: trigger → s3.object.presign → response
+  → 302 Redirect → https://s3.waw.io.cloud.ovh.net/bucket/Etykieta%20towaru.pdf?Signature=...
+  → Browser downloads the file
+```
+
+This is useful for embedding file links in HTML, email templates, or external systems without requiring POST requests or JavaScript.
 
 #### Required platform configuration
 
@@ -458,6 +478,15 @@ The entity key uniquely identifies a record across sync runs. It supports:
 - **Simple field**: `"erpId"` → `"12345"`
 - **Nested dot-notation**: `"document.erp_id"` → `"67890"`
 - **Composite key**: `["source", "erp_id"]` → `"allegro:12345"` (joined with `:`)
+
+#### Workflow execution endpoints
+
+| Endpoint | Method | Description |
+| --- | --- | --- |
+| `/api/v1/workflows/{id}/test` | POST | Execute workflow with `trigger_data` body (test mode) |
+| `/api/v1/workflows/{id}/execute` | POST | Execute workflow with `trigger_data` body (production) |
+| `/api/v1/workflows/{id}/call` | GET | Execute workflow with query params as `trigger_data`. Returns 302 redirect if output has `url`, otherwise JSON |
+| `/api/v1/workflows/{id}/toggle` | POST | Enable/disable workflow |
 
 #### Ledger states
 

@@ -1,0 +1,91 @@
+services:
+  s3-integrator:
+    build:
+      context: ../../../..
+      dockerfile: integrators/other/s3/v1.0.0/Dockerfile
+    container_name: s3-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+      - s3-data:/app/data
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      - S3_LOG_LEVEL=INFO
+      - S3_POLLING_ENABLED=false
+      - S3_POLLING_INTERVAL_SECONDS=300
+    restart: unless-stopped
+    profiles:
+      - prod
+    networks:
+      - integrations
+
+  s3-integrator-dev:
+    build:
+      context: ../../../..
+      dockerfile: integrators/other/s3/v1.0.0/Dockerfile
+    container_name: s3-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+      - s3-data-dev:/app/data
+    environment:
+      - S3_DEBUG=true
+      - S3_LOG_LEVEL=DEBUG
+      - S3_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+      - DATABASE_URL=sqlite+aiosqlite:///./data/s3_dev.db
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  minio:
+    image: minio/minio:latest
+    container_name: s3-minio
+    ports:
+      - "9000:9000"
+      - "9001:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio-data:/data
+    profiles:
+      - dev
+      - test
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: ../../../..
+      dockerfile: integrators/other/s3/v1.0.0/Dockerfile
+    container_name: s3-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - DATABASE_URL=sqlite+aiosqlite:///./test.db
+      - S3_POLLING_ENABLED=false
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+volumes:
+  s3-data:
+  s3-data-dev:
+  minio-data:
+
+networks:
+  integrations:
+    driver: bridge

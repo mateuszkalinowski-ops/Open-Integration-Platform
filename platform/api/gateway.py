@@ -21,7 +21,7 @@ from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.auth import api_key_header, generate_api_key, get_current_tenant, hash_api_key
+from api.auth import api_key_header, generate_api_key, get_current_tenant, get_current_tenant_or_query, hash_api_key
 from api.schemas import (
     ApiKeyCreate,
     ApiKeyResponse,
@@ -1980,6 +1980,43 @@ async def execute_workflow(
     await db.commit()
     return WorkflowExecutionResponse.model_validate(execution)
 
+
+
+@app.get(
+    "/api/v1/workflows/{workflow_id}/call",
+    tags=["workflows"],
+)
+async def call_workflow_get(
+    workflow_id: str,
+    request: Request,
+    tenant: Tenant = Depends(get_current_tenant_or_query),
+    db: AsyncSession = Depends(get_db),
+) -> Any:
+    """Execute a workflow via GET with query params as trigger_data.
+
+    Returns the presigned URL as a redirect (302) when the output contains
+    a ``url`` field, otherwise returns the full context data as JSON.
+
+    Example: /api/v1/workflows/{id}/call?key=report.pdf&bucket=my-bucket
+    """
+    trigger_data = {k: v for k, v in request.query_params.items() if k != "api_key"}
+    result = await db.execute(
+        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
+    )
+    workflow = result.scalar_one_or_none()
+    if not workflow:
+        raise HTTPException(status_code=404, detail="Workflow not found")
+
+    execution = await workflow_engine.execute_workflow(db, workflow, trigger_data)
+    await db.commit()
+
+    ctx_data = execution.context_snapshot.get("data", {}) if execution.context_snapshot else {}
+    url = ctx_data.get("url")
+    if url and isinstance(url, str) and url.startswith("http"):
+        from starlette.responses import RedirectResponse
+        return RedirectResponse(url=url, status_code=302)
+
+    return ctx_data
 
 
 @app.post("/api/v1/workflows/{workflow_id}/toggle", tags=["workflows"])

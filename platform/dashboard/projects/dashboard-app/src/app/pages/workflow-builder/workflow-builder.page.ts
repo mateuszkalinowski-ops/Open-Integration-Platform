@@ -310,6 +310,36 @@ import {
                         <strong>node_results</strong> with each step's output and
                         <strong>context_snapshot</strong> with the merged final data.
                       </div>
+
+                      <div class="wb__api-divider"></div>
+
+                      <div class="wb__api-block">
+                        <div class="wb__api-label">
+                          <span class="wb__api-method wb__api-method--get">GET</span>
+                          Call via URL
+                          <button mat-icon-button class="wb__api-copy" (click)="copyToClipboard(callEndpoint)" matTooltip="Copy endpoint">
+                            <mat-icon>content_copy</mat-icon>
+                          </button>
+                        </div>
+                        <code class="wb__api-code">{{ callEndpoint }}</code>
+                      </div>
+
+                      <div class="wb__api-block">
+                        <div class="wb__api-label">
+                          Example
+                          <button mat-icon-button class="wb__api-copy" (click)="copyToClipboard(callExample)" matTooltip="Copy URL">
+                            <mat-icon>content_copy</mat-icon>
+                          </button>
+                        </div>
+                        <code class="wb__api-code">{{ callExample }}</code>
+                      </div>
+
+                      <div class="wb__api-hint">
+                        Pass <strong>trigger_data</strong> as query parameters.
+                        If the workflow output contains a <strong>url</strong> field,
+                        the endpoint returns a <strong>302 redirect</strong> — the
+                        browser follows it automatically (e.g. to download a file from S3).
+                      </div>
                     </div>
                   }
                 </div>
@@ -613,6 +643,8 @@ import {
       margin-top: 8px;
     }
     .wb__api-hint strong { color: #1976d2; font-family: 'JetBrains Mono', 'Fira Code', monospace; font-size: 11px; }
+    .wb__api-divider { border-top: 1px solid #e0e0e0; margin: 16px 0; }
+    .wb__api-method--get { background: #2e7d32; }
 
     .wb__ai-btn {
       background: linear-gradient(135deg, #6a1b9a, #1565c0) !important;
@@ -722,6 +754,16 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
       "your_field": "value"
     }
   }'`;
+  }
+
+  get callEndpoint(): string {
+    const base = this.getApiBaseUrl();
+    return `${base}/api/v1/workflows/${this.workflowId}/call?api_key=YOUR_API_KEY&key=FILENAME`;
+  }
+
+  get callExample(): string {
+    const base = this.getApiBaseUrl();
+    return `${base}/api/v1/workflows/${this.workflowId}/call?api_key=local-dev-key&key=example-file.pdf`;
   }
 
   get responseExample(): string {

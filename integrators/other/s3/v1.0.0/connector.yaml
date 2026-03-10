@@ -1,0 +1,311 @@
+name: s3
+category: other
+version: 1.0.0
+display_name: Amazon S3
+description: Amazon S3 (and S3-compatible) object storage connector. Upload, download,
+  list, delete, copy objects and manage buckets. Supports polling for new objects.
+website_url: https://aws.amazon.com/s3/
+country: US
+logo_url: /assets/logos/s3.svg
+interface: object_storage
+capabilities:
+- upload_object
+- download_object
+- list_objects
+- delete_object
+- copy_object
+- list_buckets
+- create_bucket
+- delete_bucket
+- generate_presigned_url
+- poll_new_objects
+events:
+- object.new
+- object.uploaded
+- object.deleted
+actions:
+- object.upload
+- object.download
+- object.list
+- object.delete
+- object.copy
+- object.presign
+- bucket.list
+- bucket.create
+- bucket.delete
+event_fields:
+  object.new:
+  - field: key
+    label: Object key
+    type: string
+  - field: bucket
+    label: Bucket name
+    type: string
+  - field: size
+    label: Object size (bytes)
+    type: integer
+  - field: last_modified
+    label: Last modification time
+    type: string
+  - field: etag
+    label: ETag
+    type: string
+  - field: account_name
+    label: Account name
+    type: string
+  object.uploaded:
+  - field: key
+    label: Object key
+    type: string
+  - field: bucket
+    label: Bucket name
+    type: string
+  - field: size
+    label: Object size (bytes)
+    type: integer
+  - field: account_name
+    label: Account name
+    type: string
+  object.deleted:
+  - field: key
+    label: Object key
+    type: string
+  - field: bucket
+    label: Bucket name
+    type: string
+  - field: account_name
+    label: Account name
+    type: string
+action_fields:
+  object.upload:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: key
+    label: Object key (path)
+    type: string
+    required: true
+  - field: content_base64
+    label: File content (base64)
+    type: string
+    required: true
+  - field: content_type
+    label: MIME type
+    type: string
+    default: application/octet-stream
+  object.download:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: key
+    label: Object key (path)
+    type: string
+    required: true
+  object.list:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: prefix
+    label: Key prefix filter
+    type: string
+    default: ""
+  - field: max_keys
+    label: Max objects to return
+    type: integer
+    default: 1000
+  object.delete:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: key
+    label: Object key (path)
+    type: string
+    required: true
+  object.copy:
+  - field: source_bucket
+    label: Source bucket name
+    type: string
+    required: true
+  - field: source_key
+    label: Source object key
+    type: string
+    required: true
+  - field: destination_bucket
+    label: Destination bucket name
+    type: string
+    required: true
+  - field: destination_key
+    label: Destination object key
+    type: string
+    required: true
+  object.presign:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: key
+    label: Object key (path)
+    type: string
+    required: true
+  - field: expires_in
+    label: URL expiration (seconds)
+    type: integer
+    default: 3600
+  - field: method
+    label: HTTP method (GET or PUT)
+    type: string
+    default: GET
+  bucket.list: []
+  bucket.create:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+  - field: region
+    label: AWS region
+    type: string
+  bucket.delete:
+  - field: bucket
+    label: Bucket name
+    type: string
+    required: true
+config_schema:
+  required:
+  - aws_access_key_id
+  - aws_secret_access_key
+  optional:
+  - region
+  - endpoint_url
+  - default_bucket
+  - use_path_style
+  - polling_enabled
+  - polling_bucket
+  - polling_prefix
+  - polling_interval_seconds
+  field_types:
+    aws_access_key_id:
+      type: string
+      label: AWS Access Key ID
+      placeholder: AKIAIOSFODNN7EXAMPLE
+    aws_secret_access_key:
+      type: password
+      label: AWS Secret Access Key
+      placeholder: wJalrXUtnFEMI/K7MDENG/bPxRfiCYEXAMPLEKEY
+    region:
+      type: string
+      label: AWS Region
+      placeholder: eu-central-1
+      default: us-east-1
+    endpoint_url:
+      type: string
+      label: Custom S3 endpoint URL (for MinIO, Wasabi, etc.)
+      placeholder: https://s3.example.com
+    default_bucket:
+      type: string
+      label: Default bucket name
+    use_path_style:
+      type: boolean
+      label: Use path-style addressing (required for MinIO)
+      default: false
+    polling_enabled:
+      type: boolean
+      label: Poll for new objects
+      default: false
+    polling_bucket:
+      type: string
+      label: Bucket to poll for new objects
+    polling_prefix:
+      type: string
+      label: Key prefix to poll
+      default: ""
+    polling_interval_seconds:
+      type: number
+      label: Polling interval (seconds)
+      default: 300
+health_endpoint: /health
+docs_url: /docs
+service_name: connector-s3
+action_routes:
+  object.upload:
+    method: POST
+    path: /objects/upload
+    query_from_payload:
+    - account_name
+  object.download:
+    method: GET
+    path: /objects/download
+    query_from_payload:
+    - account_name
+    - bucket
+    - key
+  object.list:
+    method: GET
+    path: /objects
+    query_from_payload:
+    - account_name
+    - bucket
+    - prefix
+    - max_keys
+  object.delete:
+    method: DELETE
+    path: /objects
+    query_from_payload:
+    - account_name
+  object.copy:
+    method: POST
+    path: /objects/copy
+    query_from_payload:
+    - account_name
+  object.presign:
+    method: POST
+    path: /objects/presign
+    query_from_payload:
+    - account_name
+  bucket.list:
+    method: GET
+    path: /buckets
+    query_from_payload:
+    - account_name
+  bucket.create:
+    method: POST
+    path: /buckets
+    query_from_payload:
+    - account_name
+  bucket.delete:
+    method: DELETE
+    path: /buckets/{bucket}
+    query_from_payload:
+    - account_name
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    aws_access_key_id: aws_access_key_id
+    aws_secret_access_key: aws_secret_access_key
+    region:
+      source: region
+      default: us-east-1
+    endpoint_url:
+      source: endpoint_url
+      default: ""
+    default_bucket:
+      source: default_bucket
+      default: ""
+    use_path_style:
+      source: use_path_style
+      type: boolean
+      default: false
+    environment:
+      source: environment
+      default: production
+credential_validation:
+  required_fields:
+  - aws_access_key_id
+  - aws_secret_access_key
+  validate_endpoint: /auth/{account_name}/test

@@ -8,7 +8,7 @@ Row Level Security policies enforce tenant isolation at the DB level.
 import hashlib
 import uuid
 
-from fastapi import Depends, HTTPException, Security
+from fastapi import Depends, HTTPException, Query, Request, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,10 +23,7 @@ def hash_api_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
 
 
-async def get_current_tenant(
-    api_key: str | None = Security(api_key_header),
-    db: AsyncSession = Depends(get_db),
-) -> Tenant:
+async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
     if not api_key:
         raise HTTPException(status_code=401, detail="Missing API key")
 
@@ -50,11 +47,29 @@ async def get_current_tenant(
         raise HTTPException(status_code=403, detail="Tenant is disabled")
 
     tid_str = str(tenant.id)
-    # asyncpg does not support bind parameters in SET statements
     safe_tid = tid_str.replace("'", "''")
     await db.execute(text(f"SET LOCAL app.current_tenant_id = '{safe_tid}'"))
 
     return tenant
+
+
+async def get_current_tenant(
+    api_key: str | None = Security(api_key_header),
+    db: AsyncSession = Depends(get_db),
+) -> Tenant:
+    """Standard auth — reads API key from X-API-Key header only."""
+    return await _resolve_tenant(api_key, db)
+
+
+async def get_current_tenant_or_query(
+    request: Request,
+    api_key: str | None = Security(api_key_header),
+    api_key_query: str | None = Query(None, alias="api_key"),
+    db: AsyncSession = Depends(get_db),
+) -> Tenant:
+    """Auth that accepts API key from header OR ?api_key= query param."""
+    key = api_key or api_key_query
+    return await _resolve_tenant(key, db)
 
 
 def generate_api_key(prefix: str = "pk_live") -> tuple[str, str]:
