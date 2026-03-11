@@ -1,3 +1,5 @@
+import { ConnectorFieldDef } from './connector.model';
+
 export type WorkflowNodeType =
   | 'trigger'
   | 'action'
@@ -13,7 +15,10 @@ export type WorkflowNodeType =
   | 'aggregate'
   | 'http_request'
   | 'set_variable'
-  | 'response';
+  | 'response'
+  | 'sub_workflow'
+  | 'error_handler'
+  | 'batch';
 
 export interface WorkflowNodePosition {
   x: number;
@@ -338,6 +343,33 @@ export const NODE_TYPE_DEFINITIONS: NodeTypeDefinition[] = [
     handles: { inputs: ['default'], outputs: [] },
     description: 'End the workflow and return a response',
   },
+  {
+    type: 'sub_workflow',
+    label: 'Sub-Workflow',
+    icon: 'account_tree',
+    color: '#5c6bc0',
+    category: 'flow',
+    handles: { inputs: ['default'], outputs: ['default'] },
+    description: 'Call another workflow as a reusable sub-process',
+  },
+  {
+    type: 'error_handler',
+    label: 'Error Handler',
+    icon: 'error_outline',
+    color: '#e53935',
+    category: 'logic',
+    handles: { inputs: ['default'], outputs: ['default', 'error'] },
+    description: 'Catch and handle errors from preceding steps',
+  },
+  {
+    type: 'batch',
+    label: 'Batch',
+    icon: 'dynamic_feed',
+    color: '#00897b',
+    category: 'data',
+    handles: { inputs: ['default'], outputs: ['default'] },
+    description: 'Process items in configurable batches with concurrency control',
+  },
 ];
 
 export const CONDITION_OPERATORS = [
@@ -368,14 +400,14 @@ export interface TransformTypeDef {
 }
 
 export const TRANSFORM_TYPES: TransformTypeDef[] = [
-  { value: 'template', label: 'Template', multiSource: true, configFields: ['template'] },
+  { value: 'template', label: 'String Interpolation', multiSource: true, configFields: ['expression'] },
   { value: 'join', label: 'Join', multiSource: true, configFields: ['separator'] },
   { value: 'coalesce', label: 'Coalesce (first non-null)', multiSource: true, configFields: ['default_value'] },
   { value: 'regex_extract', label: 'Regex Extract', configFields: ['pattern', 'group'] },
   { value: 'regex_replace', label: 'Regex Replace', configFields: ['pattern', 'replacement'] },
   { value: 'map', label: 'Value Map', configFields: ['values'] },
   { value: 'lookup', label: 'Lookup Table', configFields: ['table', 'default'] },
-  { value: 'format', label: 'Format Template', configFields: ['template'] },
+  { value: 'format', label: 'Format String', configFields: ['pattern'] },
   { value: 'uppercase', label: 'UPPERCASE' },
   { value: 'lowercase', label: 'lowercase' },
   { value: 'trim', label: 'Trim Whitespace' },
@@ -417,6 +449,37 @@ export interface AiGenerateResponse {
   edges?: WorkflowEdge[];
   name?: string;
   description?: string;
+}
+
+export interface AiSuggestMappingsRequest {
+  model: AiModelType;
+  api_key: string;
+  prompt?: string;
+  source_fields: ConnectorFieldDef[];
+  destination_fields: ConnectorFieldDef[];
+  existing_mappings?: FieldMapping[];
+}
+
+export interface AiSuggestMappingsResponse {
+  message: string;
+  mappings: FieldMapping[];
+}
+
+export interface AiExplainErrorRequest {
+  model: AiModelType;
+  api_key: string;
+  workflow_name?: string;
+  node_label?: string;
+  node_type?: string;
+  error: string;
+  trigger_data?: Record<string, unknown>;
+  node_results?: WorkflowNodeResult[];
+}
+
+export interface AiExplainErrorResponse {
+  summary: string;
+  likely_causes: string[];
+  suggested_fixes: string[];
 }
 
 export const AI_MODELS = [

@@ -7,6 +7,32 @@ from typing import Any, Literal
 from pydantic import BaseModel, Field
 
 
+class ConnectorHealthSummary(BaseModel):
+    status: str = "unknown"
+    latency_ms: float | None = None
+    last_check: float | None = None
+    consecutive_failures: int = 0
+    last_error: str | None = None
+    error_rate_5m: float | None = None
+
+
+class ConnectorSchemaField(BaseModel):
+    field: str
+    label: str
+    type: str
+    required: bool = False
+    description: str | None = None
+
+
+class ConnectorActionSchemaResponse(BaseModel):
+    connector_name: str
+    action: str
+    source: Literal["static", "dynamic", "merged"]
+    cached: bool = False
+    input_fields: list[ConnectorSchemaField] = Field(default_factory=list)
+    output_fields: list[ConnectorSchemaField] = Field(default_factory=list)
+
+
 class TenantCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     slug: str = Field(..., min_length=1, max_length=50, pattern=r"^[a-z0-9][a-z0-9_-]*$")
@@ -56,6 +82,12 @@ class ConnectorResponse(BaseModel):
     event_fields: dict[str, list[dict]] = Field(default_factory=dict)
     action_fields: dict[str, list[dict]] = Field(default_factory=dict)
     output_fields: dict[str, list[dict]] = Field(default_factory=dict)
+    auth_type: str = "custom"
+    status: str = "stable"
+    supports_oauth2: bool = False
+    sandbox_available: bool = False
+    has_webhooks: bool = False
+    health: ConnectorHealthSummary | None = None
     deployment: str = "cloud"
     requires_onpremise_agent: bool = False
     onpremise_agent: dict = Field(default_factory=dict)
@@ -205,6 +237,29 @@ class WorkflowCreate(BaseModel):
     timeout_seconds: int = Field(default=300, ge=1, le=3600)
 
 
+class WorkflowTemplateSummary(BaseModel):
+    id: str
+    name: str
+    description: str
+    category: str
+    tags: list[str] = Field(default_factory=list)
+    source_connector: str | None = None
+    source_event: str | None = None
+    destination_connector: str | None = None
+    destination_action: str | None = None
+
+
+class WorkflowTemplateDetail(WorkflowTemplateSummary):
+    workflow: WorkflowCreate
+
+
+class WorkflowTemplateInstantiateRequest(BaseModel):
+    name: str | None = Field(default=None, max_length=200)
+    description: str | None = Field(default=None, max_length=1000)
+    activate: bool = False
+    credential_names: dict[str, str] = Field(default_factory=dict)
+
+
 class WorkflowUpdate(BaseModel):
     name: str | None = Field(default=None, max_length=200)
     description: str | None = Field(default=None, max_length=1000)
@@ -258,6 +313,12 @@ class WorkflowExecutionResponse(BaseModel):
 
 class WorkflowTestRequest(BaseModel):
     trigger_data: dict[str, Any] = Field(default_factory=dict)
+    dry_run: bool = False
+
+
+class WorkflowRerunRequest(BaseModel):
+    from_node_id: str
+    override_data: dict[str, Any] = Field(default_factory=dict)
 
 
 class AiChatMessage(BaseModel):
@@ -281,6 +342,37 @@ class WorkflowAiGenerateResponse(BaseModel):
     edges: list[dict[str, Any]] | None = None
     name: str | None = None
     description: str | None = None
+
+
+class AiFieldMappingSuggestRequest(BaseModel):
+    model: Literal["gemini", "opus"] = "gemini"
+    api_key: str
+    prompt: str | None = None
+    source_fields: list[dict[str, Any]] = Field(default_factory=list)
+    destination_fields: list[dict[str, Any]] = Field(default_factory=list)
+    existing_mappings: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AiFieldMappingSuggestResponse(BaseModel):
+    message: str
+    mappings: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AiExplainErrorRequest(BaseModel):
+    model: Literal["gemini", "opus"] = "gemini"
+    api_key: str
+    workflow_name: str | None = None
+    node_label: str | None = None
+    node_type: str | None = None
+    error: str
+    trigger_data: dict[str, Any] = Field(default_factory=dict)
+    node_results: list[dict[str, Any]] = Field(default_factory=list)
+
+
+class AiExplainErrorResponse(BaseModel):
+    summary: str
+    likely_causes: list[str] = Field(default_factory=list)
+    suggested_fixes: list[str] = Field(default_factory=list)
 
 
 # --- Execution Detail (GDPR-aware) ---

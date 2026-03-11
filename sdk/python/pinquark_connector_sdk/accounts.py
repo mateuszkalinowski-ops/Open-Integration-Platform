@@ -5,7 +5,7 @@ from __future__ import annotations
 from typing import TYPE_CHECKING, Any
 
 import structlog
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Response
 from pydantic import BaseModel, Field
 
 if TYPE_CHECKING:
@@ -129,10 +129,17 @@ def register_account_routes(app: FastAPI, connector_app: ConnectorApp) -> Accoun
         logger.info("account_updated", account=name)
         return AccountResponse(name=name, credential_keys=list(creds.keys()))
 
-    @app.delete("/accounts/{name}", status_code=204, tags=["accounts"])
-    async def delete_account(name: str) -> None:
+    @app.delete(
+        "/accounts/{name}",
+        status_code=204,
+        response_model=None,
+        response_class=Response,
+        tags=["accounts"],
+    )
+    async def delete_account(name: str) -> Response:
         store.delete(name)
         logger.info("account_deleted", account=name)
+        return Response(status_code=204)
 
     @app.get("/auth/{account}/status", response_model=AuthStatusResponse, tags=["accounts"])
     async def auth_status(account: str) -> AuthStatusResponse:

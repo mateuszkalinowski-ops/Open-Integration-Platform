@@ -79,6 +79,12 @@ config_schema:
       type: boolean
       label: Automatic order polling
       default: true
+oauth2:
+  authorization_url: "https://app.apilo.com/oauth/authorize"
+  token_url: "https://app.apilo.com/oauth/token"
+  scopes: []
+  pkce: false
+  refresh_before_expiry_seconds: 300
 health_endpoint: /health
 docs_url: /docs
 api_version_check:

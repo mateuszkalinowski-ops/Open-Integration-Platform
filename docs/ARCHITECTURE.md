@@ -32,7 +32,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 | ERP        | 1                                | InsERT Nexo (hybrid on-premise + cloud)                                                                               |
 | WMS        | 1                                | Pinquark WMS                                                                                                          |
 | AI         | 1                                | Gemini AI Agent (risk analysis, courier recommendations, data extraction)                                             |
-| Other      | 5                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer), Slack, BulkGate SMS                 |
+| Other      | 6                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer), Slack, BulkGate SMS, Amazon S3      |
 
 
 ### Technology stack
@@ -68,12 +68,18 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
                          │  ┌───────────────┐  │           │  ┌── InPost ──────────┐ │
                          │  │ Rate Limiter  │  │           │  ├── DHL ─────────────┤ │
                          │  │ (Redis, per-  │  │           │  ├── Allegro ─────────┤ │
-                         │  │  tenant)      │  │           │  ├── DPD ─────────────┤ │
-                         │  ├───────────────┤  │           │  ├── ... (18 more)    │ │
-                         │  │ Flow Engine   │  │           │  └───────────────────-┘ │
-                         │  │ Workflow Eng. │  │           │                         │
-                         │  │ Mapping Res.  │  │           │  Circuit Breaker        │
-                         │  └───────────────┘  │           │  HTTP Connection Pool   │
+                         │  │  tenant +     │  │           │  ├── DPD ─────────────┤ │
+                         │  │  per-connector│  │           │  ├── ... (31 more)    │ │
+                         │  ├───────────────┤  │           │  └───────────────────-┘ │
+                         │  │ Flow Engine   │  │           │                         │
+                         │  │ Workflow Eng. │  │           │  Circuit Breaker        │
+                         │  │ Mapping Res.  │  │           │  HTTP Connection Pool   │
+                         │  │ OAuth2 Mgr.   │  │           │                         │
+                         │  │ Webhook Ingest│  │           │                         │
+                         │  │ Schema Reg.   │  │           │                         │
+                         │  │ Health Mon.   │  │           │                         │
+                         │  │ Audit Trail   │  │           │                         │
+                         │  └───────────────┘  │           │                         │
                          └──┬──────────┬───────┘           └──────────┬──────────────┘
                             │          │                              │
                    ┌────────▼───┐  ┌───▼────────┐            ┌───────▼─────────┐
@@ -96,7 +102,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 | Layer                | Components                        | Key parameters                                                                                                        |
 | -------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | **Ingress**          | Nginx Ingress Controller          | Subdomain routing (`allegro.uat.pinquark.com`), TLS (Let's Encrypt), rate limit 100 req/min per IP, proxy timeout 60s |
-| **Platform Gateway** | FastAPI `:8080`                   | Rate limit 1000 req/min per tenant (Redis), Flow Engine, Workflow Engine, Mapping Resolver                            |
+| **Platform Gateway** | FastAPI `:8080`                   | Rate limit 1000 req/min per tenant (Redis), Flow Engine, Workflow Engine, Mapping Resolver, OAuth2 Manager, Webhook Ingestion, Schema Registry, Audit Trail, Connector Health Monitor, Connector Rate Limiter, Workflow Scheduler |
 | **Integrators**      | FastAPI `:8000` (each separate)   | Independent version/Dockerfile, circuit breaker (5 fails → 30s open), HTTP pool (200 conn / 50 keepalive)             |
 | **Data**             | PostgreSQL 16, Redis 7, Kafka 3.7 | DB pool 20+30, Redis cache TTL 300s, Kafka 3 brokers / 12-24 partitions / lz4                                         |
 
@@ -358,6 +364,24 @@ User opens dashboard
 
 **Transition to production auth:** When login/SSO is implemented, the gate page is replaced by a login screen, the API key in localStorage is replaced by a session token, and the `DEMO_MODE` flag is set to `false` — the demo endpoints return 404 and the backend tenant model remains unchanged.
 
+### 3.4.1 Dynamic schema registry
+
+Phase 4 also adds a schema registry layer for action input/output discovery:
+
+```
+Dashboard
+   │
+   ├── GET /api/v1/connectors/{name}/schema/{action}
+   │       │
+   │       ├── Redis cache hit → return cached schema
+   │       ├── Connector /schema/{action} endpoint available → merge dynamic + static fields
+   │       └── No runtime schema → fall back to connector.yaml action_fields/output_fields
+   │
+   └── Flow / workflow editors use the merged schema for mapping UIs
+```
+
+The registry is backward-compatible: legacy connectors continue to work with manifest-only schemas, while SDK-based connectors can expose `/schema/{action}` for richer runtime metadata.
+
 ### 3.5 Sync State Engine — Incremental Data Synchronization
 
 The Sync State Engine prevents duplicate processing and enables incremental synchronization between systems. It is built into the Workflow Engine and uses the `sync_ledger` PostgreSQL table to track per-entity sync state.
@@ -540,7 +564,7 @@ The entity key uniquely identifies a record across sync runs. It supports:
 
 ## 4. Database schema
 
-> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`. Current diagram reflects migrations 001–008.
+> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`. Current diagram reflects migrations 001–013.
 
 ![Database Schema ERD](database-schema.png)
 
@@ -558,6 +582,10 @@ The entity key uniquely identifies a record across sync runs. It supports:
 | `workflows` | Graph-based workflow definitions with nodes/edges in JSONB | FK → `tenants`, parent of `workflow_executions`, `sync_ledger` |
 | `workflow_executions` | Audit log of workflow executions with per-node results and graph snapshots | FK → `workflows`, FK → `tenants` |
 | `sync_ledger` | Tracks per-entity sync state for incremental synchronization | FK → `workflows`, FK → `tenants`, UQ(workflow, entity_key) |
+| `oauth_tokens` | OAuth2 access/refresh tokens per connector, encrypted at rest (AES-256-GCM) | FK → `tenants`, indexes on (tenant, connector), expires_at, status |
+| `webhook_events` | Incoming webhook events with signature verification, dedup, and processing status | FK → `tenants`, indexes on (tenant, connector), external_id, status, received_at |
+| `audit_log` | Change history for all entity mutations (create, update, delete, enable, disable) | FK → `tenants`, indexes on (tenant, entity_type, entity_id), created_at |
+| `workflow_versions` | Immutable snapshots of workflow nodes/edges/variables for versioning and rollback | FK → `workflows`, FK → `tenants`, UQ(workflow_id, version) |
 | `verification_reports` | Results of connector verification runs (3-tier checks) | FK → `tenants` (nullable) |
 | `verification_settings` | Singleton scheduler configuration for the verification agent | Standalone (no FK) |
 
@@ -587,11 +615,29 @@ Migration `008` adds FK-lookup indexes and fixes cascade behavior:
 | `sync_ledger.workflow_id` FK | `sync_ledger` | Changed to `ON DELETE CASCADE` (sync state is meaningless without its workflow) |
 | Dropped `ix_sync_ledger_lookup` | `sync_ledger` | Redundant — duplicate of the unique constraint's implicit B-tree index |
 
+Migrations `010`–`013` add tables and indexes for OAuth2, webhooks, audit trail, and workflow versioning:
+
+| Index | Table | Description |
+| --- | --- | --- |
+| `ix_oauth_tokens_tenant_connector` | `oauth_tokens` | Composite on `(tenant_id, connector_name)` |
+| `ix_oauth_tokens_expires_at` | `oauth_tokens` | B-tree on `expires_at` for proactive refresh queries |
+| `ix_oauth_tokens_status` | `oauth_tokens` | B-tree on `status` |
+| `ix_webhook_events_tenant_connector` | `webhook_events` | Composite on `(tenant_id, connector_name)` |
+| `ix_webhook_events_external_id` | `webhook_events` | B-tree on `external_id` for dedup lookups |
+| `ix_webhook_events_status` | `webhook_events` | B-tree on `processing_status` |
+| `ix_webhook_events_received_at` | `webhook_events` | B-tree on `received_at` |
+| `ix_audit_log_tenant_entity` | `audit_log` | Composite on `(tenant_id, entity_type, entity_id)` |
+| `ix_audit_log_created_at` | `audit_log` | B-tree on `created_at` |
+| `ix_workflow_versions_workflow` | `workflow_versions` | B-tree on `workflow_id` |
+| `uq_workflow_versions_workflow_version` | `workflow_versions` | Unique on `(workflow_id, version)` |
+
+RLS policies (`tenant_isolation` + `admin_bypass`) are applied to all four new tables.
+
 Additional indexes: `verification_reports` has indexes on `run_id`, `connector_name`, `status`, `created_at`. `sync_ledger` has composite indexes on `(workflow_id, entity_key)` and `(workflow_id, sync_status)`.
 
 ### 4.3 Row Level Security
 
-Migration `007` enables PostgreSQL Row Level Security (RLS) on all nine tenant-scoped tables (the eight listed in § 4.2 plus `api_keys`). Two policies are created per table:
+Migration `007` enables PostgreSQL Row Level Security (RLS) on all tenant-scoped tables. Migrations `010`–`012` extend RLS to the four new tables (`oauth_tokens`, `webhook_events`, `audit_log`, `workflow_versions`). Two policies are created per table:
 
 | Policy | Condition | Purpose |
 | --- | --- | --- |
@@ -614,7 +660,7 @@ Tables excluded from RLS: `tenants` (no `tenant_id`), `api_keys` (queried during
 - **JSONB columns** for flexible schema: workflow nodes/edges, field mappings, execution results, connector config
 - **Tenant isolation** enforced at two layers: application-level `tenant_id` filtering and database-level RLS policies
 - **Unique constraints** prevent duplicate connector activations, credentials, and field mappings per tenant
-- **Audit trail** via `flow_executions` and `workflow_executions` tables with full input/output snapshots
+- **Audit trail** via `flow_executions` and `workflow_executions` tables with full input/output snapshots, plus dedicated `audit_log` table for entity change tracking and `workflow_versions` for configuration versioning with rollback
 
 ---
 
@@ -659,10 +705,15 @@ Resources per pod:
 The caching layer offloads the database and speeds up operations:
 
 
-| What is cached          | Redis key                                | TTL  | Fallback       |
-| ----------------------- | ---------------------------------------- | ---- | -------------- |
-| Default mappings (YAML) | `mapping:defaults:{connector}`           | 600s | In-memory dict |
-| Tenant overrides        | `mapping:overrides:{tenant}:{connector}` | 300s | Direct SQL     |
+| What is cached               | Redis key                                           | TTL    | Fallback       |
+| ---------------------------- | --------------------------------------------------- | ------ | -------------- |
+| Default mappings (YAML)      | `mapping:defaults:{connector}`                      | 600s   | In-memory dict |
+| Tenant overrides             | `mapping:overrides:{tenant}:{connector}`            | 300s   | Direct SQL     |
+| Connector health status      | `connector:health:{instance_key}`                   | 60s    | Direct poll    |
+| Connector rate limit tokens  | `rate_limit:{connector}:{version}:{action}:{tenant}`| N/A    | Allow          |
+| Action schemas               | `schema:{connector}:{action}:{tenant}`              | 3600s  | connector.yaml |
+| OAuth2 state (anti-CSRF)     | `oauth2:state:{state}`                              | 600s   | —              |
+| Webhook dedup                | `webhook:dedup:{connector}:{event}:{external_id}`   | 86400s | —              |
 
 
 Cache is automatically invalidated when mappings change. When Redis is unavailable, the system continues operating with a fallback to local memory.
@@ -780,7 +831,48 @@ TCP/TLS connection reuse per host instead of creating a new `httpx.AsyncClient` 
 
 Integration: circuit breaker per host + connection pool per host = full control over outgoing connections.
 
-### 5.7 Rate limiting (per-tenant)
+### 5.7 Real-time connector health monitoring
+
+Background health poller that checks all active connector instances and stores status in Redis.
+
+
+| Parameter                   | Value | Env var                          | Description                                        |
+| --------------------------- | ----- | -------------------------------- | -------------------------------------------------- |
+| Check interval              | 30s   | `HEALTH_CHECK_INTERVAL`          | How often to poll each connector                   |
+| Request timeout             | 5.0s  | `HEALTH_CHECK_TIMEOUT`           | Timeout per health check request                   |
+| Auto-disable threshold      | 5     | `HEALTH_AUTO_DISABLE_THRESHOLD`  | Consecutive failures before disabling connector    |
+
+
+Status values: `healthy` (200 OK), `degraded` (timeout or intermittent error), `unhealthy` (repeated failures). After `auto_disable_threshold` consecutive failures, the connector instance is automatically disabled (`is_enabled = false`).
+
+Prometheus metrics: `connector_health_status{name, category}` (gauge), `connector_health_latency_ms{name}` (histogram), `connector_health_consecutive_failures{name}` (gauge).
+
+### 5.8 Per-connector rate limiting
+
+Token-bucket rate limiter in Redis, per connector/action/tenant. Configurable via `connector.yaml` `rate_limits` block.
+
+
+| Parameter                     | Value      | Env var                        | Description                                |
+| ----------------------------- | ---------- | ------------------------------ | ------------------------------------------ |
+| Default rate                  | 600/min    | `CONNECTOR_RATE_LIMIT_DEFAULT` | Fallback when connector.yaml has no limits |
+| Enabled                       | `true`     | `CONNECTOR_RATE_LIMIT_ENABLED` | Global on/off switch                       |
+
+
+Rate format: `"{count}/{unit}"` where unit is `s`, `min`, or `h` (e.g., `"100/min"`, `"30/s"`, `"5000/h"`). Per-action overrides via `rate_limits.per_action` in `connector.yaml`.
+
+### 5.9 Workflow scheduler
+
+Cron-based workflow triggers via APScheduler. Workflows with a `trigger` node of type `schedule` are automatically registered at startup.
+
+
+| Parameter              | Env var                       | Description                                |
+| ---------------------- | ----------------------------- | ------------------------------------------ |
+| Enabled                | `WORKFLOW_SCHEDULER_ENABLED`  | Enable/disable the scheduler (default: true) |
+
+
+Cron format: 5-part (`minute hour day month day_of_week`) or crontab string. Timezone-aware via `trigger.config.timezone`.
+
+### 5.10 Rate limiting (per-tenant)
 
 Redis-based sliding window rate limiter:
 
@@ -903,12 +995,49 @@ Response headers:
 | `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `30`         | JWT token lifetime (min)                                |
 
 
-#### Connector discovery
+#### Connector discovery & schema
 
 
-| Variable                   | Default        | Description                      |
-| -------------------------- | -------------- | -------------------------------- |
-| `CONNECTOR_DISCOVERY_PATH` | `/integrators` | Path to the connectors directory |
+| Variable                              | Default          | Description                              |
+| ------------------------------------- | ---------------- | ---------------------------------------- |
+| `CONNECTOR_DISCOVERY_PATH`            | `/integrators`   | Path to the connectors directory         |
+| `SCHEMA_REGISTRY_TTL_SECONDS`        | `3600`           | Redis TTL for cached action schemas      |
+| `SCHEMA_REGISTRY_REFRESH_INTERVAL_SECONDS` | `300`      | Background schema refresh interval       |
+
+
+#### Connector health monitoring
+
+
+| Variable                         | Default | Description                                             |
+| -------------------------------- | ------- | ------------------------------------------------------- |
+| `HEALTH_CHECK_INTERVAL`          | `30`    | Seconds between health polls                            |
+| `HEALTH_CHECK_TIMEOUT`           | `5.0`   | Timeout per health check request (s)                    |
+| `HEALTH_AUTO_DISABLE_THRESHOLD`  | `5`     | Consecutive failures before auto-disabling connector    |
+
+
+#### Per-connector rate limiting
+
+
+| Variable                       | Default   | Description                                       |
+| ------------------------------ | --------- | ------------------------------------------------- |
+| `CONNECTOR_RATE_LIMIT_DEFAULT` | `600/min` | Default rate when connector.yaml has no limits     |
+| `CONNECTOR_RATE_LIMIT_ENABLED` | `true`    | Enable/disable per-connector rate limiting         |
+
+
+#### Workflow scheduler
+
+
+| Variable                      | Default | Description                    |
+| ----------------------------- | ------- | ------------------------------ |
+| `WORKFLOW_SCHEDULER_ENABLED`  | `true`  | Enable cron-based triggers     |
+
+
+#### Platform URLs
+
+
+| Variable    | Default                | Description                                       |
+| ----------- | ---------------------- | ------------------------------------------------- |
+| `BASE_URL`  | `http://localhost:8080`| Platform base URL (used for OAuth2 callbacks)     |
 
 
 #### Demo mode
@@ -953,7 +1082,7 @@ Configuration in `k8s/integrators/base/`:
 
 ## 8. Integration configuration
 
-Detailed documentation of configuration parameters for all 34 connectors (18 couriers, 8 e-commerce, 1 ERP, 1 WMS, 1 AI, 5 other) and credentials management via API can be found in a separate file:
+Detailed documentation of configuration parameters for all 35 connectors (18 couriers, 8 e-commerce, 1 ERP, 1 WMS, 1 AI, 6 other) and credentials management via API can be found in a separate file:
 
 **[CONNECTORS.md](CONNECTORS.md)**
 
@@ -1144,5 +1273,12 @@ Prometheus metrics available at `/metrics`:
 | `integrator_external_api_duration_seconds` | Histogram | External API latency                     |
 | `circuit_breaker_state`                    | Gauge     | CB state (0=closed, 1=open, 2=half_open) |
 | `circuit_breaker_trips_total`              | Counter   | Number of times CB opened                |
+| `connector_health_status`                  | Gauge     | Health status (0=unhealthy, 1=degraded, 2=healthy) |
+| `connector_health_latency_ms`             | Histogram | Health check latency per connector       |
+| `connector_health_consecutive_failures`    | Gauge     | Consecutive health check failures        |
+| `webhook_events_received_total`            | Counter   | Incoming webhook events                  |
+| `webhook_events_processed_total`           | Counter   | Successfully processed webhooks          |
+| `webhook_events_failed_total`              | Counter   | Failed webhook processing                |
+| `webhook_processing_duration_seconds`      | Histogram | Webhook processing latency               |
 
 

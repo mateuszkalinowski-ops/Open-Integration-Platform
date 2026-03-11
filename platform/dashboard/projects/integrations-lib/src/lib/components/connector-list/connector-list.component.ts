@@ -1,6 +1,6 @@
 import {
   AfterViewInit, Component, ElementRef, EventEmitter,
-  Input, OnDestroy, OnInit, Output, ViewChild,
+  Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges, ViewChild,
 } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
@@ -53,17 +53,17 @@ const BATCH_SIZE = 12;
         <div class="connector-list__filters">
           <mat-form-field appearance="outline" class="connector-list__search">
             <mat-label>Search</mat-label>
-            <input matInput [(ngModel)]="searchQuery" (ngModelChange)="applyFilters()" placeholder="Search connectors..." />
+            <input matInput [(ngModel)]="searchQuery" (ngModelChange)="loadAll()" placeholder="Search connectors..." />
             <mat-icon matPrefix>search</mat-icon>
             @if (searchQuery) {
-              <button matSuffix mat-icon-button (click)="searchQuery = ''; applyFilters()">
+              <button matSuffix mat-icon-button (click)="searchQuery = ''; loadAll()">
                 <mat-icon>close</mat-icon>
               </button>
             }
           </mat-form-field>
           <mat-form-field appearance="outline" class="connector-list__filter">
-            <mat-label>Status</mat-label>
-            <mat-select [(ngModel)]="selectedStatus" (selectionChange)="applyFilters()">
+            <mat-label>Connection</mat-label>
+            <mat-select [(ngModel)]="selectedConnectionStatus" (selectionChange)="applyFilters()">
               <mat-option value="all">All</mat-option>
               <mat-option value="active">Active</mat-option>
               <mat-option value="inactive">Inactive</mat-option>
@@ -83,7 +83,7 @@ const BATCH_SIZE = 12;
           </mat-form-field>
           <mat-form-field appearance="outline" class="connector-list__filter">
             <mat-label>Country</mat-label>
-            <mat-select [(ngModel)]="selectedCountry" (selectionChange)="applyFilters()">
+            <mat-select [(ngModel)]="selectedCountry" (selectionChange)="loadAll()">
               <mat-option [value]="''">All</mat-option>
               @for (country of availableCountries; track country.code) {
                 <mat-option [value]="country.code">{{ country.flag }} {{ country.name }}</mat-option>
@@ -93,7 +93,57 @@ const BATCH_SIZE = 12;
         </div>
       </div>
 
-      <div class="connector-list__body">
+      <div class="connector-list__view-toggle">
+        <button mat-stroked-button [class.active]="viewMode === 'grid'" (click)="viewMode = 'grid'">
+          <mat-icon>grid_view</mat-icon> Grid
+        </button>
+        <button mat-stroked-button [class.active]="viewMode === 'matrix'" (click)="viewMode = 'matrix'; buildCapabilityMatrix()">
+          <mat-icon>table_chart</mat-icon> Capability Matrix
+        </button>
+      </div>
+
+      @if (viewMode === 'matrix') {
+        <div class="capability-matrix-wrapper">
+          <table class="capability-matrix">
+            <thead>
+              <tr>
+                <th class="capability-matrix__connector-col">Connector</th>
+                @for (cap of matrixCapabilities; track cap) {
+                  <th class="capability-matrix__cap-col">
+                    <span class="capability-matrix__cap-label">{{ cap }}</span>
+                  </th>
+                }
+              </tr>
+            </thead>
+            <tbody>
+              @for (row of matrixRows; track row.name) {
+                <tr class="capability-matrix__row" (click)="onSelect.emit(row.group)">
+                  <td class="capability-matrix__connector-cell">
+                    @if (row.group.logo_url) {
+                      <img [src]="row.group.logo_url" [alt]="row.group.display_name" class="capability-matrix__logo" />
+                    }
+                    <span>{{ row.group.display_name }}</span>
+                    <span class="connector-card__badge connector-card__badge--status" [ngClass]="'connector-card__badge--' + row.group.status">
+                      {{ formatStatusLabel(row.group.status) }}
+                    </span>
+                  </td>
+                  @for (cap of matrixCapabilities; track cap) {
+                    <td class="capability-matrix__cell" [class.capability-matrix__cell--yes]="row.caps.has(cap)">
+                      @if (row.caps.has(cap)) {
+                        <mat-icon class="capability-matrix__check">check_circle</mat-icon>
+                      } @else {
+                        <mat-icon class="capability-matrix__none">remove</mat-icon>
+                      }
+                    </td>
+                  }
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+
+      <div class="connector-list__body" [style.display]="viewMode === 'grid' ? '' : 'none'">
         @for (section of visibleSections; track section.category; let isFirst = $first) {
           @if (!isFirst) {
             <div class="category-divider"></div>
@@ -125,8 +175,11 @@ const BATCH_SIZE = 12;
                         <span class="connector-card__flag" [title]="getCountryName(group.country)">{{ getFlag(group.country) }}</span>
                       }
                       {{ group.display_name }}
+                      <span class="connector-card__badge connector-card__badge--status" [ngClass]="'connector-card__badge--' + group.status">
+                        {{ formatStatusLabel(group.status) }}
+                      </span>
                       @if (group.activeVersions.length > 0) {
-                        <span class="connector-card__badge">Active (v{{ group.activeVersions[0] }})</span>
+                        <span class="connector-card__badge connector-card__badge--active">Active (v{{ group.activeVersions[0] }})</span>
                       }
                     </mat-card-title>
                     <mat-card-subtitle>
@@ -149,7 +202,28 @@ const BATCH_SIZE = 12;
                       <mat-chip>{{ group.latest.capabilities.length }} capabilities</mat-chip>
                       <mat-chip>{{ group.latest.events.length }} events</mat-chip>
                       <mat-chip>{{ group.latest.actions.length }} actions</mat-chip>
+                      <mat-chip>{{ formatAuthType(group.auth_type) }}</mat-chip>
+                      @if (group.supports_oauth2) {
+                        <mat-chip>OAuth2</mat-chip>
+                      }
+                      @if (group.sandbox_available) {
+                        <mat-chip>Sandbox</mat-chip>
+                      }
+                      @if (group.has_webhooks) {
+                        <mat-chip>Webhooks</mat-chip>
+                      }
                     </div>
+                    @if (group.health) {
+                      <div class="connector-card__live-health">
+                        <span class="health-pill" [ngClass]="'health-pill--' + group.health.status">
+                          <mat-icon>{{ getHealthIcon(group.health.status) }}</mat-icon>
+                          {{ formatHealthLabel(group.health.status) }}
+                        </span>
+                        @if (group.health.latency_ms) {
+                          <span class="connector-card__health-meta">{{ group.health.latency_ms }}ms</span>
+                        }
+                      </div>
+                    }
                     @if (group.activeVersions.length > 0) {
                       <div class="connector-card__connection-status" [matTooltip]="getConnectionTooltip(group.name)">
                         @if (!credentialMap[group.name]?.length) {
@@ -269,10 +343,16 @@ const BATCH_SIZE = 12;
     .connector-card__badge {
       display: inline-block; font-size: 11px; font-weight: 500;
       padding: 2px 8px; border-radius: 12px;
-      background: var(--mat-sys-primary, #005cbb);
-      color: var(--mat-sys-on-primary, #fff);
       vertical-align: middle; margin-left: 8px;
     }
+    .connector-card__badge--active {
+      background: var(--mat-sys-primary, #005cbb);
+      color: var(--mat-sys-on-primary, #fff);
+    }
+    .connector-card__badge--status { text-transform: capitalize; }
+    .connector-card__badge--stable { background: #e8f5e9; color: #2e7d32; }
+    .connector-card__badge--beta { background: #fff4e5; color: #b26a00; }
+    .connector-card__badge--planned { background: #f3e5f5; color: #7b1fa2; }
     .connector-card__desc {
       font-size: 13px; line-height: 1.5;
       color: var(--mat-sys-on-surface-variant, #444);
@@ -288,6 +368,30 @@ const BATCH_SIZE = 12;
     .connector-card__link:hover { opacity: 0.75; text-decoration: underline; }
     .connector-card__link mat-icon { font-size: 14px; width: 14px; height: 14px; }
     .connector-card__meta { display: flex; flex-wrap: wrap; gap: 4px; }
+    .connector-card__live-health {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 10px;
+    }
+    .connector-card__health-meta {
+      font-size: 12px;
+      color: var(--mat-sys-on-surface-variant, #666);
+    }
+    .health-pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      padding: 2px 8px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+    }
+    .health-pill mat-icon { font-size: 16px; height: 16px; width: 16px; }
+    .health-pill--healthy { color: #2e7d32; background: #e8f5e9; }
+    .health-pill--degraded { color: #b26a00; background: #fff4e5; }
+    .health-pill--unhealthy { color: #c62828; background: #fbe9e7; }
+    .health-pill--unknown { color: #555; background: #f5f5f5; }
     .connector-card__flag { font-size: 20px; vertical-align: middle; margin-right: 4px; }
     .connector-card__logo-container {
       flex-shrink: 0; width: 56px; height: 40px;
@@ -316,6 +420,93 @@ const BATCH_SIZE = 12;
     @keyframes spin { 100% { transform: rotate(360deg); } }
     .spin { animation: spin 1s linear infinite; }
 
+    /* ---- View toggle ---- */
+    .connector-list__view-toggle {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .connector-list__view-toggle button { text-transform: none; }
+    .connector-list__view-toggle button.active {
+      background: var(--mat-sys-primary, #005cbb);
+      color: #fff;
+    }
+
+    /* ---- Capability matrix ---- */
+    .capability-matrix-wrapper {
+      overflow-x: auto;
+      border: 1px solid #e0e0e0;
+      border-radius: 12px;
+      background: #fff;
+    }
+    .capability-matrix {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 13px;
+    }
+    .capability-matrix thead th {
+      position: sticky;
+      top: 0;
+      background: #f5f5f5;
+      padding: 10px 8px;
+      border-bottom: 2px solid #ddd;
+      text-align: center;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .capability-matrix__connector-col {
+      text-align: left !important;
+      min-width: 200px;
+      padding-left: 14px !important;
+    }
+    .capability-matrix__cap-col { min-width: 90px; }
+    .capability-matrix__cap-label {
+      display: inline-block;
+      max-width: 100px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      font-size: 11px;
+    }
+    .capability-matrix__row {
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+    .capability-matrix__row:hover { background: #f5faff; }
+    .capability-matrix__row:nth-child(even) { background: #fafafa; }
+    .capability-matrix__row:nth-child(even):hover { background: #f0f7ff; }
+    .capability-matrix__connector-cell {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      font-weight: 500;
+      border-bottom: 1px solid #eee;
+    }
+    .capability-matrix__logo {
+      width: 24px;
+      height: 24px;
+      object-fit: contain;
+      border-radius: 4px;
+      flex-shrink: 0;
+    }
+    .capability-matrix__cell {
+      text-align: center;
+      padding: 8px;
+      border-bottom: 1px solid #eee;
+    }
+    .capability-matrix__check {
+      font-size: 18px;
+      width: 18px;
+      height: 18px;
+      color: #2e7d32;
+    }
+    .capability-matrix__none {
+      font-size: 16px;
+      width: 16px;
+      height: 16px;
+      color: #ccc;
+    }
+
     /* ---- Scroll sentinel / empty ---- */
     .scroll-sentinel {
       display: flex; justify-content: center; padding: 24px 0;
@@ -327,8 +518,11 @@ const BATCH_SIZE = 12;
     .connector-list__empty mat-icon { font-size: 48px; height: 48px; width: 48px; margin-bottom: 12px; opacity: 0.4; }
   `],
 })
-export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy {
+export class ConnectorListComponent implements OnInit, OnChanges, AfterViewInit, OnDestroy {
   @Input() category: string = '';
+  @Input() eventFilter: string = '';
+  @Input() actionFilter: string = '';
+  @Input() initialSearchQuery: string = '';
   @Output() onSelect = new EventEmitter<ConnectorGroup>();
   @Output() onActivate = new EventEmitter<Connector>();
   @Output() onDeactivate = new EventEmitter<ConnectorInstance>();
@@ -341,7 +535,7 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
   activeInstances: ConnectorInstance[] = [];
   selectedCategory = '';
   selectedCountry = '';
-  selectedStatus: 'all' | 'active' | 'inactive' = 'all';
+  selectedConnectionStatus: 'all' | 'active' | 'inactive' = 'all';
   searchQuery = '';
   availableCountries: { code: string; flag: string; name: string }[] = [];
   loading = true;
@@ -349,6 +543,10 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
   credentialMap: Record<string, CredentialInfo[]> = {};
   connectionStatus: Record<string, CredentialValidationResult> = {};
   validatingConnectors = new Set<string>();
+
+  viewMode: 'grid' | 'matrix' = 'grid';
+  matrixCapabilities: string[] = [];
+  matrixRows: { name: string; group: ConnectorGroup; caps: Set<string> }[] = [];
 
   allSections: CategorySection[] = [];
   visibleSections: (CategorySection & { totalCount: number })[] = [];
@@ -362,7 +560,19 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
 
   ngOnInit(): void {
     this.selectedCategory = this.category;
+    this.searchQuery = this.initialSearchQuery;
     this.loadAll();
+  }
+
+  ngOnChanges(changes: SimpleChanges): void {
+    if (!changes['category'] && !changes['eventFilter'] && !changes['actionFilter'] && !changes['initialSearchQuery']) {
+      return;
+    }
+    this.selectedCategory = this.category;
+    this.searchQuery = this.initialSearchQuery;
+    if (!changes['category']?.firstChange || !changes['initialSearchQuery']?.firstChange || !changes['eventFilter']?.firstChange || !changes['actionFilter']?.firstChange) {
+      this.loadAll();
+    }
   }
 
   ngAfterViewInit(): void {
@@ -375,7 +585,13 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
 
   loadAll(): void {
     this.loading = true;
-    const params = this.selectedCategory ? { category: this.selectedCategory } : undefined;
+    const params = {
+      category: this.selectedCategory || undefined,
+      country: this.selectedCountry || undefined,
+      q: this.searchQuery.trim() || undefined,
+      event: this.eventFilter || undefined,
+      action: this.actionFilter || undefined,
+    };
     forkJoin({
       connectors: this.api.listConnectors(params),
       instances: this.api.listConnectorInstances().pipe(catchError(() => of([] as ConnectorInstance[]))),
@@ -406,28 +622,18 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
   applyFilters(): void {
     let result = this.connectorGroups;
 
-    if (this.selectedStatus === 'active') {
+    if (this.selectedConnectionStatus === 'active') {
       result = result.filter(g => g.activeVersions.length > 0);
-    } else if (this.selectedStatus === 'inactive') {
+    } else if (this.selectedConnectionStatus === 'inactive') {
       result = result.filter(g => g.activeVersions.length === 0);
     }
 
-    if (this.selectedCountry) {
-      result = result.filter(g => g.country === this.selectedCountry);
-    }
-
-    if (this.searchQuery.trim()) {
-      const q = this.searchQuery.trim().toLowerCase();
-      result = result.filter(g =>
-        g.display_name.toLowerCase().includes(q) ||
-        g.name.toLowerCase().includes(q) ||
-        g.description.toLowerCase().includes(q) ||
-        g.category.toLowerCase().includes(q) ||
-        this.getCountryName(g.country).toLowerCase().includes(q)
-      );
-    }
-
     result.sort((a, b) => {
+      const aHealth = this.getHealthRank(a.health?.status);
+      const bHealth = this.getHealthRank(b.health?.status);
+      if (aHealth !== bHealth) {
+        return bHealth - aHealth;
+      }
       const aActive = a.activeVersions.length > 0 ? 0 : 1;
       const bActive = b.activeVersions.length > 0 ? 0 : 1;
       return aActive - bActive;
@@ -461,6 +667,38 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
   getDomainFromUrl(url: string): string {
     try { return new URL(url).hostname.replace(/^www\./, ''); }
     catch { return url; }
+  }
+
+  formatAuthType(authType: string): string {
+    return authType
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  formatStatusLabel(status: string): string {
+    return status
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  formatHealthLabel(status?: string): string {
+    switch (status) {
+      case 'healthy': return 'Healthy';
+      case 'degraded': return 'Degraded';
+      case 'unhealthy': return 'Unhealthy';
+      default: return 'Unknown';
+    }
+  }
+
+  getHealthIcon(status?: string): string {
+    switch (status) {
+      case 'healthy': return 'check_circle';
+      case 'degraded': return 'warning';
+      case 'unhealthy': return 'error';
+      default: return 'help';
+    }
   }
 
   // ------------------------------------------------------------------
@@ -581,6 +819,12 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
         logo_url: latest.logo_url,
         website_url: latest.website_url,
         interface: latest.interface,
+        auth_type: latest.auth_type,
+        status: latest.status,
+        supports_oauth2: latest.supports_oauth2,
+        sandbox_available: latest.sandbox_available,
+        has_webhooks: latest.has_webhooks,
+        health: latest.health,
         latest,
         versions: sorted,
         activeVersions,
@@ -597,5 +841,30 @@ export class ConnectorListComponent implements OnInit, AfterViewInit, OnDestroy 
         name: COUNTRY_NAME_MAP[code] ?? code,
       }))
       .sort((a, b) => a.name.localeCompare(b.name));
+  }
+
+  buildCapabilityMatrix(): void {
+    const groups = this.filteredGroups;
+    const capSet = new Set<string>();
+    for (const g of groups) {
+      for (const cap of g.latest.capabilities) {
+        capSet.add(cap);
+      }
+    }
+    this.matrixCapabilities = Array.from(capSet).sort((a, b) => a.localeCompare(b));
+    this.matrixRows = groups.map(g => ({
+      name: g.name,
+      group: g,
+      caps: new Set(g.latest.capabilities),
+    }));
+  }
+
+  private getHealthRank(status?: string): number {
+    switch (status) {
+      case 'healthy': return 3;
+      case 'degraded': return 2;
+      case 'unhealthy': return 1;
+      default: return 0;
+    }
   }
 }

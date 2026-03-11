@@ -4,6 +4,7 @@ import { Observable } from 'rxjs';
 
 import {
   Connector,
+  ConnectorActionSchema,
   ConnectorInstance,
   CredentialDetail,
   CredentialInfo,
@@ -22,6 +23,10 @@ import {
   WorkflowExecutionDetail,
   AiGenerateRequest,
   AiGenerateResponse,
+  AiSuggestMappingsRequest,
+  AiSuggestMappingsResponse,
+  AiExplainErrorRequest,
+  AiExplainErrorResponse,
   SchedulerStatus,
   SchedulerUpdate,
   VerificationErrorsResponse,
@@ -30,6 +35,21 @@ import {
   VerificationRunResponse,
   VerificationRunsResponse,
 } from '../models';
+
+export interface ConnectorListParams {
+  category?: string;
+  interface?: string;
+  capability?: string;
+  country?: string;
+  event?: string;
+  action?: string;
+  q?: string;
+  auth_type?: string;
+  status?: string;
+  supports_oauth2?: boolean;
+  has_webhooks?: boolean;
+  sandbox_available?: boolean;
+}
 
 export interface PinquarkConfig {
   apiUrl: string;
@@ -64,11 +84,26 @@ export class PinquarkApiService {
 
   // --- Connectors ---
 
-  listConnectors(params?: { category?: string; interface?: string; capability?: string }): Observable<Connector[]> {
+  listConnectors(params?: ConnectorListParams): Observable<Connector[]> {
     let httpParams = new HttpParams();
     if (params?.category) httpParams = httpParams.set('category', params.category);
     if (params?.interface) httpParams = httpParams.set('interface', params.interface);
     if (params?.capability) httpParams = httpParams.set('capability', params.capability);
+    if (params?.country) httpParams = httpParams.set('country', params.country);
+    if (params?.event) httpParams = httpParams.set('event', params.event);
+    if (params?.action) httpParams = httpParams.set('action', params.action);
+    if (params?.q) httpParams = httpParams.set('q', params.q);
+    if (params?.auth_type) httpParams = httpParams.set('auth_type', params.auth_type);
+    if (params?.status) httpParams = httpParams.set('status', params.status);
+    if (params?.supports_oauth2 !== undefined) {
+      httpParams = httpParams.set('supports_oauth2', String(params.supports_oauth2));
+    }
+    if (params?.has_webhooks !== undefined) {
+      httpParams = httpParams.set('has_webhooks', String(params.has_webhooks));
+    }
+    if (params?.sandbox_available !== undefined) {
+      httpParams = httpParams.set('sandbox_available', String(params.sandbox_available));
+    }
 
     return this.http.get<Connector[]>(`${this.apiUrl}/api/v1/connectors`, {
       headers: this.headers,
@@ -86,6 +121,16 @@ export class PinquarkApiService {
     return this.http.get<object>(`${this.apiUrl}/api/v1/connectors/${connectorName}/openapi`, {
       headers: this.headers,
     });
+  }
+
+  getConnectorActionSchema(connectorName: string, action: string, version?: string): Observable<ConnectorActionSchema> {
+    const encodedAction = action.split('.').map(part => encodeURIComponent(part)).join('/');
+    let params = new HttpParams();
+    if (version) params = params.set('version', version);
+    return this.http.get<ConnectorActionSchema>(
+      `${this.apiUrl}/api/v1/connectors/${connectorName}/schema/${encodedAction}`,
+      { headers: this.headers, params },
+    );
   }
 
   downloadOnPremiseAgent(connectorName: string): void {
@@ -341,6 +386,18 @@ export class PinquarkApiService {
 
   aiGenerateWorkflow(body: AiGenerateRequest): Observable<AiGenerateResponse> {
     return this.http.post<AiGenerateResponse>(`${this.apiUrl}/api/v1/workflows/ai-generate`, body, {
+      headers: this.headers,
+    });
+  }
+
+  aiSuggestFieldMappings(body: AiSuggestMappingsRequest): Observable<AiSuggestMappingsResponse> {
+    return this.http.post<AiSuggestMappingsResponse>(`${this.apiUrl}/api/v1/ai/field-mappings/suggest`, body, {
+      headers: this.headers,
+    });
+  }
+
+  aiExplainError(body: AiExplainErrorRequest): Observable<AiExplainErrorResponse> {
+    return this.http.post<AiExplainErrorResponse>(`${this.apiUrl}/api/v1/ai/explain-error`, body, {
       headers: this.headers,
     });
   }

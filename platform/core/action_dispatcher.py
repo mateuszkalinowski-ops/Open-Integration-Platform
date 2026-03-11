@@ -5,6 +5,7 @@ and payload_hints from each connector's manifest (connector.yaml) via the
 ConnectorRegistry.  No per-connector logic lives here.
 """
 
+import asyncio
 import base64
 import json
 import uuid
@@ -12,12 +13,22 @@ from typing import Any
 
 import httpx
 import structlog
+from fastapi import HTTPException
 
 from core.connector_registry import ConnectorManifest, ConnectorRegistry, DEFAULT_CONNECTOR_PORT
 
 logger = structlog.get_logger()
 
 HTTP_TIMEOUT = 30.0
+_MAX_429_RETRIES = 3
+_DEFAULT_RETRY_AFTER = 2.0
+_rate_limiter: Any | None = None
+
+
+def set_rate_limiter(rate_limiter: Any | None) -> None:
+    """Register the shared connector rate limiter used by dispatch_action()."""
+    global _rate_limiter
+    _rate_limiter = rate_limiter
 
 
 def _resolve_service_url(
@@ -250,6 +261,62 @@ def _extract_file_from_payload(body: dict[str, Any]) -> tuple[bytes, str] | None
     return None
 
 
+def _parse_retry_after(response: httpx.Response) -> float:
+    """Extract wait time from Retry-After header (seconds or HTTP-date)."""
+    raw = response.headers.get("retry-after", "")
+    if not raw:
+        return _DEFAULT_RETRY_AFTER
+    try:
+        return max(0.5, min(float(raw), 120.0))
+    except (ValueError, TypeError):
+        return _DEFAULT_RETRY_AFTER
+
+
+async def _execute_with_429_retry(
+    client: httpx.AsyncClient,
+    method: str,
+    url: str,
+    connector_name: str,
+    action: str,
+    *,
+    json_body: dict[str, Any] | None = None,
+    params: dict[str, Any] | None = None,
+    files: dict[str, Any] | None = None,
+    data: dict[str, Any] | None = None,
+) -> httpx.Response:
+    """Execute an HTTP request with automatic retry on 429 Too Many Requests."""
+    for attempt in range(_MAX_429_RETRIES + 1):
+        if files is not None:
+            response = await client.post(url, files=files, data=data, params=params)
+        elif method == "GET":
+            response = await client.get(url, params=params)
+        elif method == "POST":
+            response = await client.post(url, json=json_body, params=params)
+        elif method == "PUT":
+            response = await client.put(url, json=json_body, params=params)
+        elif method == "PATCH":
+            response = await client.patch(url, json=json_body, params=params)
+        elif method == "DELETE":
+            response = await client.delete(url, params=params)
+        else:
+            response = await client.post(url, json=json_body, params=params)
+
+        if response.status_code != 429 or attempt >= _MAX_429_RETRIES:
+            return response
+
+        wait = _parse_retry_after(response)
+        await logger.awarning(
+            "action_dispatch_429_retry",
+            connector=connector_name,
+            action=action,
+            attempt=attempt + 1,
+            retry_after_s=wait,
+        )
+        await asyncio.sleep(wait)
+
+    return response  # type: ignore[possibly-undefined]
+
+
 async def dispatch_action(
     connector_name: str,
     action: str,
@@ -275,6 +342,25 @@ async def dispatch_action(
         connector_name, registry, connector_version
     )
 
+    if _rate_limiter is not None:
+        rl_result = await _rate_limiter.check(
+            connector_name,
+            action,
+            str(tenant_id),
+            connector_version=connector_version,
+        )
+        if not rl_result.allowed:
+            raise HTTPException(
+                status_code=429,
+                detail={
+                    "code": "CONNECTOR_RATE_LIMITED",
+                    "message": f"Rate limit exceeded for {connector_name}/{action}",
+                    "retry_after": rl_result.retry_after,
+                    "limit": rl_result.limit,
+                    "window_seconds": rl_result.window_seconds,
+                },
+            )
+
     route: dict | None = None
     if manifest and manifest.action_routes:
         route = manifest.action_routes.get(action)
@@ -296,7 +382,10 @@ async def dispatch_action(
             tenant_id=str(tenant_id),
         )
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
-            response = await client.post(url, json=payload)
+            response = await _execute_with_429_retry(
+                client, "POST", url, connector_name, action,
+                json_body=payload,
+            )
             response.raise_for_status()
             return response.json()
 
@@ -335,7 +424,10 @@ async def dispatch_action(
                     for k, v in body.items()
                     if k != "file" and v is not None
                 }
-                response = await client.post(url, files=files, data=remaining, params=query_params)
+                response = await _execute_with_429_retry(
+                    client, "POST", url, connector_name, action,
+                    files=files, data=remaining, params=query_params,
+                )
             else:
                 raise ValueError(
                     f"Action '{action}' on connector '{connector_name}' requires a "
@@ -343,18 +435,11 @@ async def dispatch_action(
                     f"decoded. Expected a base64-encoded string or an object with "
                     f"'content_base64' and 'filename' keys."
                 )
-        elif method == "GET":
-            response = await client.get(url, params=query_params)
-        elif method == "POST":
-            response = await client.post(url, json=body, params=query_params)
-        elif method == "PUT":
-            response = await client.put(url, json=body, params=query_params)
-        elif method == "PATCH":
-            response = await client.patch(url, json=body, params=query_params)
-        elif method == "DELETE":
-            response = await client.delete(url, params=query_params)
         else:
-            response = await client.post(url, json=body, params=query_params)
+            response = await _execute_with_429_retry(
+                client, method, url, connector_name, action,
+                json_body=body, params=query_params,
+            )
 
         if response.status_code == 422:
             detail = response.text[:1000]

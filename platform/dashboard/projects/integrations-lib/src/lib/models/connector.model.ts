@@ -1,3 +1,12 @@
+export interface ConnectorHealthSummary {
+  status: 'healthy' | 'degraded' | 'unhealthy' | 'unknown';
+  latency_ms?: number | null;
+  last_check?: number | null;
+  consecutive_failures: number;
+  last_error?: string | null;
+  error_rate_5m?: number | null;
+}
+
 export interface OnPremiseAgentInfo {
   display_name: string;
   description: string;
@@ -25,6 +34,12 @@ export interface Connector {
   event_fields: Record<string, ConnectorFieldDef[]>;
   action_fields: Record<string, ConnectorFieldDef[]>;
   output_fields: Record<string, ConnectorFieldDef[]>;
+  auth_type: string;
+  status: 'stable' | 'beta' | 'planned' | string;
+  supports_oauth2: boolean;
+  sandbox_available: boolean;
+  has_webhooks: boolean;
+  health?: ConnectorHealthSummary | null;
   deployment: string;
   requires_onpremise_agent: boolean;
   onpremise_agent: OnPremiseAgentInfo | null;
@@ -103,6 +118,12 @@ export interface ConnectorGroup {
   logo_url: string;
   website_url: string;
   interface: string;
+  auth_type: string;
+  status: 'stable' | 'beta' | 'planned' | string;
+  supports_oauth2: boolean;
+  sandbox_available: boolean;
+  has_webhooks: boolean;
+  health?: ConnectorHealthSummary | null;
   latest: Connector;
   versions: Connector[];
   activeVersions: string[];
@@ -149,6 +170,15 @@ export interface ConnectorFieldDef {
   type: string;
   required?: boolean;
   description?: string;
+}
+
+export interface ConnectorActionSchema {
+  connector_name: string;
+  action: string;
+  source: 'static' | 'dynamic' | 'merged';
+  cached: boolean;
+  input_fields: ConnectorFieldDef[];
+  output_fields: ConnectorFieldDef[];
 }
 
 export interface ApiEndpoint {

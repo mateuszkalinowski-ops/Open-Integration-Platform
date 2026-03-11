@@ -3,12 +3,19 @@
 from __future__ import annotations
 
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
+sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(sdk_path) not in sys.path:
+    sys.path.insert(0, str(sdk_path))
+
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 from src.api import BulkGateApiClient
 from src.config import settings
 from src.schemas import (
@@ -25,6 +32,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
 )
 logger = logging.getLogger("automation-bulkgate")
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
 
 client: BulkGateApiClient | None = None
 
@@ -198,3 +206,6 @@ async def incoming_sms_webhook(request: Request):
     except Exception as exc:
         logger.exception("Failed to process incoming SMS webhook")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

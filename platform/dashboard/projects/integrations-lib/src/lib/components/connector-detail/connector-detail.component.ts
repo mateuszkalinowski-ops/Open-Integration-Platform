@@ -13,7 +13,14 @@ import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
 
-import { Connector, ConnectorGroup, ConnectorInstance, ApiEndpoint, OnPremiseAgentInfo, COUNTRY_FLAG_MAP, COUNTRY_NAME_MAP } from '../../models';
+import {
+  Connector,
+  ConnectorGroup,
+  ConnectorInstance,
+  ApiEndpoint,
+  COUNTRY_FLAG_MAP,
+  COUNTRY_NAME_MAP,
+} from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
 import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
 
@@ -50,6 +57,7 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
           <h2>
             <span class="connector-detail__flag" *ngIf="connector.country">{{ getFlag(connector.country) }}</span>
             {{ connector.display_name }}
+            <span class="connector-detail__badge connector-detail__badge--status">{{ formatStatusLabel(connector.status) }}</span>
             <span class="connector-detail__badge" *ngIf="activeInstance">Active (v{{ activeInstance.connector_version }})</span>
           </h2>
           <p class="connector-detail__subtitle">
@@ -100,6 +108,24 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
       <!-- Description -->
       <div class="connector-detail__section">
         <p class="connector-detail__description">{{ connector.description }}</p>
+        <div class="connector-detail__meta">
+          <mat-chip-set>
+            <mat-chip>{{ formatStatusLabel(connector.status) }}</mat-chip>
+            <mat-chip>{{ formatAuthType(connector.auth_type) }}</mat-chip>
+            <mat-chip *ngIf="connector.supports_oauth2">OAuth2</mat-chip>
+            <mat-chip *ngIf="connector.sandbox_available">Sandbox</mat-chip>
+            <mat-chip *ngIf="connector.has_webhooks">Webhooks</mat-chip>
+            <mat-chip *ngIf="connector.health" [highlighted]="true" [color]="getHealthColor(connector.health.status)">
+              {{ formatHealthLabel(connector.health.status) }}
+            </mat-chip>
+          </mat-chip-set>
+          <p class="connector-detail__health" *ngIf="connector.health">
+            Live health:
+            <strong>{{ formatHealthLabel(connector.health.status) }}</strong>
+            <span *ngIf="connector.health.latency_ms"> &middot; {{ connector.health.latency_ms }}ms</span>
+            <span *ngIf="connector.health.last_error"> &middot; {{ connector.health.last_error }}</span>
+          </p>
+        </div>
       </div>
 
       <!-- On-premise Agent Banner -->
@@ -398,6 +424,10 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
       vertical-align: middle;
       margin-left: 8px;
     }
+    .connector-detail__badge--status {
+      background: #e8f5e9;
+      color: #2e7d32;
+    }
     .connector-detail__header-actions { display: flex; gap: 8px; }
     .connector-detail__version-bar {
       display: flex;
@@ -414,6 +444,17 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
       font-size: 15px;
       line-height: 1.6;
       margin: 16px 0;
+    }
+    .connector-detail__meta {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      margin-bottom: 16px;
+    }
+    .connector-detail__health {
+      margin: 0;
+      font-size: 13px;
+      color: var(--mat-sys-on-surface-variant, #555);
     }
     .connector-detail__section { }
     .connector-detail__tabs { margin-top: 8px; }
@@ -731,6 +772,38 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
     return key
       .replace(/[._]/g, ' ')
       .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  formatAuthType(authType: string): string {
+    return authType
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  formatStatusLabel(status: string): string {
+    return status
+      .split('_')
+      .map(part => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ');
+  }
+
+  formatHealthLabel(status?: string): string {
+    switch (status) {
+      case 'healthy': return 'Healthy';
+      case 'degraded': return 'Degraded';
+      case 'unhealthy': return 'Unhealthy';
+      default: return 'Unknown';
+    }
+  }
+
+  getHealthColor(status?: string): 'primary' | 'accent' | 'warn' | undefined {
+    switch (status) {
+      case 'healthy': return 'primary';
+      case 'degraded': return 'accent';
+      case 'unhealthy': return 'warn';
+      default: return undefined;
+    }
   }
 
   getFlag(code: string): string {

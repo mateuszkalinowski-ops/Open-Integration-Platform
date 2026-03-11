@@ -9,7 +9,19 @@ export const routes: Routes = [
   },
   { path: '', redirectTo: 'connectors', pathMatch: 'full' },
   {
+    path: 'catalog',
+    canActivate: [demoAuthGuard],
+    loadComponent: () =>
+      import('./pages/connectors/connectors.page').then(m => m.ConnectorsPage),
+  },
+  {
     path: 'connectors',
+    canActivate: [demoAuthGuard],
+    loadComponent: () =>
+      import('./pages/connectors/connectors.page').then(m => m.ConnectorsPage),
+  },
+  {
+    path: 'connectors/:category/:name',
     canActivate: [demoAuthGuard],
     loadComponent: () =>
       import('./pages/connectors/connectors.page').then(m => m.ConnectorsPage),

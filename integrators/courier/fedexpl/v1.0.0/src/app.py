@@ -1,9 +1,16 @@
 """FedEx PL Courier Integrator — FastAPI application."""
 
 import logging
+import sys
+from pathlib import Path
+
+SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(SDK_PYTHON_PATH) not in sys.path:
+    sys.path.insert(0, str(SDK_PYTHON_PATH))
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 
 from src.config import settings
 from src.integration import FedexPlIntegration
@@ -71,3 +78,9 @@ async def get_label(request: LabelRequest):
     except Exception as exc:
         logger.exception("Failed to get FedEx PL label")
         raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+
+app = augment_legacy_fastapi_app(
+    app,
+    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+)

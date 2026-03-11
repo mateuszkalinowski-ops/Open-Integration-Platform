@@ -58,11 +58,14 @@ class ConnectorManifest:
     credential_validation: dict = field(default_factory=dict)
     payload_hints: dict = field(default_factory=dict)
     rate_limits: dict = field(default_factory=dict)
+    oauth2: dict = field(default_factory=dict)
+    webhooks: dict = field(default_factory=dict)
     deployment: str = "cloud"
     requires_onpremise_agent: bool = False
     onpremise_agent: dict = field(default_factory=dict)
     health_endpoint: str = "/health"
     docs_url: str = "/docs"
+    status: str = "stable"
     path: str = ""
 
     @property
@@ -76,6 +79,55 @@ class ConnectorManifest:
     @property
     def base_url(self) -> str:
         return f"http://{self.resolved_service_name}:{DEFAULT_CONNECTOR_PORT}"
+
+    @property
+    def auth_type(self) -> str:
+        """Best-effort auth classification for catalog filtering."""
+        if self.oauth2 or (self.credential_validation or {}).get("oauth2"):
+            return "oauth2"
+
+        validation = self.credential_validation or {}
+        required_fields = set(validation.get("required_fields", []))
+        config_fields = set((self.config_schema or {}).get("required", [])) | set(
+            (self.config_schema or {}).get("optional", [])
+        )
+        fields = {str(field).lower() for field in required_fields | config_fields}
+
+        if validation.get("validate_mode") == "email_imap_smtp":
+            return "email"
+        if validation.get("auth") == "basic" or {"username", "password"} <= fields or {"login", "password"} <= fields:
+            return "basic"
+        if {"client_id", "client_secret"} <= fields:
+            return "client_credentials"
+        if {"username", "password"} & fields and "access_token" in fields:
+            return "hybrid"
+        if {"token", "api_key", "api_token", "access_token", "bot_token"} & fields:
+            return "token"
+        if {"consumer_key", "consumer_secret"} <= fields:
+            return "api_key"
+        if {"sql_server", "sql_database"} <= fields:
+            return "onpremise"
+        return "custom"
+
+    @property
+    def supports_oauth2(self) -> bool:
+        return bool(self.oauth2 or (self.credential_validation or {}).get("oauth2"))
+
+    @property
+    def sandbox_available(self) -> bool:
+        validation = self.credential_validation or {}
+        config = self.config_schema or {}
+        fields = set(config.get("required", [])) | set(config.get("optional", []))
+        return bool(
+            "sandbox" in validation
+            or validation.get("defaults", {}).get("sandbox")
+            or self.oauth2.get("sandbox")
+            or "sandbox_mode" in fields
+        )
+
+    @property
+    def has_webhooks(self) -> bool:
+        return bool(self.webhooks)
 
 
 class ConnectorRegistry:
@@ -133,11 +185,14 @@ class ConnectorRegistry:
             credential_validation=data.get("credential_validation", {}),
             payload_hints=data.get("payload_hints", {}),
             rate_limits=data.get("rate_limits", {}),
+            oauth2=data.get("oauth2", {}),
+            webhooks=data.get("webhooks", {}),
             deployment=data.get("deployment", "cloud"),
             requires_onpremise_agent=data.get("requires_onpremise_agent", False),
             onpremise_agent=data.get("onpremise_agent", {}),
             health_endpoint=data.get("health_endpoint", "/health"),
             docs_url=data.get("docs_url", "/docs"),
+            status=str(data.get("status", "stable")),
             path=str(path.parent),
         )
 
@@ -179,6 +234,13 @@ class ConnectorRegistry:
         capability: str | None = None,
         event: str | None = None,
         action: str | None = None,
+        country: str | None = None,
+        q: str | None = None,
+        auth_type: str | None = None,
+        status: str | None = None,
+        supports_oauth2: bool | None = None,
+        has_webhooks: bool | None = None,
+        sandbox_available: bool | None = None,
     ) -> list[ConnectorManifest]:
         results = list(self._connectors.values())
 
@@ -192,5 +254,33 @@ class ConnectorRegistry:
             results = [c for c in results if event in c.events]
         if action:
             results = [c for c in results if action in c.actions]
+        if country:
+            results = [c for c in results if c.country == country]
+        if auth_type:
+            results = [c for c in results if c.auth_type == auth_type]
+        if status:
+            results = [c for c in results if c.status == status]
+        if supports_oauth2 is not None:
+            results = [c for c in results if c.supports_oauth2 is supports_oauth2]
+        if has_webhooks is not None:
+            results = [c for c in results if c.has_webhooks is has_webhooks]
+        if sandbox_available is not None:
+            results = [c for c in results if c.sandbox_available is sandbox_available]
+        if q:
+            needle = q.strip().lower()
+            if needle:
+                results = [
+                    c
+                    for c in results
+                    if needle in c.name.lower()
+                    or needle in c.display_name.lower()
+                    or needle in c.description.lower()
+                    or needle in c.category.lower()
+                    or needle in c.interface.lower()
+                    or needle in c.country.lower()
+                    or any(needle in item.lower() for item in c.capabilities)
+                    or any(needle in item.lower() for item in c.events)
+                    or any(needle in item.lower() for item in c.actions)
+                ]
 
         return results

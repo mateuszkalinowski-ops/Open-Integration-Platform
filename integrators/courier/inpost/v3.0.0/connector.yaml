@@ -185,6 +185,12 @@ config_schema:
         label: GBP
       - value: CZK
         label: CZK
+rate_limits:
+  global: 100/min
+  per_action:
+    shipment.create: 30/min
+    label.get: 60/min
+    pickup_points.list: 10/min
 health_endpoint: /health
 docs_url: /docs
 api_version_check:

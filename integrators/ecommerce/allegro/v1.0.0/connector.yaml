@@ -2263,6 +2263,28 @@ config_schema:
       type: boolean
       label: Tryb sandbox
       default: false
+oauth2:
+  authorization_url: "https://allegro.pl/auth/oauth/authorize"
+  token_url: "https://allegro.pl/auth/oauth/token"
+  scopes:
+    - "allegro:api:orders:read"
+    - "allegro:api:orders:write"
+    - "allegro:api:offers:read"
+    - "allegro:api:offers:write"
+    - "allegro:api:profile:read"
+    - "allegro:api:sale:offers:read"
+    - "allegro:api:sale:offers:write"
+  pkce: true
+  refresh_before_expiry_seconds: 300
+  sandbox:
+    authorization_url: "https://allegro.pl.allegrosandbox.pl/auth/oauth/authorize"
+    token_url: "https://allegro.pl.allegrosandbox.pl/auth/oauth/token"
+rate_limits:
+  global: 9000/min
+  per_action:
+    order.fetch: 300/min
+    order.get: 600/min
+    shipment.create: 120/min
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
@@ -2849,3 +2871,44 @@ credential_validation:
     success_status: 200
     defaults:
       auth_url: https://allegro.pl/auth/oauth
+webhooks:
+  order.bought:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.filled_in:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.ready_for_processing:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.buyer_cancelled:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.auto_cancelled:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  offer.activated:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  offer.changed:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  offer.ended:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  offer.stock_changed:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  offer.price_changed:
+    signature_header: "X-Allegro-Signature"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"

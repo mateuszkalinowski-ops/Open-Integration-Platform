@@ -14,7 +14,6 @@ import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { MatMenuModule } from '@angular/material/menu';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatBadgeModule } from '@angular/material/badge';
@@ -65,7 +64,6 @@ interface InlineAddMenu {
     FormsModule,
     MatButtonModule,
     MatIconModule,
-    MatMenuModule,
     MatTooltipModule,
     MatChipsModule,
     MatBadgeModule,
@@ -89,26 +87,10 @@ interface InlineAddMenu {
         </div>
         @if (!readonly) {
           <div class="wfc-toolbar__right">
-            <button mat-flat-button [matMenuTriggerFor]="addNodeMenu" class="wfc-toolbar__add-btn">
+            <button mat-flat-button class="wfc-toolbar__add-btn" (click)="openStepPicker($event)">
               <mat-icon>add</mat-icon>
               <span>Add step</span>
             </button>
-            <mat-menu #addNodeMenu="matMenu" class="wfc-add-menu" xPosition="before">
-              @for (cat of nodeCategories; track cat.name) {
-                <div class="wfc-add-menu__cat">{{ cat.name }}</div>
-                @for (def of cat.defs; track def.type) {
-                  <button mat-menu-item class="wfc-add-menu__item" (click)="addNode(def.type)">
-                    <span class="wfc-add-menu__icon" [style.background]="def.color">
-                      <mat-icon>{{ def.icon }}</mat-icon>
-                    </span>
-                    <span class="wfc-add-menu__text">
-                      <span class="wfc-add-menu__label">{{ def.label }}</span>
-                      <span class="wfc-add-menu__desc">{{ def.description }}</span>
-                    </span>
-                  </button>
-                }
-              }
-            </mat-menu>
           </div>
         }
       </div>
@@ -242,35 +224,6 @@ interface InlineAddMenu {
             }
           </svg>
 
-          <!-- Inline add menu -->
-          @if (inlineAddMenu) {
-            <div
-              class="wfc-inline-palette"
-              [style.left.px]="inlineAddMenu.x - 180"
-              [style.top.px]="inlineAddMenu.y + 20"
-            >
-              <div class="wfc-inline-palette__title">Insert step</div>
-              <div class="wfc-inline-palette__grid">
-                @for (def of quickAddDefs; track def.type) {
-                  <button
-                    class="wfc-inline-palette__btn"
-                    [style.--accent]="def.color"
-                    (click)="insertNodeOnEdge(def.type)"
-                    [matTooltip]="def.description"
-                  >
-                    <span class="wfc-inline-palette__icon" [style.background]="def.color">
-                      <mat-icon>{{ def.icon }}</mat-icon>
-                    </span>
-                    <span class="wfc-inline-palette__label">{{ def.label }}</span>
-                  </button>
-                }
-              </div>
-              <button class="wfc-inline-palette__close" (click)="inlineAddMenu = null">
-                <mat-icon>close</mat-icon>
-              </button>
-            </div>
-          }
-
           <!-- Nodes -->
           @for (node of nodes; track node.id; let i = $index) {
             <div
@@ -356,6 +309,41 @@ interface InlineAddMenu {
             </div>
           }
         </div>
+
+        <!-- Unified step picker (outside transformed inner, overlays on canvas) -->
+        @if (stepPickerOpen) {
+          <div
+            class="wfc-sp"
+            [style.left.px]="stepPickerPos.x"
+            [style.top.px]="stepPickerPos.y"
+            (mousedown)="$event.stopPropagation()"
+          >
+            <div class="wfc-sp__bar">
+              <mat-icon class="wfc-sp__bar-icon">add_circle</mat-icon>
+              <span class="wfc-sp__bar-title">{{ inlineAddMenu ? 'Insert step' : 'Add step' }}</span>
+              <span class="wfc-sp__bar-count">{{ totalNodeCount }} types</span>
+              <button class="wfc-sp__bar-close" (click)="closeStepPicker()"><mat-icon>close</mat-icon></button>
+            </div>
+            <div class="wfc-sp__body">
+              @for (cat of insertCategories; track cat.name) {
+                <div class="wfc-sp__section">
+                  <div class="wfc-sp__section-label">{{ cat.name }}</div>
+                  <div class="wfc-sp__list">
+                    @for (def of cat.defs; track def.type) {
+                      <button class="wfc-sp__item" (click)="pickStep(def.type)">
+                        <span class="wfc-sp__dot" [style.background]="def.color">
+                          <mat-icon>{{ def.icon }}</mat-icon>
+                        </span>
+                        <span class="wfc-sp__name">{{ def.label }}</span>
+                        <span class="wfc-sp__desc">{{ def.description }}</span>
+                      </button>
+                    }
+                  </div>
+                </div>
+              }
+            </div>
+          </div>
+        }
       </div>
     </div>
   `,
@@ -444,44 +432,54 @@ interface InlineAddMenu {
       stroke: #6366f1; fill: #eef2ff; r: 14;
     }
 
-    /* ── Inline add palette ── */
-    .wfc-inline-palette {
+    /* ── Step picker ── */
+    .wfc-sp {
       position: absolute; z-index: 20;
-      background: #fff; border-radius: 12px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
-      border: 1px solid #e2e8f0;
-      padding: 12px; width: 360px;
+      background: #fff; border-radius: 10px;
+      box-shadow: 0 12px 40px rgba(0,0,0,0.16), 0 0 0 1px rgba(0,0,0,0.06);
+      width: 340px; display: flex; flex-direction: column;
+      max-height: min(520px, calc(100% - 80px)); overflow: hidden;
     }
-    .wfc-inline-palette__title {
-      font-size: 11px; font-weight: 700; text-transform: uppercase;
-      letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 10px; padding-left: 4px;
+    .wfc-sp__bar {
+      display: flex; align-items: center; gap: 6px;
+      padding: 8px 10px; border-bottom: 1px solid #e2e8f0;
+      background: #f8fafc; border-radius: 10px 10px 0 0; flex-shrink: 0;
     }
-    .wfc-inline-palette__grid {
-      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    .wfc-sp__bar-icon { font-size: 18px; width: 18px; height: 18px; color: #6366f1; }
+    .wfc-sp__bar-title { font-size: 13px; font-weight: 700; color: #1e293b; }
+    .wfc-sp__bar-count { font-size: 11px; color: #94a3b8; margin-left: auto; }
+    .wfc-sp__bar-close {
+      background: none; border: none; cursor: pointer; display: flex;
+      padding: 2px; border-radius: 4px; color: #94a3b8;
     }
-    .wfc-inline-palette__btn {
-      display: flex; flex-direction: column; align-items: center; gap: 6px;
-      padding: 10px 6px; border-radius: 8px;
-      border: 1px solid #f1f5f9; background: #fff;
-      cursor: pointer; transition: all 0.15s;
+    .wfc-sp__bar-close:hover { background: #e2e8f0; color: #475569; }
+    .wfc-sp__bar-close mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .wfc-sp__body { overflow-y: auto; padding: 4px 6px 6px; }
+    .wfc-sp__section { margin-bottom: 2px; }
+    .wfc-sp__section-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.08em; color: #94a3b8; padding: 6px 6px 3px;
     }
-    .wfc-inline-palette__btn:hover {
-      background: #f8fafc; border-color: #e2e8f0;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    .wfc-sp__list { display: flex; flex-direction: column; gap: 1px; }
+    .wfc-sp__item {
+      display: grid; grid-template-columns: 26px 1fr; grid-template-rows: auto auto;
+      column-gap: 8px; row-gap: 0;
+      padding: 6px 8px; border-radius: 6px;
+      border: none; background: transparent; cursor: pointer;
+      text-align: left; transition: background 0.12s;
     }
-    .wfc-inline-palette__icon {
-      width: 32px; height: 32px; border-radius: 8px;
+    .wfc-sp__item:hover { background: #f1f5f9; }
+    .wfc-sp__dot {
+      grid-row: 1 / 3; align-self: center;
+      width: 26px; height: 26px; border-radius: 7px;
       display: flex; align-items: center; justify-content: center;
     }
-    .wfc-inline-palette__icon mat-icon { color: #fff; font-size: 18px; width: 18px; height: 18px; }
-    .wfc-inline-palette__label { font-size: 11px; font-weight: 600; color: #475569; text-align: center; }
-    .wfc-inline-palette__close {
-      position: absolute; top: 8px; right: 8px;
-      background: none; border: none; cursor: pointer;
-      color: #94a3b8; display: flex; padding: 4px; border-radius: 6px;
+    .wfc-sp__dot mat-icon { color: #fff; font-size: 15px; width: 15px; height: 15px; }
+    .wfc-sp__name { font-size: 12px; font-weight: 600; color: #1e293b; line-height: 1.3; }
+    .wfc-sp__desc {
+      font-size: 10px; color: #94a3b8; line-height: 1.3;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
     }
-    .wfc-inline-palette__close:hover { background: #f1f5f9; color: #475569; }
-    .wfc-inline-palette__close mat-icon { font-size: 18px; width: 18px; height: 18px; }
 
     /* ── Nodes ── */
     .wfc-node {
@@ -647,33 +645,7 @@ interface InlineAddMenu {
       background: #fff; padding: 0 4px; border-radius: 3px;
     }
 
-    /* ── Add menu (toolbar dropdown) ── */
-    :host ::ng-deep .wfc-add-menu {
-      max-height: 480px;
-    }
-    .wfc-add-menu__cat {
-      padding: 10px 16px 6px;
-      font-size: 10px; font-weight: 700;
-      text-transform: uppercase; letter-spacing: 1px;
-      color: #94a3b8;
-    }
-    .wfc-add-menu__item {
-      display: flex !important; align-items: center !important;
-      gap: 12px !important; padding: 8px 16px !important;
-      height: auto !important; min-height: 48px !important;
-    }
-    .wfc-add-menu__icon {
-      width: 32px; height: 32px; border-radius: 8px;
-      display: flex; align-items: center; justify-content: center;
-      flex-shrink: 0;
-    }
-    .wfc-add-menu__icon mat-icon { color: #fff; font-size: 18px; width: 18px; height: 18px; }
-    .wfc-add-menu__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
-    .wfc-add-menu__label { font-size: 13px; font-weight: 600; color: #1e293b; }
-    .wfc-add-menu__desc {
-      font-size: 11px; color: #94a3b8; line-height: 1.3;
-      white-space: normal; max-width: 240px;
-    }
+    /* (legacy add-menu styles removed — replaced by wfc-step-picker) */
   `],
 })
 export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
@@ -702,7 +674,11 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly nodeDefs: Map<string, NodeTypeDefinition>;
   readonly nodeCategories: { name: string; defs: NodeTypeDefinition[] }[];
-  readonly quickAddDefs: NodeTypeDefinition[];
+  readonly insertCategories: { name: string; defs: NodeTypeDefinition[] }[];
+  readonly totalNodeCount: number;
+
+  stepPickerOpen = false;
+  stepPickerPos = { x: 0, y: 0 };
 
   private nodeIdCounter = 0;
   private boundMouseMove: ((e: MouseEvent) => void) | null = null;
@@ -730,13 +706,11 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
       .filter(c => cats.has(c))
       .map(c => ({ name: catLabels[c] || c, defs: cats.get(c)! }));
 
-    const quickTypes: WorkflowNodeType[] = [
-      'action', 'condition', 'transform', 'loop', 'http_request',
-      'think', 'filter', 'delay', 'set_variable',
-    ];
-    this.quickAddDefs = quickTypes
-      .map(t => this.nodeDefs.get(t))
-      .filter((d): d is NodeTypeDefinition => !!d);
+    this.insertCategories = catOrder
+      .filter(c => cats.has(c))
+      .map(c => ({ name: catLabels[c] || c, defs: cats.get(c)! }));
+
+    this.totalNodeCount = this.insertCategories.reduce((s, c) => s + c.defs.length, 0);
   }
 
   ngOnInit(): void {
@@ -978,6 +952,32 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     event.stopPropagation();
     const mid = this.getEdgeMidpoint(edge);
     this.inlineAddMenu = { edgeId: edge.id, x: mid.x, y: mid.y };
+    const canvasX = (mid.x + CANVAS_HALF) * this.transform.scale + this.transform.x;
+    const canvasY = (mid.y + CANVAS_HALF) * this.transform.scale + this.transform.y;
+    this.stepPickerPos = { x: canvasX - 190, y: canvasY + 20 };
+    this.stepPickerOpen = true;
+  }
+
+  openStepPicker(event: MouseEvent): void {
+    event.stopPropagation();
+    const canvasRect = this.canvasEl.nativeElement.getBoundingClientRect();
+    this.inlineAddMenu = null;
+    this.stepPickerPos = { x: canvasRect.width - 400, y: 10 };
+    this.stepPickerOpen = true;
+  }
+
+  closeStepPicker(): void {
+    this.stepPickerOpen = false;
+    this.inlineAddMenu = null;
+  }
+
+  pickStep(type: WorkflowNodeType): void {
+    if (this.inlineAddMenu) {
+      this.insertNodeOnEdge(type);
+    } else {
+      this.addNode(type);
+    }
+    this.stepPickerOpen = false;
   }
 
   deleteNode(nodeId: string, event: MouseEvent): void {
@@ -1048,6 +1048,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
       this.selectedNodeId = null;
       this.selectedEdgeId = null;
       this.inlineAddMenu = null;
+      this.stepPickerOpen = false;
       this.nodeSelected.emit(null);
     }
   }
@@ -1180,6 +1181,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
       this.selectedNodeId = null;
       this.connectionDraft = null;
       this.inlineAddMenu = null;
+      this.stepPickerOpen = false;
       this.nodeSelected.emit(null);
     }
   }

@@ -6,7 +6,7 @@ import asyncio
 import re
 import time
 from dataclasses import dataclass
-from typing import Any, Callable, Awaitable
+from typing import Any, Awaitable, Callable
 
 import structlog
 
@@ -44,15 +44,18 @@ def _parse_rate(rate_str: str) -> RateLimitConfig:
 
 
 class ConnectorRateLimiter:
-    _DEFAULT_CONFIG = RateLimitConfig(requests=600, window_seconds=60)
-
     def __init__(
         self,
         redis_getter: Callable[[], Awaitable[Any]],
         registry: ConnectorRegistry | None = None,
+        *,
+        default_rate: str = "600/min",
+        enabled: bool = True,
     ) -> None:
         self._redis_getter = redis_getter
         self._registry = registry
+        self._enabled = enabled
+        self._default_config = _parse_rate(default_rate)
 
     def _get_limits(
         self,
@@ -61,15 +64,15 @@ class ConnectorRateLimiter:
         connector_version: str | None = None,
     ) -> RateLimitConfig:
         if self._registry is None:
-            return self._DEFAULT_CONFIG
+            return self._default_config
 
         manifest = self._registry.get_by_name_version(connector_name, connector_version)
         if manifest is None:
-            return self._DEFAULT_CONFIG
+            return self._default_config
 
         rate_limits: dict[str, Any] = getattr(manifest, "rate_limits", {}) or {}
         if not rate_limits:
-            return self._DEFAULT_CONFIG
+            return self._default_config
 
         if action:
             per_action = rate_limits.get("per_action", {})
@@ -87,7 +90,7 @@ class ConnectorRateLimiter:
             except ValueError:
                 logger.warning("connector_rate_limiter.invalid_global_rate", connector=connector_name)
 
-        return self._DEFAULT_CONFIG
+        return self._default_config
 
     async def check(
         self,
@@ -96,43 +99,57 @@ class ConnectorRateLimiter:
         tenant_id: str | None = None,
         connector_version: str | None = None,
     ) -> RateLimitResult:
-        config = self._get_limits(connector_name, action, connector_version)
-        action_part = action or "global"
-        tenant_part = tenant_id or "shared"
-        version_part = connector_version or "latest"
-        key = f"{_REDIS_KEY_PREFIX}{connector_name}:{version_part}:{action_part}:{tenant_part}"
-
-        redis = await self._redis_getter()
-        now = time.time()
-        window_start = now - config.window_seconds
-
-        pipe = redis.pipeline()
-        pipe.zremrangebyscore(key, 0, window_start)
-        pipe.zcard(key)
-        results = await pipe.execute()
-        current_count: int = results[1]
-
-        if current_count < config.requests:
-            pipe2 = redis.pipeline()
-            pipe2.zadd(key, {str(now): now})
-            pipe2.expire(key, config.window_seconds * 2)
-            await pipe2.execute()
-
+        if not self._enabled:
+            config = self._get_limits(connector_name, action, connector_version)
             return RateLimitResult(
                 allowed=True,
-                remaining=config.requests - current_count - 1,
+                remaining=config.requests,
                 retry_after=None,
                 limit=config.requests,
                 window_seconds=config.window_seconds,
             )
+        config = self._get_limits(connector_name, action, connector_version)
+        action_part = action or "global"
+        tenant_part = tenant_id or "shared"
+        version_part = connector_version or "latest"
+        bucket_key = f"{_REDIS_KEY_PREFIX}{connector_name}:{version_part}:{action_part}:{tenant_part}"
+        tokens_key = f"{bucket_key}:tokens"
+        last_key = f"{bucket_key}:last"
 
-        oldest_raw = await redis.zrange(key, 0, 0, withscores=True)
-        if oldest_raw:
-            oldest_ts = float(oldest_raw[0][1])
-            retry_after = round((oldest_ts + config.window_seconds) - now, 2)
-            retry_after = max(retry_after, 0.1)
+        redis = await self._redis_getter()
+        now = time.time()
+        refill_rate = config.requests / config.window_seconds
+
+        raw_tokens, raw_last = await redis.mget(tokens_key, last_key)
+        tokens = float(raw_tokens) if raw_tokens is not None else float(config.requests)
+        last_refill = float(raw_last) if raw_last is not None else now
+
+        elapsed = max(0.0, now - last_refill)
+        tokens = min(float(config.requests), tokens + elapsed * refill_rate)
+
+        allowed = tokens >= 1.0
+        retry_after: float | None = None
+        if allowed:
+            tokens -= 1.0
+            remaining = max(0, int(tokens))
         else:
-            retry_after = float(config.window_seconds)
+            deficit = 1.0 - tokens
+            retry_after = max(round(deficit / refill_rate, 2), 0.1)
+            remaining = 0
+
+        pipe = redis.pipeline()
+        pipe.set(tokens_key, tokens, ex=config.window_seconds * 2)
+        pipe.set(last_key, now, ex=config.window_seconds * 2)
+        await pipe.execute()
+
+        if allowed:
+            return RateLimitResult(
+                allowed=True,
+                remaining=remaining,
+                retry_after=None,
+                limit=config.requests,
+                window_seconds=config.window_seconds,
+            )
 
         logger.info(
             "connector_rate_limiter.limited",

@@ -1,195 +1,159 @@
-"""InPost International 2025 Courier Integrator — FastAPI application."""
+"""InPost International 2025 Courier Connector — SDK-based application.
 
-import logging
+Migrated from manual FastAPI setup to the Pinquark Connector SDK.
+All business logic remains in ``integration.py``; this module wires
+actions to the SDK framework.
+"""
 
-from fastapi import FastAPI, HTTPException, Query, Response
-from fastapi.responses import JSONResponse
+from __future__ import annotations
 
-from src.config import settings
+import sys
+from pathlib import Path
+from typing import Any
+
+SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(SDK_PYTHON_PATH) not in sys.path:
+    sys.path.insert(0, str(SDK_PYTHON_PATH))
+
+from pinquark_connector_sdk import ConnectorApp, action
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+
 from src.integration import InpostIntegration
 from src.schemas import (
     CreateShipmentRequest,
     InpostCredentials,
-    LabelRequest,
-    PickupHoursRequest,
     PickupRequest,
-    PointsQuery,
     RateProduct,
-    RateRequest,
     ReturnsShipmentRequest,
     StandardizedRateResponse,
 )
 
-logging.basicConfig(
-    level=settings.log_level,
-    format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
-)
-logger = logging.getLogger("courier-inpost-int-2025")
 
-app = FastAPI(
-    title="InPost International 2025 Courier Connector",
-    version="3.0.0",
-    docs_url="/docs",
-)
+class InPostConnector(ConnectorApp):
+    name = "inpost"
+    category = "courier"
+    version = "3.0.0"
+    display_name = "InPost International 2025"
+    description = "InPost courier integration — Paczkomaty, Kurier, International, Returns"
 
-integration = InpostIntegration()
+    class Config:
+        required_credentials = ["organization_id", "client_secret"]
+        rate_limits = {"default": "100/minute"}
 
+    def __init__(self) -> None:
+        self._integration = InpostIntegration()
+        super().__init__()
 
-@app.get("/health")
-async def health():
-    return {"status": "healthy", "version": "3.0.0", "system": "inpost-international-2025"}
-
-
-@app.get("/readiness")
-async def readiness():
-    checks = {"api_reachable": "ok"}
-    status = "healthy" if all(v == "ok" for v in checks.values()) else "degraded"
-    return {"status": status, "checks": checks}
-
-
-@app.post("/shipments", status_code=201)
-async def create_shipment(request: CreateShipmentRequest):
-    try:
-        result, status_code = await integration.create_order(
-            request.credentials, request,
+    def _creds(self, payload: dict[str, Any]) -> InpostCredentials:
+        """Extract credentials from action payload or account store."""
+        if "credentials" in payload and isinstance(payload["credentials"], dict):
+            return InpostCredentials(**payload["credentials"])
+        account_name = payload.get("account_name", "default")
+        stored = self.accounts.get(account_name) or {}
+        return InpostCredentials(
+            organization_id=stored.get("organization_id", payload.get("organization_id", "")),
+            client_secret=stored.get("client_secret", payload.get("client_secret", "")),
+            access_token=stored.get("access_token", payload.get("access_token")),
+            sandbox_mode=stored.get("sandbox_mode", payload.get("sandbox_mode", False)),
         )
+
+    @action("shipment.create")
+    async def create_shipment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        request = CreateShipmentRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        result, status_code = await self._integration.create_order(creds, request)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return JSONResponse(content=result, status_code=status_code)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to create InPost International 2025 shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"error": result, "status_code": status_code}
+        return result if isinstance(result, dict) else {"data": result}
 
+    @action("shipment.status")
+    async def get_shipment_status(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        waybill = payload["waybill"]
+        status, status_code = await self._integration.get_order_status(creds, waybill)
+        return {"status": status, "status_code": status_code}
 
-@app.get("/shipments/{waybill}/status")
-async def get_status(
-    waybill: str,
-    organization_id: str = Query(...),
-    client_secret: str = Query(...),
-    access_token: str | None = Query(default=None),
-):
-    credentials = InpostCredentials(
-        organization_id=organization_id,
-        client_secret=client_secret,
-        access_token=access_token,
-    )
-    try:
-        result, status_code = await integration.get_order_status(credentials, waybill)
+    @action("shipment.get")
+    async def get_shipment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        tracking_number = payload["tracking_number"]
+        result, status_code = await self._integration.get_order(creds, tracking_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return {"status": result}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"error": result, "status_code": status_code}
+        return result if isinstance(result, dict) else {"data": result}
 
-
-@app.post("/labels")
-async def get_label(request: LabelRequest):
-    try:
-        label_bytes, status_code = await integration.get_waybill_label_bytes(
-            request.credentials, request.tracking_number,
-        )
+    @action("label.get")
+    async def get_label(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        tracking_number = payload["tracking_number"]
+        label_bytes, status_code = await self._integration.get_waybill_label_bytes(creds, tracking_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=label_bytes)
-        return Response(content=label_bytes, media_type="application/pdf")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to get InPost International 2025 label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"error": str(label_bytes), "status_code": status_code}
+        import base64
+        return {"label_base64": base64.b64encode(label_bytes).decode(), "content_type": "application/pdf"}
 
+    @action("shipment.cancel")
+    async def cancel_shipment(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        waybill = payload["waybill"]
+        order_id = payload.get("order_id")
+        result, status_code = await self._integration.delete_order(creds, waybill, order_id=order_id)
+        return {"result": result, "status_code": status_code}
 
-@app.delete("/shipments/{waybill}")
-async def cancel_shipment(
-    waybill: str,
-    organization_id: str = Query(...),
-    client_secret: str = Query(...),
-    access_token: str | None = Query(default=None),
-    order_id: str | None = Query(default=None),
-):
-    credentials = InpostCredentials(
-        organization_id=organization_id,
-        client_secret=client_secret,
-        access_token=access_token,
-    )
-    try:
-        result, status_code = await integration.delete_order(
-            credentials, waybill, order_id=order_id,
-        )
+    @action("pickup_points.list")
+    async def get_pickup_points(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        data: dict[str, Any] = {}
+        if payload.get("city"):
+            data["city"] = payload["city"]
+        if payload.get("postcode"):
+            data["postcode"] = payload["postcode"]
+        data["extras"] = payload.get("extras", {})
+        result, status_code = await self._integration.get_points(creds, data)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return {"result": result}
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"error": result, "status_code": status_code}
+        return result if isinstance(result, dict) else {"data": result}
 
-
-@app.get("/shipments/{tracking_number}")
-async def get_shipment(
-    tracking_number: str,
-    organization_id: str = Query(...),
-    client_secret: str = Query(...),
-    access_token: str | None = Query(default=None),
-):
-    credentials = InpostCredentials(
-        organization_id=organization_id,
-        client_secret=client_secret,
-        access_token=access_token,
-    )
-    try:
-        result, status_code = await integration.get_order(credentials, tracking_number)
-        if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return result
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/points")
-async def get_points(request: PointsQuery):
-    try:
-        data: dict = {}
-        if request.city:
-            data["city"] = request.city
-        if request.postcode:
-            data["postcode"] = request.postcode
-        data["extras"] = request.extras
-
-        result, status_code = await integration.get_points(request.credentials, data)
-        if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return result
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-
-
-@app.get("/tracking/{waybill}")
-async def get_tracking(waybill: str):
-    try:
-        result, status_code = await integration.get_tracking_info(waybill)
-        if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=str(result))
+    @action("tracking.get")
+    async def get_tracking(self, payload: dict[str, Any]) -> dict[str, Any]:
+        waybill = payload["waybill"]
+        result, _status = await self._integration.get_tracking_info(waybill)
         return result.model_dump()
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
+    @action("rates.get", output_schema=StandardizedRateResponse, dynamic_schema=True)
+    async def get_rates(self, payload: dict[str, Any]) -> dict[str, Any]:
+        products = _calculate_inpost_rates(
+            weight=payload.get("weight", 1.0),
+            length=payload.get("length", 20.0),
+            width=payload.get("width", 20.0),
+            height=payload.get("height", 20.0),
+            sender_country=payload.get("sender_country_code", "PL"),
+            receiver_country=payload.get("receiver_country_code", "PL"),
+        )
+        resp = StandardizedRateResponse(
+            products=products,
+            source="inpost",
+            raw={"method": "pricing_table", "weight": payload.get("weight", 1.0)},
+        )
+        return resp.model_dump()
 
-@app.post("/pickups")
-async def create_pickup(request: PickupRequest):
-    try:
-        pickup_dto = integration._build_pickup_order_dto(
+    @action("return.create")
+    async def create_return(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        request = ReturnsShipmentRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        returns_dto = self._integration.build_returns_dto(request)
+        result, status_code = await self._integration.create_return_shipment(creds, returns_dto)
+        if status_code >= 400:
+            return {"error": result, "status_code": status_code}
+        return result if isinstance(result, dict) else {"data": result}
+
+    @action("pickup.create")
+    async def create_pickup(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        request = PickupRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        pickup_dto = self._integration._build_pickup_order_dto(
             CreateShipmentRequest(
-                credentials=request.credentials,
+                credentials=creds,
                 serviceName="inpost_international",
                 extras=request.extras,
                 content=request.content,
@@ -199,57 +163,29 @@ async def create_pickup(request: PickupRequest):
             ),
             tracking_number=request.tracking_numbers[0] if request.tracking_numbers else "",
         )
-        result = await integration._create_pickup_order(pickup_dto, request.credentials)
-        return result
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to create InPost International 2025 pickup order")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        result = await self._integration._create_pickup_order(pickup_dto, creds)
+        return result if isinstance(result, dict) else {"data": result}
 
-
-@app.get("/pickup-hours")
-async def get_pickup_hours(request: PickupHoursRequest):
-    try:
-        result, status_code = await integration.get_pickup_hours(
-            request.credentials, request.postcode, request.country_code,
+    @action("pickup_hours.get")
+    async def get_pickup_hours(self, payload: dict[str, Any]) -> dict[str, Any]:
+        creds = self._creds(payload)
+        result, status_code = await self._integration.get_pickup_hours(
+            creds, payload["postcode"], payload.get("country_code", "PL"),
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return result
-    except HTTPException:
-        raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+            return {"error": result, "status_code": status_code}
+        return result if isinstance(result, dict) else {"data": result}
 
-
-@app.post("/rates")
-async def get_rates(request: RateRequest):
-    """Return standardized shipping rates for price comparison workflows.
-
-    InPost International API does not expose a dedicated pricing endpoint.
-    Rates are derived from published weight/size-based pricing tables.
-    """
-    try:
-        products = _calculate_inpost_rates(
-            weight=request.weight,
-            length=request.length,
-            width=request.width,
-            height=request.height,
-            sender_country=request.sender_country_code,
-            receiver_country=request.receiver_country_code,
-        )
-        return StandardizedRateResponse(
-            products=products,
-            source="inpost",
-            raw={"method": "pricing_table", "weight": request.weight},
-        ).model_dump()
-    except Exception as exc:
-        logger.exception("Failed to calculate InPost rates")
-        return StandardizedRateResponse(
-            source="inpost",
-            raw={"error": str(exc)},
-        ).model_dump()
+    async def test_connection(self) -> bool:
+        """Verify InPost API is reachable by hitting the public tracking endpoint."""
+        try:
+            resp = await self.http.get(
+                "https://api.inpost-group.com/tracking/v1/parcels",
+                params={"trackingNumbers": "HEALTHCHECK"},
+            )
+            return resp.status_code < 500
+        except Exception:
+            return False
 
 
 def _calculate_inpost_rates(
@@ -260,116 +196,54 @@ def _calculate_inpost_rates(
     sender_country: str,
     receiver_country: str,
 ) -> list[RateProduct]:
-    """Estimate InPost rates from published weight/size tiers.
-
-    These are approximate net prices (PLN) for the most common domestic
-    services. Real prices depend on the customer's contract — this provides
-    a reasonable baseline for comparison workflows.
-    """
     is_domestic = sender_country == receiver_country == "PL"
     products: list[RateProduct] = []
-
     volume_weight = (length * width * height) / 5000
     billable = max(weight, volume_weight)
 
     if is_domestic:
         if billable <= 25 and max(length, width, height) <= 41:
             products.append(RateProduct(
-                name="InPost Paczkomat (A)",
-                price=12.99,
-                currency="PLN",
-                delivery_days=2,
-                attributes={"source": "inpost", "service": "paczkomat", "size": "A"},
+                name="InPost Paczkomat (A)", price=12.99, currency="PLN",
+                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "A"},
             ))
         if billable <= 25 and max(length, width, height) <= 64:
             products.append(RateProduct(
-                name="InPost Paczkomat (B)",
-                price=13.99,
-                currency="PLN",
-                delivery_days=2,
-                attributes={"source": "inpost", "service": "paczkomat", "size": "B"},
+                name="InPost Paczkomat (B)", price=13.99, currency="PLN",
+                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "B"},
             ))
         if billable <= 25:
             products.append(RateProduct(
-                name="InPost Paczkomat (C)",
-                price=15.49,
-                currency="PLN",
-                delivery_days=2,
-                attributes={"source": "inpost", "service": "paczkomat", "size": "C"},
+                name="InPost Paczkomat (C)", price=15.49, currency="PLN",
+                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "C"},
             ))
         if billable <= 30:
             products.append(RateProduct(
-                name="InPost Kurier Standard",
-                price=14.99,
-                currency="PLN",
-                delivery_days=2,
-                attributes={"source": "inpost", "service": "courier_standard"},
+                name="InPost Kurier Standard", price=14.99, currency="PLN",
+                delivery_days=2, attributes={"source": "inpost", "service": "courier_standard"},
             ))
             products.append(RateProduct(
-                name="InPost Kurier Express",
-                price=19.99,
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "inpost", "service": "courier_express"},
+                name="InPost Kurier Express", price=19.99, currency="PLN",
+                delivery_days=1, attributes={"source": "inpost", "service": "courier_express"},
             ))
     else:
         if billable <= 30:
             products.append(RateProduct(
-                name="InPost International Standard",
-                price=39.99,
-                currency="PLN",
-                delivery_days=5,
-                attributes={"source": "inpost", "service": "international_standard"},
+                name="InPost International Standard", price=39.99, currency="PLN",
+                delivery_days=5, attributes={"source": "inpost", "service": "international_standard"},
             ))
             products.append(RateProduct(
-                name="InPost International Express",
-                price=59.99,
-                currency="PLN",
-                delivery_days=3,
-                attributes={"source": "inpost", "service": "international_express"},
+                name="InPost International Express", price=59.99, currency="PLN",
+                delivery_days=3, attributes={"source": "inpost", "service": "international_express"},
             ))
-
     return products
 
 
-@app.post("/returns", status_code=201)
-async def create_return_shipment(request: ReturnsShipmentRequest):
-    try:
-        returns_dto = integration.build_returns_dto(request)
-        result, status_code = await integration.create_return_shipment(
-            request.credentials, returns_dto,
-        )
-        if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
-        return JSONResponse(content=result, status_code=status_code)
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to create InPost International 2025 return shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+connector = InPostConnector()
+app = augment_legacy_fastapi_app(
+    connector._fastapi,
+    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+)
 
-
-@app.post("/returns/{tracking_number}/label")
-async def get_return_label(
-    tracking_number: str,
-    organization_id: str = Query(...),
-    client_secret: str = Query(...),
-    access_token: str | None = Query(default=None),
-):
-    credentials = InpostCredentials(
-        organization_id=organization_id,
-        client_secret=client_secret,
-        access_token=access_token,
-    )
-    try:
-        label_bytes, status_code = await integration.get_return_label_bytes(
-            credentials, tracking_number,
-        )
-        if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=label_bytes)
-        return Response(content=label_bytes, media_type="application/pdf")
-    except HTTPException:
-        raise
-    except Exception as exc:
-        logger.exception("Failed to get InPost International 2025 return label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+if __name__ == "__main__":
+    connector.run()

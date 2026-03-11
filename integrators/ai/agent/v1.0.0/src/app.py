@@ -9,11 +9,18 @@ courier recommendation, priority classification, data extraction.
 from __future__ import annotations
 
 import logging
+import sys
+from pathlib import Path
 
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from google import genai
 
+sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(sdk_path) not in sys.path:
+    sys.path.insert(0, str(sdk_path))
+
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 from src import ai_engine
 from src.config import settings
 from src.schemas import (
@@ -29,6 +36,7 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)-8s %(name)s — %(message)s",
 )
 logger = logging.getLogger("ai-agent")
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
 
 app = FastAPI(
     title="AI Agent Connector",
@@ -278,3 +286,6 @@ async def _handle_extract(payload: dict) -> dict:
         input_type=payload.get("input_type", "custom"),
     )
     return result.model_dump()
+
+
+augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

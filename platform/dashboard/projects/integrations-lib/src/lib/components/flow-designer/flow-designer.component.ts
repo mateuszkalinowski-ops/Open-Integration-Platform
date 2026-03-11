@@ -10,8 +10,9 @@ import { MatStepperModule } from '@angular/material/stepper';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { forkJoin } from 'rxjs';
 
-import { Connector, ConnectorFieldDef, Flow, COUNTRY_FLAG_MAP } from '../../models';
+import { Connector, ConnectorFieldDef, Flow, FieldMapping, COUNTRY_FLAG_MAP } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
+import { VisualFieldMapperComponent } from '../visual-field-mapper/visual-field-mapper.component';
 
 @Component({
   selector: 'pinquark-flow-designer',
@@ -26,6 +27,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     MatIconModule,
     MatStepperModule,
     MatSnackBarModule,
+    VisualFieldMapperComponent,
   ],
   template: `
     <div class="flow-designer">
@@ -90,6 +92,26 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             </mat-form-field>
 
             <h4>Field Mapping</h4>
+            <pinquark-visual-field-mapper
+              [sourceFields]="sourceFieldDefs"
+              [destinationFields]="destFieldDefs"
+              [mappings]="visualMappings"
+              [contextHint]="mappingContextHint"
+              [heading]="'Visual Mapper'"
+              [description]="'Create mappings visually or generate suggestions automatically.'"
+              [sourceLabel]="'Source event'"
+              [destinationLabel]="'Destination action'"
+              (mappingsChange)="onVisualMappingsChange($event)"
+            ></pinquark-visual-field-mapper>
+
+            <div class="flow-designer__manual-toggle">
+              <button mat-stroked-button type="button" (click)="showManualMapping = !showManualMapping">
+                <mat-icon>{{ showManualMapping ? 'expand_less' : 'edit_note' }}</mat-icon>
+                {{ showManualMapping ? 'Hide Manual Editor' : 'Open Manual Editor' }}
+              </button>
+            </div>
+
+            @if (showManualMapping) {
             @if (sourceFieldDefs.length === 0 && destFieldDefs.length === 0) {
               <p class="flow-designer__hint">No fields defined — enter paths manually.</p>
             }
@@ -152,6 +174,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             <button mat-button (click)="addMapping()">
               <mat-icon>add</mat-icon> Add Mapping
             </button>
+            }
 
             @if (missingRequiredFields.length > 0) {
               <p class="flow-designer__hint flow-designer__hint--warn">
@@ -184,6 +207,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .flow-designer__actions { display: flex; justify-content: space-between; margin-top: 24px; }
     .flow-designer__hint { color: #666; font-size: 13px; margin-bottom: 12px; }
     .flow-designer__hint--warn { color: #e65100; }
+    .flow-designer__manual-toggle { margin: 14px 0 10px; }
   `],
 })
 export class FlowDesignerComponent implements OnInit, OnChanges {
@@ -197,6 +221,7 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
   sourceFieldDefs: ConnectorFieldDef[] = [];
   destFieldDefs: ConnectorFieldDef[] = [];
   saving = false;
+  showManualMapping = false;
 
   sourceForm: FormGroup;
   destForm: FormGroup;
@@ -223,6 +248,24 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
 
   get fieldMappings(): FormArray {
     return this.mappingForm.get('field_mapping') as FormArray;
+  }
+
+  get visualMappings(): FieldMapping[] {
+    const raw = this.mappingForm.value.field_mapping ?? [];
+    return raw
+      .map((mapping: { from: string; to: string; from_custom?: string; to_custom?: string }) => ({
+        from: mapping.from === '__custom__' ? (mapping.from_custom ?? '') : mapping.from,
+        to: mapping.to === '__custom__' ? (mapping.to_custom ?? '') : mapping.to,
+      }))
+      .filter((mapping: FieldMapping) => mapping.from || mapping.to);
+  }
+
+  get mappingContextHint(): string {
+    const source = this.sourceForm.get('source_connector')?.value || '';
+    const event = this.sourceForm.get('source_event')?.value || '';
+    const destination = this.destForm.get('destination_connector')?.value || '';
+    const action = this.destForm.get('destination_action')?.value || '';
+    return `Map ${source}.${event} to ${destination}.${action}`.trim();
   }
 
   ngOnInit(): void {
@@ -307,6 +350,16 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
     const actionName = this.destForm.get('destination_action')?.value;
     const connector = this.connectors.find(c => c.name === connectorName);
     this.destFieldDefs = connector?.action_fields?.[actionName] ?? [];
+    if (connectorName && actionName) {
+      this.api.getConnectorActionSchema(connectorName, actionName, connector?.version).subscribe({
+        next: schema => {
+          this.destFieldDefs = schema.input_fields.length > 0 ? schema.input_fields : this.destFieldDefs;
+        },
+        error: () => {
+          this.destFieldDefs = connector?.action_fields?.[actionName] ?? [];
+        },
+      });
+    }
   }
 
   get missingRequiredFields(): string[] {
@@ -332,6 +385,18 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
 
   removeMapping(index: number): void {
     this.fieldMappings.removeAt(index);
+  }
+
+  onVisualMappingsChange(mappings: FieldMapping[]): void {
+    this.fieldMappings.clear();
+    for (const mapping of mappings) {
+      this.fieldMappings.push(this.fb.group({
+        from: [mapping.from || ''],
+        to: [mapping.to || ''],
+        from_custom: [''],
+        to_custom: [''],
+      }));
+    }
   }
 
   saveFlow(): void {

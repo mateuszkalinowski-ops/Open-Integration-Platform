@@ -5,7 +5,9 @@ Nexo agents running at client sites.
 """
 
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
@@ -14,10 +16,17 @@ from src.api.dependencies import app_state
 from src.api.routes import router
 from src.config import settings
 from src.services.account_manager import AccountManager
+
+sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(sdk_path) not in sys.path:
+    sys.path.insert(0, str(sdk_path))
+
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 from pinquark_common.logging import setup_logging
 from pinquark_common.monitoring.health import HealthChecker
 
 logger = logging.getLogger(__name__)
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
 
 
 @asynccontextmanager
@@ -59,7 +68,7 @@ def create_app() -> FastAPI:
     metrics_app = make_asgi_app()
     application.mount("/metrics", metrics_app)
 
-    return application
+    return augment_legacy_fastapi_app(application, manifest_path=MANIFEST_PATH)
 
 
 app = create_app()

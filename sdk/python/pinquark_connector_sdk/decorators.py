@@ -6,8 +6,8 @@ attribute so the ConnectorApp can discover them at init time.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, TypeAlias
 
 
 @dataclass(frozen=True)
@@ -16,6 +16,7 @@ class ActionMeta:
     name: str = ""
     input_schema: dict[str, Any] | None = None
     output_schema: dict[str, Any] | None = None
+    dynamic_schema: bool = False
 
 
 @dataclass(frozen=True)
@@ -34,7 +35,7 @@ class WebhookMeta:
     signature_algorithm: str = "hmac-sha256"
 
 
-type ConnectorMeta = ActionMeta | TriggerMeta | WebhookMeta
+ConnectorMeta: TypeAlias = ActionMeta | TriggerMeta | WebhookMeta
 
 
 def action(
@@ -42,6 +43,7 @@ def action(
     *,
     input_schema: dict[str, Any] | None = None,
     output_schema: dict[str, Any] | None = None,
+    dynamic_schema: bool = False,
 ) -> Any:
     """Mark a method as a connector action handler.
 
@@ -54,6 +56,7 @@ def action(
             name=name,
             input_schema=input_schema,
             output_schema=output_schema,
+            dynamic_schema=dynamic_schema,
         )
         return fn
 

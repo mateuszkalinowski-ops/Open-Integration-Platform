@@ -8,13 +8,20 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import sys
 from contextlib import asynccontextmanager
+from pathlib import Path
 from typing import Any
 
 import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, model_validator
 
+sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(sdk_path) not in sys.path:
+    sys.path.insert(0, str(sdk_path))
+
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 from src.client import PinquarkWmsClient, WriteResult
 from src.config import settings
 from src.event_poller import EventPoller
@@ -33,6 +40,7 @@ from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger("pinquark-wms")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
+MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
 
 wms_client = PinquarkWmsClient()
 
@@ -785,3 +793,6 @@ async def poller_diagnose() -> dict[str, Any]:
                 acct_result[entity] = {"error": str(exc)}
         results[account_name] = acct_result
     return results
+
+
+augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

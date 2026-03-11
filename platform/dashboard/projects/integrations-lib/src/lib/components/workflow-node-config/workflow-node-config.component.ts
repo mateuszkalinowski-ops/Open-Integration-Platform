@@ -9,6 +9,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatExpansionModule } from '@angular/material/expansion';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDividerModule } from '@angular/material/divider';
+import { MatDialog } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
 import {
   Connector,
@@ -24,6 +25,10 @@ import {
   COUNTRY_FLAG_MAP,
 } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
+import {
+  VisualFieldMapperDialogComponent,
+  VisualFieldMapperDialogData,
+} from '../visual-field-mapper-dialog/visual-field-mapper-dialog.component';
 
 @Component({
   selector: 'pinquark-workflow-node-config',
@@ -294,6 +299,16 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
               </mat-select>
             </mat-form-field>
 
+            <div class="wnc__mapper-launch">
+              <button mat-stroked-button (click)="openActionVisualMapper()">
+                <mat-icon>open_in_new</mat-icon>
+                Open Visual Mapper
+              </button>
+              <span class="wnc__hint">
+                Opens the graphical mapper in a separate window for more space.
+              </span>
+            </div>
+
             <!-- Unified Field Mapping -->
             <div class="wnc__section-title">
               <span>Field Mapping</span>
@@ -547,6 +562,16 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
 
           <!-- TRANSFORM -->
           @if (node.type === 'transform') {
+            <div class="wnc__mapper-launch">
+              <button mat-stroked-button (click)="openTransformVisualMapper()">
+                <mat-icon>open_in_new</mat-icon>
+                Open Visual Mapper
+              </button>
+              <span class="wnc__hint">
+                Opens the graphical mapper in a separate window for more space.
+              </span>
+            </div>
+
             <div class="wnc__section-title">
               <span>Field Mappings</span>
               <button mat-icon-button (click)="addTransformMapping()"><mat-icon>add</mat-icon></button>
@@ -1024,6 +1049,17 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .wnc__field { width: 100%; margin-bottom: 4px; }
     .wnc__section-title { display: flex; justify-content: space-between; align-items: center; font-weight: 600; font-size: 13px; margin: 12px 0 8px; color: #555; }
     .wnc__hint { color: #888; font-size: 12px; margin: 0 0 8px; }
+    .wnc__mapper-launch {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 12px;
+      padding: 10px 12px;
+      border: 1px solid #e0e0e0;
+      border-radius: 10px;
+      background: #fafafa;
+    }
+    .wnc__mapper-launch .wnc__hint { margin: 0; }
     .wnc__toggle-row { margin: 8px 0 16px; padding: 10px 12px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; }
     .wnc__help { margin-top: 16px; }
     .wnc__help-content p { margin: 4px 0; font-size: 12px; }
@@ -1132,7 +1168,10 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   readonly conditionOperators = CONDITION_OPERATORS;
   readonly transformTypes = TRANSFORM_TYPES;
 
-  constructor(private readonly api: PinquarkApiService) {}
+  constructor(
+    private readonly api: PinquarkApiService,
+    private readonly dialog: MatDialog,
+  ) {}
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['node'] && this.node) {
@@ -1230,6 +1269,49 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       m.from = sources[0] || '';
     }
     this.emitChange();
+  }
+
+  replaceActionMappings(mappings: FieldMapping[]): void {
+    this.cfg['field_mapping'] = mappings.map(mapping => ({ ...mapping }));
+    this.emitChange();
+  }
+
+  openActionVisualMapper(): void {
+    const destFields = this.destFieldDefs.length > 0 ? this.destFieldDefs : this.sourceFieldDefs;
+    this.openVisualMapperDialog({
+      title: 'Action Visual Mapper',
+      description: 'Map available workflow inputs to the selected action payload in a separate window.',
+      sourceFields: this.sourceFieldDefs,
+      destinationFields: destFields,
+      mappings: this.asFieldMappings(this.cfg['field_mapping']),
+      sourceLabel: 'Available inputs',
+      destinationLabel: 'Action payload',
+      contextHint: this.getActionMappingContextHint(),
+    }, mappings => this.replaceActionMappings(mappings));
+  }
+
+  replaceTransformMappings(mappings: FieldMapping[]): void {
+    this.cfg['mappings'] = mappings.map(mapping => ({ ...mapping }));
+    this.emitChange();
+  }
+
+  openTransformVisualMapper(): void {
+    this.openVisualMapperDialog({
+      title: 'Transform Visual Mapper',
+      description: 'Map and transform workflow data in a dedicated editor window.',
+      sourceFields: this.sourceFieldDefs,
+      destinationFields: this.destFieldDefs.length > 0 ? this.destFieldDefs : this.sourceFieldDefs,
+      mappings: this.asFieldMappings(this.cfg['mappings']),
+      sourceLabel: 'Input fields',
+      destinationLabel: 'Output fields',
+      contextHint: 'Transform data fields inside the workflow context',
+    }, mappings => this.replaceTransformMappings(mappings));
+  }
+
+  getActionMappingContextHint(): string {
+    const connector = String(this.cfg['connector_name'] ?? '');
+    const action = String(this.cfg['action'] ?? '');
+    return `Map workflow data into ${connector}.${action}`.trim();
   }
 
   // ── Transform pipeline ──
@@ -1589,6 +1671,29 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     return Array.isArray(val) ? val : [];
   }
 
+  private openVisualMapperDialog(
+    data: VisualFieldMapperDialogData,
+    applyMappings: (mappings: FieldMapping[]) => void,
+  ): void {
+    const dialogRef = this.dialog.open(VisualFieldMapperDialogComponent, {
+      data: {
+        ...data,
+        mappings: data.mappings.map(mapping => ({ ...mapping })),
+      },
+      maxWidth: '95vw',
+      width: '1280px',
+      panelClass: 'pinquark-visual-mapper-dialog-panel',
+      autoFocus: false,
+    });
+
+    dialogRef.afterClosed().subscribe((mappings?: FieldMapping[]) => {
+      if (!mappings) {
+        return;
+      }
+      applyMappings(mappings);
+    });
+  }
+
   asSwitchCases(val: unknown): Array<{ value: string; handle: string }> {
     return Array.isArray(val) ? val : [];
   }
@@ -1615,6 +1720,16 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       const actionName = this.cfg['action'] as string;
       const c = this.connectors.find(cn => cn.name === connectorName);
       this.destFieldDefs = c?.action_fields?.[actionName] ?? [];
+      if (connectorName && actionName) {
+        this.api.getConnectorActionSchema(connectorName, actionName, c?.version).subscribe({
+          next: schema => {
+            this.destFieldDefs = schema.input_fields.length > 0 ? schema.input_fields : this.destFieldDefs;
+          },
+          error: () => {
+            this.destFieldDefs = c?.action_fields?.[actionName] ?? [];
+          },
+        });
+      }
     } else if (this.node.type === 'trigger') {
       const connectorName = this.cfg['connector_name'] as string;
       const eventName = this.cfg['event'] as string;

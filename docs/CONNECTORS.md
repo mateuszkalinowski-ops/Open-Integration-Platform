@@ -19,6 +19,8 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 
 ## Connector Overview
 
+The platform supports optional runtime schema discovery for connector actions. Static `event_fields`, `action_fields`, and `output_fields` from `connector.yaml` remain the default source of truth, while SDK-based connectors can additionally expose `GET /schema/{action}` for richer dynamic schemas. The platform merges both sources through `GET /api/v1/connectors/{name}/schema/{action}`.
+
 | # | Connector | Category | Version | Protocol | Required Parameters |
 |---|----------|-----------|--------|----------|-------------------|
 | 1 | InPost | Courier | v3.0.0 | REST | `organization_id`, `access_token` |

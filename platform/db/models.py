@@ -4,7 +4,6 @@ from datetime import datetime
 from sqlalchemy import (
     Boolean,
     DateTime,
-    Enum,
     ForeignKey,
     Integer,
     String,
@@ -182,8 +181,9 @@ class FieldMapping(Base):
 class Workflow(Base):
     """Graph-based workflow definition with nodes and edges stored as JSONB.
 
-    Node types: trigger, action, condition, switch, transform, filter,
-    delay, loop, merge, http_request, set_variable, response.
+    Node types: trigger, action, condition, switch, think, transform, filter,
+    delay, loop, merge, parallel, aggregate, http_request, set_variable,
+    response, sub_workflow, error_handler, batch.
     """
 
     __tablename__ = "workflows"
@@ -271,6 +271,94 @@ class SyncLedger(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+    workflow: Mapped["Workflow"] = relationship("Workflow")
+
+
+class OAuthToken(Base):
+    """Encrypted OAuth2 tokens with refresh tracking and expiry."""
+
+    __tablename__ = "oauth_tokens"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    connector_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    credential_name: Mapped[str] = mapped_column(String(100), nullable=False, default="default")
+    provider: Mapped[str] = mapped_column(String(50), nullable=False)
+    access_token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    refresh_token_encrypted: Mapped[str | None] = mapped_column(Text, nullable=True)
+    token_type: Mapped[str] = mapped_column(String(20), default="bearer")
+    scope: Mapped[str | None] = mapped_column(Text, nullable=True)
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_refreshed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+    refresh_count: Mapped[int] = mapped_column(Integer, default=0)
+    status: Mapped[str] = mapped_column(String(20), default="active")
+    last_error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    tenant: Mapped["Tenant"] = relationship("Tenant")
+
+
+class WebhookEvent(Base):
+    """Received webhook events with processing status."""
+
+    __tablename__ = "webhook_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    connector_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    event_type: Mapped[str] = mapped_column(String(100), nullable=False)
+    external_id: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    payload: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    headers: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    signature_valid: Mapped[bool | None] = mapped_column(Boolean, nullable=True)
+    processing_status: Mapped[str] = mapped_column(String(20), default="received")
+    error: Mapped[str | None] = mapped_column(Text, nullable=True)
+    retry_count: Mapped[int] = mapped_column(Integer, default=0)
+    received_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    tenant: Mapped["Tenant"] = relationship("Tenant")
+
+
+class AuditLog(Base):
+    """Change audit trail for all entity mutations."""
+
+    __tablename__ = "audit_log"
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    user_id: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    entity_type: Mapped[str] = mapped_column(String(50), nullable=False)
+    entity_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), nullable=False)
+    action: Mapped[str] = mapped_column(String(20), nullable=False)
+    old_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    new_value: Mapped[dict | None] = mapped_column(JSONB, nullable=True)
+    ip_address: Mapped[str | None] = mapped_column(String(45), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+
+
+class WorkflowVersion(Base):
+    """Snapshot of workflow nodes/edges/variables at a point in time."""
+
+    __tablename__ = "workflow_versions"
+    __table_args__ = (UniqueConstraint("workflow_id", "version", name="uq_workflow_versions_workflow_version"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    workflow_id: Mapped[uuid.UUID] = mapped_column(
+        UUID(as_uuid=True), ForeignKey("workflows.id", ondelete="CASCADE"), nullable=False
+    )
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    nodes: Mapped[list] = mapped_column(JSONB, nullable=False)
+    edges: Mapped[list] = mapped_column(JSONB, nullable=False)
+    variables: Mapped[dict] = mapped_column(JSONB, default=dict)
+    created_by: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
 
     workflow: Mapped["Workflow"] = relationship("Workflow")
 

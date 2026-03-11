@@ -216,6 +216,26 @@ config_schema:
       type: string
       label: Default shipping carrier name
       default: Kurier
+oauth2:
+  authorization_url: "https://{shop_url}/admin/oauth/authorize"
+  token_url: "https://{shop_url}/admin/oauth/access_token"
+  scopes:
+    - "read_orders"
+    - "write_orders"
+    - "read_products"
+    - "write_products"
+    - "read_inventory"
+    - "write_inventory"
+    - "read_fulfillments"
+    - "write_fulfillments"
+  pkce: false
+  refresh_before_expiry_seconds: 0
+rate_limits:
+  global: 120/min
+  per_action:
+    order.fetch: 60/min
+    product.search: 60/min
+    stock.sync: 30/min
 health_endpoint: /health
 docs_url: /docs
 api_version_check:
@@ -284,3 +304,20 @@ credential_validation:
     success_status: 200
     defaults:
       api_version: 2024-07
+webhooks:
+  order.created:
+    signature_header: "X-Shopify-Hmac-Sha256"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.status_changed:
+    signature_header: "X-Shopify-Hmac-Sha256"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  order.fulfilled:
+    signature_header: "X-Shopify-Hmac-Sha256"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"
+  stock.updated:
+    signature_header: "X-Shopify-Hmac-Sha256"
+    signature_algorithm: "hmac-sha256"
+    signature_key_field: "webhook_secret"

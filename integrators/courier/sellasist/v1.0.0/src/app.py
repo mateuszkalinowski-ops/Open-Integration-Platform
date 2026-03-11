@@ -1,10 +1,17 @@
 import logging
 from contextlib import asynccontextmanager
 from http import HTTPStatus
+import sys
+from pathlib import Path
 from typing import AsyncIterator
+
+SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(SDK_PYTHON_PATH) not in sys.path:
+    sys.path.insert(0, str(SDK_PYTHON_PATH))
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 
 from src.config import settings
 from src.integration import SellAsistIntegration
@@ -74,3 +81,7 @@ def create_app() -> FastAPI:
 
 
 app = create_app()
+app = augment_legacy_fastapi_app(
+    app,
+    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+)

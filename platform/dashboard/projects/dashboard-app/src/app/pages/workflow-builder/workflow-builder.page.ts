@@ -30,6 +30,7 @@ import {
   WorkflowExecution as WorkflowExecutionModel,
   WorkflowNodeResult,
   SyncConfig,
+  AiExplainErrorResponse,
 } from '@pinquark/integrations';
 
 @Component({
@@ -222,6 +223,42 @@ import {
                             <br/><strong>Node:</strong> {{ testExecution.error_node_id }}
                           }
                         </div>
+                        <button
+                          mat-stroked-button
+                          color="primary"
+                          (click)="explainTestError()"
+                          [disabled]="aiExplaining"
+                          class="wb__ai-explain-btn"
+                        >
+                          <mat-icon>{{ aiExplaining ? 'hourglass_top' : 'psychology' }}</mat-icon>
+                          {{ aiExplaining ? 'Explaining...' : 'Explain with AI' }}
+                        </button>
+                        @if (aiErrorExplanation) {
+                          <div class="wb__ai-explain">
+                            <h4>AI explanation</h4>
+                            <p>{{ aiErrorExplanation.summary }}</p>
+                            @if (aiErrorExplanation.likely_causes.length > 0) {
+                              <div class="wb__ai-explain-list">
+                                <strong>Likely causes</strong>
+                                <ul>
+                                  @for (item of aiErrorExplanation.likely_causes; track item) {
+                                    <li>{{ item }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            }
+                            @if (aiErrorExplanation.suggested_fixes.length > 0) {
+                              <div class="wb__ai-explain-list">
+                                <strong>Suggested fixes</strong>
+                                <ul>
+                                  @for (item of aiErrorExplanation.suggested_fixes; track item) {
+                                    <li>{{ item }}</li>
+                                  }
+                                </ul>
+                              </div>
+                            }
+                          </div>
+                        }
                       }
                       <div class="wb__test-nodes">
                         <h4>Node Results</h4>
@@ -548,6 +585,20 @@ import {
       margin-bottom: 12px;
       border-left: 3px solid #ff9800;
     }
+    .wb__ai-explain-btn { margin-bottom: 12px; }
+    .wb__ai-explain {
+      background: #f3e5f5;
+      border-left: 3px solid #7b1fa2;
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+      font-size: 12px;
+      color: #4a148c;
+    }
+    .wb__ai-explain h4 { margin: 0 0 8px; font-size: 13px; }
+    .wb__ai-explain p { margin: 0 0 8px; line-height: 1.5; }
+    .wb__ai-explain-list strong { display: block; margin-bottom: 4px; }
+    .wb__ai-explain-list ul { margin: 0 0 8px 18px; padding: 0; }
     .wb__test-nodes h4 { margin: 0 0 8px; font-size: 13px; color: #666; }
     .wb__test-node {
       border: 1px solid #e0e0e0;
@@ -729,6 +780,8 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   testDataJson = '{}';
   testExecution: WorkflowExecutionModel | null = null;
   testNodeResults: WorkflowNodeResult[] = [];
+  aiExplaining = false;
+  aiErrorExplanation: AiExplainErrorResponse | null = null;
 
   constructor(
     private readonly api: PinquarkApiService,
@@ -1025,6 +1078,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     this.testing = true;
     this.testExecution = null;
     this.testNodeResults = [];
+    this.aiErrorExplanation = null;
 
     this.api.testWorkflow(this.workflow.id, triggerData).subscribe({
       next: (exec) => {
@@ -1055,6 +1109,56 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
       return JSON.stringify(output, null, 2);
     } catch {
       return String(output);
+    }
+  }
+
+  explainTestError(): void {
+    if (!this.testExecution?.error) {
+      return;
+    }
+    const settings = this.loadAiSettings();
+    if (!settings?.apiKey) {
+      this.snackBar.open('Save AI settings first on the Settings page', 'OK', { duration: 4000 });
+      return;
+    }
+    const failedNode = this.testExecution.node_results.find(node => node.node_id === this.testExecution?.error_node_id);
+    this.aiExplaining = true;
+    this.aiErrorExplanation = null;
+    this.api.aiExplainError({
+      model: settings.model,
+      api_key: settings.apiKey,
+      workflow_name: this.workflowName,
+      node_label: failedNode?.label,
+      node_type: failedNode?.node_type,
+      error: this.testExecution.error,
+      trigger_data: this.testExecution.trigger_data,
+      node_results: this.testExecution.node_results,
+    }).subscribe({
+      next: (response) => {
+        this.aiExplaining = false;
+        this.aiErrorExplanation = response;
+      },
+      error: (err) => {
+        this.aiExplaining = false;
+        const detail = err?.error?.detail || 'Failed to explain error';
+        this.snackBar.open(detail, 'OK', { duration: 5000 });
+      },
+    });
+  }
+
+  private loadAiSettings(): { model: 'gemini' | 'opus'; apiKey: string } | null {
+    try {
+      const stored = localStorage.getItem('pinquark_ai_settings');
+      if (!stored) {
+        return null;
+      }
+      const parsed = JSON.parse(stored);
+      return {
+        model: parsed.model || 'gemini',
+        apiKey: parsed.apiKey || '',
+      };
+    } catch {
+      return null;
     }
   }
 

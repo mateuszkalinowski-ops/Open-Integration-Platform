@@ -49,12 +49,20 @@ class Settings(BaseSettings):
     connector_rate_limit_default: str = "600/min"
     connector_rate_limit_enabled: bool = True
 
+    # Workflow scheduler
+    workflow_scheduler_enabled: bool = True
+
+    # Platform base URL (for OAuth2 callbacks, webhook URLs, etc.)
+    base_url: str = "http://localhost:8080"
+
     encryption_key: str = ""
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 30
 
     connector_discovery_path: str = "../integrators"
+    schema_registry_ttl_seconds: int = 3600
+    schema_registry_refresh_interval_seconds: int = 300
 
     # CORS
     cors_allowed_origins: str = ""

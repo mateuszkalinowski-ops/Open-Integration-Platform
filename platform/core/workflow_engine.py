@@ -2,10 +2,13 @@
 
 Supports node types: trigger, action, condition, switch, think, transform,
 filter, delay, loop, merge, parallel, aggregate, http_request, set_variable,
-response.
+response, sub_workflow, error_handler, batch.
 
 The engine traverses the DAG starting from the trigger node, executing
 each node and routing data along edges based on node outputs.
+
+Supports dry-run mode (mock action responses), execution re-run from
+a specific node, and execution diff comparison.
 """
 
 import asyncio
@@ -65,6 +68,8 @@ class WorkflowContext:
         self.variables: dict[str, Any] = {}
         self.node_outputs: dict[str, Any] = {}
         self.node_results: list[dict[str, Any]] = []
+        self.dry_run: bool = False
+        self._workflow_chain: list[str] = []
 
     def set_node_output(self, node_id: str, output: Any) -> None:
         self.node_outputs[node_id] = output
@@ -81,18 +86,23 @@ class WorkflowContext:
 
 ExecuteActionFn = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
 CredentialResolverFn = Callable[..., Coroutine[Any, Any, tuple[dict[str, str] | None, str]]]
+MockOutputSchemaResolverFn = Callable[[str, str | None, str], list[dict[str, Any]] | None]
 
 
 class WorkflowEngine:
     def __init__(self) -> None:
         self._action_executor: ExecuteActionFn | None = None
         self._credential_resolver: CredentialResolverFn | None = None
+        self._mock_output_schema_resolver: MockOutputSchemaResolverFn | None = None
 
     def set_action_executor(self, fn: ExecuteActionFn) -> None:
         self._action_executor = fn
 
     def set_credential_resolver(self, fn: CredentialResolverFn) -> None:
         self._credential_resolver = fn
+
+    def set_mock_output_schema_resolver(self, fn: MockOutputSchemaResolverFn) -> None:
+        self._mock_output_schema_resolver = fn
 
     async def get_workflows_for_event(
         self,
@@ -116,9 +126,13 @@ class WorkflowEngine:
         db: AsyncSession,
         workflow: Workflow,
         trigger_data: dict[str, Any],
+        dry_run: bool = False,
+        parent_chain: list[str] | None = None,
     ) -> WorkflowExecution:
         start_time = time.monotonic()
         ctx = WorkflowContext(trigger_data)
+        ctx.dry_run = dry_run
+        ctx._workflow_chain = [*(parent_chain or []), str(workflow.id)]
 
         for var_name, var_def in (workflow.variables or {}).items():
             ctx.variables[var_name] = var_def.get("default")
@@ -152,6 +166,12 @@ class WorkflowEngine:
                 "label": trigger_node.get("label", trigger_node["id"]),
                 "status": "success",
                 "output": _safe_truncate(trigger_data),
+                "_raw_output": copy.deepcopy(trigger_data),
+                "_replay_state": {
+                    "data": copy.deepcopy(ctx.data),
+                    "variables": copy.deepcopy(ctx.variables),
+                    "node_outputs": copy.deepcopy(ctx.node_outputs),
+                },
                 "duration_ms": 0,
             })
 
@@ -223,6 +243,12 @@ class WorkflowEngine:
             "node_type": node_type,
             "label": node.get("label", ""),
             "status": "running",
+            "input": _safe_truncate(copy.deepcopy(ctx.data)),
+            "_replay_state": {
+                "data": copy.deepcopy(ctx.data),
+                "variables": copy.deepcopy(ctx.variables),
+                "node_outputs": copy.deepcopy(ctx.node_outputs),
+            },
         }
 
         try:
@@ -266,11 +292,19 @@ class WorkflowEngine:
                 next_handle = "done"
             elif node_type == "aggregate":
                 output = self._exec_aggregate(config, ctx)
+            elif node_type == "sub_workflow":
+                output = await self._exec_sub_workflow(db, config, ctx, workflow, depth)
+            elif node_type == "error_handler":
+                output = await self._exec_error_handler(config, ctx, workflow)
+            elif node_type == "batch":
+                output = await self._exec_batch(db, graph, node, config, ctx, workflow, depth)
+                next_handle = "done"
             elif node_type == "response":
                 output = self._exec_response(config, ctx)
                 ctx.set_node_output(node_id, output)
                 result_entry["status"] = "success"
                 result_entry["output"] = _safe_truncate(output)
+                result_entry["_raw_output"] = copy.deepcopy(output)
                 result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
                 ctx.node_results.append(result_entry)
                 return
@@ -281,6 +315,7 @@ class WorkflowEngine:
 
             result_entry["status"] = "success"
             result_entry["output"] = _safe_truncate(output)
+            result_entry["_raw_output"] = copy.deepcopy(output)
             result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
             ctx.node_results.append(result_entry)
 
@@ -313,6 +348,7 @@ class WorkflowEngine:
                             ctx.data = {**ctx.data, **output}
                         result_entry["status"] = "success"
                         result_entry["output"] = _safe_truncate(output)
+                        result_entry["_raw_output"] = copy.deepcopy(output)
                         result_entry["retries"] = attempt
                         result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
                         ctx.node_results.append(result_entry)
@@ -328,6 +364,21 @@ class WorkflowEngine:
             result_entry["error"] = str(exc)
             result_entry["duration_ms"] = int((time.monotonic() - node_start) * 1000)
             ctx.node_results.append(result_entry)
+
+            error_handler = self._find_error_handler(graph, node_id)
+            if error_handler:
+                error_info = {
+                    "error": str(exc),
+                    "failed_node_id": node_id,
+                    "failed_node_type": node_type,
+                    "failed_node_label": node.get("label", ""),
+                    "failed_node_output": ctx.get_node_output(node_id),
+                }
+                ctx.variables["_error"] = error_info
+                await self._execute_single_node(
+                    db, graph, error_handler, ctx, workflow, depth + 1,
+                )
+                return
 
             if on_error in ("continue", "ignore"):
                 if on_error == "continue":
@@ -352,6 +403,20 @@ class WorkflowEngine:
             raise WorkflowError("Action node missing connector_name or action")
 
         payload = self._apply_field_mapping(config.get("field_mapping", []), ctx)
+
+        if ctx.dry_run:
+            schema_fields: list[dict[str, Any]] = []
+            if self._mock_output_schema_resolver:
+                schema_fields = self._mock_output_schema_resolver(
+                    connector_name, connector_version, action,
+                ) or []
+            return {
+                "dry_run": True,
+                "connector": connector_name,
+                "action": action,
+                "would_send": payload,
+                **self._build_mock_output(schema_fields),
+            }
 
         if self._action_executor:
             return await self._action_executor(
@@ -385,6 +450,14 @@ class WorkflowEngine:
 
         if not prompt:
             raise WorkflowError("Think node requires a prompt")
+
+        if ctx.dry_run:
+            return {
+                "dry_run": True,
+                "connector": "ai-agent",
+                "action": action,
+                "prompt": self._interpolate_string(prompt, ctx),
+            }
 
         prompt = self._interpolate_string(prompt, ctx)
 
@@ -641,6 +714,16 @@ class WorkflowEngine:
         if not connector_name:
             raise WorkflowError("HTTP Request node requires connector_name")
 
+        if ctx.dry_run:
+            return {
+                "dry_run": True,
+                "connector": connector_name,
+                "method": config.get("method", "GET"),
+                "url": self._interpolate_string(config.get("url", ""), ctx),
+                "status_code": 200,
+                "body": {},
+            }
+
         creds: dict[str, str] | None = None
         base_url = f"http://connector-{connector_name}:8000"
         if self._credential_resolver:
@@ -710,6 +793,278 @@ class WorkflowEngine:
     def _exec_response(self, config: dict, ctx: WorkflowContext) -> dict[str, Any]:
         body_template = config.get("body", {})
         return self._interpolate_dict(body_template, ctx) if body_template else ctx.data
+
+    async def _exec_sub_workflow(
+        self,
+        db: AsyncSession,
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int,
+    ) -> dict[str, Any]:
+        """Execute another workflow as a child, passing data in and receiving data out."""
+        sub_workflow_id = config.get("workflow_id", "")
+        if not sub_workflow_id:
+            raise WorkflowError("Sub-workflow node missing workflow_id")
+
+        timeout = min(config.get("timeout_seconds", 60), 300)
+
+        input_mapping = config.get("input_mapping", {})
+        sub_trigger_data: dict[str, Any] = {}
+        for target_key, source_expr in input_mapping.items():
+            if isinstance(source_expr, str) and source_expr.startswith("{{") and source_expr.endswith("}}"):
+                sub_trigger_data[target_key] = self._resolve_value(source_expr[2:-2].strip(), ctx)
+            elif isinstance(source_expr, str) and "{{" in source_expr:
+                sub_trigger_data[target_key] = self._interpolate_string(source_expr, ctx)
+            else:
+                sub_trigger_data[target_key] = source_expr
+
+        if not sub_trigger_data:
+            sub_trigger_data = copy.deepcopy(ctx.data)
+
+        result = await db.execute(
+            select(Workflow).where(
+                Workflow.id == sub_workflow_id,
+                Workflow.tenant_id == workflow.tenant_id,
+            )
+        )
+        child_workflow = result.scalar_one_or_none()
+        if not child_workflow:
+            raise WorkflowError(f"Sub-workflow {sub_workflow_id} not found")
+
+        max_depth = max(int(config.get("max_depth", 5) or 5), 1)
+        chain = ctx._workflow_chain
+        if str(child_workflow.id) in chain:
+            raise WorkflowError(
+                f"Circular sub-workflow reference detected: {' -> '.join(chain)} -> {child_workflow.id}"
+            )
+        if len(chain) >= max_depth:
+            raise WorkflowError(f"Maximum sub-workflow nesting depth ({max_depth}) exceeded")
+
+        child_execution = await asyncio.wait_for(
+            self.execute_workflow(
+                db,
+                child_workflow,
+                sub_trigger_data,
+                dry_run=ctx.dry_run,
+                parent_chain=chain,
+            ),
+            timeout=timeout,
+        )
+
+        child_output = child_execution.context_snapshot.get("data", {}) if child_execution.context_snapshot else {}
+
+        if child_execution.status == "failed":
+            raise WorkflowError(f"Sub-workflow '{child_workflow.name}' failed: {child_execution.error}")
+
+        return {
+            "sub_workflow_id": str(child_workflow.id),
+            "sub_workflow_name": child_workflow.name,
+            "sub_execution_id": str(child_execution.id),
+            "sub_execution_status": child_execution.status,
+            **child_output,
+        }
+
+    async def _exec_error_handler(
+        self,
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
+    ) -> dict[str, Any]:
+        """Execute error handler — error context is available via vars._error."""
+        error_info = ctx.variables.get("_error", {})
+        actions = config.get("actions", [])
+        results: list[dict[str, Any]] = []
+
+        for action_cfg in actions:
+            action_type = action_cfg.get("type", "")
+            if action_type == "set_variable":
+                var_name = action_cfg.get("name", "")
+                var_value = action_cfg.get("value")
+                if var_name:
+                    ctx.variables[var_name] = var_value
+                    results.append({"type": "set_variable", "name": var_name})
+            elif action_type == "transform":
+                for key, expr in action_cfg.get("mappings", {}).items():
+                    ctx.data[key] = self._interpolate_string(str(expr), ctx) if isinstance(expr, str) else expr
+                results.append({"type": "transform"})
+            elif action_type == "notify":
+                message = self._interpolate_string(str(action_cfg.get("message", "")), ctx)
+                channel = str(action_cfg.get("channel", "slack")).strip().lower() or "slack"
+                connector_name = action_cfg.get(
+                    "connector_name",
+                    "email-client" if channel in {"email", "email-client"} else channel,
+                )
+                action_name = action_cfg.get(
+                    "action",
+                    "message.send" if connector_name in {"slack", "email-client"} else "notify.send",
+                )
+                payload = action_cfg.get("payload")
+                if isinstance(payload, dict):
+                    notify_payload = self._interpolate_dict(payload, ctx)
+                elif connector_name == "email-client":
+                    notify_payload = {
+                        "subject": action_cfg.get("subject", f"Workflow error: {error_info.get('failed_node_id', '')}"),
+                        "body_text": message,
+                    }
+                elif connector_name == "slack":
+                    notify_payload = {"text": message}
+                else:
+                    notify_payload = {"message": message, "channel": channel}
+
+                if ctx.dry_run or self._action_executor is None:
+                    results.append(
+                        {
+                            "type": "notify",
+                            "channel": channel,
+                            "connector_name": connector_name,
+                            "action": action_name,
+                            "status": "simulated",
+                            "message": message,
+                        }
+                    )
+                else:
+                    credential_name = action_cfg.get("credential_name", "default")
+                    notify_result = await self._action_executor(
+                        connector_name=connector_name,
+                        action=action_name,
+                        payload=notify_payload,
+                        tenant_id=workflow.tenant_id,
+                        credential_name=credential_name,
+                    )
+                    results.append(
+                        {
+                            "type": "notify",
+                            "channel": channel,
+                            "connector_name": connector_name,
+                            "action": action_name,
+                            "status": "sent",
+                            "result": _safe_truncate(notify_result),
+                        }
+                    )
+
+        return {
+            "error_handled": True,
+            "error": error_info.get("error", ""),
+            "failed_node_id": error_info.get("failed_node_id", ""),
+            "handler_actions": results,
+        }
+
+    def _find_error_handler(self, graph: "WorkflowGraph", failed_node_id: str) -> dict[str, Any] | None:
+        """Find an error_handler node whose catch_from includes the failed node."""
+        for node in graph._nodes.values():
+            if node.get("type") == "error_handler":
+                catch_from = node.get("config", {}).get("catch_from", [])
+                if failed_node_id in catch_from:
+                    return node
+        return None
+
+    async def _exec_batch(
+        self,
+        db: AsyncSession,
+        graph: "WorkflowGraph",
+        node: dict[str, Any],
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
+        depth: int,
+    ) -> dict[str, Any]:
+        """Process a list of items with configurable concurrency and throttling."""
+        source_expr = config.get("source", "")
+        concurrency = min(config.get("concurrency", 5), 50)
+        throttle_ms = config.get("throttle_ms", 0)
+        on_item_error = config.get("on_item_error", "continue")
+        max_items = min(config.get("max_items", 1000), 10000)
+
+        if isinstance(source_expr, str) and source_expr.startswith("{{") and source_expr.endswith("}}"):
+            items = self._resolve_value(source_expr[2:-2].strip(), ctx)
+        else:
+            items = self._resolve_value(source_expr, ctx)
+
+        if not isinstance(items, list):
+            return {"batch_total": 0, "batch_succeeded": 0, "batch_failed": 0, "batch_results": [], "batch_errors": []}
+
+        items = items[:max_items]
+        body_node_ids = config.get("body_nodes", [])
+        if body_node_ids:
+            body_nodes = [
+                body_node
+                for body_node_id in body_node_ids
+                if (body_node := graph.get_node(body_node_id)) is not None
+            ]
+        else:
+            body_nodes = graph.get_successors(node["id"], handle="body")
+
+        from db.base import async_session_factory, set_rls_bypass
+
+        semaphore = asyncio.Semaphore(concurrency)
+        results: list[dict[str, Any]] = []
+        errors: list[dict[str, Any]] = []
+
+        async def _process_item(idx: int, item: Any) -> dict[str, Any]:
+            async with semaphore:
+                if throttle_ms > 0 and idx > 0:
+                    await asyncio.sleep(throttle_ms / 1000.0)
+
+                item_ctx = WorkflowContext(copy.deepcopy(ctx.data))
+                item_ctx.variables = copy.deepcopy(ctx.variables)
+                item_ctx.variables["batch_item"] = item
+                item_ctx.variables["batch_index"] = idx
+                item_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
+                item_ctx.dry_run = ctx.dry_run
+                item_ctx._workflow_chain = list(ctx._workflow_chain)
+
+                try:
+                    if body_nodes:
+                        async with async_session_factory() as item_db:
+                            await set_rls_bypass(item_db)
+                            await self._execute_nodes(
+                                item_db, graph, body_nodes, item_ctx, workflow, depth + 1,
+                            )
+                            await item_db.commit()
+
+                    output: dict[str, Any] = {}
+                    for key, val in item_ctx.data.items():
+                        if key not in ctx.data or ctx.data[key] != val:
+                            output[key] = val
+                    if not output:
+                        output = item if isinstance(item, dict) else {"value": item}
+
+                    ctx.node_results.extend(item_ctx.node_results)
+                    return {"index": idx, "status": "success", "output": output}
+                except Exception as exc:
+                    ctx.node_results.extend(item_ctx.node_results)
+                    return {"index": idx, "status": "failed", "error": str(exc)}
+
+        if on_item_error == "stop":
+            for idx, item in enumerate(items):
+                r = await _process_item(idx, item)
+                if r["status"] == "success":
+                    results.append(r)
+                else:
+                    errors.append(r)
+                    break
+        else:
+            tasks = [_process_item(i, item) for i, item in enumerate(items)]
+            raw = await asyncio.gather(*tasks, return_exceptions=True)
+            for r in raw:
+                if isinstance(r, BaseException):
+                    errors.append({"index": -1, "status": "failed", "error": str(r)})
+                elif r["status"] == "success":
+                    results.append(r)
+                else:
+                    errors.append(r)
+
+        batch_outputs = [r.get("output", {}) for r in results]
+        ctx.variables["batch_results"] = batch_outputs
+
+        return {
+            "batch_total": len(items),
+            "batch_succeeded": len(results),
+            "batch_failed": len(errors),
+            "batch_results": batch_outputs,
+            "batch_errors": errors[:20],
+        }
 
     # ── Helpers ──
 
@@ -1261,6 +1616,187 @@ class WorkflowEngine:
                 error=execution.error or "unknown error",
                 ledger_id=check.ledger_id,
             )
+
+
+    async def rerun_from_node(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        original_execution: WorkflowExecution,
+        from_node_id: str,
+        override_data: dict[str, Any] | None = None,
+    ) -> WorkflowExecution:
+        """Re-run a workflow execution starting from a specific node.
+
+        Restores context from the original execution up to (but not including)
+        the target node, optionally merges override_data, then continues
+        execution from that node forward.
+        """
+        start_time = time.monotonic()
+
+        ctx = WorkflowContext(original_execution.trigger_data or {})
+        ctx._workflow_chain = [str(workflow.id)]
+
+        replay_state: dict[str, Any] | None = None
+        for nr in original_execution.node_results or []:
+            if nr.get("node_id") == from_node_id:
+                replay_state = nr.get("_replay_state")
+                break
+
+        if replay_state:
+            ctx.data = copy.deepcopy(replay_state.get("data", {}))
+            ctx.variables = copy.deepcopy(replay_state.get("variables", {}))
+            ctx.node_outputs = copy.deepcopy(replay_state.get("node_outputs", {}))
+        elif original_execution.context_snapshot:
+            ctx.data = copy.deepcopy(original_execution.context_snapshot.get("data", {}))
+            ctx.variables = copy.deepcopy(original_execution.context_snapshot.get("variables", {}))
+
+        if override_data:
+            ctx.data = {**ctx.data, **override_data}
+
+        for var_name, var_def in (workflow.variables or {}).items():
+            if var_name not in ctx.variables:
+                ctx.variables[var_name] = var_def.get("default")
+
+        execution = WorkflowExecution(
+            workflow_id=workflow.id,
+            tenant_id=workflow.tenant_id,
+            workflow_name=workflow.name,
+            status="running",
+            trigger_data=original_execution.trigger_data or {},
+            workflow_nodes_snapshot=workflow.nodes,
+            workflow_edges_snapshot=workflow.edges,
+        )
+        db.add(execution)
+        await db.flush()
+        await db.refresh(execution)
+
+        global_timeout = getattr(workflow, "timeout_seconds", 300) or 300
+
+        try:
+            graph = WorkflowGraph(workflow.nodes, workflow.edges)
+            target_node = graph.get_node(from_node_id)
+            if not target_node:
+                raise WorkflowError(f"Node '{from_node_id}' not found in workflow")
+
+            await asyncio.wait_for(
+                self._execute_single_node(db, graph, target_node, ctx, workflow, 0),
+                timeout=global_timeout,
+            )
+
+            execution.status = "success"
+        except asyncio.TimeoutError:
+            execution.status = "failed"
+            execution.error = f"Re-run timed out after {global_timeout}s"
+        except WorkflowError as exc:
+            execution.status = "failed"
+            execution.error = str(exc)
+            execution.error_node_id = getattr(exc, "node_id", None)
+        except Exception as exc:
+            execution.status = "failed"
+            execution.error = str(exc)
+
+        execution.node_results = ctx.node_results
+        execution.context_snapshot = ctx.snapshot()
+        execution.completed_at = datetime.now(timezone.utc)
+        execution.duration_ms = int((time.monotonic() - start_time) * 1000)
+
+        await db.flush()
+        await logger.ainfo(
+            "workflow_rerun_executed",
+            workflow_id=str(workflow.id),
+            original_execution_id=str(original_execution.id),
+            from_node_id=from_node_id,
+            status=execution.status,
+            duration_ms=execution.duration_ms,
+        )
+        return execution
+
+    @staticmethod
+    def diff_executions(
+        exec_a: WorkflowExecution,
+        exec_b: WorkflowExecution,
+    ) -> dict[str, Any]:
+        """Compare two executions side-by-side, returning per-node differences."""
+        nodes_a = {nr["node_id"]: nr for nr in (exec_a.node_results or [])}
+        nodes_b = {nr["node_id"]: nr for nr in (exec_b.node_results or [])}
+        all_node_ids = sorted(set(nodes_a.keys()) | set(nodes_b.keys()))
+
+        per_node: list[dict[str, Any]] = []
+        for nid in all_node_ids:
+            a = nodes_a.get(nid)
+            b = nodes_b.get(nid)
+            diff_entry: dict[str, Any] = {"node_id": nid}
+
+            if a and b:
+                diff_entry["node_type"] = a.get("node_type", b.get("node_type", ""))
+                diff_entry["label"] = a.get("label", b.get("label", ""))
+                diff_entry["status_a"] = a.get("status")
+                diff_entry["status_b"] = b.get("status")
+                diff_entry["status_changed"] = a.get("status") != b.get("status")
+                diff_entry["duration_ms_a"] = a.get("duration_ms")
+                diff_entry["duration_ms_b"] = b.get("duration_ms")
+                input_a = (a.get("_replay_state") or {}).get("data", a.get("input"))
+                input_b = (b.get("_replay_state") or {}).get("data", b.get("input"))
+                output_a = a.get("_raw_output", a.get("output"))
+                output_b = b.get("_raw_output", b.get("output"))
+                diff_entry["input_changed"] = input_a != input_b
+                diff_entry["output_changed"] = output_a != output_b
+                if diff_entry["output_changed"]:
+                    diff_entry["output_a"] = a.get("output")
+                    diff_entry["output_b"] = b.get("output")
+            elif a:
+                diff_entry["only_in"] = "a"
+                diff_entry["node_type"] = a.get("node_type", "")
+                diff_entry["status_a"] = a.get("status")
+            else:
+                diff_entry["only_in"] = "b"
+                diff_entry["node_type"] = b.get("node_type", "") if b else ""
+                diff_entry["status_b"] = b.get("status") if b else None
+
+            per_node.append(diff_entry)
+
+        return {
+            "execution_a": str(exec_a.id),
+            "execution_b": str(exec_b.id),
+            "status_a": exec_a.status,
+            "status_b": exec_b.status,
+            "duration_ms_a": exec_a.duration_ms,
+            "duration_ms_b": exec_b.duration_ms,
+            "nodes_compared": len(per_node),
+            "nodes": per_node,
+        }
+
+    def _build_mock_output(self, fields: list[dict[str, Any]]) -> dict[str, Any]:
+        """Build a dry-run response shaped like connector manifest output_fields."""
+        if not fields:
+            return {}
+
+        result: dict[str, Any] = {}
+        for field_def in fields:
+            field_name = field_def.get("field")
+            field_type = str(field_def.get("type", "string"))
+            if not field_name:
+                continue
+            _set_nested(result, field_name, self._mock_value_for_type(field_type), concat=False)
+        return result
+
+    def _mock_value_for_type(self, field_type: str) -> Any:
+        normalized = field_type.strip().lower()
+        if normalized.endswith("[]"):
+            inner = normalized[:-2]
+            return [self._mock_value_for_type(inner)]
+        if normalized in {"integer", "int"}:
+            return 1
+        if normalized in {"number", "float", "decimal"}:
+            return 1.0
+        if normalized in {"boolean", "bool"}:
+            return True
+        if normalized in {"object", "dict"}:
+            return {}
+        if normalized in {"string", "text", "date", "datetime", "uuid"}:
+            return f"mock_{normalized}"
+        return "mock_value"
 
 
 _PII_PLACEHOLDER = "[RODO_REDACTED]"

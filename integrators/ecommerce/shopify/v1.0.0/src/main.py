@@ -2,11 +2,18 @@
 
 import asyncio
 import logging
+import sys
+from pathlib import Path
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
+sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+if str(sdk_path) not in sys.path:
+    sys.path.insert(0, str(sdk_path))
+
+from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 from src.shopify.auth import ShopifyAuthManager
 from src.shopify.client import ShopifyClient
 from src.shopify.integration import ShopifyIntegration
@@ -125,4 +132,7 @@ def create_app() -> FastAPI:
     return application
 
 
-app = create_app()
+app = augment_legacy_fastapi_app(
+    create_app(),
+    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+)
