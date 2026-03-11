@@ -93,30 +93,35 @@ jobs:
 
             # ── SSL certificate (Let's Encrypt) ──
             CERT_DIR="/opt/pinquark/certbot/conf/live/pq.dotts.pl"
-            mkdir -p /opt/pinquark/certbot/www /opt/pinquark/certbot/conf
+            CONF_BASE="/opt/pinquark/certbot/conf"
+            mkdir -p /opt/pinquark/certbot/www "$CONF_BASE"
 
             NEED_CERT=""
             if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
               NEED_CERT=1
             elif ! openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "let's encrypt\|R3\|R10\|R11\|E5\|E6"; then
-              echo "Cert exists but is not from Let's Encrypt — removing and requesting real cert"
-              sudo rm -rf "$CERT_DIR"
-              sudo rm -rf "/opt/pinquark/certbot/conf/renewal/pq.dotts.pl.conf"
-              sudo rm -rf "/opt/pinquark/certbot/conf/archive/pq.dotts.pl"
+              echo "Cert exists but is not from Let's Encrypt — cleaning up"
               NEED_CERT=1
             fi
 
             if [ "$NEED_CERT" = "1" ]; then
+              echo "Cleaning all existing certbot state for pq.dotts.pl..."
+              sudo rm -rf "$CONF_BASE"/live/pq.dotts.pl*
+              sudo rm -rf "$CONF_BASE"/archive/pq.dotts.pl*
+              sudo rm -rf "$CONF_BASE"/renewal/pq.dotts.pl*
+
               echo "Obtaining Let's Encrypt certificate via standalone mode..."
               docker compose -f docker-compose.vps.yml stop nginx 2>/dev/null || true
               sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
               sleep 2
               docker run --rm \
-                -v /opt/pinquark/certbot/conf:/etc/letsencrypt \
+                -v "$CONF_BASE":/etc/letsencrypt \
                 -v /opt/pinquark/certbot/www:/var/www/certbot \
                 -p 80:80 \
                 certbot/certbot certonly \
                 --standalone \
+                --non-interactive \
+                --cert-name pq.dotts.pl \
                 --email integrations@pinquark.com \
                 --agree-tos --no-eff-email \
                 -d pq.dotts.pl \
