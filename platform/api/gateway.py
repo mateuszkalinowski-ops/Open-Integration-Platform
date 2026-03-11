@@ -341,10 +341,12 @@ app.get("/metrics", tags=["health"])(metrics_endpoint)
 
 _cors_origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()] if settings.cors_allowed_origins else []
 if _cors_origins:
+    _allow_all = "*" in _cors_origins
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_cors_origins,
-        allow_credentials=False,
+        allow_origins=_cors_origins if not _allow_all else [],
+        allow_origin_regex=r".*" if _allow_all else None,
+        allow_credentials=True,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
