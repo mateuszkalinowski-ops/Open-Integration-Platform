@@ -126,9 +126,10 @@ jobs:
                 --agree-tos --no-eff-email \
                 -d pq.dotts.pl \
                 || echo "WARNING: certbot failed, will use self-signed fallback"
+              sudo chmod -R 755 "$CONF_BASE"/live "$CONF_BASE"/archive 2>/dev/null || true
             fi
 
-            if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+            if ! sudo test -f "$CERT_DIR/fullchain.pem"; then
               echo "No certificate found — creating self-signed fallback so Nginx can start"
               mkdir -p "$CERT_DIR"
               openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
