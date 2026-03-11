@@ -27,8 +27,8 @@ import {
   WorkflowNodeResult,
 } from '../../models';
 
-const NODE_WIDTH = 220;
-const NODE_HEIGHT = 72;
+const NODE_WIDTH = 300;
+const NODE_HEIGHT = 88;
 const CANVAS_SIZE = 6000;
 const CANVAS_HALF = CANVAS_SIZE / 2;
 
@@ -51,6 +51,12 @@ interface CanvasTransform {
   scale: number;
 }
 
+interface InlineAddMenu {
+  edgeId: string;
+  x: number;
+  y: number;
+}
+
 @Component({
   selector: 'pinquark-workflow-canvas',
   standalone: true,
@@ -65,33 +71,40 @@ interface CanvasTransform {
     MatBadgeModule,
   ],
   template: `
-    <div class="wf-canvas-wrapper">
+    <div class="wfc">
       <!-- Toolbar -->
-      <div class="wf-toolbar">
-        <div class="wf-toolbar__left">
-          <button mat-icon-button matTooltip="Zoom In" (click)="zoomIn()">
-            <mat-icon>zoom_in</mat-icon>
+      <div class="wfc-toolbar">
+        <div class="wfc-toolbar__left">
+          <button mat-icon-button matTooltip="Zoom In" (click)="zoomIn()" class="wfc-toolbar__btn">
+            <mat-icon>add</mat-icon>
           </button>
-          <button mat-icon-button matTooltip="Zoom Out" (click)="zoomOut()">
-            <mat-icon>zoom_out</mat-icon>
+          <div class="wfc-toolbar__zoom-display">{{ (transform.scale * 100) | number:'1.0-0' }}%</div>
+          <button mat-icon-button matTooltip="Zoom Out" (click)="zoomOut()" class="wfc-toolbar__btn">
+            <mat-icon>remove</mat-icon>
           </button>
-          <button mat-icon-button matTooltip="Fit View" (click)="fitView()">
+          <div class="wfc-toolbar__divider"></div>
+          <button mat-icon-button matTooltip="Fit View" (click)="fitView()" class="wfc-toolbar__btn">
             <mat-icon>fit_screen</mat-icon>
           </button>
-          <span class="wf-toolbar__zoom">{{ (transform.scale * 100) | number:'1.0-0' }}%</span>
         </div>
         @if (!readonly) {
-          <div class="wf-toolbar__right">
-            <button mat-icon-button [matMenuTriggerFor]="addNodeMenu" matTooltip="Add Node">
-              <mat-icon>add_circle</mat-icon>
+          <div class="wfc-toolbar__right">
+            <button mat-flat-button [matMenuTriggerFor]="addNodeMenu" class="wfc-toolbar__add-btn">
+              <mat-icon>add</mat-icon>
+              <span>Add step</span>
             </button>
-            <mat-menu #addNodeMenu="matMenu" class="wf-node-menu">
+            <mat-menu #addNodeMenu="matMenu" class="wfc-add-menu" xPosition="before">
               @for (cat of nodeCategories; track cat.name) {
-                <div class="wf-node-menu__category">{{ cat.name }}</div>
+                <div class="wfc-add-menu__cat">{{ cat.name }}</div>
                 @for (def of cat.defs; track def.type) {
-                  <button mat-menu-item (click)="addNode(def.type)">
-                    <mat-icon [style.color]="def.color">{{ def.icon }}</mat-icon>
-                    <span>{{ def.label }}</span>
+                  <button mat-menu-item class="wfc-add-menu__item" (click)="addNode(def.type)">
+                    <span class="wfc-add-menu__icon" [style.background]="def.color">
+                      <mat-icon>{{ def.icon }}</mat-icon>
+                    </span>
+                    <span class="wfc-add-menu__text">
+                      <span class="wfc-add-menu__label">{{ def.label }}</span>
+                      <span class="wfc-add-menu__desc">{{ def.description }}</span>
+                    </span>
                   </button>
                 }
               }
@@ -102,7 +115,7 @@ interface CanvasTransform {
 
       <!-- Canvas -->
       <div
-        class="wf-canvas"
+        class="wfc-canvas"
         #canvasEl
         (mousedown)="onCanvasMouseDown($event)"
         (mousemove)="onCanvasMouseMove($event)"
@@ -111,68 +124,107 @@ interface CanvasTransform {
         (contextmenu)="$event.preventDefault()"
       >
         <div
-          class="wf-canvas__inner"
+          class="wfc-canvas__inner"
           [style.transform]="'translate(' + transform.x + 'px, ' + transform.y + 'px) scale(' + transform.scale + ')'"
         >
-          <!-- Grid pattern background -->
-          <svg class="wf-canvas__grid">
+          <!-- Grid -->
+          <svg class="wfc-canvas__grid">
             <defs>
-              <pattern id="grid-small" width="20" height="20" patternUnits="userSpaceOnUse">
-                <path d="M 20 0 L 0 0 0 20" fill="none" stroke="rgba(0,0,0,0.05)" stroke-width="0.5" />
-              </pattern>
-              <pattern id="grid-large" width="100" height="100" patternUnits="userSpaceOnUse">
-                <rect width="100" height="100" fill="url(#grid-small)" />
-                <path d="M 100 0 L 0 0 0 100" fill="none" stroke="rgba(0,0,0,0.1)" stroke-width="1" />
+              <pattern id="wfc-grid-sm" width="24" height="24" patternUnits="userSpaceOnUse">
+                <circle cx="12" cy="12" r="0.8" fill="rgba(0,0,0,0.08)" />
               </pattern>
             </defs>
-            <rect width="100%" height="100%" fill="url(#grid-large)" />
+            <rect width="100%" height="100%" fill="url(#wfc-grid-sm)" />
           </svg>
 
-          <!-- Edges SVG — same coordinate space as node CSS positions -->
-          <svg class="wf-canvas__edges">
+          <!-- Edges -->
+          <svg class="wfc-canvas__edges">
             @for (edge of edges; track edge.id) {
               <g>
+                <!-- Shadow path for wider hit area -->
+                <path
+                  [attr.d]="getEdgePath(edge)"
+                  fill="none"
+                  stroke="transparent"
+                  stroke-width="20"
+                  stroke-linecap="round"
+                  class="wfc-edge-hit"
+                  (click)="selectEdge(edge, $event)"
+                />
                 <path
                   [attr.d]="getEdgePath(edge)"
                   fill="none"
                   [attr.stroke]="getEdgeColor(edge)"
                   [attr.stroke-width]="getEdgeStrokeWidth(edge)"
                   stroke-linecap="round"
-                  class="wf-edge-path"
-                  (click)="selectEdge(edge, $event)"
+                  class="wfc-edge-path"
+                  [class.wfc-edge-path--selected]="selectedEdgeId === edge.id"
                 />
+                <!-- Animated flow dot on success edges -->
+                @if (getNodeStatus(edge.source) === 'success' && getNodeStatus(edge.target) === 'success') {
+                  <circle r="4" fill="#4caf50">
+                    <animateMotion [attr.path]="getEdgePath(edge)" dur="1.5s" repeatCount="indefinite" />
+                  </circle>
+                }
                 @if (edge.sourceHandle && edge.sourceHandle !== 'default') {
                   <text
                     [attr.x]="getEdgeLabelPos(edge).x"
                     [attr.y]="getEdgeLabelPos(edge).y"
                     text-anchor="middle"
-                    fill="#546e7a"
-                    font-size="11"
-                    font-weight="500"
+                    class="wfc-edge-label"
                   >{{ edge.sourceHandle }}</text>
                 }
+                <!-- Delete button on selected edge -->
                 @if (!readonly && selectedEdgeId === edge.id) {
-                  <g class="wf-edge-delete" (click)="deleteEdge(edge.id, $event)">
+                  <g class="wfc-edge-del" (click)="deleteEdge(edge.id, $event)">
+                    <circle
+                      [attr.cx]="getEdgeMidpoint(edge).x"
+                      [attr.cy]="getEdgeMidpoint(edge).y"
+                      r="14"
+                      fill="#ef4444"
+                      class="wfc-edge-del__bg"
+                    />
+                    <line
+                      [attr.x1]="getEdgeMidpoint(edge).x - 5"
+                      [attr.y1]="getEdgeMidpoint(edge).y - 5"
+                      [attr.x2]="getEdgeMidpoint(edge).x + 5"
+                      [attr.y2]="getEdgeMidpoint(edge).y + 5"
+                      stroke="#fff" stroke-width="2" stroke-linecap="round"
+                    />
+                    <line
+                      [attr.x1]="getEdgeMidpoint(edge).x + 5"
+                      [attr.y1]="getEdgeMidpoint(edge).y - 5"
+                      [attr.x2]="getEdgeMidpoint(edge).x - 5"
+                      [attr.y2]="getEdgeMidpoint(edge).y + 5"
+                      stroke="#fff" stroke-width="2" stroke-linecap="round"
+                    />
+                  </g>
+                }
+                <!-- Plus button to insert node on edge -->
+                @if (!readonly && selectedEdgeId !== edge.id) {
+                  <g
+                    class="wfc-edge-add"
+                    (click)="showInlineAdd(edge, $event)"
+                  >
                     <circle
                       [attr.cx]="getEdgeMidpoint(edge).x"
                       [attr.cy]="getEdgeMidpoint(edge).y"
                       r="12"
-                      fill="#f44336"
-                      class="wf-edge-delete__bg"
+                      class="wfc-edge-add__bg"
                     />
                     <line
-                      [attr.x1]="getEdgeMidpoint(edge).x - 4"
-                      [attr.y1]="getEdgeMidpoint(edge).y - 4"
-                      [attr.x2]="getEdgeMidpoint(edge).x + 4"
-                      [attr.y2]="getEdgeMidpoint(edge).y + 4"
-                      stroke="#fff" stroke-width="2" stroke-linecap="round"
+                      [attr.x1]="getEdgeMidpoint(edge).x - 5"
+                      [attr.y1]="getEdgeMidpoint(edge).y"
+                      [attr.x2]="getEdgeMidpoint(edge).x + 5"
+                      [attr.y2]="getEdgeMidpoint(edge).y"
+                      stroke="#6366f1" stroke-width="2" stroke-linecap="round"
                     />
                     <line
-                      [attr.x1]="getEdgeMidpoint(edge).x + 4"
-                      [attr.y1]="getEdgeMidpoint(edge).y - 4"
-                      [attr.x2]="getEdgeMidpoint(edge).x - 4"
-                      [attr.y2]="getEdgeMidpoint(edge).y + 4"
-                      stroke="#fff" stroke-width="2" stroke-linecap="round"
+                      [attr.x1]="getEdgeMidpoint(edge).x"
+                      [attr.y1]="getEdgeMidpoint(edge).y - 5"
+                      [attr.x2]="getEdgeMidpoint(edge).x"
+                      [attr.y2]="getEdgeMidpoint(edge).y + 5"
+                      stroke="#6366f1" stroke-width="2" stroke-linecap="round"
                     />
                   </g>
                 }
@@ -182,63 +234,121 @@ interface CanvasTransform {
               <path
                 [attr.d]="getDraftEdgePath()"
                 fill="none"
-                stroke="#1976d2"
-                stroke-width="2"
-                stroke-dasharray="6 4"
+                stroke="#6366f1"
+                stroke-width="2.5"
+                stroke-dasharray="8 5"
                 stroke-linecap="round"
               />
             }
           </svg>
 
-          <!-- Nodes -->
-          @for (node of nodes; track node.id) {
+          <!-- Inline add menu -->
+          @if (inlineAddMenu) {
             <div
-              class="wf-node"
-              [class.wf-node--selected]="selectedNodeId === node.id"
-              [class.wf-node--success]="getNodeStatus(node.id) === 'success'"
-              [class.wf-node--failed]="getNodeStatus(node.id) === 'failed'"
-              [class.wf-node--filtered]="getNodeStatus(node.id) === 'filtered'"
-              [class.wf-node--running]="getNodeStatus(node.id) === 'running'"
-              [class.wf-node--unexecuted]="nodeResults.length > 0 && getNodeStatus(node.id) === null"
-              [class.wf-node--drop-target]="connectionDraft && connectionDraft.sourceNodeId !== node.id"
-              [class.wf-node--readonly]="readonly"
+              class="wfc-inline-palette"
+              [style.left.px]="inlineAddMenu.x - 180"
+              [style.top.px]="inlineAddMenu.y + 20"
+            >
+              <div class="wfc-inline-palette__title">Insert step</div>
+              <div class="wfc-inline-palette__grid">
+                @for (def of quickAddDefs; track def.type) {
+                  <button
+                    class="wfc-inline-palette__btn"
+                    [style.--accent]="def.color"
+                    (click)="insertNodeOnEdge(def.type)"
+                    [matTooltip]="def.description"
+                  >
+                    <span class="wfc-inline-palette__icon" [style.background]="def.color">
+                      <mat-icon>{{ def.icon }}</mat-icon>
+                    </span>
+                    <span class="wfc-inline-palette__label">{{ def.label }}</span>
+                  </button>
+                }
+              </div>
+              <button class="wfc-inline-palette__close" (click)="inlineAddMenu = null">
+                <mat-icon>close</mat-icon>
+              </button>
+            </div>
+          }
+
+          <!-- Nodes -->
+          @for (node of nodes; track node.id; let i = $index) {
+            <div
+              class="wfc-node"
+              [class.wfc-node--selected]="selectedNodeId === node.id"
+              [class.wfc-node--success]="getNodeStatus(node.id) === 'success'"
+              [class.wfc-node--failed]="getNodeStatus(node.id) === 'failed'"
+              [class.wfc-node--filtered]="getNodeStatus(node.id) === 'filtered'"
+              [class.wfc-node--running]="getNodeStatus(node.id) === 'running'"
+              [class.wfc-node--unexecuted]="nodeResults.length > 0 && getNodeStatus(node.id) === null"
+              [class.wfc-node--drop-target]="connectionDraft && connectionDraft.sourceNodeId !== node.id"
+              [class.wfc-node--readonly]="readonly"
+              [class.wfc-node--trigger]="node.type === 'trigger'"
               [style.left.px]="node.position.x + HALF"
               [style.top.px]="node.position.y + HALF"
               (mousedown)="onNodeMouseDown($event, node)"
               (mouseup)="onNodeMouseUp($event, node)"
               (dblclick)="onNodeDoubleClick(node)"
             >
-              <div class="wf-node__header" [style.background]="getNodeHeaderColor(node)">
-                <mat-icon class="wf-node__icon">{{ getNodeDef(node.type)?.icon || 'help' }}</mat-icon>
-                <span class="wf-node__type">{{ getNodeDef(node.type)?.label || node.type }}</span>
-                @if (!readonly) {
-                  <button class="wf-node__delete" (click)="deleteNode(node.id, $event)" matTooltip="Delete node">
-                    <mat-icon>close</mat-icon>
-                  </button>
+              <!-- Step number -->
+              <div class="wfc-node__step" [style.background]="getNodeAccentColor(node)">
+                {{ getNodeIndex(node) }}
+              </div>
+
+              <!-- Color accent bar -->
+              <div class="wfc-node__accent" [style.background]="getNodeAccentColor(node)"></div>
+
+              <div class="wfc-node__content">
+                <!-- Header row -->
+                <div class="wfc-node__header">
+                  <div class="wfc-node__icon-wrap" [style.background]="getNodeAccentColor(node) + '14'">
+                    <mat-icon class="wfc-node__icon" [style.color]="getNodeAccentColor(node)">{{ getNodeDef(node.type)?.icon || 'help' }}</mat-icon>
+                  </div>
+                  <div class="wfc-node__info">
+                    <span class="wfc-node__type-label">{{ getNodeTypeLabel(node) }}</span>
+                    <span class="wfc-node__summary">{{ node.label || getNodeSummary(node) }}</span>
+                  </div>
+                  <div class="wfc-node__badges">
+                    @if (getNodeBadge(node)) {
+                      <span class="wfc-node__badge" [style.background]="getNodeBadgeColor(node)">{{ getNodeBadge(node) }}</span>
+                    }
+                    @if (getNodeDuration(node.id) !== null) {
+                      <span class="wfc-node__duration">{{ getNodeDuration(node.id) }}ms</span>
+                    }
+                  </div>
+                </div>
+
+                <!-- Status indicator -->
+                @if (getNodeStatus(node.id)) {
+                  <div class="wfc-node__status wfc-node__status--{{ getNodeStatus(node.id) }}">
+                    <mat-icon>{{ getStatusIcon(node.id) }}</mat-icon>
+                  </div>
                 }
               </div>
-              <div class="wf-node__body">
-                <span class="wf-node__label">{{ node.label || getNodeSummary(node) }}</span>
-              </div>
+
               @if (!readonly) {
+                <!-- Action menu -->
+                <button class="wfc-node__menu" (click)="deleteNode(node.id, $event)" matTooltip="Delete step">
+                  <mat-icon>close</mat-icon>
+                </button>
                 <!-- Input handles -->
                 @for (handle of getInputHandles(node); track handle) {
                   <div
-                    class="wf-handle wf-handle--input"
+                    class="wfc-handle wfc-handle--input"
                     [attr.data-handle]="handle"
                   ></div>
                 }
                 <!-- Output handles -->
                 @for (handle of getOutputHandles(node); track handle; let hi = $index) {
                   <div
-                    class="wf-handle wf-handle--output"
+                    class="wfc-handle wfc-handle--output"
                     [style.left.%]="getOutputHandlePosition(node, hi)"
                     [attr.data-handle]="handle"
                     [matTooltip]="handle !== 'default' ? handle : ''"
                     (mousedown)="onHandleMouseDown($event, node, handle)"
                   >
                     @if (handle !== 'default' && getOutputHandles(node).length > 1) {
-                      <span class="wf-handle__label">{{ handle }}</span>
+                      <span class="wfc-handle__label">{{ handle }}</span>
                     }
                   </div>
                 }
@@ -250,182 +360,319 @@ interface CanvasTransform {
     </div>
   `,
   styles: [`
-    .wf-canvas-wrapper {
-      width: 100%;
-      height: 100%;
-      display: flex;
-      flex-direction: column;
-      background: #fafafa;
-      border: 1px solid #e0e0e0;
-      border-radius: 8px;
+    /* ── Layout ── */
+    .wfc {
+      width: 100%; height: 100%;
+      display: flex; flex-direction: column;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
       overflow: hidden;
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
     }
-    .wf-toolbar {
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
-      padding: 6px 12px;
+
+    /* ── Toolbar ── */
+    .wfc-toolbar {
+      display: flex; justify-content: space-between; align-items: center;
+      padding: 8px 16px;
       background: #fff;
-      border-bottom: 1px solid #e0e0e0;
+      border-bottom: 1px solid #e2e8f0;
       z-index: 10;
     }
-    .wf-toolbar__left, .wf-toolbar__right { display: flex; align-items: center; gap: 4px; }
-    .wf-toolbar__zoom { font-size: 12px; color: #666; margin-left: 8px; min-width: 40px; }
-    .wf-canvas {
-      flex: 1;
-      overflow: hidden;
-      cursor: grab;
-      position: relative;
+    .wfc-toolbar__left, .wfc-toolbar__right { display: flex; align-items: center; gap: 2px; }
+    .wfc-toolbar__btn { color: #64748b; }
+    .wfc-toolbar__btn:hover { color: #334155; }
+    .wfc-toolbar__zoom-display {
+      font-size: 12px; font-weight: 600; color: #64748b;
+      min-width: 44px; text-align: center;
+      padding: 4px 8px;
+      background: #f1f5f9; border-radius: 6px;
     }
-    .wf-canvas:active { cursor: grabbing; }
-    .wf-canvas__inner {
-      position: absolute;
-      transform-origin: 0 0;
-      width: 0;
-      height: 0;
+    .wfc-toolbar__divider { width: 1px; height: 24px; background: #e2e8f0; margin: 0 8px; }
+    .wfc-toolbar__add-btn {
+      background: #6366f1 !important; color: #fff !important;
+      border-radius: 8px !important; font-weight: 600 !important;
+      font-size: 13px !important; letter-spacing: 0 !important;
+      padding: 0 16px !important; height: 36px !important;
     }
-    .wf-canvas__grid {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 6000px;
-      height: 6000px;
-      pointer-events: none;
-    }
-    .wf-canvas__edges {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 6000px;
-      height: 6000px;
-      overflow: visible;
-      pointer-events: none;
-    }
-    .wf-edge-path { pointer-events: stroke; cursor: pointer; }
-    .wf-edge-path:hover { stroke-width: 4; }
-    .wf-edge-delete { pointer-events: all; cursor: pointer; }
-    .wf-edge-delete__bg { transition: r 0.15s, fill 0.15s; }
-    .wf-edge-delete:hover .wf-edge-delete__bg { r: 14; fill: #d32f2f; }
+    .wfc-toolbar__add-btn mat-icon { font-size: 18px; width: 18px; height: 18px; margin-right: 4px; }
+    .wfc-toolbar__add-btn:hover { background: #4f46e5 !important; }
 
-    /* Nodes */
-    .wf-node {
+    /* ── Canvas ── */
+    .wfc-canvas {
+      flex: 1; overflow: hidden; cursor: grab; position: relative;
+      background: #f8fafc;
+    }
+    .wfc-canvas:active { cursor: grabbing; }
+    .wfc-canvas__inner { position: absolute; transform-origin: 0 0; width: 0; height: 0; }
+    .wfc-canvas__grid {
+      position: absolute; top: 0; left: 0;
+      width: 6000px; height: 6000px;
+      pointer-events: none;
+    }
+    .wfc-canvas__edges {
+      position: absolute; top: 0; left: 0;
+      width: 6000px; height: 6000px;
+      overflow: visible; pointer-events: none;
+    }
+
+    /* ── Edges ── */
+    .wfc-edge-hit { pointer-events: stroke; cursor: pointer; }
+    .wfc-edge-path { pointer-events: none; transition: stroke-width 0.15s; }
+    .wfc-edge-path--selected { filter: drop-shadow(0 0 4px rgba(99,102,241,0.4)); }
+    .wfc-edge-label {
+      fill: #64748b; font-size: 11px; font-weight: 600;
+      font-family: 'Inter', sans-serif;
+    }
+
+    /* Edge delete button */
+    .wfc-edge-del { pointer-events: all; cursor: pointer; }
+    .wfc-edge-del__bg { transition: r 0.15s; }
+    .wfc-edge-del:hover .wfc-edge-del__bg { r: 16; }
+
+    /* Edge add (+) button */
+    .wfc-edge-add {
+      pointer-events: all; cursor: pointer;
+      opacity: 0; transition: opacity 0.2s;
+    }
+    .wfc-canvas:hover .wfc-edge-add { opacity: 1; }
+    .wfc-edge-add__bg {
+      fill: #fff; stroke: #e2e8f0; stroke-width: 2;
+      transition: stroke 0.15s, fill 0.15s, r 0.15s;
+    }
+    .wfc-edge-add:hover .wfc-edge-add__bg {
+      stroke: #6366f1; fill: #eef2ff; r: 14;
+    }
+
+    /* ── Inline add palette ── */
+    .wfc-inline-palette {
+      position: absolute; z-index: 20;
+      background: #fff; border-radius: 12px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+      border: 1px solid #e2e8f0;
+      padding: 12px; width: 360px;
+    }
+    .wfc-inline-palette__title {
+      font-size: 11px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.8px; color: #94a3b8; margin-bottom: 10px; padding-left: 4px;
+    }
+    .wfc-inline-palette__grid {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px;
+    }
+    .wfc-inline-palette__btn {
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+      padding: 10px 6px; border-radius: 8px;
+      border: 1px solid #f1f5f9; background: #fff;
+      cursor: pointer; transition: all 0.15s;
+    }
+    .wfc-inline-palette__btn:hover {
+      background: #f8fafc; border-color: #e2e8f0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+    .wfc-inline-palette__icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .wfc-inline-palette__icon mat-icon { color: #fff; font-size: 18px; width: 18px; height: 18px; }
+    .wfc-inline-palette__label { font-size: 11px; font-weight: 600; color: #475569; text-align: center; }
+    .wfc-inline-palette__close {
+      position: absolute; top: 8px; right: 8px;
+      background: none; border: none; cursor: pointer;
+      color: #94a3b8; display: flex; padding: 4px; border-radius: 6px;
+    }
+    .wfc-inline-palette__close:hover { background: #f1f5f9; color: #475569; }
+    .wfc-inline-palette__close mat-icon { font-size: 18px; width: 18px; height: 18px; }
+
+    /* ── Nodes ── */
+    .wfc-node {
       position: absolute;
-      width: 220px;
+      width: 300px;
       background: #fff;
-      border-radius: 8px;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.12);
+      border-radius: 12px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 1px 2px rgba(0,0,0,0.04);
+      border: 2px solid #e2e8f0;
       cursor: move;
       user-select: none;
-      transition: box-shadow 0.15s;
+      transition: border-color 0.2s, box-shadow 0.2s;
       z-index: 5;
+      display: flex;
+      overflow: visible;
     }
-    .wf-node:hover { box-shadow: 0 4px 16px rgba(0,0,0,0.18); }
-    .wf-node--selected {
-      box-shadow: 0 0 0 2px #1976d2, 0 4px 16px rgba(0,0,0,0.18);
+    .wfc-node:hover {
+      border-color: #cbd5e1;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.08), 0 2px 4px rgba(0,0,0,0.04);
     }
-    .wf-node--drop-target { cursor: crosshair; }
-    .wf-node--drop-target:hover {
-      box-shadow: 0 0 0 3px #1976d2, 0 4px 20px rgba(25,118,210,0.3);
+    .wfc-node--selected {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.15), 0 4px 12px rgba(0,0,0,0.08);
     }
-    .wf-node--success { box-shadow: 0 0 0 3px #4caf50, 0 4px 16px rgba(76,175,80,0.25); }
-    .wf-node--failed { box-shadow: 0 0 0 3px #f44336, 0 4px 16px rgba(244,67,54,0.25); }
-    .wf-node--filtered { box-shadow: 0 0 0 3px #ff9800, 0 4px 16px rgba(255,152,0,0.25); }
-    .wf-node--running { animation: pulse 1.5s ease-in-out infinite; }
-    .wf-node--unexecuted {
-      opacity: 0.5;
-      box-shadow: 0 0 0 2px #9e9e9e, 0 2px 6px rgba(0,0,0,0.08);
+    .wfc-node--drop-target { cursor: crosshair; }
+    .wfc-node--drop-target:hover {
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99,102,241,0.2), 0 4px 20px rgba(99,102,241,0.15);
     }
-    .wf-node--unexecuted .wf-node__header { filter: grayscale(0.7); }
-    .wf-node--readonly { cursor: default; }
-    .wf-node--readonly:hover { box-shadow: inherit; }
-    @keyframes pulse {
-      0%, 100% { box-shadow: 0 0 0 2px #2196f3, 0 4px 16px rgba(33,150,243,0.2); }
-      50% { box-shadow: 0 0 0 4px #2196f3, 0 4px 20px rgba(33,150,243,0.35); }
+    .wfc-node--success {
+      border-color: #22c55e;
+      box-shadow: 0 0 0 3px rgba(34,197,94,0.12), 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .wfc-node--failed {
+      border-color: #ef4444;
+      box-shadow: 0 0 0 3px rgba(239,68,68,0.12), 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .wfc-node--filtered {
+      border-color: #f59e0b;
+      box-shadow: 0 0 0 3px rgba(245,158,11,0.12), 0 4px 12px rgba(0,0,0,0.06);
+    }
+    .wfc-node--running {
+      border-color: #6366f1;
+      animation: wfc-pulse 1.8s ease-in-out infinite;
+    }
+    @keyframes wfc-pulse {
+      0%, 100% { box-shadow: 0 0 0 3px rgba(99,102,241,0.12), 0 4px 12px rgba(0,0,0,0.06); }
+      50% { box-shadow: 0 0 0 6px rgba(99,102,241,0.2), 0 4px 20px rgba(99,102,241,0.12); }
+    }
+    .wfc-node--unexecuted {
+      opacity: 0.45;
+      border-color: #e2e8f0;
+    }
+    .wfc-node--readonly { cursor: default; }
+    .wfc-node--readonly:hover { border-color: #e2e8f0; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+
+    /* Trigger node special style */
+    .wfc-node--trigger { border-style: solid; }
+
+    /* Step number */
+    .wfc-node__step {
+      position: absolute; top: -12px; left: -12px;
+      width: 28px; height: 28px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 12px; font-weight: 700; color: #fff;
+      box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+      z-index: 7;
+      border: 2.5px solid #fff;
     }
 
-    .wf-node__header {
-      display: flex;
-      align-items: center;
-      gap: 6px;
-      padding: 6px 10px;
-      border-radius: 8px 8px 0 0;
-      color: #fff;
-      font-size: 11px;
-      font-weight: 600;
-      text-transform: uppercase;
-      letter-spacing: 0.5px;
-    }
-    .wf-node__icon { font-size: 16px; width: 16px; height: 16px; }
-    .wf-node__type { flex: 1; }
-    .wf-node__delete {
-      background: none;
-      border: none;
-      color: rgba(255,255,255,0.7);
-      cursor: pointer;
-      padding: 0;
-      display: flex;
-      opacity: 0;
-      transition: opacity 0.15s;
-    }
-    .wf-node:hover .wf-node__delete { opacity: 1; }
-    .wf-node__delete mat-icon { font-size: 16px; width: 16px; height: 16px; }
-    .wf-node__body {
-      padding: 10px 12px;
-      font-size: 13px;
-      color: #333;
-      min-height: 28px;
-    }
-    .wf-node__label {
-      display: block;
-      white-space: nowrap;
-      overflow: hidden;
-      text-overflow: ellipsis;
+    /* Accent bar */
+    .wfc-node__accent {
+      width: 4px; min-height: 100%; border-radius: 12px 0 0 12px;
+      flex-shrink: 0;
     }
 
-    /* Handles — bigger hit targets */
-    .wf-handle {
+    /* Content */
+    .wfc-node__content {
+      flex: 1; padding: 12px 14px; min-width: 0; position: relative;
+    }
+    .wfc-node__header {
+      display: flex; align-items: center; gap: 10px;
+    }
+    .wfc-node__icon-wrap {
+      width: 36px; height: 36px; border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .wfc-node__icon { font-size: 20px; width: 20px; height: 20px; }
+    .wfc-node__info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+    .wfc-node__type-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.6px; color: #94a3b8;
+      line-height: 1;
+    }
+    .wfc-node__summary {
+      font-size: 13px; font-weight: 500; color: #1e293b;
+      white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+      line-height: 1.3;
+    }
+
+    /* Badges */
+    .wfc-node__badges { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .wfc-node__badge {
+      font-size: 10px; font-weight: 700; padding: 2px 7px;
+      border-radius: 4px; color: #fff;
+      text-transform: uppercase; letter-spacing: 0.3px;
+    }
+    .wfc-node__duration {
+      font-size: 10px; font-weight: 600; color: #94a3b8;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Status indicator */
+    .wfc-node__status {
+      position: absolute; right: -10px; top: 50%; transform: translateY(-50%);
+      width: 24px; height: 24px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      border: 2.5px solid #fff; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+      z-index: 8;
+    }
+    .wfc-node__status mat-icon { font-size: 14px; width: 14px; height: 14px; color: #fff; }
+    .wfc-node__status--success { background: #22c55e; }
+    .wfc-node__status--failed { background: #ef4444; }
+    .wfc-node__status--filtered { background: #f59e0b; }
+    .wfc-node__status--running { background: #6366f1; }
+
+    /* Delete / menu button */
+    .wfc-node__menu {
+      position: absolute; top: 6px; right: 6px;
+      background: none; border: none; cursor: pointer;
+      color: #cbd5e1; padding: 2px;
+      border-radius: 6px; display: flex;
+      opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
+      z-index: 8;
+    }
+    .wfc-node:hover .wfc-node__menu { opacity: 1; }
+    .wfc-node__menu:hover { background: #fee2e2; color: #ef4444; }
+    .wfc-node__menu mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
+    /* ── Handles ── */
+    .wfc-handle {
       position: absolute;
-      width: 16px;
-      height: 16px;
+      width: 14px; height: 14px;
       background: #fff;
-      border: 2.5px solid #90a4ae;
+      border: 2.5px solid #cbd5e1;
       border-radius: 50%;
       cursor: crosshair;
       z-index: 6;
-      transition: transform 0.1s, background 0.1s, border-color 0.1s;
+      transition: transform 0.15s, background 0.15s, border-color 0.15s, box-shadow 0.15s;
     }
-    .wf-handle:hover {
-      transform: scale(1.5);
-      background: #1976d2;
-      border-color: #1976d2;
+    .wfc-handle:hover {
+      transform: scale(1.4);
+      background: #6366f1; border-color: #6366f1;
+      box-shadow: 0 0 0 4px rgba(99,102,241,0.2);
     }
-    .wf-handle--input {
-      top: -8px;
-      left: 50%;
-      margin-left: -8px;
-    }
-    .wf-handle--output {
-      bottom: -8px;
-      margin-left: -8px;
-    }
-    .wf-handle__label {
-      position: absolute;
-      bottom: -16px;
-      left: 50%;
-      transform: translateX(-50%);
-      font-size: 9px;
-      color: #666;
-      white-space: nowrap;
-      pointer-events: none;
+    .wfc-handle--input { top: -7px; left: 50%; margin-left: -7px; }
+    .wfc-handle--output { bottom: -7px; margin-left: -7px; }
+    .wfc-handle__label {
+      position: absolute; bottom: -17px; left: 50%; transform: translateX(-50%);
+      font-size: 9px; font-weight: 600; color: #64748b;
+      white-space: nowrap; pointer-events: none;
+      background: #fff; padding: 0 4px; border-radius: 3px;
     }
 
-    .wf-node-menu .wf-node-menu__category {
-      padding: 8px 16px 4px;
-      font-size: 10px;
-      font-weight: 700;
-      text-transform: uppercase;
-      letter-spacing: 1px;
-      color: #999;
+    /* ── Add menu (toolbar dropdown) ── */
+    :host ::ng-deep .wfc-add-menu {
+      max-height: 480px;
+    }
+    .wfc-add-menu__cat {
+      padding: 10px 16px 6px;
+      font-size: 10px; font-weight: 700;
+      text-transform: uppercase; letter-spacing: 1px;
+      color: #94a3b8;
+    }
+    .wfc-add-menu__item {
+      display: flex !important; align-items: center !important;
+      gap: 12px !important; padding: 8px 16px !important;
+      height: auto !important; min-height: 48px !important;
+    }
+    .wfc-add-menu__icon {
+      width: 32px; height: 32px; border-radius: 8px;
+      display: flex; align-items: center; justify-content: center;
+      flex-shrink: 0;
+    }
+    .wfc-add-menu__icon mat-icon { color: #fff; font-size: 18px; width: 18px; height: 18px; }
+    .wfc-add-menu__text { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+    .wfc-add-menu__label { font-size: 13px; font-weight: 600; color: #1e293b; }
+    .wfc-add-menu__desc {
+      font-size: 11px; color: #94a3b8; line-height: 1.3;
+      white-space: normal; max-width: 240px;
     }
   `],
 })
@@ -446,6 +693,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
   transform: CanvasTransform = { x: 0, y: 0, scale: 1 };
   selectedNodeId: string | null = null;
   selectedEdgeId: string | null = null;
+  inlineAddMenu: InlineAddMenu | null = null;
 
   dragState: DragState | null = null;
   connectionDraft: ConnectionDraft | null = null;
@@ -454,6 +702,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
 
   readonly nodeDefs: Map<string, NodeTypeDefinition>;
   readonly nodeCategories: { name: string; defs: NodeTypeDefinition[] }[];
+  readonly quickAddDefs: NodeTypeDefinition[];
 
   private nodeIdCounter = 0;
   private boundMouseMove: ((e: MouseEvent) => void) | null = null;
@@ -480,6 +729,14 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     this.nodeCategories = catOrder
       .filter(c => cats.has(c))
       .map(c => ({ name: catLabels[c] || c, defs: cats.get(c)! }));
+
+    const quickTypes: WorkflowNodeType[] = [
+      'action', 'condition', 'transform', 'loop', 'http_request',
+      'think', 'filter', 'delay', 'set_variable',
+    ];
+    this.quickAddDefs = quickTypes
+      .map(t => this.nodeDefs.get(t))
+      .filter((d): d is NodeTypeDefinition => !!d);
   }
 
   ngOnInit(): void {
@@ -516,6 +773,8 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     if (this.boundKeyDown) document.removeEventListener('keydown', this.boundKeyDown);
   }
 
+  // ── Node helpers ──
+
   getNodeDef(type: WorkflowNodeType): NodeTypeDefinition | undefined {
     return this.nodeDefs.get(type);
   }
@@ -525,48 +784,100 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     return r?.status ?? null;
   }
 
-  getNodeHeaderColor(node: WorkflowNode): string {
+  getNodeAccentColor(node: WorkflowNode): string {
     if (this.nodeResults.length > 0 && this.getNodeStatus(node.id) === null) {
-      return '#9e9e9e';
+      return '#94a3b8';
     }
-    return this.getNodeDef(node.type)?.color || '#666';
+    return this.getNodeDef(node.type)?.color || '#64748b';
+  }
+
+  getNodeIndex(node: WorkflowNode): number {
+    return this.nodes.indexOf(node) + 1;
+  }
+
+  getNodeTypeLabel(node: WorkflowNode): string {
+    const cfg = node.config;
+    switch (node.type) {
+      case 'trigger':
+        return cfg['connector_name'] ? `Trigger · ${cfg['connector_name']}` : 'Trigger';
+      case 'action':
+        return cfg['connector_name'] ? `Action · ${cfg['connector_name']}` : 'Action';
+      case 'think':
+        return 'AI Agent';
+      case 'http_request':
+        return cfg['method'] ? `HTTP ${cfg['method']}` : 'HTTP Request';
+      default:
+        return this.getNodeDef(node.type)?.label || node.type;
+    }
   }
 
   getNodeSummary(node: WorkflowNode): string {
     const cfg = node.config;
     switch (node.type) {
       case 'trigger':
-        return cfg['connector_name'] ? `${cfg['connector_name']} / ${cfg['event'] || ''}` : 'Configure trigger...';
+        return cfg['event'] ? String(cfg['event']).replace(/\./g, ' → ') : 'Configure trigger...';
       case 'action':
-        return cfg['connector_name'] ? `${cfg['connector_name']} → ${cfg['action'] || ''}` : 'Configure action...';
+        return cfg['action'] ? String(cfg['action']).replace(/\./g, ' → ') : 'Configure action...';
       case 'condition':
-        return (cfg['conditions'] as unknown[])?.length ? `${(cfg['conditions'] as unknown[]).length} condition(s)` : 'Configure condition...';
+        return (cfg['conditions'] as unknown[])?.length ? `${(cfg['conditions'] as unknown[]).length} condition(s)` : 'Configure...';
       case 'switch':
-        return cfg['field'] ? `Switch on ${cfg['field']}` : 'Configure switch...';
+        return cfg['field'] ? `Switch on ${cfg['field']}` : 'Configure...';
       case 'transform':
-        return (cfg['mappings'] as unknown[])?.length ? `${(cfg['mappings'] as unknown[]).length} mapping(s)` : 'Configure transform...';
+        return (cfg['mappings'] as unknown[])?.length ? `${(cfg['mappings'] as unknown[]).length} mapping(s)` : 'Configure...';
       case 'delay':
-        return cfg['seconds'] ? `Wait ${cfg['seconds']}s` : 'Configure delay...';
+        return cfg['seconds'] ? `Wait ${cfg['seconds']}s` : 'Configure...';
       case 'loop':
-        return cfg['array_field'] ? `Loop over ${cfg['array_field']}` : 'Configure loop...';
+        return cfg['array_field'] ? `Loop over ${cfg['array_field']}` : 'Configure...';
       case 'http_request':
-        return cfg['url'] ? `${cfg['method'] || 'GET'} ${cfg['url']}` : 'Configure request...';
+        return cfg['url'] ? `${cfg['url']}` : 'Configure...';
       case 'set_variable':
-        return cfg['variable_name'] ? `Set ${cfg['variable_name']}` : 'Configure variable...';
+        return cfg['variable_name'] ? `Set ${cfg['variable_name']}` : 'Configure...';
       case 'filter':
-        return (cfg['conditions'] as unknown[])?.length ? `${(cfg['conditions'] as unknown[]).length} filter(s)` : 'Configure filter...';
+        return (cfg['conditions'] as unknown[])?.length ? `${(cfg['conditions'] as unknown[]).length} filter(s)` : 'Configure...';
       case 'think': {
-        let summary = cfg['prompt'] ? `AI: ${(cfg['prompt'] as string).slice(0, 40)}${(cfg['prompt'] as string).length > 40 ? '...' : ''}` : 'Configure AI agent...';
-        if (cfg['output_schema_json']) {
-          try {
-            const keys = Object.keys(JSON.parse(cfg['output_schema_json'] as string));
-            if (keys.length > 0) summary += ` → ${keys.join(', ')}`;
-          } catch { /* ignore */ }
+        if (cfg['prompt']) {
+          const p = String(cfg['prompt']);
+          return p.length > 50 ? p.slice(0, 50) + '...' : p;
         }
-        return summary;
+        return 'Configure AI prompt...';
       }
       default:
-        return node.type;
+        return this.getNodeDef(node.type)?.description || node.type;
+    }
+  }
+
+  getNodeBadge(node: WorkflowNode): string | null {
+    if (node.type === 'trigger') {
+      const cfg = node.config;
+      if (cfg['trigger_type'] === 'schedule') return 'Scheduled';
+      if (cfg['connector_name']) return 'Real time';
+      return null;
+    }
+    if (node.type === 'think') return 'AI';
+    if (node.type === 'parallel') return 'Parallel';
+    if (node.type === 'loop') return 'Batch';
+    return null;
+  }
+
+  getNodeBadgeColor(node: WorkflowNode): string {
+    if (node.type === 'trigger') return '#059669';
+    if (node.type === 'think') return '#7c3aed';
+    return '#6366f1';
+  }
+
+  getNodeDuration(nodeId: string): number | null {
+    const r = this.nodeResults.find(nr => nr.node_id === nodeId);
+    return r?.duration_ms ?? null;
+  }
+
+  getStatusIcon(nodeId: string): string {
+    const status = this.getNodeStatus(nodeId);
+    switch (status) {
+      case 'success': return 'check';
+      case 'failed': return 'close';
+      case 'filtered': return 'filter_alt';
+      case 'running': return 'sync';
+      default: return '';
     }
   }
 
@@ -595,7 +906,10 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     return step * (index + 1);
   }
 
+  // ── Node CRUD ──
+
   addNode(type: WorkflowNodeType): void {
+    this.inlineAddMenu = null;
     this.nodeIdCounter++;
     const id = `node_${this.nodeIdCounter}`;
     const rect = this.canvasEl.nativeElement.getBoundingClientRect();
@@ -606,12 +920,64 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
       id,
       type,
       label: '',
-      position: { x: centerX - 110 + Math.random() * 40, y: centerY - 30 + Math.random() * 40 },
+      position: { x: centerX - NODE_WIDTH / 2 + Math.random() * 40, y: centerY - NODE_HEIGHT / 2 + Math.random() * 40 },
       config: this.getDefaultConfig(type),
     };
     this.nodes = [...this.nodes, newNode];
     this.nodesChange.emit(this.nodes);
     this.selectNode(newNode);
+  }
+
+  insertNodeOnEdge(type: WorkflowNodeType): void {
+    if (!this.inlineAddMenu) return;
+    const edge = this.edges.find(e => e.id === this.inlineAddMenu!.edgeId);
+    if (!edge) { this.inlineAddMenu = null; return; }
+
+    const srcNode = this.nodes.find(n => n.id === edge.source);
+    const tgtNode = this.nodes.find(n => n.id === edge.target);
+    if (!srcNode || !tgtNode) { this.inlineAddMenu = null; return; }
+
+    this.nodeIdCounter++;
+    const id = `node_${this.nodeIdCounter}`;
+    const midX = (srcNode.position.x + tgtNode.position.x) / 2;
+    const midY = (srcNode.position.y + tgtNode.position.y) / 2;
+
+    const newNode: WorkflowNode = {
+      id,
+      type,
+      label: '',
+      position: { x: midX, y: midY },
+      config: this.getDefaultConfig(type),
+    };
+
+    this.edges = this.edges.filter(e => e.id !== edge.id);
+    const edgeToNew: WorkflowEdge = {
+      id: `edge_${Date.now()}_a`,
+      source: edge.source,
+      target: id,
+      sourceHandle: edge.sourceHandle,
+      label: '',
+    };
+    const edgeFromNew: WorkflowEdge = {
+      id: `edge_${Date.now()}_b`,
+      source: id,
+      target: edge.target,
+      sourceHandle: 'default',
+      label: '',
+    };
+
+    this.nodes = [...this.nodes, newNode];
+    this.edges = [...this.edges, edgeToNew, edgeFromNew];
+    this.inlineAddMenu = null;
+    this.nodesChange.emit(this.nodes);
+    this.edgesChange.emit(this.edges);
+    this.selectNode(newNode);
+  }
+
+  showInlineAdd(edge: WorkflowEdge, event: MouseEvent): void {
+    event.stopPropagation();
+    const mid = this.getEdgeMidpoint(edge);
+    this.inlineAddMenu = { edgeId: edge.id, x: mid.x, y: mid.y };
   }
 
   deleteNode(nodeId: string, event: MouseEvent): void {
@@ -636,6 +1002,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
   selectNode(node: WorkflowNode): void {
     this.selectedNodeId = node.id;
     this.selectedEdgeId = null;
+    this.inlineAddMenu = null;
     this.nodeSelected.emit(node);
   }
 
@@ -643,6 +1010,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     event.stopPropagation();
     this.selectedEdgeId = edge.id;
     this.selectedNodeId = null;
+    this.inlineAddMenu = null;
     this.nodeSelected.emit(null);
   }
 
@@ -674,11 +1042,12 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
 
   onCanvasMouseDown(event: MouseEvent): void {
     const target = event.target as HTMLElement;
-    if (target === this.canvasEl.nativeElement || target.closest('.wf-canvas__grid') || target.tagName === 'svg') {
+    if (target === this.canvasEl.nativeElement || target.closest('.wfc-canvas__grid') || target.tagName === 'svg') {
       this.isPanning = true;
       this.panStart = { x: event.clientX - this.transform.x, y: event.clientY - this.transform.y };
       this.selectedNodeId = null;
       this.selectedEdgeId = null;
+      this.inlineAddMenu = null;
       this.nodeSelected.emit(null);
     }
   }
@@ -715,7 +1084,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
   }
 
   onNodeMouseDown(event: MouseEvent, node: WorkflowNode): void {
-    if ((event.target as HTMLElement).closest('.wf-handle') || (event.target as HTMLElement).closest('.wf-node__delete')) return;
+    if ((event.target as HTMLElement).closest('.wfc-handle') || (event.target as HTMLElement).closest('.wfc-node__menu')) return;
     event.stopPropagation();
 
     if (this.connectionDraft) return;
@@ -729,7 +1098,6 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     };
   }
 
-  /** Releasing mouse on any part of a node completes the connection */
   onNodeMouseUp(event: MouseEvent, targetNode: WorkflowNode): void {
     if (!this.connectionDraft) return;
     if (this.connectionDraft.sourceNodeId === targetNode.id) return;
@@ -811,30 +1179,29 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
       this.selectedEdgeId = null;
       this.selectedNodeId = null;
       this.connectionDraft = null;
+      this.inlineAddMenu = null;
       this.nodeSelected.emit(null);
     }
   }
 
   // ── Edge geometry ──
-  // All coordinates are in the same space as node CSS positions:
-  //   node CSS left = node.position.x + CANVAS_HALF
-  //   SVG is at (0,0), so SVG coords = CSS coords directly
 
   private nodeLeft(n: WorkflowNode): number { return n.position.x + CANVAS_HALF; }
   private nodeTop(n: WorkflowNode): number { return n.position.y + CANVAS_HALF; }
 
   getEdgeColor(edge: WorkflowEdge): string {
-    if (this.selectedEdgeId === edge.id) return '#1976d2';
-    if (this.nodeResults.length === 0) return '#90a4ae';
+    if (this.selectedEdgeId === edge.id) return '#6366f1';
+    if (this.nodeResults.length === 0) return '#cbd5e1';
     const srcStatus = this.getNodeStatus(edge.source);
     const tgtStatus = this.getNodeStatus(edge.target);
-    if (srcStatus === 'success' && tgtStatus === 'success') return '#4caf50';
-    if (srcStatus === 'failed' || tgtStatus === 'failed') return '#f44336';
-    if (srcStatus === 'success' && tgtStatus !== null) return '#4caf50';
-    return '#bdbdbd';
+    if (srcStatus === 'success' && tgtStatus === 'success') return '#22c55e';
+    if (srcStatus === 'failed' || tgtStatus === 'failed') return '#ef4444';
+    if (srcStatus === 'success' && tgtStatus !== null) return '#22c55e';
+    return '#e2e8f0';
   }
 
   getEdgeStrokeWidth(edge: WorkflowEdge): number {
+    if (this.selectedEdgeId === edge.id) return 3;
     if (this.nodeResults.length === 0) return 2.5;
     const srcStatus = this.getNodeStatus(edge.source);
     const tgtStatus = this.getNodeStatus(edge.target);
@@ -873,7 +1240,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     const tx = this.nodeLeft(tgt) + NODE_WIDTH / 2;
     const ty = this.nodeTop(tgt);
 
-    return { x: (sx + tx) / 2, y: (sy + ty) / 2 - 8 };
+    return { x: (sx + tx) / 2, y: (sy + ty) / 2 - 10 };
   }
 
   getDraftEdgePath(): string {
@@ -895,7 +1262,7 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
 
   private bezier(sx: number, sy: number, tx: number, ty: number): string {
     const dy = Math.abs(ty - sy);
-    const cp = Math.max(50, dy * 0.5);
+    const cp = Math.max(60, dy * 0.45);
     return `M ${sx} ${sy} C ${sx} ${sy + cp}, ${tx} ${ty - cp}, ${tx} ${ty}`;
   }
 
@@ -922,8 +1289,8 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     const maxX = Math.max(...xs) + CANVAS_HALF + NODE_WIDTH;
     const minY = Math.min(...ys) + CANVAS_HALF;
     const maxY = Math.max(...ys) + CANVAS_HALF + NODE_HEIGHT;
-    const graphW = maxX - minX + 100;
-    const graphH = maxY - minY + 100;
+    const graphW = maxX - minX + 120;
+    const graphH = maxY - minY + 120;
     const scale = Math.min(rect.width / graphW, rect.height / graphH, 1.2);
     const cx = (minX + maxX) / 2;
     const cy = (minY + maxY) / 2;

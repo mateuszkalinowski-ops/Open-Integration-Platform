@@ -57,6 +57,8 @@ from api.credential_validator import validate_credentials as generic_validate_cr
 from core.action_dispatcher import dispatch_action, _ensure_account_generic, _resolve_service_url
 from core.pii_redactor import redact_execution_detail
 from core.connector_registry import ConnectorRegistry
+from core.connector_health import ConnectorHealthMonitor
+from core.connector_rate_limiter import ConnectorRateLimiter
 from core.credential_vault import CredentialVault
 from core.flow_engine import FlowEngine
 from core.mapping_resolver import MappingResolver
@@ -73,6 +75,8 @@ _start_time = time.time()
 registry = ConnectorRegistry(settings.connector_discovery_path)
 vault = CredentialVault()
 mapping_resolver = MappingResolver(settings.connector_discovery_path)
+health_monitor = ConnectorHealthMonitor(registry, get_redis, check_interval=settings.health_check_interval)
+rate_limiter = ConnectorRateLimiter(get_redis, registry=registry)
 
 
 async def _resolve_connector_version(db_session: "AsyncSession", tenant_id: Any, connector_name: str) -> str | None:
@@ -137,6 +141,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     count = registry.discover()
     await logger.ainfo("connectors_discovered", count=count)
 
+    await health_monitor.start()
+    await logger.ainfo("connector_health_monitor_started", interval=settings.health_check_interval)
+
     async def _execute_connector_action(
         connector_name: str,
         action: str,
@@ -157,6 +164,20 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                     version = await _resolve_connector_version(db_session, tenant_id, connector_name)
         except Exception:
             pass
+
+        if settings.connector_rate_limit_enabled:
+            rl_result = await rate_limiter.check(
+                connector_name, action, str(tenant_id), connector_version=version,
+            )
+            if not rl_result.allowed:
+                raise HTTPException(
+                    status_code=429,
+                    detail={
+                        "code": "CONNECTOR_RATE_LIMITED",
+                        "message": f"Rate limit exceeded for {connector_name}/{action}",
+                        "retry_after": rl_result.retry_after,
+                    },
+                )
         return await dispatch_action(
             connector_name=connector_name,
             action=action,
@@ -320,6 +341,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     yield
 
+    await health_monitor.stop()
     if kafka_bridge:
         await kafka_bridge.stop()
     await close_redis()
@@ -634,6 +656,54 @@ async def download_onpremise_agent(
         media_type="application/zip",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
     )
+
+
+@app.get("/api/v1/connectors/health", tags=["connectors"])
+async def get_all_connector_health() -> list[dict[str, Any]]:
+    """Real-time health status for all discovered connectors."""
+    statuses = await health_monitor.get_all_statuses()
+    return [
+        {
+            "connector_name": s.connector_name,
+            "status": s.status,
+            "latency_ms": s.latency_ms,
+            "last_check": s.last_check,
+            "consecutive_failures": s.consecutive_failures,
+            "last_error": s.last_error,
+            "error_rate_5m": s.error_rate_5m,
+            "category": s.category,
+        }
+        for s in statuses
+    ]
+
+
+@app.get("/api/v1/connectors/health/{name}", tags=["connectors"])
+async def get_connector_health(name: str) -> dict[str, Any]:
+    """Real-time health status for a specific connector."""
+    status = await health_monitor.get_status(name)
+    if status is None:
+        manifests = registry.get_by_name(name)
+        if not manifests:
+            raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
+        return {
+            "connector_name": name,
+            "status": "unknown",
+            "latency_ms": 0,
+            "last_check": 0,
+            "consecutive_failures": 0,
+            "last_error": "No health check data yet",
+            "error_rate_5m": 0,
+        }
+    return {
+        "connector_name": status.connector_name,
+        "status": status.status,
+        "latency_ms": status.latency_ms,
+        "last_check": status.last_check,
+        "consecutive_failures": status.consecutive_failures,
+        "last_error": status.last_error,
+        "error_rate_5m": status.error_rate_5m,
+        "category": status.category,
+    }
 
 
 @app.get("/api/v1/connectors/{category}/{name}", response_model=ConnectorResponse, tags=["connectors"])

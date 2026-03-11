@@ -57,6 +57,7 @@ class ConnectorManifest:
     credential_provisioning: dict = field(default_factory=dict)
     credential_validation: dict = field(default_factory=dict)
     payload_hints: dict = field(default_factory=dict)
+    rate_limits: dict = field(default_factory=dict)
     deployment: str = "cloud"
     requires_onpremise_agent: bool = False
     onpremise_agent: dict = field(default_factory=dict)
@@ -131,6 +132,7 @@ class ConnectorRegistry:
             credential_provisioning=data.get("credential_provisioning", {}),
             credential_validation=data.get("credential_validation", {}),
             payload_hints=data.get("payload_hints", {}),
+            rate_limits=data.get("rate_limits", {}),
             deployment=data.get("deployment", "cloud"),
             requires_onpremise_agent=data.get("requires_onpremise_agent", False),
             onpremise_agent=data.get("onpremise_agent", {}),

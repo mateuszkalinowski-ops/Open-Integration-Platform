@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     rate_limit_requests: int = 1000
     rate_limit_window_seconds: int = 60
 
+    # Connector health monitoring
+    health_check_interval: int = 30
+    health_check_timeout: float = 5.0
+    health_auto_disable_threshold: int = 5
+
+    # Per-connector rate limiting defaults
+    connector_rate_limit_default: str = "600/min"
+    connector_rate_limit_enabled: bool = True
+
     encryption_key: str = ""
     jwt_secret_key: str = ""
     jwt_algorithm: str = "HS256"
