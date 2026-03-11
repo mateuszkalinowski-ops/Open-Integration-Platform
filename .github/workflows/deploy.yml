@@ -109,6 +109,8 @@ jobs:
             if [ "$NEED_CERT" = "1" ]; then
               echo "Obtaining Let's Encrypt certificate via standalone mode..."
               docker compose -f docker-compose.vps.yml stop nginx 2>/dev/null || true
+              sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
+              sleep 2
               docker run --rm \
                 -v /opt/pinquark/certbot/conf:/etc/letsencrypt \
                 -v /opt/pinquark/certbot/www:/var/www/certbot \
@@ -118,13 +120,22 @@ jobs:
                 --email integrations@pinquark.com \
                 --agree-tos --no-eff-email \
                 -d pq.dotts.pl \
-                || echo "WARNING: certbot failed"
+                || echo "WARNING: certbot failed, will use self-signed fallback"
+            fi
+
+            if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+              echo "No certificate found — creating self-signed fallback so Nginx can start"
+              mkdir -p "$CERT_DIR"
+              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+                -keyout "$CERT_DIR/privkey.pem" \
+                -out "$CERT_DIR/fullchain.pem" \
+                -subj "/CN=pq.dotts.pl" 2>/dev/null
             fi
 
             docker compose -f docker-compose.vps.yml pull
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
 
-            sleep 3
+            sleep 5
             docker compose -f docker-compose.vps.yml restart nginx
 
             docker image prune -f
