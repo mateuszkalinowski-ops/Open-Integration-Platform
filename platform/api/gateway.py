@@ -2013,6 +2013,9 @@ async def call_workflow_get(
     ctx_data = execution.context_snapshot.get("data", {}) if execution.context_snapshot else {}
     url = ctx_data.get("url")
     if url and isinstance(url, str) and url.startswith("http"):
+        is_xhr = request.headers.get("origin") or request.headers.get("x-requested-with")
+        if is_xhr:
+            return {"url": url}
         from starlette.responses import RedirectResponse
         return RedirectResponse(url=url, status_code=302)
 
