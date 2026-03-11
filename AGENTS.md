@@ -412,6 +412,7 @@ The Admin Dashboard is distributed in two forms:
 
 - All inter-service communication within Docker network: use internal Docker networks, no exposed ports except the API gateway
 - External-facing services: expose only through a reverse proxy (nginx/traefik) with rate limiting
+- Public or semi-public workflow HTTP endpoints (for example `GET /api/v1/workflows/{id}/call` and direct workflow execution endpoints) MUST support per-workflow client IP allowlists. Store the allowlist in the workflow trigger configuration, support both exact IPs and CIDR ranges, and return HTTP 403 for disallowed clients.
 - Kafka connections: SASL_SSL with certificate-based authentication
 - Database connections: SSL required, IP allowlisting for production
 - Health check endpoints (`/health`, `/readiness`): no authentication required but MUST NOT expose sensitive information
@@ -1385,6 +1386,7 @@ Every agent MUST verify before starting implementation:
 - Implement the correct category interface (section 7)
 - Follow Docker standards (section 4)
 - Follow security standards (section 3)
+- If a workflow can be triggered directly over HTTP, verify whether it needs a trigger-level IP allowlist and document the expected allowed IPs/CIDR ranges.
 - Write tests meeting coverage requirements (section 12)
 - Create documentation (section 10) — including updating `docs/CONNECTORS.md`
 - If database schema was modified: regenerate `docs/database-schema.png` and update section 4 of `docs/ARCHITECTURE.md`

@@ -167,6 +167,30 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
               }
             </mat-expansion-panel>
 
+            <!-- Request Access -->
+            <mat-expansion-panel class="wnc__panel">
+              <mat-expansion-panel-header>
+                <mat-panel-title>
+                  <mat-icon>shield</mat-icon> Request Access
+                  @if (getRequestIpAllowlistCount() > 0) {
+                    <span class="wnc__badge">{{ getRequestIpAllowlistCount() }}</span>
+                  }
+                </mat-panel-title>
+              </mat-expansion-panel-header>
+              <p class="wnc__hint">Restrict direct workflow HTTP invocations to selected client IPs or CIDR ranges.</p>
+              <mat-form-field appearance="outline" class="wnc__field">
+                <mat-label>Allowed IPs / CIDR ranges</mat-label>
+                <textarea
+                  matInput
+                  rows="4"
+                  [(ngModel)]="cfg['allowed_ips']"
+                  (ngModelChange)="onRequestAccessChange()"
+                  placeholder="203.0.113.10&#10;198.51.100.0/24&#10;2001:db8::/32"
+                ></textarea>
+              </mat-form-field>
+              <p class="wnc__hint">Leave empty to allow any IP. Supports one entry per line or comma-separated values.</p>
+            </mat-expansion-panel>
+
             <!-- Sync Config -->
             <mat-expansion-panel class="wnc__panel">
               <mat-expansion-panel-header>
@@ -1118,6 +1142,9 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       }
       this._lastNodeId = this.node.id;
       this.cfg = this.node.config;
+      if (this.node.type === 'trigger' && Array.isArray(this.cfg['allowed_ips'])) {
+        this.cfg['allowed_ips'] = (this.cfg['allowed_ips'] as unknown[]).map(v => String(v).trim()).filter(Boolean).join('\n');
+      }
       this.updateConnectorLists();
       this.updateFieldDefs();
       if (this.node.type === 'think') {
@@ -1823,6 +1850,21 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   isUnaryOp(op: string): boolean {
     return ['exists', 'not_exists', 'is_empty', 'is_not_empty'].includes(op);
+  }
+
+  getRequestIpAllowlistCount(): number {
+    const raw = this.cfg['allowed_ips'];
+    if (Array.isArray(raw)) {
+      return raw.map(v => String(v).trim()).filter(Boolean).length;
+    }
+    if (typeof raw === 'string') {
+      return raw.split(/[\n,]+/).map(v => v.trim()).filter(Boolean).length;
+    }
+    return 0;
+  }
+
+  onRequestAccessChange(): void {
+    this.emitChange();
   }
 
   isDateField(fieldName: string): boolean {

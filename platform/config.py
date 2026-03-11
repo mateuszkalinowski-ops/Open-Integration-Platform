@@ -81,7 +81,7 @@ class Settings(BaseSettings):
     )
     kafka_event_topics: list[str] = Field(default_factory=lambda: list(KAFKA_DEFAULT_TOPICS))
 
-    model_config = {"env_file": ".env", "env_file_encoding": "utf-8"}
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
 
 
 settings = Settings()

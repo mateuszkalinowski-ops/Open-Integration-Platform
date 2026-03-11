@@ -1,6 +1,7 @@
 """API Gateway -- main FastAPI application for Open Integration Platform by Pinquark.com."""
 
 import io
+import ipaddress
 import os
 import re
 import secrets
@@ -1765,6 +1766,86 @@ def _extract_trigger_credential(nodes: list[dict]) -> str:
     return "default"
 
 
+def _extract_trigger_allowed_ips(nodes: list[dict]) -> list[str] | str | None:
+    for node in nodes:
+        if node.get("type") == "trigger":
+            return node.get("config", {}).get("allowed_ips")
+    return None
+
+
+def _normalize_trigger_allowed_ips(raw_value: Any) -> list[str]:
+    if raw_value is None:
+        return []
+
+    if isinstance(raw_value, str):
+        entries = [part.strip() for part in re.split(r"[\n,]+", raw_value)]
+    elif isinstance(raw_value, list):
+        entries = [str(part).strip() for part in raw_value]
+    else:
+        raise HTTPException(
+            status_code=400,
+            detail="Trigger allowed IPs must be a string or list of strings",
+        )
+
+    normalized: list[str] = []
+    for entry in entries:
+        if not entry:
+            continue
+        try:
+            if "/" in entry:
+                normalized.append(str(ipaddress.ip_network(entry, strict=False)))
+            else:
+                normalized.append(str(ipaddress.ip_address(entry)))
+        except ValueError as exc:
+            raise HTTPException(
+                status_code=400,
+                detail=f"Invalid trigger allowed IP or CIDR entry: {entry}",
+            ) from exc
+    return normalized
+
+
+def _validate_trigger_request_access(nodes: list[dict]) -> None:
+    _normalize_trigger_allowed_ips(_extract_trigger_allowed_ips(nodes))
+
+
+def _get_request_client_ip(request: Request) -> str | None:
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        first_hop = forwarded_for.split(",")[0].strip()
+        if first_hop:
+            return first_hop
+
+    real_ip = request.headers.get("x-real-ip", "").strip()
+    if real_ip:
+        return real_ip
+
+    return request.client.host if request.client else None
+
+
+def _enforce_workflow_request_ip_allowlist(workflow: Workflow, request: Request) -> None:
+    allowed = _normalize_trigger_allowed_ips(_extract_trigger_allowed_ips(workflow.nodes or []))
+    if not allowed:
+        return
+
+    client_ip = _get_request_client_ip(request)
+    if not client_ip:
+        raise HTTPException(status_code=403, detail="Unable to determine client IP for workflow request")
+
+    try:
+        client_addr = ipaddress.ip_address(client_ip)
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Invalid client IP address") from exc
+
+    for entry in allowed:
+        if "/" in entry:
+            if client_addr in ipaddress.ip_network(entry, strict=False):
+                return
+        elif client_addr == ipaddress.ip_address(entry):
+            return
+
+    raise HTTPException(status_code=403, detail="Client IP is not allowed for this workflow")
+
+
 async def _provision_trigger_account(
     db: AsyncSession, tenant_id: Any, nodes: list[dict]
 ) -> None:
@@ -1813,6 +1894,7 @@ async def create_workflow(
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowResponse:
     nodes_raw = [n.model_dump() for n in body.nodes]
+    _validate_trigger_request_access(nodes_raw)
     edges_raw = [e.model_dump() for e in body.edges]
     trigger_connector, trigger_event = _extract_trigger_info(nodes_raw)
 
@@ -1887,6 +1969,7 @@ async def update_workflow(
         update_data["nodes"] = [
             n.model_dump() if hasattr(n, "model_dump") else n for n in update_data["nodes"]
         ]
+        _validate_trigger_request_access(update_data["nodes"])
         trigger_connector, trigger_event = _extract_trigger_info(update_data["nodes"])
         update_data["trigger_connector"] = trigger_connector
         update_data["trigger_event"] = trigger_event
@@ -1938,6 +2021,7 @@ async def delete_workflow(
 async def test_workflow(
     workflow_id: str,
     body: WorkflowTestRequest,
+    request: Request,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowExecutionResponse:
@@ -1948,6 +2032,7 @@ async def test_workflow(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    _enforce_workflow_request_ip_allowlist(workflow, request)
     execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
     await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
     await db.commit()
@@ -1962,6 +2047,7 @@ async def test_workflow(
 async def execute_workflow(
     workflow_id: str,
     body: WorkflowTestRequest,
+    request: Request,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowExecutionResponse:
@@ -1979,6 +2065,7 @@ async def execute_workflow(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    _enforce_workflow_request_ip_allowlist(workflow, request)
     execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
     await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
     await db.commit()
@@ -2011,6 +2098,7 @@ async def call_workflow_get(
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
+    _enforce_workflow_request_ip_allowlist(workflow, request)
     execution = await workflow_engine.execute_workflow(db, workflow, trigger_data)
     await workflow_engine.record_execution_sync(db, workflow, execution, trigger_data)
     await db.commit()
