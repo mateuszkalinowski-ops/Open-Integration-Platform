@@ -100,9 +100,9 @@ jobs:
               NEED_CERT=1
             elif ! openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "let's encrypt\|R3\|R10\|R11\|E5\|E6"; then
               echo "Cert exists but is not from Let's Encrypt — removing and requesting real cert"
-              rm -rf "$CERT_DIR"
-              rm -rf "/opt/pinquark/certbot/conf/renewal/pq.dotts.pl.conf"
-              rm -rf "/opt/pinquark/certbot/conf/archive/pq.dotts.pl"
+              sudo rm -rf "$CERT_DIR"
+              sudo rm -rf "/opt/pinquark/certbot/conf/renewal/pq.dotts.pl.conf"
+              sudo rm -rf "/opt/pinquark/certbot/conf/archive/pq.dotts.pl"
               NEED_CERT=1
             fi
 
