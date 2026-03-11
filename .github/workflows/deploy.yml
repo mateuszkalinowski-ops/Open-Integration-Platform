@@ -97,19 +97,20 @@ jobs:
             mkdir -p /opt/pinquark/certbot/www "$CONF_BASE"
 
             NEED_CERT=""
-            if [ ! -f "$CERT_DIR/fullchain.pem" ]; then
+            if ! sudo test -f "$CERT_DIR/fullchain.pem"; then
               NEED_CERT=1
-            elif ! openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "let's encrypt\|R3\|R10\|R11\|E5\|E6"; then
+            elif ! sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "let's encrypt\|R3\|R10\|R11\|E5\|E6"; then
               echo "Cert exists but is not from Let's Encrypt — cleaning up"
-              NEED_CERT=1
-            fi
-
-            if [ "$NEED_CERT" = "1" ]; then
-              echo "Cleaning all existing certbot state for pq.dotts.pl..."
               sudo rm -rf "$CONF_BASE"/live/pq.dotts.pl*
               sudo rm -rf "$CONF_BASE"/archive/pq.dotts.pl*
               sudo rm -rf "$CONF_BASE"/renewal/pq.dotts.pl*
+              NEED_CERT=1
+            else
+              echo "Valid Let's Encrypt certificate found — skipping certbot"
+              sudo chmod -R 755 "$CONF_BASE"/live "$CONF_BASE"/archive 2>/dev/null || true
+            fi
 
+            if [ "$NEED_CERT" = "1" ]; then
               echo "Obtaining Let's Encrypt certificate via standalone mode..."
               docker compose -f docker-compose.vps.yml stop nginx 2>/dev/null || true
               sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
@@ -131,11 +132,12 @@ jobs:
 
             if ! sudo test -f "$CERT_DIR/fullchain.pem"; then
               echo "No certificate found — creating self-signed fallback so Nginx can start"
-              mkdir -p "$CERT_DIR"
-              openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
+              sudo mkdir -p "$CERT_DIR"
+              sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                 -keyout "$CERT_DIR/privkey.pem" \
                 -out "$CERT_DIR/fullchain.pem" \
                 -subj "/CN=pq.dotts.pl" 2>/dev/null
+              sudo chmod -R 755 "$CONF_BASE"/live 2>/dev/null || true
             fi
 
             docker compose -f docker-compose.vps.yml pull
