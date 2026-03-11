@@ -1119,16 +1119,33 @@ class WorkflowEngine:
         sync_mgr = SyncStateManager()
 
         if mode == "force":
-            execution = await self.execute_workflow(db, workflow, event_data)
-            await sync_mgr.record_success(
-                db,
-                tenant_id=workflow.tenant_id,
-                workflow_id=workflow.id,
-                source_connector=connector_name,
-                source_event=event,
-                entity_key=entity_key,
-                content_hash=content_hash,
+            check = await sync_mgr.should_sync(
+                db, workflow.id, entity_key, content_hash, max_retries=max_retries,
             )
+            execution = await self.execute_workflow(db, workflow, event_data)
+            if execution.status == "success":
+                await sync_mgr.record_success(
+                    db,
+                    tenant_id=workflow.tenant_id,
+                    workflow_id=workflow.id,
+                    source_connector=connector_name,
+                    source_event=event,
+                    entity_key=entity_key,
+                    content_hash=content_hash,
+                    ledger_id=check.ledger_id,
+                )
+            else:
+                await sync_mgr.record_failure(
+                    db,
+                    tenant_id=workflow.tenant_id,
+                    workflow_id=workflow.id,
+                    source_connector=connector_name,
+                    source_event=event,
+                    entity_key=entity_key,
+                    content_hash=content_hash,
+                    error=execution.error or "unknown error",
+                    ledger_id=check.ledger_id,
+                )
             return execution
 
         check = await sync_mgr.should_sync(
@@ -1181,6 +1198,69 @@ class WorkflowEngine:
             )
 
         return execution
+
+    async def record_execution_sync(
+        self,
+        db: AsyncSession,
+        workflow: Workflow,
+        execution: WorkflowExecution,
+        trigger_data: dict[str, Any],
+    ) -> None:
+        """Update sync ledger after a directly-executed workflow (test/execute/call).
+
+        Extracts sync configuration from the workflow, resolves entity key and
+        content hash from trigger_data, then records success or failure in the
+        ledger.  Silently returns if sync is not configured or the entity key
+        cannot be resolved.
+        """
+        sync_cfg = workflow.sync_config
+        if not sync_cfg or not sync_cfg.get("enabled"):
+            return
+
+        from core.sync_state import SyncStateManager, compute_content_hash, resolve_entity_key
+
+        key_field = sync_cfg.get("entity_key_field")
+        if not key_field:
+            return
+
+        entity_key = resolve_entity_key(trigger_data, key_field)
+        if not entity_key:
+            return
+
+        hash_fields = sync_cfg.get("content_hash_fields")
+        content_hash = compute_content_hash(trigger_data, hash_fields)
+
+        sync_mgr = SyncStateManager()
+        check = await sync_mgr.should_sync(
+            db, workflow.id, entity_key, content_hash,
+        )
+
+        connector_name = workflow.trigger_connector or "manual"
+        event = workflow.trigger_event or "manual.execute"
+
+        if execution.status == "success":
+            await sync_mgr.record_success(
+                db,
+                tenant_id=workflow.tenant_id,
+                workflow_id=workflow.id,
+                source_connector=connector_name,
+                source_event=event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+                ledger_id=check.ledger_id,
+            )
+        else:
+            await sync_mgr.record_failure(
+                db,
+                tenant_id=workflow.tenant_id,
+                workflow_id=workflow.id,
+                source_connector=connector_name,
+                source_event=event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+                error=execution.error or "unknown error",
+                ledger_id=check.ledger_id,
+            )
 
 
 _PII_PLACEHOLDER = "[RODO_REDACTED]"

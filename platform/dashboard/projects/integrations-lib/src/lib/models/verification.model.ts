@@ -22,10 +22,10 @@ export interface VerificationConnectorResult {
   connector_name: string;
   connector_version: string;
   connector_category: string;
-  status: 'PASS' | 'FAIL' | 'PARTIAL' | 'SKIP';
+  status: 'PASS' | 'FAIL' | 'PARTIAL' | 'SKIP' | 'NOT_RUN';
   checks?: VerificationCheck[];
   summary: VerificationSummary;
-  created_at: string;
+  created_at: string | null;
 }
 
 export interface VerificationRunSummary {

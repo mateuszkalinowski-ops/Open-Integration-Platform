@@ -259,16 +259,19 @@ async def list_errors(
 
 @router.get("/reports/latest")
 async def latest_reports() -> dict[str, Any]:
-    """Get the most recent report for each connector+version (across all runs).
+    """Get the latest verification status for every active connector version.
 
-    Only returns reports for versions that still exist in the current manifests,
-    so outdated versions (e.g. after a version field change) are excluded.
+    Connectors discovered from current manifests are always included, even if
+    they have never been verified yet. In that case, a synthetic ``NOT_RUN``
+    row is returned so the dashboard can display the connector before its
+    first verification report exists.
     """
     from src.discovery import discover_manifests
 
-    active_versions: set[tuple[str, str]] = set()
-    for m in discover_manifests():
-        active_versions.add((m.name, m.version))
+    manifests = discover_manifests()
+    active_versions: dict[tuple[str, str], Any] = {}
+    for m in manifests:
+        active_versions[(m.name, m.version)] = m
 
     async with async_session_factory() as db:
         latest_per_connector = (
@@ -294,38 +297,49 @@ async def latest_reports() -> dict[str, Any]:
         result = await db.execute(q)
         reports = result.scalars().all()
 
-        reports = [
-            r for r in reports
-            if (r.connector_name, r.connector_version) in active_versions
-        ]
+        report_map: dict[tuple[str, str], VerificationReport] = {}
+        for report in reports:
+            key = (report.connector_name, report.connector_version)
+            if key in active_versions and key not in report_map:
+                report_map[key] = report
 
-        seen: set[tuple[str, str]] = set()
-        unique_reports = []
-        for r in reports:
-            key = (r.connector_name, r.connector_version)
-            if key not in seen:
-                seen.add(key)
-                unique_reports.append(r)
-        reports = unique_reports
+        most_recent = max(report_map.values(), key=lambda r: r.created_at) if report_map else None
 
-        if not reports:
-            return {"connectors": [], "run_id": None, "created_at": None}
+        connectors = []
+        for key in sorted(active_versions):
+            manifest = active_versions[key]
+            report = report_map.get(key)
+            if report:
+                connectors.append({
+                    "connector_name": report.connector_name,
+                    "connector_version": report.connector_version,
+                    "connector_category": report.connector_category,
+                    "status": report.status,
+                    "checks": report.checks,
+                    "summary": report.summary,
+                    "created_at": report.created_at.isoformat(),
+                })
+                continue
 
-        most_recent = max(reports, key=lambda r: r.created_at)
+            connectors.append({
+                "connector_name": manifest.name,
+                "connector_version": manifest.version,
+                "connector_category": manifest.category,
+                "status": "NOT_RUN",
+                "checks": [],
+                "summary": {
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "warned": 0,
+                    "duration_ms": 0,
+                },
+                "created_at": None,
+            })
 
         return {
-            "run_id": str(most_recent.run_id),
-            "created_at": most_recent.created_at.isoformat(),
-            "connectors": [
-                {
-                    "connector_name": r.connector_name,
-                    "connector_version": r.connector_version,
-                    "connector_category": r.connector_category,
-                    "status": r.status,
-                    "checks": r.checks,
-                    "summary": r.summary,
-                    "created_at": r.created_at.isoformat(),
-                }
-                for r in reports
-            ],
+            "run_id": str(most_recent.run_id) if most_recent else None,
+            "created_at": most_recent.created_at.isoformat() if most_recent else None,
+            "connectors": connectors,
         }

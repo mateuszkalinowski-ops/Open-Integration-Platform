@@ -1949,6 +1949,7 @@ async def test_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
+    await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
     await db.commit()
     return WorkflowExecutionResponse.model_validate(execution)
 
@@ -1979,6 +1980,7 @@ async def execute_workflow(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     execution = await workflow_engine.execute_workflow(db, workflow, body.trigger_data)
+    await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
     await db.commit()
     return WorkflowExecutionResponse.model_validate(execution)
 
@@ -2010,6 +2012,7 @@ async def call_workflow_get(
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     execution = await workflow_engine.execute_workflow(db, workflow, trigger_data)
+    await workflow_engine.record_execution_sync(db, workflow, execution, trigger_data)
     await db.commit()
 
     ctx_data = execution.context_snapshot.get("data", {}) if execution.context_snapshot else {}

@@ -288,6 +288,7 @@ import {
     .status-partial { background: #fff3e0; color: #e65100; }
     .status-warn { background: #fff8e1; color: #f57f17; }
     .status-skip { background: #f5f5f5; color: #757575; }
+    .status-not_run { background: #eceff1; color: #546e7a; }
 
     .version-badge {
       font-size: 11px; color: rgba(0,0,0,0.5); margin-left: 4px;
@@ -536,7 +537,7 @@ export class VerificationPage implements OnInit, OnDestroy {
         case 'connector_category': return a.connector_category.localeCompare(b.connector_category) * dir;
         case 'status': return a.status.localeCompare(b.status) * dir;
         case 'duration': return ((a.summary?.duration_ms ?? 0) - (b.summary?.duration_ms ?? 0)) * dir;
-        case 'created_at': return (new Date(a.created_at).getTime() - new Date(b.created_at).getTime()) * dir;
+        case 'created_at': return ((new Date(a.created_at || 0).getTime()) - (new Date(b.created_at || 0).getTime())) * dir;
         default: return 0;
       }
     });
