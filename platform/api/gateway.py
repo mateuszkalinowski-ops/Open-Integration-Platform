@@ -2015,19 +2015,20 @@ async def call_workflow_get(
     if url and isinstance(url, str) and url.startswith("http"):
         is_xhr = request.headers.get("origin") or request.headers.get("x-requested-with")
         if is_xhr:
-            async def _stream_s3():
-                async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
-                    async with client.stream("GET", url) as resp:
-                        resp.raise_for_status()
-                        async for chunk in resp.aiter_bytes(chunk_size=65536):
-                            yield chunk
-            filename = trigger_data.get("key", "file")
             import mimetypes
+            filename = trigger_data.get("key", "file")
             content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-            return StreamingResponse(
-                _stream_s3(),
+            async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+                s3_resp = await client.get(url)
+                s3_resp.raise_for_status()
+            from fastapi.responses import Response
+            return Response(
+                content=s3_resp.content,
                 media_type=content_type,
-                headers={"Content-Disposition": f'inline; filename="{filename}"'},
+                headers={
+                    "Content-Disposition": f'inline; filename="{filename}"',
+                    "Content-Length": str(len(s3_resp.content)),
+                },
             )
         from starlette.responses import RedirectResponse
         return RedirectResponse(url=url, status_code=302)
