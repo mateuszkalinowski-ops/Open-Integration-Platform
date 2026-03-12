@@ -17,12 +17,15 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
 import { forkJoin } from 'rxjs';
+import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import {
   PinquarkApiService,
   WorkflowCanvasComponent,
   WorkflowNodeConfigComponent,
   WorkflowAiChatComponent,
+  VisualFieldMapperDialogComponent,
+  VisualFieldMapperDialogData,
   Connector,
   Workflow,
   WorkflowNode,
@@ -31,6 +34,8 @@ import {
   WorkflowNodeResult,
   SyncConfig,
   AiExplainErrorResponse,
+  ConnectorFieldDef,
+  FieldMapping,
 } from '@pinquark/integrations';
 
 @Component({
@@ -52,6 +57,7 @@ import {
     MatTooltipModule,
     MatProgressSpinnerModule,
     MatMenuModule,
+    MatDialogModule,
     ClipboardModule,
     WorkflowCanvasComponent,
     WorkflowNodeConfigComponent,
@@ -123,10 +129,12 @@ import {
             [nodes]="nodes"
             [edges]="edges"
             [nodeResults]="testNodeResults"
+            [connectors]="connectors"
             (nodesChange)="nodes = $event"
             (edgesChange)="edges = $event"
             (nodeSelected)="onNodeSelected($event)"
             (nodeDoubleClicked)="onNodeDoubleClicked($event)"
+            (openNodeMapper)="onOpenNodeMapper($event)"
           ></pinquark-workflow-canvas>
         </div>
 
@@ -789,6 +797,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     private readonly router: Router,
     private readonly snackBar: MatSnackBar,
     private readonly clipboard: Clipboard,
+    private readonly dialog: MatDialog,
     @Inject(DOCUMENT) private readonly doc: Document,
   ) {}
 
@@ -894,6 +903,89 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     this.selectedNode = node;
     this.showRightPanel = true;
     this.rightTabIndex = 0;
+  }
+
+  onOpenNodeMapper(node: WorkflowNode): void {
+    const cfg = node.config || {};
+    const sourceFields = this.getSourceFieldsForNode(node);
+    const destFields = this.getDestFieldsForNode(node);
+    const effectiveDest = destFields.length > 0 ? destFields : sourceFields;
+
+    const isTransform = node.type === 'transform';
+    const mappingKey = isTransform ? 'mappings' : 'field_mapping';
+    const rawMappings = cfg[mappingKey];
+    const mappings: FieldMapping[] = Array.isArray(rawMappings) ? rawMappings.map((m: FieldMapping) => ({ ...m })) : [];
+
+    const data: VisualFieldMapperDialogData = {
+      title: isTransform ? 'Transform Mapper' : 'Action Mapper',
+      description: `${node.label || node.type}`,
+      sourceFields,
+      destinationFields: effectiveDest,
+      mappings,
+      sourceLabel: 'Available inputs',
+      destinationLabel: isTransform ? 'Output fields' : 'Action payload',
+      contextHint: '',
+    };
+
+    const dialogRef = this.dialog.open(VisualFieldMapperDialogComponent, {
+      data,
+      maxWidth: '95vw',
+      width: '1280px',
+      panelClass: 'pinquark-visual-mapper-dialog-panel',
+      autoFocus: false,
+    });
+
+    dialogRef.afterClosed().subscribe((result?: FieldMapping[]) => {
+      if (!result) return;
+      const updated = { ...node, config: { ...cfg, [mappingKey]: result } };
+      this.canvas.updateNode(updated);
+      this.selectedNode = updated;
+    });
+  }
+
+  private getSourceFieldsForNode(node: WorkflowNode): ConnectorFieldDef[] {
+    const fields: ConnectorFieldDef[] = [];
+    const seen = new Set<string>();
+    const upstreamIds = this.getUpstreamNodeIds(node.id);
+
+    for (const tn of this.nodes.filter(n => n.type === 'trigger')) {
+      const c = this.connectors.find(cn => cn.name === tn.config['connector_name']);
+      const eventFields = c?.event_fields?.[tn.config['event'] as string] ?? [];
+      for (const f of eventFields) {
+        if (!seen.has(f.field)) { seen.add(f.field); fields.push(f); }
+      }
+    }
+
+    for (const an of this.nodes.filter(n => n.type === 'action' && n.id !== node.id && upstreamIds.has(n.id))) {
+      const c = this.connectors.find(cn => cn.name === an.config['connector_name']);
+      const outFields = c?.output_fields?.[an.config['action'] as string] ?? [];
+      for (const f of outFields) {
+        if (!seen.has(f.field)) { seen.add(f.field); fields.push(f); }
+      }
+    }
+
+    return fields;
+  }
+
+  private getDestFieldsForNode(node: WorkflowNode): ConnectorFieldDef[] {
+    if (node.type !== 'action') return [];
+    const c = this.connectors.find(cn => cn.name === node.config['connector_name']);
+    return c?.action_fields?.[node.config['action'] as string] ?? [];
+  }
+
+  private getUpstreamNodeIds(nodeId: string): Set<string> {
+    const upstream = new Set<string>();
+    const queue = [nodeId];
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      for (const edge of this.edges) {
+        if (edge.target === current && !upstream.has(edge.source)) {
+          upstream.add(edge.source);
+          queue.push(edge.source);
+        }
+      }
+    }
+    return upstream;
   }
 
   onNodeConfigChange(updated: WorkflowNode): void {

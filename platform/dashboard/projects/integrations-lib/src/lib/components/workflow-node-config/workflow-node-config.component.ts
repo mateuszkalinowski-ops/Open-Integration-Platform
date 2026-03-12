@@ -14,6 +14,7 @@ import { MatChipsModule } from '@angular/material/chips';
 import {
   Connector,
   ConnectorFieldDef,
+  Workflow,
   WorkflowNode,
   WorkflowEdge,
   CONDITION_OPERATORS,
@@ -301,141 +302,13 @@ import {
 
             <div class="wnc__mapper-launch">
               <button mat-stroked-button (click)="openActionVisualMapper()">
-                <mat-icon>open_in_new</mat-icon>
+                <mat-icon>device_hub</mat-icon>
                 Open Visual Mapper
               </button>
               <span class="wnc__hint">
-                Opens the graphical mapper in a separate window for more space.
+                {{ asFieldMappings(cfg['field_mapping']).length }} mapping(s) configured
               </span>
             </div>
-
-            <!-- Unified Field Mapping -->
-            <div class="wnc__section-title">
-              <span>Field Mapping</span>
-              <button mat-icon-button (click)="addFieldMapping()"><mat-icon>add</mat-icon></button>
-            </div>
-            <ng-container *ngFor="let m of asFieldMappings(cfg['field_mapping']); let i = index">
-              <div class="wnc__mc">
-                <div class="wnc__mc-row">
-                  <div class="wnc__mc-sources">
-                    <ng-container *ngFor="let src of getMappingSources(m); let si = index">
-                      <div class="wnc__mc-src-item" [class.wnc__mc-src-extra]="si > 0">
-                        @if (si > 0) { <span class="wnc__mc-plus">+</span> }
-                        @if (sourceFieldDefs.length > 0) {
-                          <mat-form-field appearance="outline" class="wnc__mc-src-ff">
-                            <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
-                              <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
-                              @if (isUnknownField(src, sourceFieldDefs)) {
-                                <mat-option [value]="src">{{ src }}</mat-option>
-                              }
-                              @for (f of sourceFieldDefs; track f.field) {
-                                @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
-                                <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
-                                }
-                              }
-                              @if (getMappingSources(m).length === 1) {
-                                <mat-option value="__custom__">-- Static value --</mat-option>
-                              }
-                            </mat-select>
-                          </mat-form-field>
-                        } @else {
-                          <mat-form-field appearance="outline" class="wnc__mc-src-ff">
-                            <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <input matInput [value]="src === '__custom__' ? '' : src" (input)="onSourceChange(m, si, $any($event.target).value)" placeholder="path.to.field" />
-                          </mat-form-field>
-                        }
-                        @if (src === '__custom__' && getMappingSources(m).length === 1) {
-                          <mat-form-field appearance="outline" class="wnc__mc-custom">
-                            <mat-label>Value</mat-label>
-                            <input matInput [(ngModel)]="m.from_custom" (ngModelChange)="emitChange()" placeholder="Static value" />
-                          </mat-form-field>
-                        }
-                        @if (getMappingSources(m).length > 1) {
-                          <button mat-icon-button class="wnc__mc-rm-src" (click)="removeMappingSource(m, si)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
-                        }
-                      </div>
-                    </ng-container>
-                    <button mat-button class="wnc__mc-add-src" (click)="addMappingSource(m)"><mat-icon [style.font-size.px]="14">add</mat-icon>Add source</button>
-                  </div>
-                  <mat-icon class="wnc__mapping-arrow">arrow_forward</mat-icon>
-                  @if (destFieldDefs.length > 0 || sourceFieldDefs.length > 0) {
-                    <mat-form-field appearance="outline" class="wnc__mc-to">
-                      <mat-label>Target</mat-label>
-                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
-                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
-                        @if (isUnknownField(m.to, destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs)) {
-                          <mat-option [value]="m.to">{{ m.to }}</mat-option>
-                        }
-                        @if (destFieldDefs.length > 0) {
-                          @for (f of destFieldDefs; track f.field) {
-                            @if (matchesFilter('destField', f.label + ' ' + f.field)) {
-                            <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}@if (f.required) { *}</mat-option>
-                            }
-                          }
-                        } @else {
-                          @for (f of sourceFieldDefs; track f.field) {
-                            @if (matchesFilter('destField', f.label + ' ' + f.field)) {
-                            <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
-                            }
-                          }
-                        }
-                        <mat-option value="__custom__">-- Custom --</mat-option>
-                      </mat-select>
-                    </mat-form-field>
-                    @if (m.to === '__custom__') {
-                      <mat-form-field appearance="outline" class="wnc__mc-custom">
-                        <input matInput [(ngModel)]="m.to_custom" (ngModelChange)="emitChange()" placeholder="target.path or items[].field" />
-                      </mat-form-field>
-                    }
-                  } @else {
-                    <mat-form-field appearance="outline" class="wnc__mc-to">
-                      <mat-label>Target</mat-label>
-                      <input matInput [(ngModel)]="m.to" (ngModelChange)="emitChange()" placeholder="target.path or items[].field" />
-                    </mat-form-field>
-                  }
-                  <button mat-icon-button (click)="removeFieldMapping(i)"><mat-icon>delete</mat-icon></button>
-                </div>
-                <!-- Transform pipeline -->
-                <ng-container *ngFor="let step of getTransformSteps(m); let ti = index">
-                  <div class="wnc__ts">
-                    <span class="wnc__ts-badge">fx{{ ti + 1 }}</span>
-                    <mat-form-field appearance="outline" class="wnc__ts-type">
-                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)" (openedChange)="onSelectOpen('transform', $event)">
-                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['transform'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['transform'] = $any($event.target).value" placeholder="Search..." /></div>
-                        @for (tt of transformTypes; track tt.value) {
-                          @if (matchesFilter('transform', tt.label + ' ' + tt.value)) {
-                          <mat-option [value]="tt.value">{{ tt.label }}</mat-option>
-                          }
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <ng-container [ngSwitch]="step.type">
-                      <ng-container *ngSwitchCase="'template'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Template</mat-label><input matInput [value]="step['template'] || ''" (input)="setStepProp(m,ti,'template',$any($event.target).value)" placeholder="{{'{'}}{{'{'}}0{{'}'}}{{'}'}} {{'{'}}{{'{'}}1{{'}'}}{{'}'}}" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'format'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Template</mat-label><input matInput [value]="step['template'] || ''" (input)="setStepProp(m,ti,'template',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'regex_extract'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Pattern</mat-label><input matInput [value]="step['pattern'] || ''" (input)="setStepProp(m,ti,'pattern',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Group</mat-label><input matInput type="number" [value]="step['group'] ?? 0" (input)="setStepProp(m,ti,'group',+$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'regex_replace'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Pattern</mat-label><input matInput [value]="step['pattern'] || ''" (input)="setStepProp(m,ti,'pattern',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Replacement</mat-label><input matInput [value]="step['replacement'] || ''" (input)="setStepProp(m,ti,'replacement',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'join'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'split'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'concat'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'replace'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Find</mat-label><input matInput [value]="step['old'] || ''" (input)="setStepProp(m,ti,'old',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Replace with</mat-label><input matInput [value]="step['new'] || ''" (input)="setStepProp(m,ti,'new',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'substring'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Start</mat-label><input matInput type="number" [value]="step['start'] ?? 0" (input)="setStepProp(m,ti,'start',+$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>End</mat-label><input matInput type="number" [value]="step['end'] ?? ''" (input)="setStepProp(m,ti,'end',$any($event.target).value ? +$any($event.target).value : null)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'date_format'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Input format</mat-label><input matInput [value]="step['input_format'] || ''" (input)="setStepProp(m,ti,'input_format',$any($event.target).value)" placeholder="%Y-%m-%d" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Output format</mat-label><input matInput [value]="step['output_format'] || ''" (input)="setStepProp(m,ti,'output_format',$any($event.target).value)" placeholder="%d.%m.%Y" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'math'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Op</mat-label><mat-select [value]="step['operation'] || 'add'" (selectionChange)="setStepProp(m,ti,'operation',$event.value)"><mat-option value="add">+</mat-option><mat-option value="sub">-</mat-option><mat-option value="mul">*</mat-option><mat-option value="div">/</mat-option></mat-select></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Operand</mat-label><input matInput type="number" [value]="step['operand'] ?? 0" (input)="setStepProp(m,ti,'operand',+$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'prepend'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Prefix</mat-label><input matInput [value]="step['value'] || ''" (input)="setStepProp(m,ti,'value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'append'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Suffix</mat-label><input matInput [value]="step['value'] || ''" (input)="setStepProp(m,ti,'value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'default'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'coalesce'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'map'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Map (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'lookup'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Table (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'field_resolve'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Fallback Field</mat-label><input matInput [value]="step['fallback_field'] || ''" (input)="setStepProp(m,ti,'fallback_field',$any($event.target).value)" placeholder="vars.fallback" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default'] || ''" (input)="setStepProp(m,ti,'default',$any($event.target).value)" /></mat-form-field></ng-container>
-                    </ng-container>
-                    <button mat-icon-button class="wnc__ts-rm" (click)="removeTransformStep(m, ti)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
-                  </div>
-                </ng-container>
-                <button mat-button class="wnc__mc-add-fx" (click)="addTransformStep(m)"><mat-icon [style.font-size.px]="14">functions</mat-icon>Add transform</button>
-              </div>
-            </ng-container>
           }
 
           <!-- CONDITION / FILTER -->
@@ -564,132 +437,13 @@ import {
           @if (node.type === 'transform') {
             <div class="wnc__mapper-launch">
               <button mat-stroked-button (click)="openTransformVisualMapper()">
-                <mat-icon>open_in_new</mat-icon>
+                <mat-icon>device_hub</mat-icon>
                 Open Visual Mapper
               </button>
               <span class="wnc__hint">
-                Opens the graphical mapper in a separate window for more space.
+                {{ asFieldMappings(cfg['mappings']).length }} mapping(s) configured
               </span>
             </div>
-
-            <div class="wnc__section-title">
-              <span>Field Mappings</span>
-              <button mat-icon-button (click)="addTransformMapping()"><mat-icon>add</mat-icon></button>
-            </div>
-            <ng-container *ngFor="let m of asFieldMappings(cfg['mappings']); let i = index">
-              <div class="wnc__mc">
-                <div class="wnc__mc-row">
-                  <div class="wnc__mc-sources">
-                    <ng-container *ngFor="let src of getMappingSources(m); let si = index">
-                      <div class="wnc__mc-src-item" [class.wnc__mc-src-extra]="si > 0">
-                        @if (si > 0) { <span class="wnc__mc-plus">+</span> }
-                        @if (sourceFieldDefs.length > 0) {
-                          <mat-form-field appearance="outline" class="wnc__mc-src-ff">
-                            <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <mat-select [value]="src" (selectionChange)="onSourceChange(m, si, $event.value)" (openedChange)="onSelectOpen('srcField', $event)">
-                              <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['srcField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['srcField'] = $any($event.target).value" placeholder="Search..." /></div>
-                              @if (isUnknownField(src, sourceFieldDefs)) {
-                                <mat-option [value]="src">{{ src }}</mat-option>
-                              }
-                              @for (f of sourceFieldDefs; track f.field) {
-                                @if (matchesFilter('srcField', f.label + ' ' + f.field)) {
-                                <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
-                                }
-                              }
-                              @if (getMappingSources(m).length === 1) {
-                                <mat-option value="__custom__">-- Static value --</mat-option>
-                              }
-                            </mat-select>
-                          </mat-form-field>
-                        } @else {
-                          <mat-form-field appearance="outline" class="wnc__mc-src-ff">
-                            <mat-label>{{ getMappingSources(m).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
-                            <input matInput [value]="src === '__custom__' ? '' : src" (input)="onSourceChange(m, si, $any($event.target).value)" placeholder="path.to.field" />
-                          </mat-form-field>
-                        }
-                        @if (src === '__custom__' && getMappingSources(m).length === 1) {
-                          <mat-form-field appearance="outline" class="wnc__mc-custom">
-                            <mat-label>Value</mat-label>
-                            <input matInput [(ngModel)]="m.from_custom" (ngModelChange)="emitChange()" placeholder="Static value" />
-                          </mat-form-field>
-                        }
-                        @if (getMappingSources(m).length > 1) {
-                          <button mat-icon-button class="wnc__mc-rm-src" (click)="removeMappingSource(m, si)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
-                        }
-                      </div>
-                    </ng-container>
-                    <button mat-button class="wnc__mc-add-src" (click)="addMappingSource(m)"><mat-icon [style.font-size.px]="14">add</mat-icon>Add source</button>
-                  </div>
-                  <mat-icon class="wnc__mapping-arrow">arrow_forward</mat-icon>
-                  @if (destFieldDefs.length > 0 || sourceFieldDefs.length > 0) {
-                    <mat-form-field appearance="outline" class="wnc__mc-to">
-                      <mat-label>Target</mat-label>
-                      <mat-select [(ngModel)]="m.to" (ngModelChange)="emitChange()" (openedChange)="onSelectOpen('destField', $event)">
-                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['destField'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['destField'] = $any($event.target).value" placeholder="Search..." /></div>
-                        @if (isUnknownField(m.to, destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs)) {
-                          <mat-option [value]="m.to">{{ m.to }}</mat-option>
-                        }
-                        @for (f of destFieldDefs.length > 0 ? destFieldDefs : sourceFieldDefs; track f.field) {
-                          @if (matchesFilter('destField', f.label + ' ' + f.field)) {
-                          <mat-option [value]="f.field" [class.wnc__array-opt]="isArrayField(f.field)">@if (isArrayField(f.field)) {<mat-icon class="wnc__arr-icon">repeat</mat-icon>}{{ f.label }}</mat-option>
-                          }
-                        }
-                        <mat-option value="__custom__">-- Custom --</mat-option>
-                      </mat-select>
-                    </mat-form-field>
-                    @if (m.to === '__custom__') {
-                      <mat-form-field appearance="outline" class="wnc__mc-custom">
-                        <input matInput [(ngModel)]="m.to_custom" (ngModelChange)="emitChange()" placeholder="new.field.name or items[].field" />
-                      </mat-form-field>
-                    }
-                  } @else {
-                    <mat-form-field appearance="outline" class="wnc__mc-to">
-                      <mat-label>Target</mat-label>
-                      <input matInput [(ngModel)]="m.to" (ngModelChange)="emitChange()" placeholder="new.field.name or items[].field" />
-                    </mat-form-field>
-                  }
-                  <button mat-icon-button (click)="removeTransformMapping(i)"><mat-icon>delete</mat-icon></button>
-                </div>
-                <!-- Transform pipeline -->
-                <ng-container *ngFor="let step of getTransformSteps(m); let ti = index">
-                  <div class="wnc__ts">
-                    <span class="wnc__ts-badge">fx{{ ti + 1 }}</span>
-                    <mat-form-field appearance="outline" class="wnc__ts-type">
-                      <mat-select [value]="step.type" (selectionChange)="onStepTypeChange(m, ti, $event.value)" (openedChange)="onSelectOpen('transform', $event)">
-                        <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['transform'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['transform'] = $any($event.target).value" placeholder="Search..." /></div>
-                        @for (tt of transformTypes; track tt.value) {
-                          @if (matchesFilter('transform', tt.label + ' ' + tt.value)) {
-                          <mat-option [value]="tt.value">{{ tt.label }}</mat-option>
-                          }
-                        }
-                      </mat-select>
-                    </mat-form-field>
-                    <ng-container [ngSwitch]="step.type">
-                      <ng-container *ngSwitchCase="'template'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Template</mat-label><input matInput [value]="step['template'] || ''" (input)="setStepProp(m,ti,'template',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'format'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Template</mat-label><input matInput [value]="step['template'] || ''" (input)="setStepProp(m,ti,'template',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'regex_extract'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Pattern</mat-label><input matInput [value]="step['pattern'] || ''" (input)="setStepProp(m,ti,'pattern',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Group</mat-label><input matInput type="number" [value]="step['group'] ?? 0" (input)="setStepProp(m,ti,'group',+$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'regex_replace'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Pattern</mat-label><input matInput [value]="step['pattern'] || ''" (input)="setStepProp(m,ti,'pattern',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Replacement</mat-label><input matInput [value]="step['replacement'] || ''" (input)="setStepProp(m,ti,'replacement',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'join'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'split'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'concat'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Separator</mat-label><input matInput [value]="step['separator'] || ''" (input)="setStepProp(m,ti,'separator',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'replace'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Find</mat-label><input matInput [value]="step['old'] || ''" (input)="setStepProp(m,ti,'old',$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Replace with</mat-label><input matInput [value]="step['new'] || ''" (input)="setStepProp(m,ti,'new',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'substring'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Start</mat-label><input matInput type="number" [value]="step['start'] ?? 0" (input)="setStepProp(m,ti,'start',+$any($event.target).value)" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>End</mat-label><input matInput type="number" [value]="step['end'] ?? ''" (input)="setStepProp(m,ti,'end',$any($event.target).value ? +$any($event.target).value : null)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'date_format'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Input format</mat-label><input matInput [value]="step['input_format'] || ''" (input)="setStepProp(m,ti,'input_format',$any($event.target).value)" placeholder="%Y-%m-%d" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Output format</mat-label><input matInput [value]="step['output_format'] || ''" (input)="setStepProp(m,ti,'output_format',$any($event.target).value)" placeholder="%d.%m.%Y" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'math'"><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Op</mat-label><mat-select [value]="step['operation'] || 'add'" (selectionChange)="setStepProp(m,ti,'operation',$event.value)"><mat-option value="add">+</mat-option><mat-option value="sub">-</mat-option><mat-option value="mul">*</mat-option><mat-option value="div">/</mat-option></mat-select></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg-sm"><mat-label>Operand</mat-label><input matInput type="number" [value]="step['operand'] ?? 0" (input)="setStepProp(m,ti,'operand',+$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'prepend'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Prefix</mat-label><input matInput [value]="step['value'] || ''" (input)="setStepProp(m,ti,'value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'append'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Suffix</mat-label><input matInput [value]="step['value'] || ''" (input)="setStepProp(m,ti,'value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'default'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'coalesce'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default_value'] || ''" (input)="setStepProp(m,ti,'default_value',$any($event.target).value)" /></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'map'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Map (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'lookup'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Table (JSON)</mat-label><textarea matInput [value]="getStepMapJson(step)" (input)="setStepMapJson(m,ti,$any($event.target).value)" rows="2" placeholder='{{"{"}} "old": "new" {{"}"}}' ></textarea></mat-form-field></ng-container>
-                      <ng-container *ngSwitchCase="'field_resolve'"><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Fallback Field</mat-label><input matInput [value]="step['fallback_field'] || ''" (input)="setStepProp(m,ti,'fallback_field',$any($event.target).value)" placeholder="vars.fallback" /></mat-form-field><mat-form-field appearance="outline" class="wnc__ts-cfg"><mat-label>Default</mat-label><input matInput [value]="step['default'] || ''" (input)="setStepProp(m,ti,'default',$any($event.target).value)" /></mat-form-field></ng-container>
-                    </ng-container>
-                    <button mat-icon-button class="wnc__ts-rm" (click)="removeTransformStep(m, ti)"><mat-icon [style.font-size.px]="16">close</mat-icon></button>
-                  </div>
-                </ng-container>
-                <button mat-button class="wnc__mc-add-fx" (click)="addTransformStep(m)"><mat-icon [style.font-size.px]="14">functions</mat-icon>Add transform</button>
-              </div>
-            </ng-container>
           }
 
           <!-- DELAY -->
@@ -1020,6 +774,106 @@ import {
             </mat-form-field>
           }
 
+          <!-- SUB-WORKFLOW -->
+          @if (node.type === 'sub_workflow') {
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Target Workflow</mat-label>
+              <mat-select [(ngModel)]="cfg['workflow_id']" (ngModelChange)="emitChange()">
+                @for (w of availableWorkflows; track w.id) {
+                  <mat-option [value]="w.id">{{ w.name }}</mat-option>
+                }
+              </mat-select>
+              <mat-hint>Select the workflow to call as a sub-process</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Timeout (seconds)</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['timeout_seconds']" (ngModelChange)="emitChange()" min="1" max="300" />
+              <mat-hint>Max time to wait for sub-workflow completion (1–300s)</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Max Nesting Depth</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['max_depth']" (ngModelChange)="emitChange()" min="1" max="10" />
+              <mat-hint>Prevents circular sub-workflow references</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Input Mapping (JSON)</mat-label>
+              <textarea matInput [(ngModel)]="subWorkflowInputJson" (ngModelChange)="onSubWorkflowInputChange()" rows="4"
+                [placeholder]="'{&quot;order_id&quot;: &quot;\u007B\u007Bdata.id\u007D\u007D&quot;}'"></textarea>
+              <mat-hint>Map parent workflow data to sub-workflow trigger data</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>On Error</mat-label>
+              <mat-select [(ngModel)]="cfg['on_error']" (ngModelChange)="emitChange()">
+                <mat-option value="stop">Stop Workflow</mat-option>
+                <mat-option value="continue">Continue</mat-option>
+              </mat-select>
+            </mat-form-field>
+          }
+
+          <!-- ERROR HANDLER -->
+          @if (node.type === 'error_handler') {
+            <div class="wnc__section-title">
+              <span>Catch Errors From</span>
+            </div>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Nodes to Monitor</mat-label>
+              <mat-select [(ngModel)]="cfg['catch_from']" (ngModelChange)="emitChange()" multiple>
+                @for (n of allNodes; track n.id) {
+                  @if (n.id !== node.id && n.type !== 'error_handler') {
+                    <mat-option [value]="n.id">{{ n.label || n.id }} ({{ n.type }})</mat-option>
+                  }
+                }
+              </mat-select>
+              <mat-hint>Select which nodes this handler catches errors from</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>On Error</mat-label>
+              <mat-select [(ngModel)]="cfg['on_error']" (ngModelChange)="emitChange()">
+                <mat-option value="stop">Stop Workflow</mat-option>
+                <mat-option value="continue">Continue</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <p class="wnc__hint">
+              When an error occurs in a monitored node, this handler executes.
+              Error details are available in <code>vars._error</code> (fields: <code>error</code>, <code>failed_node_id</code>, <code>failed_node_type</code>).
+            </p>
+          }
+
+          <!-- BATCH -->
+          @if (node.type === 'batch') {
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Source (array expression)</mat-label>
+              <input matInput [(ngModel)]="cfg['source']" (ngModelChange)="emitChange()" placeholder="{{'{{data.items}}'}}" />
+              <mat-hint>Data path or template expression resolving to an array</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Concurrency</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['concurrency']" (ngModelChange)="emitChange()" min="1" max="50" />
+              <mat-hint>Number of items processed in parallel (1–50)</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Throttle (ms)</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['throttle_ms']" (ngModelChange)="emitChange()" min="0" />
+              <mat-hint>Delay between items in milliseconds (0 = no throttle)</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>Max Items</mat-label>
+              <input matInput type="number" [(ngModel)]="cfg['max_items']" (ngModelChange)="emitChange()" min="1" max="10000" />
+              <mat-hint>Maximum number of items to process</mat-hint>
+            </mat-form-field>
+            <mat-form-field appearance="outline" class="wnc__field">
+              <mat-label>On Item Error</mat-label>
+              <mat-select [(ngModel)]="cfg['on_item_error']" (ngModelChange)="emitChange()">
+                <mat-option value="continue">Continue (skip failed items)</mat-option>
+                <mat-option value="stop">Stop (abort on first failure)</mat-option>
+              </mat-select>
+            </mat-form-field>
+            <p class="wnc__hint">
+              Each item is available as <code>vars.batch_item</code> and <code>vars.batch_index</code> inside downstream nodes.
+              Connect successor nodes to the <code>body</code> handle for per-item processing.
+            </p>
+          }
+
           <!-- Data reference help -->
           <mat-expansion-panel class="wnc__help">
             <mat-expansion-panel-header>
@@ -1064,40 +918,11 @@ import {
     .wnc__help { margin-top: 16px; }
     .wnc__help-content p { margin: 4px 0; font-size: 12px; }
     .wnc__help-content code { background: #f5f5f5; padding: 1px 4px; border-radius: 3px; font-size: 11px; }
-    .wnc__mapping-arrow { color: #999; font-size: 18px; flex-shrink: 0; align-self: center; margin-top: -16px; }
     .wnc__condition-row { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap; }
     .wnc__cond-field { flex: 2; min-width: 100px; }
     .wnc__cond-op { flex: 2; min-width: 120px; }
     .wnc__cond-val { flex: 1.5; min-width: 80px; }
     .wnc__cond-custom { flex: 1; min-width: 60px; }
-    .wnc__mapping-row { display: flex; align-items: center; gap: 4px; margin-bottom: 4px; flex-wrap: wrap; }
-    .wnc__mapping-field { flex: 1; min-width: 80px; }
-    .wnc__mapping-custom { flex: 0.8; min-width: 60px; }
-
-    /* Mapping card */
-    .wnc__mc { margin-bottom: 8px; padding: 10px; border: 1px solid #e0e0e0; border-radius: 8px; background: #fafafa; }
-    .wnc__mc-row { display: flex; align-items: flex-start; gap: 4px; flex-wrap: wrap; }
-    .wnc__mc-sources { flex: 1.2; min-width: 120px; display: flex; flex-direction: column; gap: 2px; }
-    .wnc__mc-src-item { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
-    .wnc__mc-src-extra { margin-top: -4px; }
-    .wnc__mc-plus { font-size: 12px; font-weight: 700; color: #1565c0; margin-right: 2px; }
-    .wnc__mc-src-ff { flex: 1; min-width: 100px; }
-    .wnc__mc-custom { flex: 1; min-width: 80px; }
-    .wnc__mc-rm-src { width: 28px; height: 28px; line-height: 28px; margin-top: -12px; }
-    .wnc__mc-add-src { font-size: 11px; color: #1565c0; padding: 0 4px; min-height: 24px; line-height: 24px; align-self: flex-start; }
-    .wnc__mc-add-src mat-icon { margin-right: 2px; vertical-align: middle; }
-    .wnc__mc-to { flex: 1; min-width: 100px; }
-    .wnc__mc-fx { flex: 0 0 120px; min-width: 100px; }
-
-    /* Transform step pipeline */
-    .wnc__ts { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-top: 4px; padding: 6px 8px; background: #f4f7ff; border-left: 3px solid #1565c0; border-radius: 0 6px 6px 0; }
-    .wnc__ts-badge { font-size: 10px; font-weight: 700; color: #1565c0; min-width: 22px; text-align: center; }
-    .wnc__ts-type { flex: 0 0 140px; min-width: 120px; }
-    .wnc__ts-cfg { flex: 1 1 140px; min-width: 100px; }
-    .wnc__ts-cfg-sm { flex: 0 0 90px; min-width: 70px; }
-    .wnc__ts-rm { width: 28px; height: 28px; line-height: 28px; flex-shrink: 0; }
-    .wnc__mc-add-fx { font-size: 11px; color: #1565c0; padding: 0 4px; min-height: 24px; line-height: 24px; margin-top: 2px; }
-    .wnc__mc-add-fx mat-icon { margin-right: 2px; vertical-align: middle; }
 
     /* Set Variable option icons */
     ::ng-deep .wnc__opt-icon { font-size: 18px !important; height: 18px !important; width: 18px !important; color: #666; margin-right: 6px; vertical-align: middle; }
@@ -1162,6 +987,8 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   setVarValueMode: 'field' | 'static' | 'template' = 'static';
   setVarFieldPath = '';
   selectFilter: Record<string, string> = {};
+  availableWorkflows: Workflow[] = [];
+  subWorkflowInputJson = '';
   private _lastNodeId = '';
   private _selfEmit = false;
 
@@ -1203,6 +1030,10 @@ export class WorkflowNodeConfigComponent implements OnChanges {
       }
       if (this.node.type === 'set_variable') {
         this.detectSetVarValueMode();
+      }
+      if (this.node.type === 'sub_workflow') {
+        this.loadAvailableWorkflows();
+        try { this.subWorkflowInputJson = JSON.stringify(this.cfg['input_mapping'] || {}, null, 2); } catch { this.subWorkflowInputJson = '{}'; }
       }
     }
   }
@@ -2006,6 +1837,22 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   }
 
   onSyncConfigChange(): void {
+    this.emitChange();
+  }
+
+  // ── Sub-Workflow ──
+
+  private loadAvailableWorkflows(): void {
+    this.api.listWorkflows().subscribe({
+      next: (workflows) => { this.availableWorkflows = workflows; },
+      error: () => { this.availableWorkflows = []; },
+    });
+  }
+
+  onSubWorkflowInputChange(): void {
+    try {
+      this.cfg['input_mapping'] = JSON.parse(this.subWorkflowInputJson);
+    } catch { /* keep raw text until valid JSON */ }
     this.emitChange();
   }
 }

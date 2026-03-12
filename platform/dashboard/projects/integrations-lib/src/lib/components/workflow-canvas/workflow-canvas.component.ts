@@ -17,6 +17,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatChipsModule } from '@angular/material/chips';
 import { MatBadgeModule } from '@angular/material/badge';
+import { Connector } from '../../models/connector.model';
 import {
   WorkflowNode,
   WorkflowEdge,
@@ -102,7 +103,6 @@ interface InlineAddMenu {
         (mousedown)="onCanvasMouseDown($event)"
         (mousemove)="onCanvasMouseMove($event)"
         (mouseup)="onCanvasMouseUp($event)"
-        (wheel)="onCanvasWheel($event)"
         (contextmenu)="$event.preventDefault()"
       >
         <div
@@ -254,9 +254,13 @@ interface InlineAddMenu {
               <div class="wfc-node__content">
                 <!-- Header row -->
                 <div class="wfc-node__header">
-                  <div class="wfc-node__icon-wrap" [style.background]="getNodeAccentColor(node) + '14'">
-                    <mat-icon class="wfc-node__icon" [style.color]="getNodeAccentColor(node)">{{ getNodeDef(node.type)?.icon || 'help' }}</mat-icon>
-                  </div>
+                  @if (getConnectorLogo(node)) {
+                    <img class="wfc-node__logo" [src]="getConnectorLogo(node)" [alt]="getConnectorName(node)" />
+                  } @else {
+                    <div class="wfc-node__icon-wrap" [style.background]="getNodeAccentColor(node) + '14'">
+                      <mat-icon class="wfc-node__icon" [style.color]="getNodeAccentColor(node)">{{ getNodeDef(node.type)?.icon || 'help' }}</mat-icon>
+                    </div>
+                  }
                   <div class="wfc-node__info">
                     <span class="wfc-node__type-label">{{ getNodeTypeLabel(node) }}</span>
                     <span class="wfc-node__summary">{{ node.label || getNodeSummary(node) }}</span>
@@ -280,7 +284,12 @@ interface InlineAddMenu {
               </div>
 
               @if (!readonly) {
-                <!-- Action menu -->
+                <!-- Node action buttons -->
+                @if (node.type === 'action' || node.type === 'transform') {
+                  <button class="wfc-node__mapper-btn" (click)="onOpenMapper(node, $event)" matTooltip="Open Visual Mapper">
+                    <mat-icon>device_hub</mat-icon>
+                  </button>
+                }
                 <button class="wfc-node__menu" (click)="deleteNode(node.id, $event)" matTooltip="Delete step">
                   <mat-icon>close</mat-icon>
                 </button>
@@ -563,6 +572,12 @@ interface InlineAddMenu {
     .wfc-node__header {
       display: flex; align-items: center; gap: 10px;
     }
+    .wfc-node__logo {
+      width: 36px; height: 36px; border-radius: 10px;
+      object-fit: contain; flex-shrink: 0;
+      background: #fff; border: 1px solid #e2e8f0;
+      padding: 3px;
+    }
     .wfc-node__icon-wrap {
       width: 36px; height: 36px; border-radius: 10px;
       display: flex; align-items: center; justify-content: center;
@@ -607,18 +622,21 @@ interface InlineAddMenu {
     .wfc-node__status--filtered { background: #f59e0b; }
     .wfc-node__status--running { background: #6366f1; }
 
-    /* Delete / menu button */
-    .wfc-node__menu {
-      position: absolute; top: 6px; right: 6px;
+    /* Node action buttons */
+    .wfc-node__menu, .wfc-node__mapper-btn {
+      position: absolute; top: 6px;
       background: none; border: none; cursor: pointer;
       color: #cbd5e1; padding: 2px;
       border-radius: 6px; display: flex;
       opacity: 0; transition: opacity 0.15s, color 0.15s, background 0.15s;
       z-index: 8;
     }
-    .wfc-node:hover .wfc-node__menu { opacity: 1; }
+    .wfc-node__menu { right: 6px; }
+    .wfc-node__mapper-btn { right: 26px; }
+    .wfc-node:hover .wfc-node__menu, .wfc-node:hover .wfc-node__mapper-btn { opacity: 1; }
     .wfc-node__menu:hover { background: #fee2e2; color: #ef4444; }
-    .wfc-node__menu mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .wfc-node__mapper-btn:hover { background: #e0e7ff; color: #6366f1; }
+    .wfc-node__menu mat-icon, .wfc-node__mapper-btn mat-icon { font-size: 16px; width: 16px; height: 16px; }
 
     /* ── Handles ── */
     .wfc-handle {
@@ -652,11 +670,13 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
   @Input() nodes: WorkflowNode[] = [];
   @Input() edges: WorkflowEdge[] = [];
   @Input() nodeResults: WorkflowNodeResult[] = [];
+  @Input() connectors: Connector[] = [];
   @Input() readonly = false;
   @Output() nodesChange = new EventEmitter<WorkflowNode[]>();
   @Output() edgesChange = new EventEmitter<WorkflowEdge[]>();
   @Output() nodeSelected = new EventEmitter<WorkflowNode | null>();
   @Output() nodeDoubleClicked = new EventEmitter<WorkflowNode>();
+  @Output() openNodeMapper = new EventEmitter<WorkflowNode>();
 
   @ViewChild('canvasEl', { static: true }) canvasEl!: ElementRef<HTMLDivElement>;
 
@@ -769,6 +789,17 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     return this.nodes.indexOf(node) + 1;
   }
 
+  getConnectorLogo(node: WorkflowNode): string | null {
+    const name = node.config?.['connector_name'] as string;
+    if (!name) return null;
+    const c = this.connectors.find(cn => cn.name === name);
+    return c?.logo_url || null;
+  }
+
+  getConnectorName(node: WorkflowNode): string {
+    return (node.config?.['connector_name'] as string) || '';
+  }
+
   getNodeTypeLabel(node: WorkflowNode): string {
     const cfg = node.config;
     switch (node.type) {
@@ -815,6 +846,12 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
         }
         return 'Configure AI prompt...';
       }
+      case 'sub_workflow':
+        return cfg['workflow_id'] ? `Workflow: ${cfg['workflow_id']}` : 'Select a workflow...';
+      case 'error_handler':
+        return (cfg['catch_from'] as string[])?.length ? `Monitoring ${(cfg['catch_from'] as string[]).length} node(s)` : 'Configure error handler...';
+      case 'batch':
+        return cfg['source'] ? `Batch over ${cfg['source']}` : 'Configure batch source...';
       default:
         return this.getNodeDef(node.type)?.description || node.type;
     }
@@ -980,6 +1017,11 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     this.stepPickerOpen = false;
   }
 
+  onOpenMapper(node: WorkflowNode, event: MouseEvent): void {
+    event.stopPropagation();
+    this.openNodeMapper.emit(node);
+  }
+
   deleteNode(nodeId: string, event: MouseEvent): void {
     event.stopPropagation();
     this.nodes = this.nodes.filter(n => n.id !== nodeId);
@@ -1067,25 +1109,8 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     this.isPanning = false;
   }
 
-  onCanvasWheel(event: WheelEvent): void {
-    event.preventDefault();
-    const rect = this.canvasEl.nativeElement.getBoundingClientRect();
-    const mouseX = event.clientX - rect.left;
-    const mouseY = event.clientY - rect.top;
-
-    const delta = event.deltaY > 0 ? 0.9 : 1.1;
-    const newScale = Math.max(0.15, Math.min(3, this.transform.scale * delta));
-    const scaleRatio = newScale / this.transform.scale;
-
-    this.transform = {
-      scale: newScale,
-      x: mouseX - (mouseX - this.transform.x) * scaleRatio,
-      y: mouseY - (mouseY - this.transform.y) * scaleRatio,
-    };
-  }
-
   onNodeMouseDown(event: MouseEvent, node: WorkflowNode): void {
-    if ((event.target as HTMLElement).closest('.wfc-handle') || (event.target as HTMLElement).closest('.wfc-node__menu')) return;
+    if ((event.target as HTMLElement).closest('.wfc-handle') || (event.target as HTMLElement).closest('.wfc-node__menu') || (event.target as HTMLElement).closest('.wfc-node__mapper-btn')) return;
     event.stopPropagation();
 
     if (this.connectionDraft) return;
@@ -1343,6 +1368,12 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
         return { strategy: 'wait_all' };
       case 'response':
         return { body: {} };
+      case 'sub_workflow':
+        return { workflow_id: '', timeout_seconds: 60, max_depth: 5, input_mapping: {}, on_error: 'stop' };
+      case 'error_handler':
+        return { catch_from: [], on_error: 'continue' };
+      case 'batch':
+        return { source: '', concurrency: 5, throttle_ms: 0, max_items: 1000, on_item_error: 'continue' };
       default:
         return {};
     }

@@ -14,6 +14,7 @@ export { WorkflowCanvasComponent } from './lib/components/workflow-canvas/workfl
 export { WorkflowNodeConfigComponent } from './lib/components/workflow-node-config/workflow-node-config.component';
 export { WorkflowAiChatComponent } from './lib/components/workflow-ai-chat/workflow-ai-chat.component';
 export { VisualFieldMapperComponent } from './lib/components/visual-field-mapper/visual-field-mapper.component';
+export { VisualFieldMapperDialogComponent, VisualFieldMapperDialogData } from './lib/components/visual-field-mapper-dialog/visual-field-mapper-dialog.component';
 export { SwaggerUiComponent } from './lib/components/swagger-ui/swagger-ui.component';
 
 // Models

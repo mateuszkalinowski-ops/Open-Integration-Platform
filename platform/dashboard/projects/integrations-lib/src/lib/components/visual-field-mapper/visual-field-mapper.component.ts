@@ -54,14 +54,22 @@ interface AiSettings {
             <span class="vfm__col-title">{{ sourceLabel }}</span>
             <span class="vfm__col-count">{{ sourceFields.length }}</span>
           </div>
+          <div class="vfm__search">
+            <mat-icon class="vfm__search-icon">search</mat-icon>
+            <input class="vfm__search-input" [(ngModel)]="searchSource" placeholder="Filter fields..." />
+            @if (searchSource) {
+              <button class="vfm__search-clear" (click)="searchSource = ''"><mat-icon>close</mat-icon></button>
+            }
+          </div>
           <div class="vfm__field-list">
-            @for (field of sourceFields; track field.field) {
+            @for (field of filteredSourceFields; track field.field) {
               <button type="button" class="vfm__field"
-                [attr.data-side]="'source'" [attr.data-field]="field.field"
                 [class.vfm__field--selected]="pendingSource?.field === field.field"
-                [class.vfm__field--dragging]="draggedSource?.field === field.field"
-                draggable="true" (dragstart)="onDragStart($event, field)" (dragend)="onDragEnd()" (click)="selectSource(field)">
-                <mat-icon class="vfm__grip">drag_indicator</mat-icon>
+                [class.vfm__field--array]="isArrayField(field.field)"
+                (click)="selectSource(field)">
+                @if (isArrayField(field.field)) {
+                  <mat-icon class="vfm__arr-icon">view_list</mat-icon>
+                }
                 <div class="vfm__field-text">
                   <span class="vfm__field-name">{{ field.label }}</span>
                   <span class="vfm__field-key">{{ field.field }}</span>
@@ -69,6 +77,15 @@ interface AiSettings {
                 <span class="vfm__field-type">{{ field.type }}</span>
               </button>
             }
+            <button type="button" class="vfm__field vfm__field--static"
+              [class.vfm__field--selected]="pendingSource?.field === '__custom__'"
+              (click)="selectSource({ field: '__custom__', label: 'Static value', type: 'static' })">
+              <div class="vfm__field-text">
+                <span class="vfm__field-name">Static value</span>
+                <span class="vfm__field-key">Custom constant or expression</span>
+              </div>
+              <mat-icon class="vfm__field-static-icon">edit_note</mat-icon>
+            </button>
           </div>
         </div>
 
@@ -76,51 +93,127 @@ interface AiSettings {
           <div class="vfm__col-head">
             <span class="vfm__col-title">Mappings</span>
             <span class="vfm__col-count">{{ mappings.length }}</span>
+            <button mat-icon-button class="vfm__add-mapping" (click)="addEmptyMapping()" matTooltip="Add mapping manually">
+              <mat-icon>add</mat-icon>
+            </button>
+          </div>
+          <div class="vfm__search">
+            <mat-icon class="vfm__search-icon">search</mat-icon>
+            <input class="vfm__search-input" [(ngModel)]="searchMapping" placeholder="Filter mappings..." />
+            @if (searchMapping) {
+              <button class="vfm__search-clear" (click)="searchMapping = ''"><mat-icon>close</mat-icon></button>
+            }
           </div>
           @if (mappings.length === 0) {
             <div class="vfm__empty">
               <mat-icon>device_hub</mat-icon>
-              <span>No mappings yet. Select left, click right.</span>
+              <span>No mappings yet. Click a source then a target, or use + to add manually.</span>
             </div>
           } @else {
             <div class="vfm__field-list">
-              @for (mapping of mappings; track mappingKey(mapping, $index); let i = $index) {
-                <div class="vfm__map-row" [class.vfm__map-row--active]="editingTransformIndex === i"
-                  (click)="toggleTransformEditor(i, $event)">
-                  <span class="vfm__map-from" [matTooltip]="displaySource(mapping)">{{ displaySource(mapping) }}</span>
-                  <mat-icon class="vfm__map-arrow">east</mat-icon>
-                  <span class="vfm__map-to" [matTooltip]="displayTarget(mapping)">{{ displayTarget(mapping) }}</span>
-                  <span class="vfm__map-fx" matTooltip="Transforms">fx {{ getTransformCount(mapping) }}</span>
-                  <button mat-icon-button class="vfm__map-del" (click)="removeMapping(i); $event.stopPropagation()" matTooltip="Remove">
-                    <mat-icon>delete_outline</mat-icon>
-                  </button>
-                </div>
-                @if (editingTransformIndex === i) {
-                  <div class="vfm__tx-editor" (click)="$event.stopPropagation()">
-                    <div class="vfm__tx-head">
-                      <span>Transforms: {{ displaySource(mapping) }} → {{ displayTarget(mapping) }}</span>
-                      <button mat-icon-button (click)="editingTransformIndex = -1"><mat-icon>close</mat-icon></button>
-                    </div>
-                    @for (step of getTransformSteps(mapping); track $index; let si = $index) {
-                      <div class="vfm__tx-step">
-                        <mat-form-field appearance="outline" class="vfm__tx-type">
-                          <mat-label>Type</mat-label>
-                          <mat-select [value]="step.type" (selectionChange)="updateTransformType(i, si, $event.value)">
-                            @for (tt of transformTypes; track tt.value) { <mat-option [value]="tt.value">{{ tt.label }}</mat-option> }
-                          </mat-select>
-                        </mat-form-field>
-                        @for (cfgKey of getTransformConfigFields(step.type); track cfgKey) {
-                          <mat-form-field appearance="outline" class="vfm__tx-cfg">
-                            <mat-label>{{ cfgKey }}</mat-label>
-                            <input matInput [value]="step[cfgKey] ?? ''" (change)="updateTransformConfig(i, si, cfgKey, $event)" />
-                          </mat-form-field>
-                        }
-                        <button mat-icon-button color="warn" (click)="removeTransformStep(i, si)"><mat-icon>remove_circle</mat-icon></button>
-                      </div>
+              @for (item of filteredMappings; track mappingKey(item.mapping, item.originalIndex)) {
+                <div class="vfm__mc" [class.vfm__mc--expanded]="expandedMappingIndex === item.originalIndex">
+                  <!-- Collapsed summary row -->
+                  <div class="vfm__mc-summary" (click)="toggleMappingExpand(item.originalIndex)">
+                    <mat-icon class="vfm__mc-chevron">{{ expandedMappingIndex === item.originalIndex ? 'expand_more' : 'chevron_right' }}</mat-icon>
+                    <span class="vfm__mc-from" [matTooltip]="displaySource(item.mapping)">{{ displaySource(item.mapping) }}</span>
+                    <mat-icon class="vfm__mc-arrow">east</mat-icon>
+                    <span class="vfm__mc-to" [matTooltip]="displayTarget(item.mapping)">{{ displayTarget(item.mapping) }}</span>
+                    @if (getTransformCount(item.mapping) > 0) {
+                      <span class="vfm__mc-fx">fx{{ getTransformCount(item.mapping) }}</span>
                     }
-                    <button mat-stroked-button (click)="addTransformStep(i)"><mat-icon>add</mat-icon> Add</button>
+                    <button mat-icon-button class="vfm__mc-del" (click)="removeMapping(item.originalIndex); $event.stopPropagation()" matTooltip="Remove">
+                      <mat-icon>delete_outline</mat-icon>
+                    </button>
                   </div>
-                }
+
+                  <!-- Expanded editor -->
+                  @if (expandedMappingIndex === item.originalIndex) {
+                    <div class="vfm__mc-body" (click)="$event.stopPropagation()">
+                      <!-- Sources -->
+                      <div class="vfm__mc-section">
+                        <span class="vfm__mc-label">Sources</span>
+                        @for (src of getMappingSources(item.mapping); track $index; let si = $index) {
+                          <div class="vfm__mc-src-row">
+                            @if (si > 0) { <span class="vfm__mc-plus">+</span> }
+                            <mat-form-field appearance="outline" class="vfm__mc-ff">
+                              <mat-label>{{ getMappingSources(item.mapping).length > 1 ? 'Source ' + (si + 1) : 'Source' }}</mat-label>
+                              <mat-select [value]="src" (selectionChange)="onSourceFieldChange(item.originalIndex, si, $event.value)">
+                                @for (f of sourceFields; track f.field) {
+                                  <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                                }
+                                @if (getMappingSources(item.mapping).length === 1) {
+                                  <mat-option value="__custom__">-- Static value --</mat-option>
+                                }
+                              </mat-select>
+                            </mat-form-field>
+                            @if (src === '__custom__' && getMappingSources(item.mapping).length === 1) {
+                              <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--sm">
+                                <mat-label>Value</mat-label>
+                                <input matInput [value]="item.mapping.from_custom || ''" (input)="onCustomSourceChange(item.originalIndex, $any($event.target).value)" placeholder="Static value" />
+                              </mat-form-field>
+                            }
+                            @if (getMappingSources(item.mapping).length > 1) {
+                              <button mat-icon-button class="vfm__mc-rm" (click)="removeMappingSource(item.originalIndex, si)"><mat-icon>close</mat-icon></button>
+                            }
+                          </div>
+                        }
+                        <button mat-button class="vfm__mc-add-btn" (click)="addMappingSource(item.originalIndex)"><mat-icon>add</mat-icon> Add source</button>
+                      </div>
+
+                      <!-- Target -->
+                      <div class="vfm__mc-section">
+                        <span class="vfm__mc-label">Target</span>
+                        <div class="vfm__mc-src-row">
+                          <mat-form-field appearance="outline" class="vfm__mc-ff">
+                            <mat-label>Target field</mat-label>
+                            <mat-select [value]="item.mapping.to" (selectionChange)="onTargetFieldChange(item.originalIndex, $event.value)">
+                              @for (f of destinationFields; track f.field) {
+                                <mat-option [value]="f.field">{{ f.label }}@if (f.required) { *} ({{ f.field }})</mat-option>
+                              }
+                              @if (destinationFields.length === 0) {
+                                @for (f of sourceFields; track f.field) {
+                                  <mat-option [value]="f.field">{{ f.label }} ({{ f.field }})</mat-option>
+                                }
+                              }
+                              <mat-option value="__custom__">-- Custom path --</mat-option>
+                            </mat-select>
+                          </mat-form-field>
+                          @if (item.mapping.to === '__custom__') {
+                            <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--sm">
+                              <mat-label>Path</mat-label>
+                              <input matInput [value]="item.mapping.to_custom || ''" (input)="onCustomTargetChange(item.originalIndex, $any($event.target).value)" placeholder="target.path" />
+                            </mat-form-field>
+                          }
+                        </div>
+                      </div>
+
+                      <!-- Transforms -->
+                      <div class="vfm__mc-section">
+                        <span class="vfm__mc-label">Transforms</span>
+                        @for (step of getTransformSteps(item.mapping); track $index; let si = $index) {
+                          <div class="vfm__mc-tx">
+                            <span class="vfm__mc-tx-badge">fx{{ si + 1 }}</span>
+                            <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--type">
+                              <mat-label>Type</mat-label>
+                              <mat-select [value]="step.type" (selectionChange)="updateTransformType(item.originalIndex, si, $event.value)">
+                                @for (tt of transformTypes; track tt.value) { <mat-option [value]="tt.value">{{ tt.label }}</mat-option> }
+                              </mat-select>
+                            </mat-form-field>
+                            @for (cfgKey of getTransformConfigFields(step.type); track cfgKey) {
+                              <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--cfg">
+                                <mat-label>{{ cfgKey }}</mat-label>
+                                <input matInput [value]="step[cfgKey] ?? ''" (change)="updateTransformConfig(item.originalIndex, si, cfgKey, $event)" />
+                              </mat-form-field>
+                            }
+                            <button mat-icon-button class="vfm__mc-rm" (click)="removeTransformStep(item.originalIndex, si)"><mat-icon>close</mat-icon></button>
+                          </div>
+                        }
+                        <button mat-button class="vfm__mc-add-btn" (click)="addTransformStep(item.originalIndex)"><mat-icon>functions</mat-icon> Add transform</button>
+                      </div>
+                    </div>
+                  }
+                </div>
               }
             </div>
           }
@@ -131,14 +224,22 @@ interface AiSettings {
             <span class="vfm__col-title">{{ destinationLabel }}</span>
             <span class="vfm__col-count">{{ destinationFields.length }}</span>
           </div>
+          <div class="vfm__search">
+            <mat-icon class="vfm__search-icon">search</mat-icon>
+            <input class="vfm__search-input" [(ngModel)]="searchDest" placeholder="Filter fields..." />
+            @if (searchDest) {
+              <button class="vfm__search-clear" (click)="searchDest = ''"><mat-icon>close</mat-icon></button>
+            }
+          </div>
           <div class="vfm__field-list">
-            @for (field of destinationFields; track field.field) {
+            @for (field of filteredDestFields; track field.field) {
               <button type="button" class="vfm__field"
-                [attr.data-side]="'target'" [attr.data-field]="field.field"
                 [class.vfm__field--mapped]="isMappedTarget(field.field)"
-                [class.vfm__field--drop-active]="draggedSource && !isMappedTarget(field.field)"
-                [class.vfm__field--drop-hover]="dropHoverField === field.field"
-                (dragover)="onDragOver($event, field)" (dragleave)="onDragLeave()" (drop)="onDrop($event, field)" (click)="connectTo(field)">
+                [class.vfm__field--array]="isArrayField(field.field)"
+                (click)="connectTo(field)">
+                @if (isArrayField(field.field)) {
+                  <mat-icon class="vfm__arr-icon">view_list</mat-icon>
+                }
                 <div class="vfm__field-text">
                   <span class="vfm__field-name">{{ field.label }}@if (field.required) {<span class="vfm__req">*</span>}</span>
                   <span class="vfm__field-key">{{ field.field }}</span>
@@ -156,16 +257,30 @@ interface AiSettings {
         </summary>
         <div class="vfm__preview-body">
           <div class="vfm__preview-row">
-            <mat-form-field appearance="outline" class="vfm__preview-input">
-              <mat-label>Sample input</mat-label>
-              <textarea matInput rows="6" [(ngModel)]="sampleInputJson"></textarea>
-            </mat-form-field>
-            <div class="vfm__preview-out">
-              @if (previewError) { <span class="vfm__preview-err">{{ previewError }}</span> }
-              @else { <pre>{{ previewOutputJson }}</pre> }
+            <div class="vfm__preview-col">
+              <div class="vfm__preview-col-head">
+                <span>Sample input (JSON)</span>
+                <div class="vfm__preview-btns">
+                  <button mat-stroked-button class="vfm__preview-gen" (click)="generateSampleJson()" [disabled]="aiLoading">
+                    <mat-icon>auto_awesome</mat-icon> Generate
+                  </button>
+                  <button mat-stroked-button class="vfm__preview-gen vfm__preview-run" (click)="generatePreview()">
+                    <mat-icon>play_arrow</mat-icon> Run preview
+                  </button>
+                </div>
+              </div>
+              <textarea class="vfm__preview-textarea" rows="8" [(ngModel)]="sampleInputJson" placeholder='{ "field": "value" }'></textarea>
+            </div>
+            <div class="vfm__preview-col">
+              <div class="vfm__preview-col-head">
+                <span>Mapped output</span>
+              </div>
+              <div class="vfm__preview-out">
+                @if (previewError) { <div class="vfm__preview-err">{{ previewError }}</div> }
+                <pre>{{ previewOutputJson }}</pre>
+              </div>
             </div>
           </div>
-          <button mat-stroked-button (click)="generatePreview()"><mat-icon>play_arrow</mat-icon> Run preview</button>
         </div>
       </details>
     </div>
@@ -179,48 +294,73 @@ interface AiSettings {
     .vfm__hint mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .vfm__hint--active { color: #2563eb; font-weight: 600; }
 
-    .vfm__layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(260px, 0.9fr) minmax(0, 1fr); gap: 8px; align-items: start; }
+    .vfm__layout { display: grid; grid-template-columns: minmax(0, 1fr) minmax(300px, 1.2fr) minmax(0, 1fr); gap: 8px; align-items: start; }
 
-    .vfm__col { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
+    .vfm__col { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; display: flex; flex-direction: column; max-height: 520px; }
     .vfm__col--center { background: #f8fafc; }
     .vfm__col-head { display: flex; align-items: center; justify-content: space-between; padding: 8px 10px; border-bottom: 1px solid #e2e8f0; }
     .vfm__col-title { font-size: 12px; font-weight: 700; color: #334155; text-transform: uppercase; letter-spacing: 0.04em; }
     .vfm__col-count { font-size: 11px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 2px 7px; border-radius: 999px; }
 
-    .vfm__field-list { display: flex; flex-direction: column; gap: 4px; padding: 6px; max-height: 460px; overflow: auto; }
+    .vfm__search { display: flex; align-items: center; gap: 6px; padding: 4px 8px; border-bottom: 1px solid #e2e8f0; background: #f8fafc; flex-shrink: 0; }
+    .vfm__search-icon { width: 16px; height: 16px; font-size: 16px; color: #94a3b8; flex-shrink: 0; }
+    .vfm__search-input { border: none; outline: none; background: transparent; font-size: 12px; color: #334155; flex: 1; min-width: 0; padding: 4px 0; }
+    .vfm__search-input::placeholder { color: #94a3b8; }
+    .vfm__search-clear { border: none; background: none; cursor: pointer; padding: 0; display: flex; align-items: center; color: #94a3b8; flex-shrink: 0; }
+    .vfm__search-clear:hover { color: #64748b; }
+    .vfm__search-clear mat-icon { width: 14px; height: 14px; font-size: 14px; }
 
-    .vfm__field { display: flex; align-items: center; gap: 8px; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; padding: 7px 10px; cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; }
+    .vfm__field-list { display: flex; flex-direction: column; gap: 4px; padding: 6px; overflow-y: auto; flex: 1; min-height: 0; }
+
+    .vfm__field { display: flex; align-items: center; gap: 8px; width: 100%; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; padding: 7px 10px; cursor: pointer; text-align: left; transition: border-color 0.15s, background 0.15s; flex-shrink: 0; }
     .vfm__field:hover { border-color: #93c5fd; background: #f8fbff; }
     .vfm__field--selected { border-color: #2563eb; background: #eff6ff; }
-    .vfm__field--dragging { opacity: 0.5; border-color: #2563eb; }
-    .vfm__field--drop-active { border-style: dashed; border-color: #93c5fd; }
-    .vfm__field--drop-hover { border-color: #2563eb; background: #eff6ff; }
     .vfm__field--mapped { border-color: #86efac; background: #f0fdf4; }
-
-    .vfm__grip { font-size: 14px; width: 14px; height: 14px; color: #94a3b8; cursor: grab; flex-shrink: 0; }
     .vfm__field-text { min-width: 0; flex: 1; display: flex; flex-direction: column; }
     .vfm__field-name { font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .vfm__field-key { font-size: 11px; color: #64748b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
     .vfm__field-type { font-size: 10px; color: #94a3b8; white-space: nowrap; flex-shrink: 0; }
+    .vfm__field--array { border-left: 3px solid #3b82f6; }
+    .vfm__arr-icon { width: 16px; height: 16px; font-size: 16px; color: #3b82f6; flex-shrink: 0; }
+    .vfm__field--static { border-style: dashed; border-color: #cbd5e1; background: #f8fafc; }
+    .vfm__field--static:hover { border-color: #6366f1; background: #eef2ff; }
+    .vfm__field--static.vfm__field--selected { border-color: #6366f1; background: #e0e7ff; }
+    .vfm__field-static-icon { width: 18px; height: 18px; font-size: 18px; color: #6366f1; flex-shrink: 0; }
     .vfm__req { color: #dc2626; margin-left: 2px; }
+
+    .vfm__add-mapping { width: 24px !important; height: 24px !important; }
+    .vfm__add-mapping mat-icon { font-size: 18px; width: 18px; height: 18px; }
 
     .vfm__empty { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 28px 12px; color: #94a3b8; font-size: 12px; }
     .vfm__empty mat-icon { width: 20px; height: 20px; font-size: 20px; }
 
-    .vfm__map-row { display: flex; align-items: center; gap: 6px; padding: 6px 8px; border: 1px solid #e2e8f0; border-radius: 8px; background: #fff; cursor: pointer; transition: border-color 0.15s; }
-    .vfm__map-row:hover { border-color: #93c5fd; background: #f8fbff; }
-    .vfm__map-row--active { border-color: #2563eb; background: #eff6ff; }
-    .vfm__map-from, .vfm__map-to { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-    .vfm__map-arrow { width: 14px; height: 14px; font-size: 14px; color: #2563eb; flex-shrink: 0; }
-    .vfm__map-fx { font-size: 10px; font-weight: 700; color: #64748b; background: #f1f5f9; padding: 2px 6px; border-radius: 999px; flex-shrink: 0; }
-    .vfm__map-del { width: 28px; height: 28px; flex-shrink: 0; }
-    .vfm__map-del mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .vfm__mc { border: 1px solid #e2e8f0; border-radius: 6px; background: #fff; overflow: hidden; transition: border-color 0.15s; flex-shrink: 0; }
+    .vfm__mc--expanded { border-color: #93c5fd; }
+    .vfm__mc-summary { display: flex; align-items: center; gap: 6px; padding: 8px 10px; cursor: pointer; transition: background 0.12s; min-height: 36px; }
+    .vfm__mc-summary:hover { background: #f8fbff; }
+    .vfm__mc-chevron { width: 16px; height: 16px; font-size: 16px; color: #94a3b8; flex-shrink: 0; }
+    .vfm__mc-from, .vfm__mc-to { flex: 1; min-width: 0; font-size: 12px; font-weight: 600; color: #0f172a; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .vfm__mc-arrow { width: 12px; height: 12px; font-size: 12px; color: #94a3b8; flex-shrink: 0; }
+    .vfm__mc-fx { font-size: 10px; font-weight: 700; color: #6366f1; background: #eef2ff; padding: 1px 5px; border-radius: 999px; flex-shrink: 0; }
+    .vfm__mc-del { width: 24px !important; height: 24px !important; flex-shrink: 0; opacity: 0; transition: opacity 0.12s; }
+    .vfm__mc-summary:hover .vfm__mc-del { opacity: 1; }
+    .vfm__mc-del mat-icon { font-size: 15px; width: 15px; height: 15px; }
 
-    .vfm__tx-editor { margin-top: 4px; padding: 8px; border: 1px solid #c7d7f5; border-radius: 8px; background: #f0f5ff; }
-    .vfm__tx-head { display: flex; align-items: center; justify-content: space-between; font-size: 11px; font-weight: 600; color: #1d4ed8; margin-bottom: 6px; }
-    .vfm__tx-step { display: flex; align-items: center; gap: 6px; margin-bottom: 6px; flex-wrap: wrap; }
-    .vfm__tx-type { width: 150px; }
-    .vfm__tx-cfg { width: 130px; }
+    .vfm__mc-body { padding: 0 10px 10px; border-top: 1px solid #e2e8f0; background: #fafbfc; }
+    .vfm__mc-section { padding-top: 8px; }
+    .vfm__mc-label { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: #94a3b8; display: block; margin-bottom: 4px; }
+    .vfm__mc-src-row { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 2px; }
+    .vfm__mc-plus { font-size: 11px; font-weight: 700; color: #64748b; margin-right: 2px; }
+    .vfm__mc-ff { flex: 1; min-width: 120px; }
+    .vfm__mc-ff--sm { max-width: 140px; }
+    .vfm__mc-ff--type { max-width: 160px; flex: 0 0 auto; }
+    .vfm__mc-ff--cfg { min-width: 100px; }
+    .vfm__mc-rm { width: 24px !important; height: 24px !important; flex-shrink: 0; }
+    .vfm__mc-rm mat-icon { font-size: 16px; width: 16px; height: 16px; }
+    .vfm__mc-add-btn { font-size: 11px; height: 28px; line-height: 28px; }
+    .vfm__mc-add-btn mat-icon { font-size: 14px; width: 14px; height: 14px; margin-right: 2px; }
+    .vfm__mc-tx { display: flex; align-items: center; gap: 4px; flex-wrap: wrap; margin-bottom: 4px; }
+    .vfm__mc-tx-badge { font-size: 10px; font-weight: 700; color: #6366f1; background: #eef2ff; padding: 2px 6px; border-radius: 4px; flex-shrink: 0; }
 
     .vfm__preview { border: 1px solid #e2e8f0; border-radius: 10px; background: #fff; }
     .vfm__preview-toggle { padding: 8px 12px; cursor: pointer; font-size: 12px; font-weight: 600; color: #475569; display: flex; align-items: center; gap: 6px; list-style: none; }
@@ -228,10 +368,18 @@ interface AiSettings {
     .vfm__preview-toggle mat-icon { width: 16px; height: 16px; font-size: 16px; }
     .vfm__preview-body { padding: 8px 12px 12px; border-top: 1px solid #e2e8f0; }
     .vfm__preview-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 8px; }
-    .vfm__preview-input { width: 100%; }
-    .vfm__preview-out { min-height: 160px; padding: 10px; border-radius: 8px; background: #0f172a; color: #e2e8f0; overflow: auto; font-size: 11px; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+    .vfm__preview-col { display: flex; flex-direction: column; }
+    .vfm__preview-col-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px; font-size: 11px; font-weight: 600; color: #64748b; text-transform: uppercase; letter-spacing: 0.04em; }
+    .vfm__preview-btns { display: flex; gap: 6px; }
+    .vfm__preview-gen { font-size: 11px !important; height: 28px !important; line-height: 28px !important; padding: 0 10px !important; }
+    .vfm__preview-gen mat-icon { font-size: 14px; width: 14px; height: 14px; margin-right: 4px; }
+    .vfm__preview-run { color: #2563eb !important; border-color: #2563eb !important; }
+    .vfm__preview-textarea { width: 100%; box-sizing: border-box; min-height: 180px; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; line-height: 1.5; resize: vertical; outline: none; transition: border-color 0.15s; }
+    .vfm__preview-textarea:focus { border-color: #93c5fd; }
+    .vfm__preview-textarea::placeholder { color: #cbd5e1; }
+    .vfm__preview-out { min-height: 180px; padding: 10px; border-radius: 8px; border: 1px solid #e2e8f0; background: #fff; color: #1e293b; overflow: auto; font-size: 12px; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
     .vfm__preview-out pre { margin: 0; white-space: pre-wrap; word-break: break-word; line-height: 1.5; }
-    .vfm__preview-err { color: #fca5a5; font-size: 11px; }
+    .vfm__preview-err { color: #dc2626; font-size: 11px; padding: 6px 8px; margin-bottom: 4px; background: #fef2f2; border-radius: 4px; border: 1px solid #fecaca; }
 
     @media (max-width: 1100px) {
       .vfm__layout, .vfm__preview-row { grid-template-columns: 1fr; }
@@ -251,19 +399,53 @@ export class VisualFieldMapperComponent {
   @Output() mappingsChange = new EventEmitter<FieldMapping[]>();
 
   pendingSource: ConnectorFieldDef | null = null;
-  draggedSource: ConnectorFieldDef | null = null;
-  dropHoverField: string | null = null;
-  editingTransformIndex = -1;
+  expandedMappingIndex = -1;
   transformTypes: TransformTypeDef[] = TRANSFORM_TYPES;
   sampleInputJson = '{}';
   previewOutputJson = '{}';
   previewError = '';
   aiLoading = false;
 
+  searchSource = '';
+  searchMapping = '';
+  searchDest = '';
+
+  get filteredSourceFields(): ConnectorFieldDef[] {
+    if (!this.searchSource) return this.sourceFields;
+    const q = this.searchSource.toLowerCase();
+    return this.sourceFields.filter(f => f.label.toLowerCase().includes(q) || f.field.toLowerCase().includes(q));
+  }
+
+  get filteredDestFields(): ConnectorFieldDef[] {
+    const sorted = [...this.destinationFields].sort((a, b) => {
+      if (a.required && !b.required) return -1;
+      if (!a.required && b.required) return 1;
+      return 0;
+    });
+    if (!this.searchDest) return sorted;
+    const q = this.searchDest.toLowerCase();
+    return sorted.filter(f => f.label.toLowerCase().includes(q) || f.field.toLowerCase().includes(q));
+  }
+
+  get filteredMappings(): { mapping: FieldMapping; originalIndex: number }[] {
+    const all = this.mappings.map((m, i) => ({ mapping: m, originalIndex: i }));
+    if (!this.searchMapping) return all;
+    const q = this.searchMapping.toLowerCase();
+    return all.filter(({ mapping }) => {
+      const src = this.displaySource(mapping).toLowerCase();
+      const tgt = this.displayTarget(mapping).toLowerCase();
+      return src.includes(q) || tgt.includes(q);
+    });
+  }
+
   constructor(
     private readonly api: PinquarkApiService,
     private readonly snackBar: MatSnackBar,
   ) {}
+
+  isArrayField(field: string): boolean {
+    return field.includes('[]');
+  }
 
   selectSource(field: ConnectorFieldDef): void {
     this.pendingSource = this.pendingSource?.field === field.field ? null : field;
@@ -283,7 +465,9 @@ export class VisualFieldMapperComponent {
 
     base.from = this.pendingSource.field;
     base.to = field.field;
-    delete base.from_custom;
+    if (this.pendingSource.field !== '__custom__') {
+      delete base.from_custom;
+    }
     delete base.sources;
 
     if (existingIndex >= 0) {
@@ -296,46 +480,86 @@ export class VisualFieldMapperComponent {
     this.emitMappings(next);
   }
 
-  onDragStart(event: DragEvent, field: ConnectorFieldDef): void {
-    this.draggedSource = field;
-    this.pendingSource = field;
-    event.dataTransfer?.setData('text/plain', field.field);
-    if (event.dataTransfer) {
-      event.dataTransfer.effectAllowed = 'link';
+  toggleMappingExpand(index: number): void {
+    this.expandedMappingIndex = this.expandedMappingIndex === index ? -1 : index;
+  }
+
+  addEmptyMapping(): void {
+    const next = [...this.mappings, { from: '', to: '' } as FieldMapping];
+    this.emitMappings(next);
+    this.expandedMappingIndex = next.length - 1;
+  }
+
+  getMappingSources(mapping: FieldMapping): string[] {
+    if (mapping.sources?.length) return mapping.sources;
+    return [mapping.from || ''];
+  }
+
+  onSourceFieldChange(mappingIndex: number, sourceIndex: number, value: string): void {
+    const next = [...this.mappings];
+    const mapping = { ...next[mappingIndex] };
+    const sources = [...this.getMappingSources(mapping)];
+
+    if (sources.length === 1 && sourceIndex === 0) {
+      mapping.from = value;
+      delete mapping.sources;
+      if (value !== '__custom__') delete mapping.from_custom;
+    } else {
+      sources[sourceIndex] = value;
+      mapping.sources = sources;
+      mapping.from = sources[0];
     }
+    next[mappingIndex] = mapping;
+    this.emitMappings(next);
   }
 
-  onDragEnd(): void {
-    this.draggedSource = null;
-    this.dropHoverField = null;
+  onCustomSourceChange(mappingIndex: number, value: string): void {
+    const next = [...this.mappings];
+    next[mappingIndex] = { ...next[mappingIndex], from_custom: value };
+    this.emitMappings(next);
   }
 
-  onDragOver(event: DragEvent, field: ConnectorFieldDef): void {
-    if (!this.draggedSource) return;
-    event.preventDefault();
-    if (event.dataTransfer) {
-      event.dataTransfer.dropEffect = 'link';
+  addMappingSource(mappingIndex: number): void {
+    const next = [...this.mappings];
+    const mapping = { ...next[mappingIndex] };
+    const sources = [...this.getMappingSources(mapping)];
+    sources.push('');
+    mapping.sources = sources;
+    mapping.from = sources[0];
+    delete mapping.from_custom;
+    next[mappingIndex] = mapping;
+    this.emitMappings(next);
+  }
+
+  removeMappingSource(mappingIndex: number, sourceIndex: number): void {
+    const next = [...this.mappings];
+    const mapping = { ...next[mappingIndex] };
+    const sources = [...this.getMappingSources(mapping)];
+    sources.splice(sourceIndex, 1);
+    if (sources.length <= 1) {
+      mapping.from = sources[0] || '';
+      delete mapping.sources;
+    } else {
+      mapping.sources = sources;
+      mapping.from = sources[0];
     }
-    this.dropHoverField = field.field;
+    next[mappingIndex] = mapping;
+    this.emitMappings(next);
   }
 
-  onDragLeave(): void {
-    this.dropHoverField = null;
+  onTargetFieldChange(mappingIndex: number, value: string): void {
+    const next = [...this.mappings];
+    const mapping = { ...next[mappingIndex] };
+    mapping.to = value;
+    if (value !== '__custom__') delete mapping.to_custom;
+    next[mappingIndex] = mapping;
+    this.emitMappings(next);
   }
 
-  onDrop(event: DragEvent, field: ConnectorFieldDef): void {
-    event.preventDefault();
-    this.dropHoverField = null;
-    if (this.draggedSource) {
-      this.pendingSource = this.draggedSource;
-      this.connectTo(field);
-    }
-    this.draggedSource = null;
-  }
-
-  toggleTransformEditor(index: number, event: Event): void {
-    event.stopPropagation();
-    this.editingTransformIndex = this.editingTransformIndex === index ? -1 : index;
+  onCustomTargetChange(mappingIndex: number, value: string): void {
+    const next = [...this.mappings];
+    next[mappingIndex] = { ...next[mappingIndex], to_custom: value };
+    this.emitMappings(next);
   }
 
   getTransformSteps(mapping: FieldMapping): TransformStep[] {
@@ -483,6 +707,52 @@ export class VisualFieldMapperComponent {
     return Array.isArray(mapping.transform) ? mapping.transform.length : 1;
   }
 
+  generateSampleJson(): void {
+    const sample: Record<string, unknown> = {};
+    for (const field of this.sourceFields) {
+      const path = field.field;
+      if (path.includes('[]')) continue;
+      const t = (field.type || 'string').toLowerCase();
+      let val: unknown;
+      if (t === 'integer' || t === 'number' || t === 'int') {
+        val = Math.floor(Math.random() * 9000) + 1000;
+      } else if (t === 'boolean' || t === 'bool') {
+        val = true;
+      } else if (t === 'date') {
+        val = '2026-01-15';
+      } else if (t === 'datetime') {
+        val = '2026-01-15T10:30:00Z';
+      } else if (t === 'float' || t === 'decimal') {
+        val = Math.round(Math.random() * 1000) / 100;
+      } else {
+        val = this.sampleValueForLabel(field.label, field.field);
+      }
+      this.assignPath(sample, path, val);
+    }
+    this.sampleInputJson = JSON.stringify(sample, null, 2);
+  }
+
+  private sampleValueForLabel(label: string, field: string): string {
+    const l = (label + ' ' + field).toLowerCase();
+    if (l.includes('email')) return 'jan.kowalski@example.com';
+    if (l.includes('phone') || l.includes('tel')) return '+48 600 123 456';
+    if (l.includes('city') || l.includes('miasto')) return 'Warszawa';
+    if (l.includes('street') || l.includes('ulica') || l.includes('address')) return 'ul. Marszałkowska 1';
+    if (l.includes('zip') || l.includes('postal') || l.includes('kod')) return '00-001';
+    if (l.includes('country') || l.includes('kraj')) return 'PL';
+    if (l.includes('name') || l.includes('nazwa') || l.includes('imie')) return 'Jan Kowalski';
+    if (l.includes('symbol') || l.includes('code') || l.includes('kod')) return 'DOC-2026-001';
+    if (l.includes('currency') || l.includes('waluta')) return 'PLN';
+    if (l.includes('price') || l.includes('cena') || l.includes('amount') || l.includes('kwota')) return '129.99';
+    if (l.includes('quantity') || l.includes('ilosc') || l.includes('qty')) return '5';
+    if (l.includes('status')) return 'active';
+    if (l.includes('type') || l.includes('typ')) return 'standard';
+    if (l.includes('description') || l.includes('opis')) return 'Sample description';
+    if (l.includes('url') || l.includes('link')) return 'https://example.com';
+    if (l.includes('id')) return 'ID-' + Math.floor(Math.random() * 90000 + 10000);
+    return 'sample_' + field.split('.').pop();
+  }
+
   generatePreview(): void {
     this.previewError = '';
     try {
@@ -490,12 +760,17 @@ export class VisualFieldMapperComponent {
       const output: Record<string, unknown> = {};
       for (const mapping of this.mappings) {
         const target = this.resolveTarget(mapping);
-        if (!target) {
-          continue;
+        if (!target) continue;
+        if (!mapping.sources?.length) {
+          const source = mapping.from === '__custom__' ? mapping.from_custom ?? '' : mapping.from;
+          if (!source || source === 'undefined') {
+            this.assignPath(output, target, null);
+            continue;
+          }
         }
         let value = this.resolveMappingValue(input, mapping);
         value = this.applyTransforms(value, mapping);
-        this.assignPath(output, target, value);
+        this.assignPath(output, target, value ?? null);
       }
       this.previewOutputJson = JSON.stringify(output, null, 2);
     } catch (error) {
@@ -562,14 +837,28 @@ export class VisualFieldMapperComponent {
   }
 
   private resolveMappingValue(input: Record<string, unknown>, mapping: FieldMapping): unknown {
+    if (mapping.sources?.length) {
+      return mapping.sources.map(path => this.readPathWithFallback(input, path));
+    }
     const source = mapping.from === '__custom__' ? mapping.from_custom ?? '' : mapping.from;
-    if (!source) {
+    if (!source || source === 'undefined') {
       return null;
     }
-    if (mapping.sources?.length) {
-      return mapping.sources.map(path => this.readPath(input, path));
-    }
-    return this.readPath(input, source);
+    const resolved = this.readPathWithFallback(input, source);
+    if (resolved !== null && resolved !== undefined) return resolved;
+    const isKnownField = this.sourceFields.some(f => f.field === source);
+    if (!isKnownField) return source;
+    return null;
+  }
+
+  private readPathWithFallback(input: Record<string, unknown>, path: string): unknown {
+    const direct = this.readPath(input, path);
+    if (direct !== null && direct !== undefined) return direct;
+    const key = path.replace(/\[\]/g, '').replace(/\./g, '_');
+    if (key in input) return input[key];
+    const lastSegment = path.split('.').pop()?.replace('[]', '') || '';
+    if (lastSegment && lastSegment !== key && lastSegment in input) return input[lastSegment];
+    return undefined;
   }
 
   private readPath(source: unknown, path: string): unknown {
