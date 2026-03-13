@@ -1,11 +1,10 @@
 # --- Build stage ---
 FROM python:3.12-slim AS build
 WORKDIR /app
-COPY ../../../../sdk/python/pinquark_connector_sdk /app/sdk/pinquark_connector_sdk
-COPY ../../../../sdk/python/pinquark_connector_sdk/pyproject.toml /app/sdk/pyproject.toml
-COPY requirements.txt .
+COPY integrators/courier/inpost/v3.0.0/requirements.txt .
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-COPY . .
+COPY integrators/courier/inpost/v3.0.0/ .
+COPY sdk/python/pinquark_connector_sdk/ /app/pinquark_connector_sdk/
 
 # --- Production stage ---
 FROM python:3.12-slim

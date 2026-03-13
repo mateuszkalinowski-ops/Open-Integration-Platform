@@ -17,11 +17,17 @@ from src.email_client.poller import EmailPoller
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 
-sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(sdk_path) not in sys.path:
-    sys.path.insert(0, str(sdk_path))
+try:
+    sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+    if sdk_path.exists() and str(sdk_path) not in sys.path:
+        sys.path.insert(0, str(sdk_path))
+except (IndexError, OSError):
+    pass
 
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 from pinquark_common.logging import setup_logging
 from pinquark_common.monitoring.health import HealthChecker
 from pinquark_common.kafka import KafkaMessageProducer
@@ -109,7 +115,9 @@ def create_app() -> FastAPI:
     metrics_app = make_asgi_app()
     application.mount("/metrics", metrics_app)
 
-    return augment_legacy_fastapi_app(application, manifest_path=MANIFEST_PATH)
+    if augment_legacy_fastapi_app is not None:
+        return augment_legacy_fastapi_app(application, manifest_path=MANIFEST_PATH)
+    return application
 
 
 app = create_app()

@@ -11,12 +11,18 @@ import sys
 from pathlib import Path
 from typing import Any
 
-SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(SDK_PYTHON_PATH) not in sys.path:
-    sys.path.insert(0, str(SDK_PYTHON_PATH))
+try:
+    SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
+    if SDK_PYTHON_PATH.exists() and str(SDK_PYTHON_PATH) not in sys.path:
+        sys.path.insert(0, str(SDK_PYTHON_PATH))
+except (IndexError, OSError):
+    pass
 
 from pinquark_connector_sdk import ConnectorApp, action
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 
 from src.integration import InpostIntegration
 from src.schemas import (
@@ -240,10 +246,11 @@ def _calculate_inpost_rates(
 
 
 connector = InPostConnector()
-app = augment_legacy_fastapi_app(
-    connector._fastapi,
-    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
-)
+if augment_legacy_fastapi_app is not None:
+    app = augment_legacy_fastapi_app(
+        connector._fastapi,
+        manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+    )
 
 if __name__ == "__main__":
     connector.run()

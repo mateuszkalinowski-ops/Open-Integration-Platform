@@ -895,7 +895,24 @@ config_schema:
   - api_url
   - username
   - password
-  optional: []
+  optional:
+  - polling_interval_seconds
+  field_types:
+    api_url:
+      type: string
+      label: API URL
+      placeholder: "https://cloud.meritus.pl/integracja/132"
+    username:
+      type: string
+      label: Login
+    password:
+      type: password
+      label: "Has\u0142o"
+    polling_interval_seconds:
+      type: integer
+      label: Interwał pollowania (sekundy)
+      placeholder: "120"
+      default: "120"
 health_endpoint: /health
 docs_url: /docs
 service_name: connector-pinquark-wms

@@ -11,11 +11,17 @@ from typing import Any
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 
-sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(sdk_path) not in sys.path:
-    sys.path.insert(0, str(sdk_path))
+try:
+    sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+    if sdk_path.exists() and str(sdk_path) not in sys.path:
+        sys.path.insert(0, str(sdk_path))
+except (IndexError, OSError):
+    pass
 
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 from src.api import BulkGateApiClient
 from src.config import settings
 from src.schemas import (
@@ -208,4 +214,5 @@ async def incoming_sms_webhook(request: Request):
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)
+if augment_legacy_fastapi_app is not None:
+    augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

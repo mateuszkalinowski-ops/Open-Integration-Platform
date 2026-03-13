@@ -9,8 +9,8 @@ class Settings(BaseSettings):
     username: str = ""
     password: str = ""
 
-    http_connect_timeout: float = 30.0
-    http_read_timeout: float = 60.0
+    http_connect_timeout: float = 10.0
+    http_read_timeout: float = 30.0
 
     feedback_poll_interval: float = 2.0
     feedback_poll_max_attempts: int = 15

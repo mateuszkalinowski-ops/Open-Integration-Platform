@@ -17,11 +17,17 @@ import httpx
 from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, model_validator
 
-sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(sdk_path) not in sys.path:
-    sys.path.insert(0, str(sdk_path))
+try:
+    sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+    if sdk_path.exists() and str(sdk_path) not in sys.path:
+        sys.path.insert(0, str(sdk_path))
+except (IndexError, OSError):
+    pass
 
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 from src.client import PinquarkWmsClient, WriteResult
 from src.config import settings
 from src.event_poller import EventPoller
@@ -57,7 +63,7 @@ async def _fetch_credentials_once() -> int:
         return 0
     registered = 0
     try:
-        headers: dict[str, str] = {}
+        headers: dict[str, str] = {"X-Connector-Name": "pinquark-wms"}
         if settings.platform_internal_secret:
             headers["X-Internal-Secret"] = settings.platform_internal_secret
         async with httpx.AsyncClient(timeout=15.0, headers=headers) as client:
@@ -71,10 +77,13 @@ async def _fetch_credentials_once() -> int:
                         name = acct.get("credential_name", "default")
                         creds_data = acct.get("credentials", {})
                         if creds_data.get("api_url") and creds_data.get("username"):
+                            raw_interval = creds_data.get("polling_interval_seconds")
+                            interval = int(raw_interval) if raw_interval else None
                             creds = WmsCredentials(
                                 api_url=creds_data["api_url"],
                                 username=creds_data["username"],
                                 password=creds_data.get("password", ""),
+                                polling_interval_seconds=interval,
                             )
                             event_poller.register_credentials(name, creds)
                             registered += 1
@@ -744,8 +753,14 @@ async def poller_status() -> dict[str, Any]:
     return {
         "running": event_poller._running,
         "enabled": settings.event_polling_enabled,
-        "interval_seconds": settings.event_polling_interval_seconds,
-        "registered_accounts": list(event_poller._credential_store.keys()),
+        "default_interval_seconds": settings.event_polling_interval_seconds,
+        "registered_accounts": {
+            name: {
+                "interval_seconds": creds.polling_interval_seconds or settings.event_polling_interval_seconds,
+                "custom": creds.polling_interval_seconds is not None,
+            }
+            for name, creds in event_poller._credential_store.items()
+        },
         "tracked_entities": {
             k: len(v) for k, v in event_poller._state.items()
         },
@@ -795,4 +810,5 @@ async def poller_diagnose() -> dict[str, Any]:
     return results
 
 
-augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)
+if augment_legacy_fastapi_app is not None:
+    augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

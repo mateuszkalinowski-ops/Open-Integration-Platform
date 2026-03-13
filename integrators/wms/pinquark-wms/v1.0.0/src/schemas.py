@@ -284,3 +284,4 @@ class WmsCredentials(BaseModel):
     api_url: str
     username: str
     password: str
+    polling_interval_seconds: int | None = None

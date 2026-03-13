@@ -90,8 +90,8 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             <mat-form-field appearance="outline" class="credential-form__field">
               <mat-label>{{ getFieldLabel(field) }}{{ required ? ' *' : '' }}</mat-label>
               <input matInput [formControlName]="field"
-                     [type]="isSecretField(field) && !showPasswords ? 'password' : 'text'"
-                     [placeholder]="editMode && isSecretField(field) && existingKeys.includes(field) ? '(saved — enter new value to overwrite)' : ''" />
+                     [type]="getInputType(field)"
+                     [placeholder]="getPlaceholder(field)" />
             </mat-form-field>
           }
         </ng-template>
@@ -261,8 +261,24 @@ export class CredentialFormComponent implements OnInit {
   }
 
   isSecretField(field: string): boolean {
+    const ft = this.getFieldType(field);
+    if (ft?.type === 'password') return true;
     const lower = field.toLowerCase();
     return ['password', 'secret', 'token', 'key'].some(p => lower.includes(p));
+  }
+
+  getInputType(field: string): string {
+    const ft = this.getFieldType(field);
+    if (ft?.type === 'integer') return 'number';
+    if (this.isSecretField(field) && !this.showPasswords) return 'password';
+    return 'text';
+  }
+
+  getPlaceholder(field: string): string {
+    if (this.editMode && this.isSecretField(field) && this.existingKeys.includes(field)) {
+      return '(saved — enter new value to overwrite)';
+    }
+    return this.getFieldType(field)?.placeholder ?? '';
   }
 
   testConnection(): void {

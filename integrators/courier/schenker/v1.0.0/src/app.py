@@ -4,13 +4,19 @@ import logging
 import sys
 from pathlib import Path
 
-SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(SDK_PYTHON_PATH) not in sys.path:
-    sys.path.insert(0, str(SDK_PYTHON_PATH))
+try:
+    SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
+    if SDK_PYTHON_PATH.exists() and str(SDK_PYTHON_PATH) not in sys.path:
+        sys.path.insert(0, str(SDK_PYTHON_PATH))
+except (IndexError, OSError):
+    pass
 
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 
 from src.config import settings
 from src.integration import SchenkerIntegration
@@ -112,7 +118,8 @@ async def cancel_shipment(
         raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
-app = augment_legacy_fastapi_app(
-    app,
-    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
-)
+if augment_legacy_fastapi_app is not None:
+    app = augment_legacy_fastapi_app(
+        app,
+        manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+    )

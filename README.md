@@ -14,17 +14,28 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 
 ## Why Pinquark?
 
-| Feature | BaseLinker | Pinquark |
-|---------|-----------|----------|
-| Self-hosted | No | Yes |
-| Open-source | No | Yes (Apache 2.0) |
-| Any-to-any flows | No (hub-and-spoke) | Yes (Flow Engine) |
-| Zero-impact connectors | Closed | Yes (connector.yaml) |
-| Embeddable UI | No | Yes (Angular library) |
-| API + SDK | REST only | REST + Python/JS SDK |
-| Custom connectors | No | Yes |
-| On-premise ERP agents | No | Yes (Docker-based) |
-| Verification agent | No | Yes (3-tier automated testing) |
+| Feature | BaseLinker | Workato | Pinquark |
+|---------|-----------|---------|----------|
+| Open-source | No | No | **Yes (Apache 2.0)** |
+| Self-hosted | No | No (enterprise on-prem available) | **Yes** |
+| Pricing | From ~€50/mo | From ~$10k/year | **Free** |
+| Connectors | 100+ (e-commerce focused) | 1000+ (enterprise IT) | 35 (logistics + e-commerce) |
+| Any-to-any flows | No (hub-and-spoke) | Yes (recipes) | **Yes (Flow Engine)** |
+| Visual workflow builder | Limited automation rules | Yes | **Yes (DAG-based, 18 node types)** |
+| Visual field mapper | No | Yes | **Yes (drag & drop)** |
+| Custom connectors | No | Connector SDK (closed) | **Yes (connector.yaml manifest)** |
+| Zero platform-code connectors | No | No | **Yes** |
+| Embeddable UI | No | Embedded iPaaS (extra cost) | **Yes (Angular library, free)** |
+| API + SDK | REST only | REST | **REST + Python SDK** |
+| On-premise ERP agents | No | Yes | **Yes (Docker-based)** |
+| OAuth2 lifecycle | Via platform | Yes | **Yes (auto-refresh)** |
+| Webhook ingestion | No | Yes | **Yes (signature verification)** |
+| Connector health monitoring | No | Basic | **Yes (real-time, auto-disable)** |
+| Automated verification | No | No | **Yes (3-tier: health → auth → functional)** |
+| Audit trail | No | Yes | **Yes (entity + workflow versioning)** |
+| Per-connector rate limiting | No | Yes | **Yes (token bucket)** |
+| Connector version isolation | No | No | **Yes (multiple versions coexist)** |
+| Polish/CEE system coverage | Strong | Weak | **Strong (InPost, Allegro, DPD PL, Poczta Polska, …)** |
 
 ## Architecture
 
@@ -187,7 +198,7 @@ flows:
 
 Flows and workflows are configured via the dashboard UI or REST API. Default field mappings ship with each connector; tenants can override them per-instance.
 
-## Connectors — 34 and growing
+## Connectors — 35 and growing
 
 Every connector is a self-contained microservice with its own API, versioning, and documentation. Browse them all in the [dashboard](#screenshots) or via the REST API.
 
@@ -198,7 +209,7 @@ Every connector is a self-contained microservice with its own API, versioning, a
 | **ERP** | 1 | InsERT Nexo (Subiekt) — hybrid: on-premise agent + cloud connector |
 | **WMS** | 1 | Pinquark WMS |
 | **AI** | 1 | AI Agent (Gemini) — risk analysis, courier recommendations, data extraction |
-| **Other** | 5 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) · FTP/SFTP · Slack · BulkGate SMS |
+| **Other** | 6 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) · FTP/SFTP · Slack · BulkGate SMS · Amazon S3 |
 
 > **Coming soon:** PrestaShop, WAPRO, Comarch ERP, SAP, enova365, and more.
 >

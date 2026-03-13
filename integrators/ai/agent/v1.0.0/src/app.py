@@ -16,11 +16,17 @@ from fastapi import FastAPI, HTTPException, Query
 from fastapi.responses import JSONResponse
 from google import genai
 
-sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(sdk_path) not in sys.path:
-    sys.path.insert(0, str(sdk_path))
+try:
+    sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+    if sdk_path.exists() and str(sdk_path) not in sys.path:
+        sys.path.insert(0, str(sdk_path))
+except (IndexError, OSError):
+    pass
 
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 from src import ai_engine
 from src.config import settings
 from src.schemas import (
@@ -288,4 +294,5 @@ async def _handle_extract(payload: dict) -> dict:
     return result.model_dump()
 
 
-augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)
+if augment_legacy_fastapi_app is not None:
+    augment_legacy_fastapi_app(app, manifest_path=MANIFEST_PATH)

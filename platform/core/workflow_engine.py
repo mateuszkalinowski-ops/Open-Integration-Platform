@@ -1979,6 +1979,8 @@ def _evaluate_trigger_filter(
     on flat event data without requiring a WorkflowContext.
     """
     field = condition.get("field", "")
+    if not field:
+        return True
     op = condition.get("operator", "eq")
     expected = condition.get("value")
 

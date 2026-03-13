@@ -74,10 +74,15 @@ class EventPoller:
         self._initialized: set[str] = set()
 
         self._credential_store: dict[str, WmsCredentials] = {}
+        self._last_poll: dict[str, float] = {}
 
     def register_credentials(self, account_name: str, creds: WmsCredentials) -> None:
         self._credential_store[account_name] = creds
-        logger.info("Registered polling credentials for account=%s", account_name)
+        interval = creds.polling_interval_seconds or settings.event_polling_interval_seconds
+        logger.info(
+            "Registered polling credentials for account=%s (interval=%ds)",
+            account_name, interval,
+        )
 
     async def start(self) -> None:
         if not settings.event_polling_enabled:
@@ -111,36 +116,62 @@ class EventPoller:
         await asyncio.sleep(settings.event_polling_initial_delay)
         while self._running:
             await self._poll_cycle()
-            await asyncio.sleep(settings.event_polling_interval_seconds)
+            await asyncio.sleep(self._tick_interval())
 
     def reset_state(self) -> None:
         """Clear in-memory state so next poll treats everything as new."""
         self._state.clear()
         self._initialized.clear()
+        self._last_poll.clear()
         logger.info("Poller state reset — next cycle will emit events for all entities")
+
+    def _account_interval(self, creds: WmsCredentials) -> int:
+        return creds.polling_interval_seconds or settings.event_polling_interval_seconds
+
+    def _tick_interval(self) -> int:
+        """Shortest account interval (how often the loop wakes up)."""
+        if not self._credential_store:
+            return settings.event_polling_interval_seconds
+        return min(
+            self._account_interval(c) for c in self._credential_store.values()
+        )
 
     async def _poll_cycle(self) -> None:
         if not self._credential_store:
             logger.info("No credentials registered, skipping poll cycle")
             return
 
+        now = asyncio.get_event_loop().time()
+        due = [
+            (name, creds)
+            for name, creds in self._credential_store.items()
+            if now - self._last_poll.get(name, 0) >= self._account_interval(creds)
+        ]
+
+        if not due:
+            return
+
         logger.info(
             "Poll cycle starting for %d account(s): %s",
-            len(self._credential_store),
-            ", ".join(self._credential_store.keys()),
+            len(due),
+            ", ".join(n for n, _ in due),
         )
-        for account_name, creds in list(self._credential_store.items()):
+        for account_name, creds in due:
             try:
                 await self._poll_account(account_name, creds)
+                self._last_poll[account_name] = now
             except Exception:
                 logger.exception("Poll cycle failed for account=%s", account_name)
 
     async def _poll_account(self, account_name: str, creds: WmsCredentials) -> None:
-        await self._poll_entity(account_name, creds, "document", "document.synced")
-        await self._poll_entity(account_name, creds, "article", "article.synced")
-        await self._poll_entity(account_name, creds, "contractor", "contractor.synced")
-        await self._poll_positions(account_name, creds)
-        await self._poll_feedbacks(account_name, creds)
+        await asyncio.gather(
+            self._poll_entity(account_name, creds, "document", "document.synced"),
+            self._poll_entity(account_name, creds, "article", "article.synced"),
+            self._poll_entity(account_name, creds, "contractor", "contractor.synced"),
+            self._poll_positions(account_name, creds),
+            self._poll_feedbacks(account_name, creds),
+            return_exceptions=True,
+        )
 
     async def _poll_entity(
         self,

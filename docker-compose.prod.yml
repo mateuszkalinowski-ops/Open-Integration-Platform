@@ -101,7 +101,8 @@ services:
 
   connector-inpost-v3:
     build:
-      context: ./integrators/courier/inpost/v3.0.0
+      context: .
+      dockerfile: integrators/courier/inpost/v3.0.0/Dockerfile
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -332,6 +333,7 @@ services:
       PINQUARK_WMS_EVENT_POLLING_ENABLED: "true"
       PINQUARK_WMS_EVENT_POLLING_INTERVAL_SECONDS: "120"
       PINQUARK_WMS_PLATFORM_API_URL: http://platform:8080
+      PINQUARK_WMS_PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
       PINQUARK_WMS_PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform

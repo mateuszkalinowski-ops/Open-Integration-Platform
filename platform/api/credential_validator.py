@@ -86,6 +86,32 @@ async def _http_credential_check(
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
 
 
+def _deduplicate_url_path(url: str) -> str:
+    """Remove duplicated trailing path segments.
+
+    Users sometimes paste a full URL (including the endpoint path) as
+    ``api_url``.  When the template appends the same path again the
+    resulting URL ends up with the suffix doubled, e.g.
+    ``https://host/api/auth/sign-in/auth/sign-in``.  Detect this and
+    strip the duplicate.
+    """
+    from urllib.parse import urlparse, urlunparse
+
+    parsed = urlparse(url)
+    path = parsed.path
+    if len(path) < 2:
+        return url
+    segments = path.split("/")
+    n = len(segments)
+    for length in range(1, n // 2 + 1):
+        tail = segments[n - length:]
+        preceding = segments[n - 2 * length: n - length]
+        if tail == preceding:
+            deduped = "/".join(segments[: n - length])
+            return urlunparse(parsed._replace(path=deduped))
+    return url
+
+
 def _resolve_template(template: str, creds: dict[str, str], defaults: dict[str, str] | None = None) -> str:
     """Replace {field} placeholders with values from credentials or defaults."""
     merged = dict(defaults or {})
@@ -209,6 +235,7 @@ async def _execute_test_request(
     defaults = _resolve_sandbox_url(test_cfg, creds, defaults)
 
     url = _resolve_template(test_cfg["url_template"], creds, defaults)
+    url = _deduplicate_url_path(url)
     method = test_cfg.get("method", "GET")
 
     headers: dict[str, str] | None = None

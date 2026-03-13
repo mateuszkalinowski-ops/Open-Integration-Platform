@@ -989,8 +989,8 @@ export class WorkflowCanvasComponent implements OnInit, OnChanges, OnDestroy {
     event.stopPropagation();
     const mid = this.getEdgeMidpoint(edge);
     this.inlineAddMenu = { edgeId: edge.id, x: mid.x, y: mid.y };
-    const canvasX = (mid.x + CANVAS_HALF) * this.transform.scale + this.transform.x;
-    const canvasY = (mid.y + CANVAS_HALF) * this.transform.scale + this.transform.y;
+    const canvasX = mid.x * this.transform.scale + this.transform.x;
+    const canvasY = mid.y * this.transform.scale + this.transform.y;
     this.stepPickerPos = { x: canvasX - 190, y: canvasY + 20 };
     this.stepPickerOpen = true;
   }

@@ -9,11 +9,17 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
 
-sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
-if str(sdk_path) not in sys.path:
-    sys.path.insert(0, str(sdk_path))
+try:
+    sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
+    if sdk_path.exists() and str(sdk_path) not in sys.path:
+        sys.path.insert(0, str(sdk_path))
+except (IndexError, OSError):
+    pass
 
-from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+try:
+    from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
+except ImportError:
+    augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
 from src.allegro.auth import AllegroAuthManager
 from src.allegro.client import AllegroClient
 from src.allegro.integration import AllegroIntegration
@@ -128,7 +134,9 @@ def create_app() -> FastAPI:
     return application
 
 
-app = augment_legacy_fastapi_app(
-    create_app(),
-    manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
-)
+app = create_app()
+if augment_legacy_fastapi_app is not None:
+    app = augment_legacy_fastapi_app(
+        app,
+        manifest_path=Path(__file__).resolve().parent.parent / "connector.yaml",
+    )
