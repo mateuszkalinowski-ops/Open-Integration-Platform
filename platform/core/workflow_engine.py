@@ -1233,7 +1233,7 @@ class WorkflowEngine:
         if t == "template":
             tpl = transform.get("template", "")
             for i, v in enumerate(values):
-                tpl = tpl.replace(f"{{{{{i}}}}}", str(v) if v is not None else "")
+                tpl = tpl.replace(f"{{{i}}}", str(v) if v is not None else "")
             return tpl
         if t == "join":
             sep = transform.get("separator", " ")

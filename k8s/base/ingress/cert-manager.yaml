@@ -25,7 +25,7 @@ metadata:
 spec:
   acme:
     server: https://acme-v02.api.letsencrypt.org/directory
-    email: admin@pinquark.com
+    email: admin@example.com
     privateKeySecretRef:
       name: letsencrypt-uat-key
     solvers:
@@ -36,13 +36,13 @@ spec:
 apiVersion: cert-manager.io/v1
 kind: Certificate
 metadata:
-  name: pinquark-uat-wildcard
-  namespace: pinquark-uat
+  name: oip-wildcard
+  namespace: oip
 spec:
-  secretName: pinquark-uat-tls
+  secretName: oip-tls
   issuerRef:
     name: letsencrypt-uat
     kind: ClusterIssuer
   dnsNames:
-    - "*.uat.pinquark.com"
-    - "uat.pinquark.com"
+    - "*.example.com"
+    - "example.com"

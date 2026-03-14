@@ -11,7 +11,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -73,10 +73,10 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{waybill_number}/status")
 async def get_status(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    account_number: str = Query(""),
-    sap_number: str = Query(""),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    account_number: str = Header("", alias="X-Account-Number"),
+    sap_number: str = Header("", alias="X-Sap-Number"),
 ):
     credentials = DhlCredentials(
         username=username, password=password,
@@ -217,10 +217,10 @@ def _calculate_dhl_rates(
 @app.delete("/shipments/{waybill_number}")
 async def cancel_shipment(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    account_number: str = Query(""),
-    sap_number: str = Query(""),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    account_number: str = Header("", alias="X-Account-Number"),
+    sap_number: str = Header("", alias="X-Sap-Number"),
 ):
     credentials = DhlCredentials(
         username=username, password=password,
@@ -239,10 +239,10 @@ async def cancel_shipment(
 
 @app.get("/points")
 async def get_points(
-    username: str = Query(...),
-    password: str = Query(...),
-    account_number: str = Query(""),
-    sap_number: str = Query(""),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    account_number: str = Header("", alias="X-Account-Number"),
+    sap_number: str = Header("", alias="X-Sap-Number"),
     city: str = "",
     postal_code: str = "",
 ):

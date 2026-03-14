@@ -7,6 +7,11 @@ export interface ConnectorHealthSummary {
   error_rate_5m?: number | null;
 }
 
+export interface ConnectorActionMetadata {
+  label?: string;
+  description?: string;
+}
+
 export interface OnPremiseAgentInfo {
   display_name: string;
   description: string;
@@ -29,6 +34,7 @@ export interface Connector {
   capabilities: string[];
   events: string[];
   actions: string[];
+  action_metadata?: Record<string, ConnectorActionMetadata>;
   config_schema: ConfigSchema;
   api_endpoints: ApiEndpoint[];
   event_fields: Record<string, ConnectorFieldDef[]>;

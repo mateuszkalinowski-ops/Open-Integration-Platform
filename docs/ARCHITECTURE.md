@@ -101,7 +101,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 
 | Layer                | Components                        | Key parameters                                                                                                        |
 | -------------------- | --------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
-| **Ingress**          | Nginx Ingress Controller          | Subdomain routing (`allegro.uat.pinquark.com`), TLS (Let's Encrypt), rate limit 100 req/min per IP, proxy timeout 60s |
+| **Ingress**          | Nginx Ingress Controller          | Subdomain routing (`allegro.example.com`), TLS (Let's Encrypt), rate limit 100 req/min per IP, proxy timeout 60s |
 | **Platform Gateway** | FastAPI `:8080`                   | Rate limit 1000 req/min per tenant (Redis), Flow Engine, Workflow Engine, Mapping Resolver, OAuth2 Manager, Webhook Ingestion, Schema Registry, Audit Trail, Connector Health Monitor, Connector Rate Limiter, Workflow Scheduler |
 | **Integrators**      | FastAPI `:8000` (each separate)   | Independent version/Dockerfile, circuit breaker (5 fails → 30s open), HTTP pool (200 conn / 50 keepalive)             |
 | **Data**             | PostgreSQL 16, Redis 7, Kafka 3.7 | DB pool 20+30, Redis cache TTL 300s, Kafka 3 brokers / 12-24 partitions / lz4                                         |

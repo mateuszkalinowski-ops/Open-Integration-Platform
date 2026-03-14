@@ -63,6 +63,61 @@ actions:
 - contractor.delete
 - contractors.create_list
 - contractors.delete_list
+action_metadata:
+  article.create:
+    label: Create / update article
+    description: Uses WMS SAVE semantics. Creates a new article or updates an existing one when matching identifiers are provided.
+  article.delete:
+    label: Delete article
+    description: Submits a delete command for a single article in WMS.
+  articles.create_list:
+    label: Create / update articles (bulk)
+    description: Uses WMS SAVE semantics for multiple articles in one request.
+  articles.delete_list:
+    label: Delete articles (bulk)
+    description: Submits delete commands for multiple articles in WMS.
+  article_batch.create:
+    label: Create / update article batch
+    description: Uses WMS SAVE semantics. Creates a new batch or updates an existing one when matching identifiers are provided.
+  article_batches.create_list:
+    label: Create / update article batches (bulk)
+    description: Uses WMS SAVE semantics for multiple article batches in one request.
+  document.create:
+    label: Create / update document
+    description: Uses WMS SAVE semantics. Creates a new document or updates an existing one when matching identifiers are provided.
+  document.delete:
+    label: Delete document
+    description: Submits a delete command for a single document in WMS.
+  documents.create_wrapper:
+    label: Create / update documents (bulk)
+    description: Uses WMS SAVE semantics for multiple documents in one request.
+  documents.delete_list:
+    label: Delete documents (bulk)
+    description: Submits delete commands for multiple documents in WMS.
+  position.create:
+    label: Create / update document positions
+    description: Uses WMS SAVE semantics. Creates new positions or updates existing positions for the target document.
+  position.delete:
+    label: Delete document position
+    description: Submits a delete command for a single document position in WMS.
+  positions.create_list:
+    label: Create / update document positions (bulk)
+    description: Uses WMS SAVE semantics for multiple position wrappers in one request.
+  positions.delete_list:
+    label: Delete document positions (bulk)
+    description: Submits delete commands for multiple document positions in WMS.
+  contractor.create:
+    label: Create / update contractor
+    description: Uses WMS SAVE semantics. Creates a new contractor or updates an existing one when matching identifiers are provided.
+  contractor.delete:
+    label: Delete contractor
+    description: Submits a delete command for a single contractor in WMS.
+  contractors.create_list:
+    label: Create / update contractors (bulk)
+    description: Uses WMS SAVE semantics for multiple contractors in one request.
+  contractors.delete_list:
+    label: Delete contractors (bulk)
+    description: Submits delete commands for multiple contractors in WMS.
 event_fields:
   article.synced:
   - field: erpId

@@ -19,7 +19,7 @@ import { PinquarkIntegrationsModule } from '@pinquark/integrations';
 @NgModule({
   imports: [
     PinquarkIntegrationsModule.forRoot({
-      apiUrl: 'https://api.pinquark.com',  // or http://localhost:8080
+      apiUrl: 'http://localhost:8080',
       apiKey: environment.pinquarkApiKey,
     })
   ]

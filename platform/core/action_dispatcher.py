@@ -43,10 +43,18 @@ def _resolve_service_url(
     return f"http://connector-{connector_name}:{DEFAULT_CONNECTOR_PORT}"
 
 
+def _field_to_header_name(field: str) -> str:
+    """Convert a payload field name to an X-prefixed HTTP header name.
+
+    ``api_token`` -> ``X-Api-Token``, ``username`` -> ``X-Username``.
+    """
+    return "X-" + "-".join(part.capitalize() for part in field.split("_"))
+
+
 def _build_url(
     route: dict, base_url: str, payload: dict[str, Any]
-) -> tuple[str, dict[str, Any], dict[str, Any]]:
-    """Build URL, query params, and remaining body from route + payload.
+) -> tuple[str, dict[str, Any], dict[str, str], dict[str, Any]]:
+    """Build URL, query params, extra headers, and remaining body from route + payload.
 
     List values are preserved so httpx sends them as multi-value query params
     (e.g. ?contractor=A&contractor=B).  None values are dropped.
@@ -66,7 +74,14 @@ def _build_url(
             if val is not None:
                 query_params[qp] = val
 
-    return f"{base_url}{path}", query_params, body
+    extra_headers: dict[str, str] = {}
+    for hp in route.get("header_from_payload", []):
+        if hp in body:
+            val = body.pop(hp)
+            if val is not None:
+                extra_headers[_field_to_header_name(hp)] = str(val)
+
+    return f"{base_url}{path}", query_params, extra_headers, body
 
 
 def _coerce_payload(
@@ -168,7 +183,7 @@ async def _ensure_account_generic(
             else:
                 await logger.awarning(
                     "account_update_failed", account=account_name,
-                    status=resp.status_code, body=resp.text[:200],
+                    status=resp.status_code,
                 )
         elif already_exists:
             return account_name
@@ -181,7 +196,7 @@ async def _ensure_account_generic(
             else:
                 await logger.awarning(
                     "account_provision_failed", account=account_name,
-                    status=resp.status_code, body=resp.text[:200],
+                    status=resp.status_code,
                 )
     return account_name
 
@@ -281,25 +296,26 @@ async def _execute_with_429_retry(
     *,
     json_body: dict[str, Any] | None = None,
     params: dict[str, Any] | None = None,
+    headers: dict[str, str] | None = None,
     files: dict[str, Any] | None = None,
     data: dict[str, Any] | None = None,
 ) -> httpx.Response:
     """Execute an HTTP request with automatic retry on 429 Too Many Requests."""
     for attempt in range(_MAX_429_RETRIES + 1):
         if files is not None:
-            response = await client.post(url, files=files, data=data, params=params)
+            response = await client.post(url, files=files, data=data, params=params, headers=headers)
         elif method == "GET":
-            response = await client.get(url, params=params)
+            response = await client.get(url, params=params, headers=headers)
         elif method == "POST":
-            response = await client.post(url, json=json_body, params=params)
+            response = await client.post(url, json=json_body, params=params, headers=headers)
         elif method == "PUT":
-            response = await client.put(url, json=json_body, params=params)
+            response = await client.put(url, json=json_body, params=params, headers=headers)
         elif method == "PATCH":
-            response = await client.patch(url, json=json_body, params=params)
+            response = await client.patch(url, json=json_body, params=params, headers=headers)
         elif method == "DELETE":
-            response = await client.delete(url, params=params)
+            response = await client.delete(url, params=params, headers=headers)
         else:
-            response = await client.post(url, json=json_body, params=params)
+            response = await client.post(url, json=json_body, params=params, headers=headers)
 
         if response.status_code != 429 or attempt >= _MAX_429_RETRIES:
             return response
@@ -389,7 +405,7 @@ async def dispatch_action(
             response.raise_for_status()
             return response.json()
 
-    url, query_params, body = _build_url(route, base_url, payload)
+    url, query_params, extra_headers, body = _build_url(route, base_url, payload)
 
     await logger.ainfo(
         "action_dispatch",
@@ -427,6 +443,7 @@ async def dispatch_action(
                 response = await _execute_with_429_retry(
                     client, "POST", url, connector_name, action,
                     files=files, data=remaining, params=query_params,
+                    headers=extra_headers or None,
                 )
             else:
                 raise ValueError(
@@ -439,17 +456,16 @@ async def dispatch_action(
             response = await _execute_with_429_retry(
                 client, method, url, connector_name, action,
                 json_body=body, params=query_params,
+                headers=extra_headers or None,
             )
 
         if response.status_code == 422:
-            detail = response.text[:1000]
             await logger.awarning(
                 "action_dispatch_validation_error",
                 connector=connector_name,
                 action=action,
                 url=url,
                 status=422,
-                detail=detail,
                 sent_body={k: type(v).__name__ for k, v in body.items()},
             )
 

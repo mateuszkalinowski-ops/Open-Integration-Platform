@@ -8,10 +8,10 @@ set -euo pipefail
 #
 # Example:
 #   ./verify.sh allegro
-#   ./verify.sh dhl pinquark-uat 5
+#   ./verify.sh dhl oip 5
 
 SYSTEM="${1:?Usage: verify.sh <system> [namespace] [max_iterations]}"
-NAMESPACE="${2:-pinquark-uat}"
+NAMESPACE="${2:-oip}"
 MAX_ITERATIONS="${3:-5}"
 TIMESTAMP="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 ITERATION=0

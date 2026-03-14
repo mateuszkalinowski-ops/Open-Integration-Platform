@@ -649,9 +649,8 @@ class InpostIntegration:
         except Exception:
             msg = response.text
         logger.error(
-            "InPost API error — url=%s status=%s body=%s",
+            "InPost API error — url=%s status=%s",
             response.url,
             response.status_code,
-            msg,
         )
         return msg, response.status_code

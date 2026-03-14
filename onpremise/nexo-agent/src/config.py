@@ -35,7 +35,7 @@ class Settings(BaseSettings):
     default_branch: str = "CENTRALA"
 
     cloud_platform_url: str = Field(
-        default="https://integrations.pinquark.com",
+        default="",
         alias="CLOUD_PLATFORM_URL",
     )
     cloud_api_key: str = Field(default="", alias="CLOUD_API_KEY")

@@ -11,7 +11,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -73,8 +73,8 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{waybill}/status")
 async def get_status(
     waybill: str,
-    organization_id: str = Query(...),
-    api_token: str = Query(...),
+    organization_id: str = Header(..., alias="X-Organization-Id"),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = InpostCredentials(organization_id=organization_id, api_token=api_token)
     try:
@@ -107,8 +107,8 @@ async def get_label(request: LabelRequest):
 @app.delete("/shipments/{waybill}")
 async def cancel_shipment(
     waybill: str,
-    organization_id: str = Query(...),
-    api_token: str = Query(...),
+    organization_id: str = Header(..., alias="X-Organization-Id"),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = InpostCredentials(organization_id=organization_id, api_token=api_token)
     try:
@@ -125,8 +125,8 @@ async def cancel_shipment(
 @app.get("/shipments/{waybill}")
 async def get_shipment(
     waybill: str,
-    organization_id: str = Query(...),
-    api_token: str = Query(...),
+    organization_id: str = Header(..., alias="X-Organization-Id"),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = InpostCredentials(organization_id=organization_id, api_token=api_token)
     try:

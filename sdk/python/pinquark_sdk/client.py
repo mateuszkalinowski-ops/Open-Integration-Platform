@@ -195,7 +195,7 @@ class PinquarkClient:
     def __init__(
         self,
         api_key: str,
-        base_url: str = "https://api.pinquark.com",
+        base_url: str = "http://localhost:8080",
         timeout: float = 30.0,
     ) -> None:
         self._client = httpx.AsyncClient(base_url=base_url, timeout=timeout)

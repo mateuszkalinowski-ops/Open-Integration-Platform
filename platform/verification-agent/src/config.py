@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     port: int = 8000
     log_level: str = "INFO"
 
-    database_url: str = "postgresql+asyncpg://pinquark:pinquark@postgres:5432/pinquark_platform"
+    database_url: str = ""
     encryption_key: str = ""
 
     verification_interval_days: int = 7

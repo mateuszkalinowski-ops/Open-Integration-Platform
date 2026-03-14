@@ -160,7 +160,7 @@ uvicorn src.main:app --host 0.0.0.0 --port 8000
 | `NEXO_SDK_BIN_PATH` | `C:\nexoSDK\Bin` | Path to SDK DLLs |
 | `NEXO_AGENT_DEFAULT_WAREHOUSE` | `MAG` | Default warehouse |
 | `NEXO_AGENT_DEFAULT_BRANCH` | `CENTRALA` | Default branch |
-| `CLOUD_PLATFORM_URL` | `https://integrations.pinquark.com` | Cloud platform URL |
+| `CLOUD_PLATFORM_URL` | `http://localhost:8080` | Cloud platform URL |
 | `CLOUD_API_KEY` | — | Cloud API key |
 | `NEXO_AGENT_SYNC_INTERVAL_SECONDS` | `300` | Sync interval |
 | `NEXO_AGENT_HEARTBEAT_INTERVAL_SECONDS` | `60` | Heartbeat interval |

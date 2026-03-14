@@ -39,9 +39,17 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{waybill_number}/status
+    header_from_payload:
+    - login
+    - password
+    - credentials_id
   shipment.cancel:
     method: DELETE
     path: /shipments/{waybill_number}
+    header_from_payload:
+    - login
+    - password
+    - credentials_id
   tracking.get:
     method: GET
     path: /shipments/{waybill_number}/tracking

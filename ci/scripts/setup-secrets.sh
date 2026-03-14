@@ -13,7 +13,7 @@ set -euo pipefail
 #   ALLEGRO_CLIENT_SECRET   - Allegro OAuth2 client secret
 #   KUBECONFIG_DATA         - base64-encoded kubeconfig for Linode K8s cluster
 
-NAMESPACE="${NAMESPACE:-pinquark-uat}"
+NAMESPACE="${NAMESPACE:-oip}"
 
 echo "==> Setting up secrets in namespace: $NAMESPACE"
 
@@ -22,10 +22,10 @@ kubectl create namespace "$NAMESPACE" --dry-run=client -o yaml | kubectl apply -
 echo "==> Creating registry credentials..."
 kubectl create secret docker-registry registry-credentials \
   --namespace "$NAMESPACE" \
-  --docker-server=registry.pinquark.com \
+  --docker-server=your-registry.example.com \
   --docker-username="${REGISTRY_USERNAME}" \
   --docker-password="${REGISTRY_PASSWORD}" \
-  --docker-email=integrations@pinquark.com \
+  --docker-email=admin@example.com \
   --dry-run=client -o yaml | kubectl apply -f -
 
 echo "==> Creating shared integrator secrets..."

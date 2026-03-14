@@ -33,6 +33,11 @@ class ConnectorActionSchemaResponse(BaseModel):
     output_fields: list[ConnectorSchemaField] = Field(default_factory=list)
 
 
+class ConnectorActionMetadata(BaseModel):
+    label: str | None = None
+    description: str | None = None
+
+
 class TenantCreate(BaseModel):
     name: str = Field(..., min_length=1, max_length=100)
     slug: str = Field(..., min_length=1, max_length=50, pattern=r"^[a-z0-9][a-z0-9_-]*$")
@@ -77,6 +82,7 @@ class ConnectorResponse(BaseModel):
     capabilities: list[str]
     events: list[str]
     actions: list[str]
+    action_metadata: dict[str, ConnectorActionMetadata] = Field(default_factory=dict)
     config_schema: dict
     api_endpoints: list[dict] = Field(default_factory=list)
     event_fields: dict[str, list[dict]] = Field(default_factory=dict)

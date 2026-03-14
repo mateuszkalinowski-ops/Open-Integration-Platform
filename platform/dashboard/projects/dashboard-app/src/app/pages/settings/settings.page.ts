@@ -56,6 +56,48 @@ import { PinquarkApiService, HealthResponse, AI_MODELS, AiModelType } from '@pin
       </mat-card-content>
     </mat-card>
 
+    <mat-card class="admin-card">
+      <mat-card-header>
+        <mat-icon mat-card-avatar class="admin-card__icon">admin_panel_settings</mat-icon>
+        <mat-card-title>Admin Access</mat-card-title>
+        <mat-card-subtitle>
+          Enter the ADMIN_SECRET from your <code>.env</code> file to unlock admin-only features
+          (verification, tenant management).
+        </mat-card-subtitle>
+      </mat-card-header>
+      <mat-card-content>
+        @if (isAdmin) {
+          <p class="admin-status admin-status--active">
+            <mat-icon>verified_user</mat-icon> Admin session active
+          </p>
+          <div class="admin-actions">
+            <button mat-stroked-button color="warn" (click)="clearAdmin()">
+              <mat-icon>logout</mat-icon> Clear admin secret
+            </button>
+          </div>
+        } @else {
+          <mat-form-field appearance="outline" class="admin-field">
+            <mat-label>Admin Secret</mat-label>
+            <input
+              matInput
+              [type]="showAdminSecret ? 'text' : 'password'"
+              [(ngModel)]="adminSecretInput"
+              placeholder="Paste ADMIN_SECRET here"
+              (keyup.enter)="setAdmin()"
+            />
+            <button mat-icon-button matSuffix (click)="showAdminSecret = !showAdminSecret" type="button">
+              <mat-icon>{{ showAdminSecret ? 'visibility_off' : 'visibility' }}</mat-icon>
+            </button>
+          </mat-form-field>
+          <div class="admin-actions">
+            <button mat-raised-button color="primary" (click)="setAdmin()" [disabled]="!adminSecretInput.trim()">
+              <mat-icon>lock_open</mat-icon> Authenticate
+            </button>
+          </div>
+        }
+      </mat-card-content>
+    </mat-card>
+
     <mat-card class="ai-card">
       <mat-card-header>
         <mat-icon mat-card-avatar class="ai-card__icon">psychology</mat-icon>
@@ -96,6 +138,28 @@ import { PinquarkApiService, HealthResponse, AI_MODELS, AiModelType } from '@pin
   styles: [`
     .text-green { color: #4caf50; }
     .text-red { color: #f44336; }
+    .admin-card { margin-top: 24px; }
+    .admin-card__icon {
+      background: linear-gradient(135deg, #e65100, #f57c00);
+      color: #fff;
+      border-radius: 50%;
+      width: 40px;
+      height: 40px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 24px;
+    }
+    .admin-field { width: 100%; margin-top: 16px; }
+    .admin-actions { margin-top: 8px; display: flex; gap: 12px; }
+    .admin-status {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      margin-top: 16px;
+      font-size: 14px;
+    }
+    .admin-status--active { color: #2e7d32; }
     .ai-card { margin-top: 24px; }
     .ai-card__icon {
       background: linear-gradient(135deg, #6a1b9a, #1976d2);
@@ -115,6 +179,10 @@ import { PinquarkApiService, HealthResponse, AI_MODELS, AiModelType } from '@pin
 export class SettingsPage implements OnInit {
   health: HealthResponse | null = null;
 
+  isAdmin = false;
+  adminSecretInput = '';
+  showAdminSecret = false;
+
   aiModels = AI_MODELS;
   aiModel: AiModelType = 'gemini';
   aiApiKey = '';
@@ -126,8 +194,24 @@ export class SettingsPage implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.isAdmin = this.api.isAdmin;
     this.api.health().subscribe(data => this.health = data);
     this.loadAiSettings();
+  }
+
+  setAdmin(): void {
+    const secret = this.adminSecretInput.trim();
+    if (!secret) return;
+    this.api.setAdminSecret(secret);
+    this.isAdmin = true;
+    this.adminSecretInput = '';
+    this.snackBar.open('Admin secret saved for this session', 'OK', { duration: 3000 });
+  }
+
+  clearAdmin(): void {
+    this.api.clearAdminSecret();
+    this.isAdmin = false;
+    this.snackBar.open('Admin session cleared', 'OK', { duration: 3000 });
   }
 
   private loadAiSettings(): void {

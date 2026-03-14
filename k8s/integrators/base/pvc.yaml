@@ -2,7 +2,7 @@ apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
   name: integrator-data
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
 spec:

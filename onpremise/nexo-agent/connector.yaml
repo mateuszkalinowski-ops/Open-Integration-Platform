@@ -122,6 +122,6 @@ config_schema:
     cloud_platform_url:
       type: string
       label: "Pinquark Cloud Platform URL"
-      default: "https://integrations.pinquark.com"
+      default: ""
 health_endpoint: /health
 docs_url: /docs

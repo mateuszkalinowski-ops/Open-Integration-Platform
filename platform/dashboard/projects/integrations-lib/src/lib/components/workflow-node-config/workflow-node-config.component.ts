@@ -285,12 +285,15 @@ import {
               <mat-select [(ngModel)]="cfg['action']" (ngModelChange)="onActionChange()" (openedChange)="onSelectOpen('actAction', $event)">
                 <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['actAction'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['actAction'] = $any($event.target).value" placeholder="Search..." /></div>
                 @for (a of actionActions; track a) {
-                  @if (matchesFilter('actAction', a)) {
-                  <mat-option [value]="a">{{ a }}</mat-option>
+                  @if (matchesFilter('actAction', getActionSearchText(a))) {
+                  <mat-option [value]="a">{{ getActionDisplayLabel(a) }}</mat-option>
                   }
                 }
               </mat-select>
             </mat-form-field>
+            @if (getSelectedActionDescription()) {
+              <p class="wnc__hint">{{ getSelectedActionDescription() }}</p>
+            }
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>On Error</mat-label>
               <mat-select [(ngModel)]="cfg['on_error']" (ngModelChange)="emitChange()">
@@ -1211,6 +1214,29 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   getNodeDescription(): string {
     return NODE_TYPE_DEFINITIONS.find(d => d.type === this.node?.type)?.description || '';
+  }
+
+  private getSelectedConnector(): Connector | undefined {
+    const connectorName = String(this.cfg['connector_name'] ?? '');
+    return this.connectors.find(c => c.name === connectorName);
+  }
+
+  getActionDisplayLabel(action: string): string {
+    const label = this.getSelectedConnector()?.action_metadata?.[action]?.label?.trim();
+    return label ? `${label} (${action})` : action;
+  }
+
+  getActionDescription(action: string): string {
+    return this.getSelectedConnector()?.action_metadata?.[action]?.description?.trim() ?? '';
+  }
+
+  getSelectedActionDescription(): string {
+    const action = String(this.cfg['action'] ?? '');
+    return action ? this.getActionDescription(action) : '';
+  }
+
+  getActionSearchText(action: string): string {
+    return [action, this.getActionDisplayLabel(action), this.getActionDescription(action)].join(' ');
   }
 
   getFlag(code: string): string {

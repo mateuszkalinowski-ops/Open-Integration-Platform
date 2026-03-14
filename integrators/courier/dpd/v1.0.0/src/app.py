@@ -11,7 +11,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -78,9 +78,9 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{waybill_number}/status")
 async def get_status(
     waybill_number: str,
-    login: str = Query(...),
-    password: str = Query(...),
-    master_fid: int | None = Query(None),
+    login: str = Header(..., alias="X-Login"),
+    password: str = Header(..., alias="X-Password"),
+    master_fid: int | None = Header(default=None, alias="X-Master-Fid"),
     info_channel: str = Query(""),
 ):
     try:

@@ -45,6 +45,7 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{waybill_number}/status
+    header_from_payload: [username, password]
   label.get:
     method: POST
     path: /labels

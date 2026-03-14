@@ -14,7 +14,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -67,7 +67,7 @@ async def readiness():
 
 @app.get("/services")
 async def get_services(
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -88,7 +88,7 @@ async def get_services(
 @app.get("/company/{company_id}")
 async def get_company(
     company_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -124,7 +124,7 @@ async def create_order(request: CreateOrderApiRequest):
 
 @app.get("/shipments")
 async def get_orders(
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
     since: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
     offset: Optional[int] = Query(default=None),
     company_id: Optional[int] = Query(default=None),
@@ -146,7 +146,7 @@ async def get_orders(
 @app.get("/shipments/by-number/{order_number}")
 async def find_order_by_number(
     order_number: str,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     """Find order by order_number (e.g. E000123) and return full order with order_id."""
     credentials = FxCouriersCredentials(api_token=api_token)
@@ -166,7 +166,7 @@ async def find_order_by_number(
 @app.get("/shipments/{order_id}")
 async def get_order(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -183,7 +183,7 @@ async def get_order(
 @app.delete("/shipments/{order_id}")
 async def delete_order(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -204,7 +204,7 @@ async def delete_order(
 @app.get("/shipments/{order_id}/status")
 async def get_order_status(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -221,7 +221,7 @@ async def get_order_status(
 @app.get("/tracking/{order_id}")
 async def get_tracking(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -285,7 +285,7 @@ async def create_pickup(request: CreatePickupApiRequest):
 @app.get("/pickups/{order_id}")
 async def get_pickup(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
@@ -302,7 +302,7 @@ async def get_pickup(
 @app.delete("/pickups/{order_id}")
 async def cancel_pickup(
     order_id: int,
-    api_token: str = Query(...),
+    api_token: str = Header(..., alias="X-Api-Token"),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:

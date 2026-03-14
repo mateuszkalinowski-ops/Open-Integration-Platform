@@ -369,35 +369,36 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{order_id}/status
-    query_from_payload:
+    header_from_payload:
     - api_token
   shipment.get:
     method: GET
     path: /shipments/{order_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
   shipment.find_by_number:
     method: GET
     path: /shipments/by-number/{order_number}
-    query_from_payload:
+    header_from_payload:
     - api_token
   shipment.cancel:
     method: DELETE
     path: /shipments/{order_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
   shipment.list:
     method: GET
     path: /shipments
-    query_from_payload:
+    header_from_payload:
     - api_token
+    query_from_payload:
     - since
     - offset
     - company_id
   tracking.get:
     method: GET
     path: /tracking/{order_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
   label.get:
     method: POST
@@ -408,22 +409,22 @@ action_routes:
   pickup.get:
     method: GET
     path: /pickups/{order_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
   pickup.cancel:
     method: DELETE
     path: /pickups/{order_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
   services.list:
     method: GET
     path: /services
-    query_from_payload:
+    header_from_payload:
     - api_token
   company.get:
     method: GET
     path: /company/{company_id}
-    query_from_payload:
+    header_from_payload:
     - api_token
 credential_provisioning:
   mode: inject

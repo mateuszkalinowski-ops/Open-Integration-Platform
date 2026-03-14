@@ -11,7 +11,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -70,8 +70,8 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{order_id}/status")
 async def get_status(
     order_id: str,
-    login: str = Query(...),
-    password: str = Query(...),
+    login: str = Header(..., alias="X-Login"),
+    password: str = Header(..., alias="X-Password"),
 ):
     credentials = PocztaPolskaCredentials(login=login, password=password)
     try:

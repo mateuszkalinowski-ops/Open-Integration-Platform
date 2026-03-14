@@ -7,14 +7,14 @@ services:
     ports:
       - "8080:8080"
     environment:
-      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       REDIS_URL: redis://redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
-      ADMIN_SECRET: ${ADMIN_SECRET}
+      ADMIN_SECRET: ${ADMIN_SECRET:-}
       INTERNAL_SECRET: ${INTERNAL_SECRET}
       DEMO_MODE: ${DEMO_MODE:-false}
       DEFAULT_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
@@ -42,7 +42,6 @@ services:
     environment:
       PINQUARK_API_URL: ""
       PINQUARK_API_KEY: ${PINQUARK_DASHBOARD_API_KEY:-}
-      PINQUARK_ADMIN_SECRET: ${ADMIN_SECRET:-}
     depends_on:
       - platform
     restart: unless-stopped
@@ -53,9 +52,9 @@ services:
     environment:
       POSTGRES_DB: pinquark_platform
       POSTGRES_USER: pinquark
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pinquark}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -68,7 +67,7 @@ services:
   redis:
     image: redis:7-alpine
     ports:
-      - "6379:6379"
+      - "127.0.0.1:6379:6379"
     volumes:
       - redisdata:/data
     healthcheck:
@@ -351,6 +350,7 @@ services:
       KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_API_KEY: ${PINQUARK_CONNECTOR_API_KEY:-}
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
@@ -503,7 +503,7 @@ services:
     ports:
       - "18080:8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       VERIFICATION_INTERVAL_DAYS: 7
       VERIFICATION_TIMEOUT_SECONDS: 60

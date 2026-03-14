@@ -2,11 +2,11 @@
 # Following AGENTS.md sections 4 and 5
 
 variables:
-  DOCKER_REGISTRY: registry.pinquark.com
+  DOCKER_REGISTRY: ${CI_REGISTRY}
   DOCKER_TLS_CERTDIR: "/certs"
   KUSTOMIZE_VERSION: "5.4.0"
   TRIVY_VERSION: "0.58.0"
-  NAMESPACE: pinquark-uat
+  NAMESPACE: oip
 
 stages:
   - lint
@@ -365,7 +365,7 @@ test:shared-library:
       exit 1
   environment:
     name: uat/$SYSTEM
-    url: https://${SYSTEM}.uat.pinquark.com
+    url: https://${SYSTEM}.example.com
 
 deploy:secrets:
   extends: .kubectl

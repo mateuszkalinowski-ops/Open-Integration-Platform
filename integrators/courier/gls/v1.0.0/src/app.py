@@ -11,7 +11,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -76,8 +76,8 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{waybill_number}/status")
 async def get_tracking(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
 ):
     try:
         credentials = GlsCredentials(username=username, password=password)

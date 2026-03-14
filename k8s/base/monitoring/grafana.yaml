@@ -21,7 +21,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 0 },
           "targets": [
             {
-              "expr": "sum(rate(integrator_requests_total{namespace=\"pinquark-uat\"}[5m])) by (integrator)",
+              "expr": "sum(rate(integrator_requests_total{namespace=\"oip\"}[5m])) by (integrator)",
               "legendFormat": "{{ integrator }}"
             }
           ]
@@ -32,7 +32,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 0 },
           "targets": [
             {
-              "expr": "sum(rate(integrator_errors_total{namespace=\"pinquark-uat\"}[5m])) by (integrator)",
+              "expr": "sum(rate(integrator_errors_total{namespace=\"oip\"}[5m])) by (integrator)",
               "legendFormat": "{{ integrator }}"
             }
           ]
@@ -43,7 +43,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 8 },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket{namespace=\"pinquark-uat\"}[5m])) by (le, integrator))",
+              "expr": "histogram_quantile(0.95, sum(rate(integrator_request_duration_seconds_bucket{namespace=\"oip\"}[5m])) by (le, integrator))",
               "legendFormat": "{{ integrator }}"
             }
           ]
@@ -54,7 +54,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 8 },
           "targets": [
             {
-              "expr": "histogram_quantile(0.95, sum(rate(integrator_external_api_duration_seconds_bucket{namespace=\"pinquark-uat\"}[5m])) by (le, system, operation))",
+              "expr": "histogram_quantile(0.95, sum(rate(integrator_external_api_duration_seconds_bucket{namespace=\"oip\"}[5m])) by (le, system, operation))",
               "legendFormat": "{{ system }}/{{ operation }}"
             }
           ]
@@ -65,7 +65,7 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 0, "y": 16 },
           "targets": [
             {
-              "expr": "sum(rate(integrator_kafka_messages_processed_total{namespace=\"pinquark-uat\"}[5m])) by (topic, status)",
+              "expr": "sum(rate(integrator_kafka_messages_processed_total{namespace=\"oip\"}[5m])) by (topic, status)",
               "legendFormat": "{{ topic }} ({{ status }})"
             }
           ]
@@ -76,11 +76,11 @@ data:
           "gridPos": { "h": 8, "w": 12, "x": 12, "y": 16 },
           "targets": [
             {
-              "expr": "count(kube_pod_container_status_ready{namespace=\"pinquark-uat\"} == 1)",
+              "expr": "count(kube_pod_container_status_ready{namespace=\"oip\"} == 1)",
               "legendFormat": "Healthy"
             },
             {
-              "expr": "count(kube_pod_container_status_ready{namespace=\"pinquark-uat\"} == 0)",
+              "expr": "count(kube_pod_container_status_ready{namespace=\"oip\"} == 0)",
               "legendFormat": "Unhealthy"
             }
           ]

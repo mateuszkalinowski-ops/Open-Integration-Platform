@@ -58,7 +58,7 @@ jobs:
             tar xzf /tmp/repo.tar.gz -C "$TMPDIR" --strip-components=1
             cp "$TMPDIR/docker-compose.vps.yml" /opt/pinquark/docker-compose.vps.yml
             mkdir -p /opt/pinquark/deploy
-            cp "$TMPDIR/deploy/nginx.conf" /opt/pinquark/deploy/nginx.conf
+            cp "$TMPDIR/deploy/nginx.conf" /opt/pinquark/deploy/nginx.conf.template
 
             rm -rf /opt/pinquark/integrators
             mkdir -p /opt/pinquark/integrators
@@ -82,17 +82,24 @@ jobs:
               DEFAULT_KEY="${EXISTING_KEY:-pk_live_$(openssl rand -hex 16)}"
             fi
 
+            DOMAIN="${{ secrets.DOMAIN }}"
             printf '%s\n' \
               "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
               "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" \
               "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" \
               "DEFAULT_API_KEY=${DEFAULT_KEY}" \
               "ADMIN_SECRET=${{ secrets.ADMIN_SECRET }}" \
+              "DOMAIN=${DOMAIN}" \
+              "GITHUB_ORG=${{ github.repository_owner }}" \
               "DEMO_MODE=true" \
               > .env
 
+            # ── Template nginx.conf with actual domain ──
+            sed "s/\${DOMAIN}/${DOMAIN}/g" /opt/pinquark/deploy/nginx.conf.template \
+              > /opt/pinquark/deploy/nginx.conf
+
             # ── SSL certificate (Let's Encrypt) ──
-            CERT_DIR="/opt/pinquark/certbot/conf/live/pq.dotts.pl"
+            CERT_DIR="/opt/pinquark/certbot/conf/live/${DOMAIN}"
             CONF_BASE="/opt/pinquark/certbot/conf"
             mkdir -p /opt/pinquark/certbot/www "$CONF_BASE"
 
@@ -101,9 +108,9 @@ jobs:
               NEED_CERT=1
             elif ! sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -issuer 2>/dev/null | grep -qi "let's encrypt\|R3\|R10\|R11\|E5\|E6"; then
               echo "Cert exists but is not from Let's Encrypt — cleaning up"
-              sudo rm -rf "$CONF_BASE"/live/pq.dotts.pl*
-              sudo rm -rf "$CONF_BASE"/archive/pq.dotts.pl*
-              sudo rm -rf "$CONF_BASE"/renewal/pq.dotts.pl*
+              sudo rm -rf "$CONF_BASE"/live/${DOMAIN}*
+              sudo rm -rf "$CONF_BASE"/archive/${DOMAIN}*
+              sudo rm -rf "$CONF_BASE"/renewal/${DOMAIN}*
               NEED_CERT=1
             else
               echo "Valid Let's Encrypt certificate found — skipping certbot"
@@ -122,10 +129,10 @@ jobs:
                 certbot/certbot certonly \
                 --standalone \
                 --non-interactive \
-                --cert-name pq.dotts.pl \
-                --email integrations@pinquark.com \
+                --cert-name ${DOMAIN} \
+                --email ${{ secrets.CERTBOT_EMAIL }} \
                 --agree-tos --no-eff-email \
-                -d pq.dotts.pl \
+                -d ${DOMAIN} \
                 || echo "WARNING: certbot failed, will use self-signed fallback"
               sudo chmod -R 755 "$CONF_BASE"/live "$CONF_BASE"/archive 2>/dev/null || true
             fi
@@ -136,7 +143,7 @@ jobs:
               sudo openssl req -x509 -nodes -days 365 -newkey rsa:2048 \
                 -keyout "$CERT_DIR/privkey.pem" \
                 -out "$CERT_DIR/fullchain.pem" \
-                -subj "/CN=pq.dotts.pl" 2>/dev/null
+                -subj "/CN=${DOMAIN}" 2>/dev/null
               sudo chmod -R 755 "$CONF_BASE"/live 2>/dev/null || true
             fi
 

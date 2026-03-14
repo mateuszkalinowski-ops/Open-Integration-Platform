@@ -2,7 +2,7 @@ apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: integrator
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
     app.kubernetes.io/component: integrator
@@ -35,7 +35,7 @@ spec:
         fsGroup: 1001
       containers:
         - name: integrator
-          image: registry.pinquark.com/integrations/CATEGORY/SYSTEM:VERSION
+          image: your-registry.example.com/integrations/CATEGORY/SYSTEM:VERSION
           imagePullPolicy: Always
           ports:
             - name: http

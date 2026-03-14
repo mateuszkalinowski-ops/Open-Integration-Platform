@@ -8,7 +8,7 @@ Row Level Security policies enforce tenant isolation at the DB level.
 import hashlib
 import uuid
 
-from fastapi import Depends, HTTPException, Query, Request, Security
+from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -64,12 +64,10 @@ async def get_current_tenant(
 async def get_current_tenant_or_query(
     request: Request,
     api_key: str | None = Security(api_key_header),
-    api_key_query: str | None = Query(None, alias="api_key"),
     db: AsyncSession = Depends(get_db),
 ) -> Tenant:
-    """Auth that accepts API key from header OR ?api_key= query param."""
-    key = api_key or api_key_query
-    return await _resolve_tenant(key, db)
+    """Auth via X-API-Key header only (query param removed for security)."""
+    return await _resolve_tenant(api_key, db)
 
 
 def generate_api_key(prefix: str = "pk_live") -> tuple[str, str]:

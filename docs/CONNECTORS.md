@@ -1178,7 +1178,7 @@ Integration credentials are managed through the platform REST API. Authenticatio
 
 ```bash
 # Save InPost credentials
-curl -X POST https://api.pinquark.com/api/v1/credentials \
+curl -X POST http://localhost:8080/api/v1/credentials \
   -H "X-API-Key: pk_live_xxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -1190,7 +1190,7 @@ curl -X POST https://api.pinquark.com/api/v1/credentials \
   }'
 
 # Retrieve credentials (secrets masked)
-curl https://api.pinquark.com/api/v1/credentials/inpost \
+curl http://localhost:8080/api/v1/credentials/inpost \
   -H "X-API-Key: pk_live_xxx"
 ```
 

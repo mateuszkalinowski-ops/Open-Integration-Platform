@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: pinquark-integrator
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
 ---
@@ -10,7 +10,7 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: Role
 metadata:
   name: integrator-role
-  namespace: pinquark-uat
+  namespace: oip
 rules:
   - apiGroups: [""]
     resources: ["configmaps", "secrets"]
@@ -23,11 +23,11 @@ apiVersion: rbac.authorization.k8s.io/v1
 kind: RoleBinding
 metadata:
   name: integrator-role-binding
-  namespace: pinquark-uat
+  namespace: oip
 subjects:
   - kind: ServiceAccount
     name: pinquark-integrator
-    namespace: pinquark-uat
+    namespace: oip
 roleRef:
   kind: Role
   name: integrator-role

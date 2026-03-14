@@ -2,7 +2,7 @@ apiVersion: autoscaling/v2
 kind: HorizontalPodAutoscaler
 metadata:
   name: integrator-hpa
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
     app.kubernetes.io/component: integrator

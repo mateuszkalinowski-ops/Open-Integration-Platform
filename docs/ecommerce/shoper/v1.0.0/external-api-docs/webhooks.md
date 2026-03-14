@@ -35,7 +35,7 @@ POST /webapi/rest/webhooks
 Body:
 ```json
 {
-  "url": "https://integrations.pinquark.com/webhooks/shoper/orders",
+  "url": "https://your-platform.example.com/webhooks/shoper/orders",
   "event": "order/create",
   "active": 1,
   "secret": "optional-hmac-secret"

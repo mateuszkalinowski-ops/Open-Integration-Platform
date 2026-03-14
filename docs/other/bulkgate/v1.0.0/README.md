@@ -134,8 +134,8 @@ curl -X POST http://localhost:8000/sms/advanced \
 ## Deployment
 
 ```bash
-docker build -t registry.pinquark.com/integrations/other/bulkgate:1.0.0 .
-docker push registry.pinquark.com/integrations/other/bulkgate:1.0.0
+docker build -t your-registry.example.com/integrations/other/bulkgate:1.0.0 .
+docker push your-registry.example.com/integrations/other/bulkgate:1.0.0
 ```
 
 ## External Resources

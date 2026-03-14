@@ -73,10 +73,13 @@ import { VisualFieldMapperComponent } from '../visual-field-mapper/visual-field-
               <mat-label>Action</mat-label>
               <mat-select formControlName="destination_action" (selectionChange)="onDestActionChange()">
                 @for (a of destActions; track a) {
-                  <mat-option [value]="a">{{ a }}</mat-option>
+                  <mat-option [value]="a">{{ getActionDisplayLabel(a) }}</mat-option>
                 }
               </mat-select>
             </mat-form-field>
+            @if (getSelectedActionDescription()) {
+              <p class="flow-designer__hint">{{ getSelectedActionDescription() }}</p>
+            }
             <button mat-button matStepperPrevious>Back</button>
             <button mat-button matStepperNext color="primary">Next</button>
           </form>
@@ -322,6 +325,25 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
 
   getFlag(code: string): string {
     return COUNTRY_FLAG_MAP[code] ?? code;
+  }
+
+  private getSelectedDestinationConnector(): Connector | undefined {
+    const connectorName = this.destForm.get('destination_connector')?.value;
+    return this.connectors.find(c => c.name === connectorName);
+  }
+
+  getActionDisplayLabel(action: string): string {
+    const label = this.getSelectedDestinationConnector()?.action_metadata?.[action]?.label?.trim();
+    return label ? `${label} (${action})` : action;
+  }
+
+  getActionDescription(action: string): string {
+    return this.getSelectedDestinationConnector()?.action_metadata?.[action]?.description?.trim() ?? '';
+  }
+
+  getSelectedActionDescription(): string {
+    const action = this.destForm.get('destination_action')?.value;
+    return action ? this.getActionDescription(action) : '';
   }
 
   onSourceConnectorChange(): void {

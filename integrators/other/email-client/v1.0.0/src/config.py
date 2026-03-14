@@ -20,6 +20,7 @@ class EmailAccountConfig(BaseSettings):
     smtp_port: int = 587
     use_ssl: bool = True
     polling_folder: str = "INBOX"
+    polling_interval_seconds: int | None = None
     environment: str = "production"
 
     @property

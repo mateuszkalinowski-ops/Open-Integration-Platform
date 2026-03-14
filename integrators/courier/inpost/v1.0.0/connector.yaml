@@ -48,9 +48,18 @@ action_routes:
   label.get:
     method: GET
     path: /shipments/{shipment_id}/label
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill}/status
+    header_from_payload: [organization_id, api_token]
+  shipment.get:
+    method: GET
+    path: /shipments/{waybill}
+    header_from_payload: [organization_id, api_token]
   shipment.cancel:
-    method: POST
-    path: /shipments/{shipment_id}/cancel
+    method: DELETE
+    path: /shipments/{waybill}
+    header_from_payload: [organization_id, api_token]
   pickup_points.list:
     method: GET
     path: /pickup-points

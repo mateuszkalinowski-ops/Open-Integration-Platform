@@ -74,9 +74,10 @@ class EmailPoller:
                 await self._poll_account(account)
             except Exception:
                 logger.exception("Error polling account=%s, resetting IMAP connection", account.name)
-                await self._reset_imap_client(account.name)
+                await self.reset_imap_client(account.name)
 
-    async def _reset_imap_client(self, account_name: str) -> None:
+    async def reset_imap_client(self, account_name: str) -> None:
+        """Disconnect and remove cached IMAP client so next poll reconnects."""
         client = self._imap_clients.pop(account_name, None)
         if client:
             try:
@@ -165,7 +166,7 @@ class EmailPoller:
             if resp.status_code < 300:
                 logger.debug("Platform notified: event=%s status=%d", event, resp.status_code)
                 return True
-            logger.warning("Platform notify failed: event=%s status=%d body=%s", event, resp.status_code, resp.text[:200])
+            logger.warning("Platform notify failed: event=%s status=%d", event, resp.status_code)
             return False
         except Exception:
             logger.exception("Failed to notify platform about event=%s", event)

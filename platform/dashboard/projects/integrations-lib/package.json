@@ -17,5 +17,15 @@
     "ecommerce",
     "erp",
     "wms"
-  ]
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/pinquark/open-integration-platform.git",
+    "directory": "platform/dashboard/projects/integrations-lib"
+  },
+  "homepage": "https://github.com/pinquark/open-integration-platform",
+  "bugs": {
+    "url": "https://github.com/pinquark/open-integration-platform/issues"
+  },
+  "author": "Meritus S.A. <integrations@pinquark.com>"
 }

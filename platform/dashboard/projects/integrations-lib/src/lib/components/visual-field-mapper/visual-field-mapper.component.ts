@@ -111,7 +111,7 @@ interface AiSettings {
             </div>
           } @else {
             <div class="vfm__field-list">
-              @for (item of filteredMappings; track mappingKey(item.mapping, item.originalIndex)) {
+              @for (item of filteredMappings; track item.originalIndex) {
                 <div class="vfm__mc" [class.vfm__mc--expanded]="expandedMappingIndex === item.originalIndex">
                   <!-- Collapsed summary row -->
                   <div class="vfm__mc-summary" (click)="toggleMappingExpand(item.originalIndex)">
@@ -150,7 +150,7 @@ interface AiSettings {
                             @if (src === '__custom__' && getMappingSources(item.mapping).length === 1) {
                               <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--sm">
                                 <mat-label>Value</mat-label>
-                                <input matInput [value]="item.mapping.from_custom || ''" (input)="onCustomSourceChange(item.originalIndex, $any($event.target).value)" placeholder="Static value" />
+                                <input matInput [(ngModel)]="item.mapping.from_custom" (ngModelChange)="onMappingFieldChange()" (blur)="onFieldBlur()" placeholder="Static value" />
                               </mat-form-field>
                             }
                             @if (getMappingSources(item.mapping).length > 1) {
@@ -182,7 +182,7 @@ interface AiSettings {
                           @if (item.mapping.to === '__custom__') {
                             <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--sm">
                               <mat-label>Path</mat-label>
-                              <input matInput [value]="item.mapping.to_custom || ''" (input)="onCustomTargetChange(item.originalIndex, $any($event.target).value)" placeholder="target.path" />
+                              <input matInput [(ngModel)]="item.mapping.to_custom" (ngModelChange)="onMappingFieldChange()" (blur)="onFieldBlur()" placeholder="target.path" />
                             </mat-form-field>
                           }
                         </div>
@@ -203,7 +203,7 @@ interface AiSettings {
                             @for (cfgKey of getTransformConfigFields(step.type); track cfgKey) {
                               <mat-form-field appearance="outline" class="vfm__mc-ff vfm__mc-ff--cfg">
                                 <mat-label>{{ cfgKey }}</mat-label>
-                                <input matInput [value]="step[cfgKey] ?? ''" (change)="updateTransformConfig(item.originalIndex, si, cfgKey, $event)" />
+                                <input matInput [(ngModel)]="step[cfgKey]" (ngModelChange)="onMappingFieldChange()" (blur)="onFieldBlur()" />
                               </mat-form-field>
                             }
                             <button mat-icon-button class="vfm__mc-rm" (click)="removeTransformStep(item.originalIndex, si)"><mat-icon>close</mat-icon></button>
@@ -405,10 +405,16 @@ export class VisualFieldMapperComponent {
   previewOutputJson = '{}';
   previewError = '';
   aiLoading = false;
+  private _dirty = false;
+  private _previewTimer: ReturnType<typeof setTimeout> | null = null;
 
   searchSource = '';
   searchMapping = '';
   searchDest = '';
+
+  private _cachedMappingsRef: FieldMapping[] = [];
+  private _cachedSearchMapping = '';
+  private _cachedFilteredMappings: { mapping: FieldMapping; originalIndex: number }[] = [];
 
   get filteredSourceFields(): ConnectorFieldDef[] {
     if (!this.searchSource) return this.sourceFields;
@@ -428,14 +434,23 @@ export class VisualFieldMapperComponent {
   }
 
   get filteredMappings(): { mapping: FieldMapping; originalIndex: number }[] {
+    if (this.mappings === this._cachedMappingsRef && this.searchMapping === this._cachedSearchMapping) {
+      return this._cachedFilteredMappings;
+    }
+    this._cachedMappingsRef = this.mappings;
+    this._cachedSearchMapping = this.searchMapping;
     const all = this.mappings.map((m, i) => ({ mapping: m, originalIndex: i }));
-    if (!this.searchMapping) return all;
+    if (!this.searchMapping) {
+      this._cachedFilteredMappings = all;
+      return all;
+    }
     const q = this.searchMapping.toLowerCase();
-    return all.filter(({ mapping }) => {
+    this._cachedFilteredMappings = all.filter(({ mapping }) => {
       const src = this.displaySource(mapping).toLowerCase();
       const tgt = this.displayTarget(mapping).toLowerCase();
       return src.includes(q) || tgt.includes(q);
     });
+    return this._cachedFilteredMappings;
   }
 
   constructor(
@@ -519,6 +534,20 @@ export class VisualFieldMapperComponent {
     this.emitMappings(next);
   }
 
+  onMappingFieldChange(): void {
+    this._dirty = true;
+    if (this._previewTimer) clearTimeout(this._previewTimer);
+    this._previewTimer = setTimeout(() => this.generatePreview(), 200);
+  }
+
+  onFieldBlur(): void {
+    if (this._dirty) {
+      this._dirty = false;
+      this.mappingsChange.emit([...this.mappings]);
+      this.generatePreview();
+    }
+  }
+
   addMappingSource(mappingIndex: number): void {
     const next = [...this.mappings];
     const mapping = { ...next[mappingIndex] };
@@ -561,6 +590,7 @@ export class VisualFieldMapperComponent {
     next[mappingIndex] = { ...next[mappingIndex], to_custom: value };
     this.emitMappings(next);
   }
+
 
   getTransformSteps(mapping: FieldMapping): TransformStep[] {
     if (!mapping.transform) return [];
@@ -611,6 +641,7 @@ export class VisualFieldMapperComponent {
     next[mappingIndex] = mapping;
     this.emitMappings(next);
   }
+
 
   autoMap(): void {
     const takenTargets = new Set(this.mappings.map(mapping => this.resolveTarget(mapping)));
@@ -696,8 +727,8 @@ export class VisualFieldMapperComponent {
     return this.resolveTarget(mapping) || '(empty)';
   }
 
-  mappingKey(mapping: FieldMapping, index: number): string {
-    return `${this.displaySource(mapping)}:${this.displayTarget(mapping)}:${index}`;
+  mappingKey(_mapping: FieldMapping, index: number): string {
+    return `mapping-${index}`;
   }
 
   getTransformCount(mapping: FieldMapping): number {

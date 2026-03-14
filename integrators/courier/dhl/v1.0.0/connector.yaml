@@ -51,15 +51,30 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{waybill_number}/status
+    header_from_payload:
+    - username
+    - password
+    - account_number
+    - sap_number
   shipment.cancel:
     method: DELETE
     path: /shipments/{waybill_number}
+    header_from_payload:
+    - username
+    - password
+    - account_number
+    - sap_number
   label.get:
     method: POST
     path: /labels
   points.list:
     method: GET
     path: /points
+    header_from_payload:
+    - username
+    - password
+    - account_number
+    - sap_number
   rates.get:
     method: POST
     path: /rates

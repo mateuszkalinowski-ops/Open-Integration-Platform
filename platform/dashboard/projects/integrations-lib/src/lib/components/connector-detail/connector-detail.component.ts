@@ -301,8 +301,9 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
             <mat-list>
               <mat-list-item *ngFor="let act of connector.actions">
                 <mat-icon matListItemIcon>send</mat-icon>
-                <span matListItemTitle>{{ formatName(act) }}</span>
+                <span matListItemTitle>{{ getActionDisplayLabel(act) }}</span>
                 <span matListItemLine class="connector-detail__code">{{ act }}</span>
+                <span *ngIf="getActionDescription(act)" matListItemLine>{{ getActionDescription(act) }}</span>
               </mat-list-item>
             </mat-list>
             <p *ngIf="connector.actions.length === 0" class="connector-detail__empty">No actions defined.</p>
@@ -772,6 +773,14 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
     return key
       .replace(/[._]/g, ' ')
       .replace(/\b\w/g, c => c.toUpperCase());
+  }
+
+  getActionDisplayLabel(action: string): string {
+    return this.connector?.action_metadata?.[action]?.label?.trim() || this.formatName(action);
+  }
+
+  getActionDescription(action: string): string {
+    return this.connector?.action_metadata?.[action]?.description?.trim() || '';
   }
 
   formatAuthType(authType: string): string {

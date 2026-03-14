@@ -264,15 +264,35 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{waybill_number}/status
+    header_from_payload:
+    - username
+    - password
+    - customer_number
+    - sandbox_mode
   shipment.cancel:
     method: PUT
     path: /shipments/{waybill_number}/cancel
+    header_from_payload:
+    - username
+    - password
+    - customer_number
+    - sandbox_mode
   tracking.get:
     method: GET
     path: /tracking/{waybill_number}
+    header_from_payload:
+    - username
+    - password
+    - customer_number
+    - sandbox_mode
   eta.get:
     method: GET
     path: /shipments/{waybill_number}/eta
+    header_from_payload:
+    - username
+    - password
+    - customer_number
+    - sandbox_mode
   label.get:
     method: POST
     path: /labels
@@ -282,6 +302,11 @@ action_routes:
   delivery_confirmation.get:
     method: GET
     path: /deliveries/{waybill_number}/confirmation
+    header_from_payload:
+    - username
+    - password
+    - customer_number
+    - sandbox_mode
 credential_validation:
   required_fields:
   - username

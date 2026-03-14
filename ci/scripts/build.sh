@@ -14,7 +14,7 @@ SYSTEM="${2:?Usage: build.sh <category> <system> <version> [build_context]}"
 VERSION="${3:?Usage: build.sh <category> <system> <version> [build_context]}"
 BUILD_CONTEXT="${4:-integrators/${CATEGORY}/${SYSTEM}/v${VERSION}}"
 
-REGISTRY="${DOCKER_REGISTRY:-registry.pinquark.com}"
+REGISTRY="${DOCKER_REGISTRY:-your-registry.example.com}"
 IMAGE_BASE="${REGISTRY}/integrations/${CATEGORY}/${SYSTEM}"
 
 TAG_VERSION="${IMAGE_BASE}:${VERSION}-uat"

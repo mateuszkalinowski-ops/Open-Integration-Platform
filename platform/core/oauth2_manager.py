@@ -180,7 +180,7 @@ class OAuth2Manager:
 
         if resp.status_code >= 400:
             oauth_token.status = "error"
-            oauth_token.last_error = f"Refresh failed: HTTP {resp.status_code} — {resp.text[:200]}"
+            oauth_token.last_error = f"Refresh failed: HTTP {resp.status_code}"
             await db.flush()
             logger.warning(
                 "oauth2_refresh_failed",

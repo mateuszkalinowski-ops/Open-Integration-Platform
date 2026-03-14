@@ -66,7 +66,7 @@ spec:
       rules:
         - alert: IntegratorHealthCheckFailing
           expr: |
-            kube_pod_container_status_ready{namespace="pinquark-uat"} == 0
+            kube_pod_container_status_ready{namespace="oip"} == 0
           for: 3m
           labels:
             severity: critical
@@ -78,7 +78,7 @@ spec:
       rules:
         - alert: KafkaConsumerLagWarning
           expr: |
-            kafka_consumergroup_lag_sum{namespace="pinquark-uat"} > 1000
+            kafka_consumergroup_lag_sum{namespace="oip"} > 1000
           for: 5m
           labels:
             severity: warning
@@ -88,7 +88,7 @@ spec:
 
         - alert: KafkaConsumerLagCritical
           expr: |
-            kafka_consumergroup_lag_sum{namespace="pinquark-uat"} > 10000
+            kafka_consumergroup_lag_sum{namespace="oip"} > 10000
           for: 5m
           labels:
             severity: critical

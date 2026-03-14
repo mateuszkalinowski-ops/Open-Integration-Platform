@@ -354,8 +354,8 @@ class EventPoller:
                     )
                 else:
                     logger.error(
-                        "Platform rejected event %s: HTTP %d %s",
-                        event_name, resp.status_code, resp.text[:300],
+                        "Platform rejected event %s: HTTP %d",
+                        event_name, resp.status_code,
                     )
             except Exception:
                 logger.error("Failed to send event %s to platform", event_name, exc_info=True)

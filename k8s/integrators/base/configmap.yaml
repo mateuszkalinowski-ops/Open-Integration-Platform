@@ -2,7 +2,7 @@ apiVersion: v1
 kind: ConfigMap
 metadata:
   name: integrator-config
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
 data:

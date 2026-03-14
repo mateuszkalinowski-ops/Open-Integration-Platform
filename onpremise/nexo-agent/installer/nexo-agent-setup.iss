@@ -308,7 +308,7 @@ begin
   PageCloud.Add('Klucz API (API Key):', True);
   PageCloud.Add('Interwał synchronizacji (sekundy):', False);
   PageCloud.Add('Interwał heartbeat (sekundy):', False);
-  PageCloud.Values[0] := 'https://integrations.pinquark.com';
+  PageCloud.Values[0] := 'http://localhost:8080';
   PageCloud.Values[2] := '300';
   PageCloud.Values[3] := '60';
 end;

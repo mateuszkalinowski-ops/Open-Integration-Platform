@@ -56,7 +56,7 @@ POST /admin/api/2024-07/webhooks.json
 {
   "webhook": {
     "topic": "orders/create",
-    "address": "https://integrations.pinquark.com/shopify/webhooks",
+    "address": "https://your-platform.example.com/shopify/webhooks",
     "format": "json"
   }
 }

@@ -166,13 +166,13 @@ class DocumentPoller:
                 resp = await client.post(url, json=payload, headers=self._platform_headers())
                 if resp.status_code >= 400:
                     logger.error(
-                        "Platform event notify FAILED: status=%s body=%s doc_id=%s",
-                        resp.status_code, resp.text[:500], event.get("document_id"),
+                        "Platform event notify FAILED: status=%s doc_id=%s",
+                        resp.status_code, event.get("document_id"),
                     )
                     return False
                 logger.info(
-                    "Platform event notify OK: status=%s doc_id=%s workflows=%s",
-                    resp.status_code, event.get("document_id"), resp.text[:200],
+                    "Platform event notify OK: status=%s doc_id=%s",
+                    resp.status_code, event.get("document_id"),
                 )
                 return True
         except Exception:

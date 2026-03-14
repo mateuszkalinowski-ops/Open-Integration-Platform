@@ -8,7 +8,7 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 [![Python](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
 [![Angular](https://img.shields.io/badge/Angular-18+-red.svg)](https://angular.dev)
 
-**[Live Demo](http://46.224.229.166)** — try it instantly, no installation required. Create a workspace, connect your systems, and build flows in minutes.
+Try it instantly with `./setup.sh` — no manual configuration required.
 
 ---
 
@@ -80,49 +80,20 @@ Courier services, e-commerce platforms, ERP systems, WMS, automation — all con
 
 ## Screenshots
 
-<table>
-  <tr>
-    <td><a href="./docs/Screenshots/connectors-list.png"><img src="./docs/Screenshots/connectors-list.png" alt="Connectors list" width="260"/></a></td>
-    <td><a href="./docs/Screenshots/connector.png"><img src="./docs/Screenshots/connector.png" alt="Connector details" width="260"/></a></td>
-    <td><a href="./docs/Screenshots/credentials.png"><img src="./docs/Screenshots/credentials.png" alt="Credentials management" width="260"/></a></td>
-  </tr>
-  <tr>
-    <td style="text-align:center;">Connectors</td>
-    <td style="text-align:center;">Connector Details</td>
-    <td style="text-align:center;">Credentials</td>
-  </tr>
-  <tr>
-    <td><a href="./docs/Screenshots/workflow-list.png"><img src="./docs/Screenshots/workflow-list.png" alt="Workflow list" width="260"/></a></td>
-    <td><a href="./docs/Screenshots/workflow.png"><img src="./docs/Screenshots/workflow.png" alt="Workflow editor" width="260"/></a></td>
-    <td><a href="./docs/Screenshots/operation-log.png"><img src="./docs/Screenshots/operation-log.png" alt="Operation log" width="260"/></a></td>
-  </tr>
-  <tr>
-    <td style="text-align:center;">Flows & Workflows</td>
-    <td style="text-align:center;">Workflow Editor</td>
-    <td style="text-align:center;">Operation Log</td>
-  </tr>
-  <tr>
-    <td><a href="./docs/Screenshots/operation-log-details.png"><img src="./docs/Screenshots/operation-log-details.png" alt="Operation log details" width="260"/></a></td>
-    <td></td>
-    <td></td>
-  </tr>
-  <tr>
-    <td style="text-align:center;">Execution Details</td>
-    <td></td>
-    <td></td>
-  </tr>
-</table>
+<!-- Screenshots will be added before the first public release. -->
+<!-- Place them in docs/screenshots/ and update the references below. -->
 
 ## Quick Start
 
 ### Self-hosted (Docker Compose)
 
 ```bash
-git clone https://github.com/pinquark/integrations.git
-cd integrations
-cp .env.example .env
-docker compose -f docker-compose.prod.yml up -d
+git clone https://github.com/pinquark/open-integration-platform.git
+cd open-integration-platform
+./setup.sh
 ```
+
+`setup.sh` generates a `.env` with secure random keys (encryption key, JWT secret, DB password, admin secret, internal secret) and starts all services via Docker Compose.
 
 Open `http://localhost:3000` for the dashboard.
 
@@ -138,7 +109,7 @@ import { PinquarkIntegrationsModule } from '@pinquark/integrations';
 @NgModule({
   imports: [
     PinquarkIntegrationsModule.forRoot({
-      apiUrl: 'https://api.pinquark.com',
+      apiUrl: 'http://localhost:8080',
       apiKey: environment.pinquarkApiKey,
     })
   ]
@@ -309,12 +280,10 @@ Runs on schedule (default: every 7 days), on-demand via API, or from the dashboa
 │       └── pinquark_common/   # Interfaces, schemas, utilities
 │
 ├── sdk/                       # Client SDKs
-│   ├── python/                # pinquark-sdk (PyPI)
-│   └── javascript/            # @pinquark/sdk (npm)
+│   └── python/                # pinquark-sdk (PyPI)
 │
 ├── onpremise/                 # On-premise agent for local ERP connectivity
-│   ├── agent/                 # Docker-based agent (Python.NET + FastAPI)
-│   └── installers/            # Windows installer wizard
+│   └── nexo-agent/            # InsERT Nexo agent (Python.NET + FastAPI)
 │
 ├── docs/                      # Per-connector documentation & architecture
 │   ├── ARCHITECTURE.md        # System architecture & scalability

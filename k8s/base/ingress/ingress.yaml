@@ -2,7 +2,7 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: pinquark-integrators
-  namespace: pinquark-uat
+  namespace: oip
   labels:
     app.kubernetes.io/part-of: pinquark
   annotations:
@@ -17,12 +17,12 @@ spec:
   ingressClassName: nginx
   tls:
     - hosts:
-        - "*.uat.pinquark.com"
-        - "uat.pinquark.com"
-      secretName: pinquark-uat-tls
+        - "*.example.com"
+        - "example.com"
+      secretName: oip-tls
   rules:
     # E-commerce integrators
-    - host: allegro.uat.pinquark.com
+    - host: allegro.example.com
       http:
         paths:
           - path: /
@@ -34,7 +34,7 @@ spec:
                   number: 8000
 
     # Courier integrators
-    - host: dhl.uat.pinquark.com
+    - host: dhl.example.com
       http:
         paths:
           - path: /
@@ -44,7 +44,7 @@ spec:
                 name: dhl-integrator
                 port:
                   number: 8000
-    - host: dpd.uat.pinquark.com
+    - host: dpd.example.com
       http:
         paths:
           - path: /
@@ -54,7 +54,7 @@ spec:
                 name: dpd-integrator
                 port:
                   number: 8000
-    - host: fedex.uat.pinquark.com
+    - host: fedex.example.com
       http:
         paths:
           - path: /
@@ -64,7 +64,7 @@ spec:
                 name: fedex-integrator
                 port:
                   number: 8000
-    - host: fedexpl.uat.pinquark.com
+    - host: fedexpl.example.com
       http:
         paths:
           - path: /
@@ -74,7 +74,7 @@ spec:
                 name: fedexpl-integrator
                 port:
                   number: 8000
-    - host: geis.uat.pinquark.com
+    - host: geis.example.com
       http:
         paths:
           - path: /
@@ -84,7 +84,7 @@ spec:
                 name: geis-integrator
                 port:
                   number: 8000
-    - host: gls.uat.pinquark.com
+    - host: gls.example.com
       http:
         paths:
           - path: /
@@ -94,7 +94,7 @@ spec:
                 name: gls-integrator
                 port:
                   number: 8000
-    - host: inpost.uat.pinquark.com
+    - host: inpost.example.com
       http:
         paths:
           - path: /
@@ -104,7 +104,7 @@ spec:
                 name: inpost-integrator
                 port:
                   number: 8000
-    - host: orlenpaczka.uat.pinquark.com
+    - host: orlenpaczka.example.com
       http:
         paths:
           - path: /
@@ -114,7 +114,7 @@ spec:
                 name: orlenpaczka-integrator
                 port:
                   number: 8000
-    - host: packeta.uat.pinquark.com
+    - host: packeta.example.com
       http:
         paths:
           - path: /
@@ -124,7 +124,7 @@ spec:
                 name: packeta-integrator
                 port:
                   number: 8000
-    - host: paxy.uat.pinquark.com
+    - host: paxy.example.com
       http:
         paths:
           - path: /
@@ -134,7 +134,7 @@ spec:
                 name: paxy-integrator
                 port:
                   number: 8000
-    - host: pocztapolska.uat.pinquark.com
+    - host: pocztapolska.example.com
       http:
         paths:
           - path: /
@@ -144,7 +144,7 @@ spec:
                 name: pocztapolska-integrator
                 port:
                   number: 8000
-    - host: schenker.uat.pinquark.com
+    - host: schenker.example.com
       http:
         paths:
           - path: /
@@ -154,7 +154,7 @@ spec:
                 name: schenker-integrator
                 port:
                   number: 8000
-    - host: sellasist.uat.pinquark.com
+    - host: sellasist.example.com
       http:
         paths:
           - path: /
@@ -164,7 +164,7 @@ spec:
                 name: sellasist-integrator
                 port:
                   number: 8000
-    - host: suus.uat.pinquark.com
+    - host: suus.example.com
       http:
         paths:
           - path: /
@@ -174,7 +174,7 @@ spec:
                 name: suus-integrator
                 port:
                   number: 8000
-    - host: ups.uat.pinquark.com
+    - host: ups.example.com
       http:
         paths:
           - path: /
@@ -186,7 +186,7 @@ spec:
                   number: 8000
 
     # Monitoring
-    - host: grafana.uat.pinquark.com
+    - host: grafana.example.com
       http:
         paths:
           - path: /

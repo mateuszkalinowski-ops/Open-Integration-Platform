@@ -89,7 +89,7 @@ Write-Host ""
 # --- Cloud ---
 Write-Host "6/6 Połączenie z Pinquark Cloud (opcjonalne)" -ForegroundColor Yellow
 Write-Host "---"
-$cloudUrl = Read-WithDefault "  URL platformy" "https://integrations.pinquark.com"
+$cloudUrl = Read-WithDefault "  URL platformy" "http://localhost:8080"
 $cloudKey = Read-Host "  Klucz API (puste = brak)"
 $syncInterval = Read-WithDefault "  Interwał sync (s)" "300"
 $heartbeatInterval = Read-WithDefault "  Interwał heartbeat (s)" "60"

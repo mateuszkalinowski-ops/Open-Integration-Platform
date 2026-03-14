@@ -47,6 +47,7 @@ class ConnectorManifest:
     capabilities: list[str] = field(default_factory=list)
     events: list[str] = field(default_factory=list)
     actions: list[str] = field(default_factory=list)
+    action_metadata: dict[str, dict] = field(default_factory=dict)
     config_schema: dict = field(default_factory=dict)
     api_endpoints: list[dict] = field(default_factory=list)
     event_fields: dict[str, list[dict]] = field(default_factory=dict)
@@ -174,6 +175,7 @@ class ConnectorRegistry:
             capabilities=data.get("capabilities", []),
             events=data.get("events", []),
             actions=data.get("actions", []),
+            action_metadata=data.get("action_metadata", {}),
             config_schema=data.get("config_schema", {}),
             api_endpoints=data.get("api_endpoints", []),
             event_fields=data.get("event_fields", {}),

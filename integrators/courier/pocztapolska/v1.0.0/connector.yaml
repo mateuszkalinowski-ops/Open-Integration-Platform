@@ -47,6 +47,7 @@ action_routes:
   shipment.status:
     method: GET
     path: /shipments/{order_id}/status
+    header_from_payload: [login, password]
   tracking.get:
     method: GET
     path: /shipments/{order_id}/tracking

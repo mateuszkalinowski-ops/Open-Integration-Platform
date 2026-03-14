@@ -12,10 +12,10 @@ set -euo pipefail
 #
 # Env vars:
 #   KUBECONFIG   - path to kubeconfig
-#   NAMESPACE    - target namespace (default: pinquark-uat)
+#   NAMESPACE    - target namespace (default: oip)
 
 KUSTOMIZE_PATH="${1:?Usage: deploy.sh <kustomize_path> [namespace]}"
-NAMESPACE="${2:-${NAMESPACE:-pinquark-uat}}"
+NAMESPACE="${2:-${NAMESPACE:-oip}}"
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 PROJECT_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 

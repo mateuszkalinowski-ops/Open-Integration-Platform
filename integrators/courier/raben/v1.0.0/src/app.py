@@ -14,7 +14,7 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
@@ -84,10 +84,10 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.get("/shipments/{waybill_number}")
 async def get_shipment(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,
@@ -109,10 +109,10 @@ async def get_shipment(
 @app.put("/shipments/{waybill_number}/cancel")
 async def cancel_shipment(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,
@@ -138,10 +138,10 @@ async def cancel_shipment(
 @app.get("/tracking/{waybill_number}")
 async def get_tracking(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,
@@ -163,10 +163,10 @@ async def get_tracking(
 @app.get("/shipments/{waybill_number}/status")
 async def get_shipment_status(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,
@@ -190,10 +190,10 @@ async def get_shipment_status(
 @app.get("/shipments/{waybill_number}/eta")
 async def get_eta(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,
@@ -265,10 +265,10 @@ async def create_claim(request: ClaimSubmitRequest):
 @app.get("/deliveries/{waybill_number}/confirmation")
 async def get_delivery_confirmation(
     waybill_number: str,
-    username: str = Query(...),
-    password: str = Query(...),
-    customer_number: Optional[str] = Query(default=None),
-    sandbox_mode: bool = Query(default=False),
+    username: str = Header(..., alias="X-Username"),
+    password: str = Header(..., alias="X-Password"),
+    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
         username=username,

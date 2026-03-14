@@ -51,6 +51,14 @@ action_routes:
   label.get:
     method: GET
     path: /shipments/{shipment_id}/label
+  shipment.status:
+    method: GET
+    path: /shipments/{waybill}/status
+    header_from_payload: [organization_id, client_secret, access_token]
+  shipment.get:
+    method: GET
+    path: /shipments/{shipment_uuid}
+    header_from_payload: [organization_id, client_secret, access_token]
   shipment.cancel:
     method: POST
     path: /shipments/{shipment_id}/cancel

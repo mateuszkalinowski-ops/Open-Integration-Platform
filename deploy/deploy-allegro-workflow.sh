@@ -8,7 +8,7 @@ set -euo pipefail
 #   - API_KEY set as environment variable
 
 API_URL="${API_URL:-http://localhost:80/api/v1}"
-API_KEY="${API_KEY:-pk_live_default_key_change_me}"
+API_KEY="${API_KEY:?ERROR: API_KEY environment variable is required}"
 
 echo "=== Step 1: Pull latest images ==="
 docker compose -f docker-compose.vps.yml pull

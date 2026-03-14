@@ -24,21 +24,21 @@ services:
 
   # --- Core Platform ---
   platform:
-    image: ghcr.io/mateuszkalinowski-ops/oip/platform:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/platform:latest
     expose:
       - "8080"
     environment:
-      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       REDIS_URL: redis://redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
-      DEFAULT_API_KEY: ${DEFAULT_API_KEY:-pk_live_default_key_change_me}
+      DEFAULT_API_KEY: ${DEFAULT_API_KEY}
       ADMIN_SECRET: ${ADMIN_SECRET:-}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
       DEMO_MODE: ${DEMO_MODE:-false}
-      CORS_ALLOWED_ORIGINS: "*"
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-}
       VERIFICATION_AGENT_URL: http://verification-agent:8000
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
@@ -60,13 +60,12 @@ services:
       retries: 3
 
   dashboard:
-    image: ghcr.io/mateuszkalinowski-ops/oip/dashboard:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/dashboard:latest
     expose:
       - "80"
     environment:
       PINQUARK_API_URL: ""
       PINQUARK_API_KEY: ""
-      PINQUARK_ADMIN_SECRET: ${ADMIN_SECRET:-}
     depends_on:
       - platform
     restart: unless-stopped
@@ -102,7 +101,7 @@ services:
     environment:
       POSTGRES_DB: pinquark_platform
       POSTGRES_USER: pinquark
-      POSTGRES_PASSWORD: ${DB_PASSWORD:-pinquark}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
     volumes:
       - pgdata:/var/lib/postgresql/data
     healthcheck:
@@ -125,11 +124,11 @@ services:
 
   # --- Verification Agent ---
   verification-agent:
-    image: ghcr.io/mateuszkalinowski-ops/oip/verification-agent:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/verification-agent:latest
     expose:
       - "8000"
     environment:
-      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-pinquark}@postgres:5432/pinquark_platform
+      DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       VERIFICATION_INTERVAL_DAYS: 7
       VERIFICATION_TIMEOUT_SECONDS: 60
@@ -149,7 +148,7 @@ services:
 
   # --- Connectors ---
   connector-inpost-v3:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v3:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v3:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -158,7 +157,7 @@ services:
     restart: unless-stopped
 
   connector-dhl:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-dhl:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -167,7 +166,7 @@ services:
     restart: unless-stopped
 
   connector-allegro:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-allegro:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-allegro:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -180,7 +179,7 @@ services:
     restart: unless-stopped
 
   connector-baselinker:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-baselinker:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-baselinker:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -194,7 +193,7 @@ services:
     restart: unless-stopped
 
   connector-shopify:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-shopify:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shopify:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -208,7 +207,7 @@ services:
     restart: unless-stopped
 
   connector-fxcouriers:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-fxcouriers:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fxcouriers:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -218,7 +217,7 @@ services:
     restart: unless-stopped
 
   connector-pinquark-wms:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-pinquark-wms:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pinquark-wms:latest
     environment:
       WMS_APP_ENV: production
       WMS_APP_PORT: 8000
@@ -235,7 +234,7 @@ services:
     restart: unless-stopped
 
   connector-email-client:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-email-client:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-email-client:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -253,7 +252,7 @@ services:
     restart: unless-stopped
 
   connector-skanuj-fakture:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-skanuj-fakture:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-skanuj-fakture:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -269,7 +268,7 @@ services:
     restart: unless-stopped
 
   connector-ftp-sftp:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-ftp-sftp:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ftp-sftp:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -285,7 +284,7 @@ services:
     restart: unless-stopped
 
   connector-slack:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-slack:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-slack:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -299,7 +298,7 @@ services:
     restart: unless-stopped
 
   connector-bulkgate:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-bulkgate:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-bulkgate:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -308,7 +307,7 @@ services:
     restart: unless-stopped
 
   connector-ai-agent:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-ai-agent:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ai-agent:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -317,7 +316,7 @@ services:
     restart: unless-stopped
 
   connector-s3:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-s3:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-s3:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -331,7 +330,7 @@ services:
 
   # --- Courier Connectors ---
   connector-inpost-v1:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v1:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v1:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -340,7 +339,7 @@ services:
     restart: unless-stopped
 
   connector-inpost-v2:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-inpost-v2:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v2:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -349,7 +348,7 @@ services:
     restart: unless-stopped
 
   connector-dhl-express:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-dhl-express:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl-express:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -358,7 +357,7 @@ services:
     restart: unless-stopped
 
   connector-dpd:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-dpd:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dpd:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -367,7 +366,7 @@ services:
     restart: unless-stopped
 
   connector-fedex:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-fedex:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedex:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -376,7 +375,7 @@ services:
     restart: unless-stopped
 
   connector-fedexpl:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-fedexpl:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedexpl:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -385,7 +384,7 @@ services:
     restart: unless-stopped
 
   connector-geis:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-geis:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-geis:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -394,7 +393,7 @@ services:
     restart: unless-stopped
 
   connector-gls:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-gls:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-gls:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -403,7 +402,7 @@ services:
     restart: unless-stopped
 
   connector-orlenpaczka:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-orlenpaczka:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-orlenpaczka:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -412,7 +411,7 @@ services:
     restart: unless-stopped
 
   connector-packeta:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-packeta:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-packeta:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -421,7 +420,7 @@ services:
     restart: unless-stopped
 
   connector-paxy:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-paxy:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-paxy:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -430,7 +429,7 @@ services:
     restart: unless-stopped
 
   connector-pocztapolska:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-pocztapolska:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pocztapolska:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -439,7 +438,7 @@ services:
     restart: unless-stopped
 
   connector-schenker:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-schenker:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-schenker:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -448,7 +447,7 @@ services:
     restart: unless-stopped
 
   connector-sellasist:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-sellasist:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-sellasist:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -457,7 +456,7 @@ services:
     restart: unless-stopped
 
   connector-suus:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-suus:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-suus:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -466,7 +465,7 @@ services:
     restart: unless-stopped
 
   connector-ups:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-ups:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ups:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -475,7 +474,7 @@ services:
     restart: unless-stopped
 
   connector-raben:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-raben:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-raben:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -485,7 +484,7 @@ services:
 
   # --- E-commerce Connectors ---
   connector-shoper:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-shoper:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shoper:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -499,7 +498,7 @@ services:
     restart: unless-stopped
 
   connector-idosell:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-idosell:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-idosell:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -513,7 +512,7 @@ services:
     restart: unless-stopped
 
   connector-woocommerce:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-woocommerce:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-woocommerce:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -527,7 +526,7 @@ services:
     restart: unless-stopped
 
   connector-amazon:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-amazon:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-amazon:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -541,7 +540,7 @@ services:
     restart: unless-stopped
 
   connector-apilo:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-apilo:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-apilo:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -556,7 +555,7 @@ services:
 
   # --- ERP Connector ---
   connector-insert-nexo:
-    image: ghcr.io/mateuszkalinowski-ops/oip/connector-insert-nexo:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-insert-nexo:latest
     environment:
       APP_ENV: production
       APP_PORT: 8000

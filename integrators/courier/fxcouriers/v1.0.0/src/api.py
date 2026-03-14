@@ -54,8 +54,8 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
     except (ValueError, KeyError):
         msg = response.text
     logger.error(
-        "FX Couriers API error — url=%s status=%s body=%s",
-        response.url, response.status_code, msg,
+        "FX Couriers API error — url=%s status=%s",
+        response.url, response.status_code,
     )
     return msg, response.status_code
 

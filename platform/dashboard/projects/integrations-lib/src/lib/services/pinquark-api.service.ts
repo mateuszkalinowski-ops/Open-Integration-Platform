@@ -54,17 +54,26 @@ export interface ConnectorListParams {
 export interface PinquarkConfig {
   apiUrl: string;
   apiKey: string;
-  adminSecret?: string;
 }
 
 export const PINQUARK_CONFIG = new InjectionToken<PinquarkConfig>('PINQUARK_CONFIG');
+
+const ADMIN_SECRET_STORAGE_KEY = 'pinquark_admin_secret';
 
 @Injectable({ providedIn: 'root' })
 export class PinquarkApiService {
   private readonly apiUrl: string;
   private readonly headers: Record<string, string>;
-  private readonly adminHeaders: Record<string, string>;
-  readonly isAdmin: boolean;
+  private adminSecret: string | null = null;
+
+  get isAdmin(): boolean {
+    return !!this.getAdminSecret();
+  }
+
+  get adminHeaders(): Record<string, string> {
+    const secret = this.getAdminSecret();
+    return secret ? { 'X-Admin-Secret': secret } : this.headers;
+  }
 
   constructor(
     private readonly http: HttpClient,
@@ -72,10 +81,24 @@ export class PinquarkApiService {
   ) {
     this.apiUrl = config.apiUrl;
     this.headers = { 'X-API-Key': config.apiKey };
-    this.isAdmin = !!config.adminSecret;
-    this.adminHeaders = config.adminSecret
-      ? { 'X-Admin-Secret': config.adminSecret }
-      : this.headers;
+    this.adminSecret = sessionStorage.getItem(ADMIN_SECRET_STORAGE_KEY);
+  }
+
+  setAdminSecret(secret: string): void {
+    this.adminSecret = secret;
+    sessionStorage.setItem(ADMIN_SECRET_STORAGE_KEY, secret);
+  }
+
+  clearAdminSecret(): void {
+    this.adminSecret = null;
+    sessionStorage.removeItem(ADMIN_SECRET_STORAGE_KEY);
+  }
+
+  private getAdminSecret(): string | null {
+    if (!this.adminSecret) {
+      this.adminSecret = sessionStorage.getItem(ADMIN_SECRET_STORAGE_KEY);
+    }
+    return this.adminSecret;
   }
 
   health(): Observable<HealthResponse> {
@@ -159,7 +182,7 @@ export class PinquarkApiService {
           : status === 404
             ? 'On-premise agent not found for this connector.'
             : `Failed to download agent (HTTP ${status}).`;
-        console.error('[PinquarkApi] downloadOnPremiseAgent failed:', message, err);
+        /* download error is surfaced to the caller via the observable */
       },
     });
   }
@@ -406,20 +429,20 @@ export class PinquarkApiService {
 
   verificationRunAll(): Observable<VerificationRunResponse> {
     return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run`, {}, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 
   verificationRunSingle(connectorName: string, version?: string): Observable<VerificationRunResponse> {
     const params = version ? `?version=${encodeURIComponent(version)}` : '';
     return this.http.post<VerificationRunResponse>(`${this.apiUrl}/api/verification/run/${connectorName}${params}`, {}, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 
   verificationSchedulerStatus(): Observable<SchedulerStatus> {
     return this.http.get<SchedulerStatus>(`${this.apiUrl}/api/verification/scheduler`, {
-      headers: this.headers,
+      headers: this.adminHeaders,
     });
   }
 

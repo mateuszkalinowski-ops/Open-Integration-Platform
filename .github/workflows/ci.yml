@@ -18,7 +18,6 @@ jobs:
   lint:
     name: Lint Python
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
@@ -30,11 +29,48 @@ jobs:
 
       - name: Ruff check
         run: ruff check platform/ integrators/ --output-format=github
-        continue-on-error: true
 
       - name: Ruff format check
         run: ruff format --check platform/ integrators/
-        continue-on-error: true
+
+  test:
+    name: Test Platform & Connectors
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install shared library
+        run: pip install -e shared/python/
+
+      - name: Test shared library
+        run: |
+          pip install pytest pytest-asyncio
+          cd shared/python && python -m pytest tests/ -v --tb=short
+
+      - name: Test platform
+        run: |
+          pip install -r platform/requirements.txt
+          pip install pytest pytest-asyncio pytest-cov httpx
+          cd platform && python -m pytest tests/ -v --tb=short --cov=. --cov-report=term
+
+      - name: Test connectors
+        run: |
+          pip install pytest pytest-asyncio httpx
+          FAILED=0
+          for dir in integrators/courier/*/v1.0.0 integrators/ecommerce/*/v1.0.0 integrators/other/*/v1.0.0; do
+            if [ -d "$dir/tests" ] && [ -f "$dir/requirements.txt" ]; then
+              echo "--- Testing $dir ---"
+              pip install -r "$dir/requirements.txt"
+              if ! (cd "$dir" && python -m pytest tests/ -v --tb=short); then
+                FAILED=1
+              fi
+            fi
+          done
+          exit $FAILED
 
   build-platform:
     name: Build Platform

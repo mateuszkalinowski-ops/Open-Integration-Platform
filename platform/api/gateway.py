@@ -270,6 +270,7 @@ async def _build_connector_response(connector: ConnectorManifest) -> ConnectorRe
         capabilities=connector.capabilities,
         events=connector.events,
         actions=connector.actions,
+        action_metadata=connector.action_metadata,
         config_schema=connector.config_schema,
         api_endpoints=connector.api_endpoints,
         event_fields=connector.event_fields,
@@ -379,6 +380,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                     version = await _resolve_connector_version(db_session, tenant_id, connector_name)
         except Exception:
             pass
+
+        if credentials and "account_name" not in credentials:
+            credentials["account_name"] = credential_name
 
         return await dispatch_action(
             connector_name=connector_name,
@@ -654,36 +658,6 @@ def _require_admin_secret(request: Request) -> None:
     if not secrets.compare_digest(provided, settings.admin_secret):
         raise HTTPException(status_code=403, detail="Invalid admin secret")
 
-
-async def _require_admin_or_api_key(
-    request: Request,
-    api_key: str | None = Security(api_key_header),
-    db: AsyncSession = Depends(get_db),
-) -> None:
-    """Allow access via X-Admin-Secret OR a valid X-API-Key.
-
-    Verification proxy endpoints need to be accessible from both:
-    - Admin tooling (using X-Admin-Secret)
-    - Dashboard (using X-API-Key from an authenticated tenant)
-    """
-    admin_ok = False
-    if settings.admin_secret:
-        provided = request.headers.get("X-Admin-Secret", "")
-        if provided and secrets.compare_digest(provided, settings.admin_secret):
-            admin_ok = True
-
-    if admin_ok:
-        return
-
-    if api_key:
-        key_hash = hash_api_key(api_key)
-        result = await db.execute(
-            select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
-        )
-        if result.scalar_one_or_none():
-            return
-
-    raise HTTPException(status_code=403, detail="Admin secret or valid API key required")
 
 
 def _require_internal_secret(request: Request) -> None:
@@ -3490,18 +3464,18 @@ async def _proxy_verification(method: str, path: str, body: Any = None, params: 
             raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500])
 
 
-@app.post("/api/verification/run", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.post("/api/verification/run", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_run_all() -> Any:
     return await _proxy_verification("POST", "/run")
 
 
-@app.post("/api/verification/run/{connector_name}", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.post("/api/verification/run/{connector_name}", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_run_single(connector_name: str, version: str | None = Query(None)) -> Any:
     params = {"version": version} if version else None
     return await _proxy_verification("POST", f"/run/{connector_name}", params=params)
 
 
-@app.get("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_or_api_key)])
+@app.get("/api/verification/scheduler", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
 async def verification_scheduler_status() -> Any:
     return await _proxy_verification("GET", "/scheduler/status")
 
