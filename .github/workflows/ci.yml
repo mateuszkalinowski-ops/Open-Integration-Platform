@@ -66,6 +66,9 @@ jobs:
             if [ -d "$dir/tests" ] && [ -f "$dir/requirements.txt" ]; then
               echo "--- Testing $dir ---"
               pip install -r "$dir/requirements.txt"
+              if [ -f "$dir/requirements-dev.txt" ]; then
+                pip install -r "$dir/requirements-dev.txt"
+              fi
               if ! (cd "$dir" && python -m pytest tests/ -v --tb=short); then
                 FAILED=1
               fi
