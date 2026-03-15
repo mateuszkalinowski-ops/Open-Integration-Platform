@@ -126,7 +126,7 @@ class TestGetShipment:
             {"orderId": "ORD-123", "waybillNumber": "RAB-456", "status": "in_transit"},
             200,
         )
-        response = client.get("/shipments/RAB-456?username=test&password=test123")
+        response = client.get("/shipments/RAB-456", headers={"X-Username": "test", "X-Password": "test123"})
         assert response.status_code == 200
         assert response.json()["waybillNumber"] == "RAB-456"
 
@@ -135,7 +135,7 @@ class TestCancelShipment:
     @patch("src.app.integration.cancel_order", new_callable=AsyncMock)
     def test_cancel_shipment_returns_success(self, mock_cancel, client: TestClient):
         mock_cancel.return_value = ({"status": "cancelled"}, 200)
-        response = client.put("/shipments/RAB-456/cancel?username=test&password=test123")
+        response = client.put("/shipments/RAB-456/cancel", headers={"X-Username": "test", "X-Password": "test123"})
         assert response.status_code == 200
 
 
@@ -163,7 +163,7 @@ class TestTracking:
             },
             200,
         )
-        response = client.get("/tracking/RAB-456?username=test&password=test123")
+        response = client.get("/tracking/RAB-456", headers={"X-Username": "test", "X-Password": "test123"})
         assert response.status_code == 200
         data = response.json()
         assert data["waybillNumber"] == "RAB-456"
@@ -180,7 +180,7 @@ class TestTracking:
             },
             200,
         )
-        response = client.get("/shipments/RAB-456/status?username=test&password=test123")
+        response = client.get("/shipments/RAB-456/status", headers={"X-Username": "test", "X-Password": "test123"})
         assert response.status_code == 200
         assert response.json()["status"] == "out_for_delivery"
 
@@ -190,7 +190,7 @@ class TestTracking:
             {"etaFrom": "2026-02-23T08:00:00Z", "etaTo": "2026-02-23T10:00:00Z"},
             200,
         )
-        response = client.get("/shipments/RAB-456/eta?username=test&password=test123")
+        response = client.get("/shipments/RAB-456/eta", headers={"X-Username": "test", "X-Password": "test123"})
         assert response.status_code == 200
 
 
@@ -264,7 +264,9 @@ class TestDeliveryConfirmation:
             },
             200,
         )
-        response = client.get("/deliveries/RAB-456/confirmation?username=test&password=test123")
+        response = client.get(
+            "/deliveries/RAB-456/confirmation", headers={"X-Username": "test", "X-Password": "test123"}
+        )
         assert response.status_code == 200
         data = response.json()
         assert data["waybillNumber"] == "RAB-456"

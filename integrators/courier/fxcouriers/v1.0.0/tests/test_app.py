@@ -174,7 +174,8 @@ def test_get_label(mock_integration):
         },
     )
     assert response.status_code == 200
-    assert response.headers["content-type"] == "application/pdf"
+    data = response.json()
+    assert "label_base64" in data
 
 
 @patch("src.app.integration")

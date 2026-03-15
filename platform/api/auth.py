@@ -66,9 +66,7 @@ async def _resolve_tenant_by_token(token: str, db: AsyncSession) -> Tenant:
     if not token_row:
         raise HTTPException(status_code=401, detail="Invalid or inactive credential token")
 
-    tenant_result = await db.execute(
-        select(Tenant).where(Tenant.id == token_row.tenant_id, Tenant.is_active.is_(True))
-    )
+    tenant_result = await db.execute(select(Tenant).where(Tenant.id == token_row.tenant_id, Tenant.is_active.is_(True)))
     tenant = tenant_result.scalar_one_or_none()
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")

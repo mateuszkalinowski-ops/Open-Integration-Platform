@@ -50,8 +50,12 @@ class TestAccountManager:
         assert len(manager.list_accounts()) == 2
 
     def test_overwrite_account(self, manager: AccountManager) -> None:
-        a1 = SkanujFaktureAccountConfig(name="dup", login="old@test.com", password="p1", api_url="https://example.com/api")
-        a2 = SkanujFaktureAccountConfig(name="dup", login="new@test.com", password="p2", api_url="https://example.com/api")
+        a1 = SkanujFaktureAccountConfig(
+            name="dup", login="old@test.com", password="p1", api_url="https://example.com/api"
+        )
+        a2 = SkanujFaktureAccountConfig(
+            name="dup", login="new@test.com", password="p2", api_url="https://example.com/api"
+        )
         manager.add_account(a1)
         manager.add_account(a2)
         assert len(manager.list_accounts()) == 1
