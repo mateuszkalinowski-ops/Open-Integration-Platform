@@ -1484,22 +1484,42 @@ async def activate_connector(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> ConnectorInstanceResponse:
-    instance = ConnectorInstance(
-        tenant_id=tenant.id,
-        connector_name=body.connector_name,
-        connector_version=body.connector_version,
-        connector_category=body.connector_category,
-        display_name=body.display_name or body.connector_name,
-        config=body.config,
-    )
-    db.add(instance)
+    existing = (
+        await db.execute(
+            select(ConnectorInstance).where(
+                ConnectorInstance.tenant_id == tenant.id,
+                ConnectorInstance.connector_name == body.connector_name,
+                ConnectorInstance.connector_version == body.connector_version,
+            )
+        )
+    ).scalar_one_or_none()
+
+    if existing:
+        existing.is_enabled = True
+        existing.display_name = body.display_name or existing.display_name
+        if body.config:
+            existing.config = body.config
+        instance = existing
+        audit_action = "reactivate"
+    else:
+        instance = ConnectorInstance(
+            tenant_id=tenant.id,
+            connector_name=body.connector_name,
+            connector_version=body.connector_version,
+            connector_category=body.connector_category,
+            display_name=body.display_name or body.connector_name,
+            config=body.config,
+        )
+        db.add(instance)
+        audit_action = "create"
+
     await db.flush()
     await record_audit(
         db,
         tenant_id=tenant.id,
         entity_type="connector_instance",
         entity_id=instance.id,
-        action="create",
+        action=audit_action,
         new_value={"connector_name": body.connector_name, "version": body.connector_version},
         user_id=getattr(tenant, "slug", None),
         ip_address=request.client.host if request.client else None,

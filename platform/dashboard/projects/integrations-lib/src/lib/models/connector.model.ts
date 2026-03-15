@@ -233,7 +233,8 @@ export interface Flow {
 export interface FieldMap {
   from: string;
   to: string;
-  transform?: Record<string, unknown>;
+  sources?: string[];
+  transform?: Record<string, unknown> | Record<string, unknown>[];
 }
 
 export interface FlowExecution {
