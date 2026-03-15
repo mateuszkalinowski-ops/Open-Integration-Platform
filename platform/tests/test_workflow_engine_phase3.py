@@ -35,6 +35,9 @@ class _DummyDb:
     async def refresh(self, value) -> None:
         return None
 
+    async def commit(self) -> None:
+        return None
+
 
 class _DummyAsyncSessionContext:
     def __init__(self, session):
