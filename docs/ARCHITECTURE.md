@@ -1,6 +1,6 @@
 # Open Integration Platform by Pinquark.com -- Architecture Documentation
 
-> **Related documents**: `[AGENTS.md](../AGENTS.md)` (agent and coding standards), `[CONNECTORS.md](CONNECTORS.md)` (connector configuration)
+> **Related documents**: [AGENTS.md](../AGENTS.md) (agent and coding standards) | [CONNECTORS.md](CONNECTORS.md) (connector configuration) | [STANDARDS.md](STANDARDS.md) (Docker, CI/CD, security, monitoring) | [CONNECTOR-DEVELOPMENT.md](CONNECTOR-DEVELOPMENT.md) (connector.yaml spec, verification agent)
 
 ## Table of contents
 
@@ -1144,7 +1144,7 @@ integrators/{category}/{name}/v1.0.0/
     ...
 ```
 
-The `connector.yaml` is the **single source of truth** — it declares the connector's identity, action routing, credential provisioning, credential validation, event/action field schemas, and more. See `AGENTS.md` section 2.1.1 for the full field reference.
+The `connector.yaml` is the **single source of truth** — it declares the connector's identity, action routing, credential provisioning, credential validation, event/action field schemas, and more. See [CONNECTOR-DEVELOPMENT.md](CONNECTOR-DEVELOPMENT.md) section 1 for the full field reference.
 
 Minimal `connector.yaml` example:
 

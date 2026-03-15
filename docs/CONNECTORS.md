@@ -3,7 +3,7 @@
 Documentation of configuration parameters for all available connectors.
 Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the platform REST API or dashboard.
 
-> **Note**: This file is referenced from [`AGENTS.md`](../AGENTS.md) and [`ARCHITECTURE.md`](ARCHITECTURE.md). Update it whenever a connector is added or modified.
+> **Note**: This file is referenced from [`AGENTS.md`](../AGENTS.md), [`ARCHITECTURE.md`](ARCHITECTURE.md), [`STANDARDS.md`](STANDARDS.md), and [`CONNECTOR-DEVELOPMENT.md`](CONNECTOR-DEVELOPMENT.md). Update it whenever a connector is added or modified.
 
 ## Table of Contents
 

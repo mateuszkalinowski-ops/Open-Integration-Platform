@@ -10,9 +10,10 @@ This file contains the full reference for building new connectors and writing ve
 ## Table of contents
 
 1. [Connector Manifest (connector.yaml)](#1-connector-manifest-connectoryaml)
-2. [Implementation Agent Workflow](#2-implementation-agent-workflow)
-3. [Verification & Maintenance Agent](#3-verification--maintenance-agent)
-4. [Integration Interfaces](#4-integration-interfaces)
+2. [Connector SDK](#2-connector-sdk)
+3. [Implementation Agent Workflow](#3-implementation-agent-workflow)
+4. [Verification & Maintenance Agent](#4-verification--maintenance-agent)
+5. [Integration Interfaces](#5-integration-interfaces)
 
 ---
 
@@ -190,13 +191,175 @@ credential_validation:
 
 ---
 
-## 2. Implementation Agent Workflow
+## 2. Connector SDK
+
+The **Pinquark Connector SDK** (`sdk/python/pinquark_connector_sdk/`) is a Python framework that eliminates boilerplate when building connectors. New connectors SHOULD use the SDK instead of writing raw FastAPI. Use raw FastAPI only when the SDK cannot express the connector's requirements (e.g., SOAP/WSDL via zeep, Python.NET for ERP).
+
+### 2.1 When to use SDK vs raw FastAPI
+
+| Approach | When to use |
+|---|---|
+| **SDK (`ConnectorApp`)** | REST-based connectors, OAuth2 flows, webhook receivers, polling triggers -- covers most connectors |
+| **Raw FastAPI** | SOAP/WSDL integrations (zeep), .NET interop (pythonnet for ERP), protocols not supported by SDK |
+
+### 2.2 Quick start
+
+```python
+from pinquark_connector_sdk import ConnectorApp, action, trigger, webhook
+
+class MyConnector(ConnectorApp):
+    name = "my-connector"
+    category = "courier"
+    version = "1.0.0"
+    display_name = "My Connector"
+    description = "Example courier connector"
+
+    class Config:
+        required_credentials = ["api_key"]
+        rate_limits = {"default": "100/minute", "shipment.create": "10/second"}
+        port = 8000
+
+    @action("shipment.create")
+    async def create_shipment(self, payload: dict) -> dict:
+        resp = await self.http.post("https://api.example.com/shipments", json=payload)
+        return resp.json()
+
+    @action("shipment.status", dynamic_schema=True)
+    async def get_status(self, payload: dict) -> dict:
+        resp = await self.http.get(f"https://api.example.com/shipments/{payload['id']}")
+        return resp.json()
+
+    @trigger("shipment.status_changed", interval_seconds=300)
+    async def poll_statuses(self, *, since=None) -> list[dict]:
+        resp = await self.http.get("https://api.example.com/events", params={"since": str(since)})
+        return resp.json().get("events", [])
+
+    @webhook("order.received", topic="order.created", signature_header="X-Signature")
+    async def on_order(self, payload: dict) -> dict:
+        return {"processed": True}
+
+    async def test_connection(self) -> bool:
+        resp = await self.http.get("https://api.example.com/ping")
+        return resp.status_code == 200
+
+if __name__ == "__main__":
+    MyConnector().run()
+```
+
+### 2.3 What the SDK provides automatically
+
+When subclassing `ConnectorApp`, the following are generated without any code:
+
+| Feature | Endpoint / Behavior |
+|---|---|
+| Health probe | `GET /health` -- calls `test_connection()` if overridden, returns `healthy`/`degraded` |
+| Readiness probe | `GET /readiness` -- runs all registered readiness checks |
+| Swagger docs | `GET /docs` -- auto-generated OpenAPI UI |
+| Prometheus metrics | `GET /metrics` -- request counters, latency histograms, external API call metrics |
+| Account CRUD | `GET/POST/PUT/DELETE /accounts`, `GET /accounts/{name}` |
+| Auth status | `GET /auth/{account}/status` |
+| Connection status | `GET /connection/{account}/status` -- calls `test_connection()` |
+| Action routing | `POST /actions/{name}` for each `@action` method |
+| Dynamic schemas | `GET /schema/{action}` when `dynamic_schema=True` |
+| Webhook endpoints | `POST /webhooks/{name}` with optional HMAC signature verification |
+| Trigger loops | Background `asyncio` tasks polling at `interval_seconds` |
+| Rate limiting | Per-action token bucket from `Config.rate_limits` |
+| Trace context | `X-Trace-Id` header propagation via middleware |
+| Manifest generation | `connector.generate_manifest()` produces `connector.yaml`-compatible dict |
+
+### 2.4 Decorators
+
+**`@action(name, *, input_schema=None, output_schema=None, dynamic_schema=False)`**
+
+Registers a method as an action handler at `POST /actions/{name}`. The method receives the action payload dict and returns a result dict. Set `dynamic_schema=True` to expose `GET /schema/{name}` for runtime field discovery.
+
+**`@trigger(name, *, interval_seconds=60)`**
+
+Registers a polling trigger. The SDK runs the method in a background loop at the specified interval. The method can accept an optional `since` keyword argument with the timestamp of the last run. Return a list of event dicts.
+
+**`@webhook(name, *, topic=None, signature_header=None, signature_algorithm="hmac-sha256")`**
+
+Registers a webhook receiver at `POST /webhooks/{name}`. If `signature_header` is set, incoming requests are verified using HMAC. The signing secret is read from `WEBHOOK_SECRET_{NAME}` env var or from `webhook_secret` in the account store.
+
+### 2.5 Built-in HTTP client
+
+Access via `self.http` inside any `ConnectorApp` method. The `ConnectorHttpClient` provides:
+
+- **Per-host circuit breaker** -- opens after 5 consecutive failures, resets after 30s
+- **Automatic retries** -- up to 3 retries with exponential backoff on 5xx and connection errors
+- **Prometheus metrics** -- `connector_external_api_calls_total` and `connector_external_api_duration_seconds`
+- **Configurable timeouts** -- default 10s connect, 30s read
+- **Connection pooling** -- 200 max connections, 50 keepalive
+
+```python
+resp = await self.http.get("https://api.example.com/data", headers={"Authorization": "Bearer ..."})
+resp = await self.http.post("https://api.example.com/items", json={"name": "test"})
+```
+
+### 2.6 OAuth2 support
+
+Configure OAuth2 in the `Config` class to auto-register `/oauth2/authorize`, `/oauth2/callback`, and `/oauth2/refresh` endpoints:
+
+```python
+class Config:
+    required_credentials = ["client_id", "client_secret"]
+    oauth2 = {
+        "authorization_url": "https://provider.com/oauth/authorize",
+        "token_url": "https://provider.com/oauth/token",
+        "client_id": "...",
+        "client_secret": "...",
+        "scopes": ["read", "write"],
+    }
+```
+
+The `OAuth2Manager` handles the authorization code flow, token exchange, refresh, and expiry detection.
+
+### 2.7 Testing with the SDK
+
+The SDK provides `ConnectorTestClient` and `MockExternalAPI` for testing:
+
+```python
+from pinquark_connector_sdk.testing import ConnectorTestClient, MockExternalAPI
+
+async def test_create_shipment():
+    app = MyConnector()
+    async with MockExternalAPI() as mock:
+        mock.post(r"https://api\.example\.com/shipments", json={"id": "S-123"}, status=201)
+
+        async with ConnectorTestClient(app) as client:
+            await client.setup_account("test", {"api_key": "key123"})
+            resp = await client.post("/actions/shipment/create", json={"weight": 5})
+            assert resp.status_code == 200
+```
+
+- `ConnectorTestClient(app)` -- wraps the connector's FastAPI app with httpx ASGI transport
+- `MockExternalAPI()` -- intercepts all httpx requests; register routes with `.get()`, `.post()`, etc.
+- `make_test_account(name, credentials)` -- helper to build account creation payloads
+
+### 2.8 Legacy connector migration
+
+Existing raw FastAPI connectors can adopt SDK features incrementally using `augment_legacy_fastapi_app`:
+
+```python
+from pinquark_connector_sdk import augment_legacy_fastapi_app
+
+app = FastAPI(title="My Legacy Connector")
+# ... existing routes ...
+
+augment_legacy_fastapi_app(app, connector_name="my-connector", version="1.0.0")
+```
+
+This adds health, readiness, metrics, and account endpoints to an existing FastAPI app without requiring a full rewrite.
+
+---
+
+## 3. Implementation Agent Workflow
 
 The implementation agent is responsible for building new integrators. Before writing any code:
 
 1. **Read documentation** -- Fetch and store the external system's API documentation (REST API docs, WSDL files, SDK references) into `docs/{category}/{system}/{version}/`
 2. **Check existing integrators** -- Look at similar integrators in the same category for patterns
-3. **Implement the base interface** -- Every integrator implements the category-specific interface (see section 4)
+3. **Implement the base interface** -- Every integrator implements the category-specific interface (see section 5)
 4. **Write tests** -- Unit tests and integration tests (with sandbox/mock APIs) MUST be written alongside implementation
 5. **Create Dockerfile** -- Following standards in [docs/STANDARDS.md#2-docker-standards](STANDARDS.md#2-docker-standards)
 6. **Create documentation** -- `README.md` with setup instructions, API mapping, configuration reference
@@ -204,11 +367,11 @@ The implementation agent is responsible for building new integrators. Before wri
 
 ---
 
-## 3. Verification & Maintenance Agent
+## 4. Verification & Maintenance Agent
 
 The verification agent (`platform/verification-agent/`) is a single FastAPI microservice that combines continuous health monitoring with deep functional verification of every connector. It runs on a configurable schedule (default: every 7 days) and can also be triggered on-demand via the dashboard or API.
 
-### 3.1 Architecture
+### 4.1 Architecture
 
 ```
 platform/verification-agent/
@@ -251,7 +414,7 @@ The directory layout mirrors `integrators/` categories. Each category folder con
 - `**generic.py**` -- fallback tests for connectors without a dedicated file (tests common endpoints based on `connector.yaml` capabilities)
 - `**{connector_name}.py**` -- connector-specific tests that exercise all documented endpoints
 
-### 3.2 Three-tier verification
+### 4.2 Three-tier verification
 
 Every connector goes through all three tiers in sequence. If a tier fails critically, subsequent tiers may be skipped.
 
@@ -284,7 +447,7 @@ Each connector has its own test module in `checks/`. Tests exercise all document
 - **Error paths** -- expected 404s for missing data (e.g., KSeF for non-KSeF documents) are accepted as PASS
 - **Performance** -- every check records `response_time_ms`
 
-### 3.3 Scheduling & triggers
+### 4.3 Scheduling & triggers
 
 
 | Mode               | How                                                  | Description                                                                              |
@@ -295,7 +458,7 @@ Each connector has its own test module in `checks/`. Tests exercise all document
 | Dashboard          | Verification page toggle + "Run now" button          | UI controls for scheduler enable/disable and manual triggers.                            |
 
 
-### 3.4 Maintenance responsibilities
+### 4.4 Maintenance responsibilities
 
 1. **Health monitoring** -- Scheduled runs verify all deployed connectors are alive and functional
 2. **Regression detection** -- Functional tests catch external API changes that break integrations
@@ -303,7 +466,7 @@ Each connector has its own test module in `checks/`. Tests exercise all document
 4. **Alerting** -- Failed checks generate structured error reports visible in the dashboard with filtering and drill-down
 5. **Dependency health** -- Tier 1 readiness checks verify database, Kafka, and external API connectivity
 
-### 3.5 Report format
+### 4.5 Report format
 
 Results are persisted to the `verification_reports` table and exposed via the API. Each report follows this structure:
 
@@ -355,7 +518,7 @@ Check statuses:
 | `SKIP` | Check not applicable (e.g., no credentials, expected 404, capability not supported) |
 
 
-### 3.6 Adding tests for a new connector
+### 4.6 Adding tests for a new connector
 
 When a new connector is implemented, a corresponding Tier 3 test file MUST be created. Follow these steps:
 
@@ -466,22 +629,22 @@ curl -X POST "http://localhost:18080/api/verification/run?connector_filter={name
 
 ---
 
-## 4. Integration Interfaces
+## 5. Integration Interfaces
 
-### 4.1 Courier integration interface
+### 5.1 Courier integration interface
 
 Every courier integrator MUST implement:
 
 List will be created
 
-### 4.2 E-commerce integration interface
+### 5.2 E-commerce integration interface
 
 List will be created
 
-### 4.3 ERP integration interface
+### 5.3 ERP integration interface
 
 List will be created
 
-### 4.4 Automation integration interface
+### 5.4 Automation integration interface
 
 List will be created

@@ -4,6 +4,12 @@ This document governs all agent activity across the Open Integration Platform by
 
 **CRITICAL: Before every `git commit` and `git push`, the agent MUST ask the user for explicit permission. Never commit or push changes without the user's confirmation.**
 
+> **Reference docs** (read on demand when working on related tasks):
+> - [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) — system architecture, database schema, scalability, deployment
+> - [docs/CONNECTORS.md](docs/CONNECTORS.md) — configuration parameters for all connectors
+> - [docs/STANDARDS.md](docs/STANDARDS.md) — Docker, CI/CD, security, monitoring, on-premise, documentation standards
+> - [docs/CONNECTOR-DEVELOPMENT.md](docs/CONNECTOR-DEVELOPMENT.md) — connector.yaml spec, SDK, verification agent, testing guide
+
 ---
 
 ## 1. Project Overview
@@ -14,17 +20,7 @@ The platform uses an **any-to-any architecture** with a Flow Engine: every conne
 
 The platform is designed to be **autonomous** — integrations are continuously built, tested, versioned, deployed, and monitored with minimal human intervention.
 
-### Integration Categories
-
-
-| #   | Category                            | Examples                                                                                           | Typical Protocol             |
-| --- | ----------------------------------- | -------------------------------------------------------------------------------------------------- | ---------------------------- |
-| 1   | **Systemy kurierskie** (Courier)    | DHL, InPost, DPD, GLS, FedEx, UPS, Poczta Polska, OrlenPaczka, Schenker, Geis, Paxy, Packeta, Suus | REST, SOAP (WSDL)            |
-| 2   | **Systemy e-commerce**              | Allegro, BaseLinker, PrestaShop, WooCommerce, Shopify, Shoper, IdoSell, SellAsist                  | REST, OAuth2, Webhooks       |
-| 3   | **Systemy ERP**                     | WAPRO, Comarch ERP, Subiekt GT, SAP, enova365                                                      | REST, SOAP, ODBC/SQL, Files  |
-| 4   | **Systemy automatyki** (Automation) | Cameras (RTSP/ONVIF), Barriers, SMS Gateways, Info Kiosks, Drones, UWB Sensors, AMR                | MQTT, REST, RTSP, Custom TCP |
-| 5   | **Pozostałe systemy** (Other)       | Custom APIs, FTP/SFTP data exchange, EDI, Marketplace aggregators                                  | Varies                       |
-
+Categories: Courier (18 connectors), E-commerce (8), ERP (1), WMS (1), AI (1), Other (6). See [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for full list.
 
 ### Existing Codebases
 
@@ -51,12 +47,14 @@ The platform is designed to be **autonomous** — integrations are continuously 
 > **IMPORTANT**: The following documentation files MUST be kept up to date when making architectural changes, adding new connectors, or modifying scalability configuration.
 
 
-| Document              | Path                                                   | Contents                                                                                                                                       | Update when                                                            |
-| --------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| **Architecture**      | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)`         | System architecture, data exchange patterns, database schema, scalability mechanisms, throughput estimates, platform configuration, deployment | Changing infrastructure, scaling config, adding communication patterns |
-| **DB Schema Diagram** | `[docs/database-schema.png](docs/database-schema.png)` | Entity-Relationship Diagram of all PostgreSQL tables and their relationships                                                                   | Adding/removing tables, columns, or foreign keys (any migration)       |
-| **Connectors**        | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`             | Configuration parameters for all 20 connectors, env vars, credentials API                                                                      | Adding/modifying connectors, changing config schema                    |
-| **Agent Guidelines**  | `[AGENTS.md](AGENTS.md)`                               | This file — coding standards, CI/CD, security, interfaces                                                                                      | Changing development standards or workflows                            |
+| Document              | Path                                                   | Update when                                                            |
+| --------------------- | ------------------------------------------------------ | ---------------------------------------------------------------------- |
+| **Architecture**      | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)           | Changing infrastructure, scaling config, adding communication patterns |
+| **DB Schema Diagram** | [docs/database-schema.png](docs/database-schema.png)   | Adding/removing tables, columns, or foreign keys (any migration)       |
+| **Connectors**        | [docs/CONNECTORS.md](docs/CONNECTORS.md)               | Adding/modifying connectors, changing config schema                    |
+| **Standards**         | [docs/STANDARDS.md](docs/STANDARDS.md)                 | Changing Docker, CI/CD, security, monitoring, or documentation rules   |
+| **Connector Dev**     | [docs/CONNECTOR-DEVELOPMENT.md](docs/CONNECTOR-DEVELOPMENT.md) | Changing connector.yaml spec, SDK, verification agent, or testing guide |
+| **Agent Guidelines**  | [AGENTS.md](AGENTS.md)                                 | Changing core development rules or workflows                           |
 
 
 ---
@@ -74,215 +72,15 @@ Each external system gets its own **connector** — a self-contained module that
 - Communicates with the platform via the API Gateway, Kafka topics, or REST API
 - Includes a `connector.yaml` manifest describing its capabilities, events, actions, and config schema
 
-### 2.1.1 Connector Manifest
+> Full connector.yaml spec: [docs/CONNECTOR-DEVELOPMENT.md#1-connector-manifest-connectoryaml](docs/CONNECTOR-DEVELOPMENT.md#1-connector-manifest-connectoryaml)
 
-Every connector MUST include a `connector.yaml` in its version root. The manifest is the **single source of truth** for all connector configuration — the platform reads it at startup and requires zero per-connector code. Adding a new connector means creating its folder with a `connector.yaml`; no platform files need to change.
+### 2.2 Any-to-any topology
 
-```yaml
-name: inpost
-category: courier
-version: 3.0.0
-display_name: "InPost"
-description: "InPost courier integration - Paczkomaty, Kurier, Returns"
-interface: courier
+Unlike a hub-and-spoke model, every connector is an **equal peer**. The Flow Engine connects any source event to any destination action. WMS (e.g., Pinquark) is a connector like any other — not the center of the architecture.
 
-# Docker service name (convention: connector-{name})
-service_name: connector-inpost
+### 2.3 Version isolation
 
-capabilities:
-  - create_shipment
-  - get_label
-  - get_shipment_status
-  - cancel_shipment
-  - get_pickup_points
-  - create_return_shipment
-events:
-  - shipment.status_changed
-  - shipment.created
-actions:
-  - shipment.create
-  - label.get
-  - shipment.cancel
-  - pickup_points.list
-  - return.create
-config_schema:
-  required:
-    - organization_id
-    - access_token
-  optional:
-    - sandbox_mode
-    - default_currency
-
-# Action routing — tells the platform how to call each action on the connector
-action_routes:
-  shipment.create:
-    method: POST
-    path: /shipments
-  label.get:
-    method: GET
-    path: /shipments/{shipment_id}/label
-  shipment.cancel:
-    method: POST
-    path: /shipments/{shipment_id}/cancel
-  pickup_points.list:
-    method: GET
-    path: /pickup-points
-  return.create:
-    method: POST
-    path: /returns
-  rates.get:
-    method: POST
-    path: /rates
-
-# Credential validation — how the platform validates credentials for this connector
-credential_validation:
-  required_fields: [organization_id, access_token]
-  test_request:
-    method: GET
-    url_template: "{base_url}/v1/organizations/{organization_id}/shipments"
-    headers_template:
-      Authorization: "Bearer {access_token}"
-    params_template:
-      per_page: "1"
-    success_status: 200
-    defaults:
-      base_url: "https://api-shipx-pl.easypack24.net"
-    sandbox:
-      flag: sandbox_mode
-      base_url: "https://sandbox-api-shipx-pl.easypack24.net"
-
-health_endpoint: /health
-docs_url: /docs
-```
-
-#### connector.yaml field reference
-
-
-| Field                     | Required | Description                                                               |
-| ------------------------- | -------- | ------------------------------------------------------------------------- |
-| `name`                    | Yes      | Unique connector identifier (kebab-case)                                  |
-| `category`                | Yes      | One of: `courier`, `ecommerce`, `erp`, `wms`, `ai`, `automation`, `other` |
-| `version`                 | Yes      | Semantic version                                                          |
-| `display_name`            | Yes      | Human-readable name                                                       |
-| `description`             | Yes      | Short description                                                         |
-| `interface`               | Yes      | Category interface type                                                   |
-| `service_name`            | No       | Docker service name (default: `connector-{name}`)                         |
-| `capabilities`            | No       | List of supported capabilities                                            |
-| `events`                  | No       | List of events the connector emits                                        |
-| `actions`                 | No       | List of actions the connector accepts                                     |
-| `config_schema`           | No       | Required/optional configuration fields                                    |
-| `action_routes`           | No       | Maps action names to HTTP method + path on the connector                  |
-| `credential_provisioning` | No       | How credentials are provisioned on the connector (see below)              |
-| `credential_validation`   | No       | How the platform validates credentials (see below)                        |
-| `payload_hints`           | No       | Field coercion hints (list fields, enum mappings)                         |
-| `event_fields`            | No       | Per-event field schemas for workflow builder                              |
-| `action_fields`           | No       | Per-action input field schemas                                            |
-| `output_fields`           | No       | Per-action output field schemas                                           |
-
-
-#### action_routes
-
-Each entry maps an action name to its HTTP endpoint on the connector:
-
-```yaml
-action_routes:
-  document.upload:
-    method: POST
-    path: /companies/{company_id}/documents
-    query_from_payload: [account_name, single_document]
-    multipart: true  # sends file as multipart/form-data
-```
-
-Path parameters like `{company_id}` are resolved from the action payload. Fields listed in `query_from_payload` are moved from the body to query string parameters.
-
-#### credential_provisioning
-
-Defines how the platform provisions credentials on the connector before dispatching actions:
-
-
-| Mode             | Description                                                                                           |
-| ---------------- | ----------------------------------------------------------------------------------------------------- |
-| `account`        | POST credentials to `account_endpoint` (e.g. `/accounts`), inject `payload_field` into action payload |
-| `inject`         | Inject credential fields flat into action payload                                                     |
-| `inject_nested`  | Inject credentials as `payload[inject_key] = {...}`                                                   |
-| `none` / omitted | Default: set `account_name` from credentials                                                          |
-
-
-```yaml
-credential_provisioning:
-  mode: account
-  account_endpoint: /accounts
-  payload_field: account_name
-  credential_mapping:
-    name: account_name
-    login: login
-    password: password
-    api_url:
-      source: api_url
-      default: "https://example.com/api"
-```
-
-#### credential_validation
-
-Defines how the platform validates credentials when a user stores them:
-
-```yaml
-credential_validation:
-  required_fields: [login, password]
-  # Option A: HTTP test request
-  test_request:
-    method: GET
-    url_template: "{api_url}/users/currentUser"
-    auth: basic
-    auth_fields: [login, password]
-    success_status: 200
-    defaults:
-      api_url: "https://example.com/api"
-  # Option B: connector-side validation endpoint
-  validate_endpoint: /auth/{account_name}/status
-  # Option C: special mode for email (IMAP+SMTP)
-  validate_mode: email_imap_smtp
-```
-
-### 2.1.2 Any-to-any topology
-
-Unlike a hub-and-spoke model, every connector is an **equal peer**. The Flow Engine connects any source event to any destination action:
-
-- Allegro `order.created` → InPost `shipment.create`
-- InPost `shipment.status_changed` → Allegro `order.status_update`
-- Shopify `order.created` → WAPRO `document.create`
-- Any combination of connectors
-
-WMS (e.g., Pinquark) is a connector like any other — not the center of the architecture.
-
-### 2.2 Version isolation
-
-Every integrator version is a separate, immutable artifact:
-
-```
-integrators/
-  courier/
-    dhl/
-      v1.0.0/         ← full working integrator
-      v1.1.0/         ← newer version, both coexist
-      v2.0.0/         ← breaking change, separate container
-    inpost/
-      v1.0.0/
-      v1.1.0-international/
-  ecommerce/
-    allegro/
-      v1.0.0/
-      v2.0.0/
-  erp/
-    wapro/
-      v1.0.0/
-  automation/
-    cameras/
-      v1.0.0/
-  other/
-    custom-ftp/
-      v1.0.0/
-```
+Every integrator version is a separate, immutable artifact under `integrators/{category}/{system}/{version}/`.
 
 Rules:
 
@@ -292,7 +90,7 @@ Rules:
 - The platform UI lets the client select which integrator version to use
 - Deprecated versions are marked but remain available until all clients migrate
 
-### 2.3 Communication patterns
+### 2.4 Communication patterns
 
 
 | Pattern      | When to use                                                                          |
@@ -304,26 +102,19 @@ Rules:
 | **gRPC**     | High-throughput internal service-to-service communication (future)                   |
 
 
-### 2.4 Kafka topic naming
+### 2.5 Kafka topic naming
 
 ```
 {system}.{direction}.{domain}.{entity}.{action}
 
-system     = idosell | sap |inpost
+system     = idosell | sap | inpost
 direction  = input | output | errors | dlq
 domain     = wms | erp | ecommerce | courier | automation
 entity     = documents | articles | contractors | orders | shipments | statuses
 action     = save | delete | update | sync | notify
 ```
 
-Examples:
-
-- `sap.input.wms.documents.save` — WMS sends document to integrator
-- `inpost.output.courier.shipments.save` — integrator sends created shipment back to WMS
-- `idosell.errors.ecommerce.orders.sync` — failed order sync from e-commerce platform
-- `sap.dlq.erp.contractors.save` — dead letter queue for failed contractor sync
-
-### 2.5 Flow Engine
+### 2.6 Flow Engine
 
 The Flow Engine is the core component that enables any-to-any integration. Flows are per-tenant rules:
 
@@ -331,260 +122,50 @@ The Flow Engine is the core component that enables any-to-any integration. Flows
 Source connector (event) → Field mapping → Destination connector (action)
 ```
 
-Flow definition:
-
-```yaml
-flows:
-  - name: "Allegro -> InPost shipment"
-    source:
-      connector: allegro
-      event: order.created
-      filter:
-        delivery_method: inpost_paczkomat
-    destination:
-      connector: inpost
-      action: shipment.create
-    mapping:
-      - from: order.buyer.name       -> to: receiver.first_name
-      - from: order.buyer.address    -> to: receiver.address
-      - from: order.point_id         -> to: extras.target_point
-    on_error: retry
-    max_retries: 3
-```
-
-### 2.6 Field mapping (hybrid model)
-
-Field mappings use a two-layer hybrid model:
+### 2.7 Field mapping (hybrid model)
 
 - **Layer 1 (files)**: Default mappings shipped with each connector, version-controlled in Git
 - **Layer 2 (database)**: Per-tenant overrides, editable via the dashboard or API
 - **Resolution**: merge defaults with tenant overrides, cache in Redis, invalidate on change
 
-### 2.7 Platform Core
+### 2.8 Platform Core
 
-The platform core (`platform/`) provides:
-
-- **API Gateway** (FastAPI): unified REST API for all connectors
-- **Flow Engine**: any-to-any event routing and execution
-- **Tenant Manager**: multi-tenant isolation with API keys
-- **Credential Vault**: encrypted credential storage (AES-256-GCM per-tenant)
-- **Mapping Resolver**: hybrid field mapping with caching
-- **Admin Dashboard** (Angular): web UI + `@pinquark/integrations` npm library
-- **Database**: PostgreSQL with Row-Level Security for tenant isolation
-
-### 2.8 Dashboard distribution
-
-The Admin Dashboard is distributed in two forms:
-
-- **Standalone app**: full Angular application for self-hosted and SaaS deployments
-- **Angular library** (`@pinquark/integrations`): npm package with components and services, embeddable in any Angular application (e.g., Pinquark WMS)
+The platform core (`platform/`) provides: API Gateway (FastAPI), Flow Engine, Tenant Manager, Credential Vault (AES-256-GCM), Mapping Resolver, Admin Dashboard (Angular + `@pinquark/integrations` npm library), PostgreSQL with Row-Level Security.
 
 ---
 
-## 3. Security & Encryption
+## 3. Security & Encryption (summary)
 
-### 3.1 Secrets management
+Core security rules — every agent MUST follow these at all times:
 
 - **NEVER** commit credentials, API keys, tokens, certificates, or keystores to the repository
-- Store all secrets in a dedicated secrets manager (HashiCorp Vault, AWS Secrets Manager, or environment-level CI/CD variables)
-- Use `.env.example` files with placeholder values for documentation
-- `.env` files MUST be in `.gitignore` and `.dockerignore`
-- Kafka keystores (`*.jks`, `*.keystore`) MUST NOT be in the repo — inject them at deployment time via volume mounts or CI/CD secrets
-
-### 3.2 Credential encryption
-
-- All external system credentials (API keys, OAuth tokens, passwords) stored in the database MUST be encrypted at rest using AES-256-GCM
-- Encryption keys MUST be stored separately from encrypted data (use envelope encryption)
-- OAuth refresh tokens: encrypt before storage, decrypt only in memory during token refresh
-- Database connection strings: use SSL/TLS, never plaintext connections in production
-- Courier credentials passed in API calls MUST be base64-encoded and validated server-side — never log decoded credentials
-
-### 3.2.1 Credential tokens
-
-Each credential set (per tenant, connector, and credential name) is assigned an opaque **credential token** (`ctok_xxx`). Tokens provide two security benefits:
-
-1. **GET response masking**: `GET /api/v1/credentials/{connector}` returns the token instead of actual credential values — no secrets are ever exposed in API responses.
-2. **Lightweight authentication for public endpoints**: the workflow `GET /api/v1/workflows/{id}/call` endpoint accepts `?token=ctok_xxx` in the query string instead of the full platform API key (`pk_live_xxx`). The token identifies the tenant without granting full API access.
-
-Token lifecycle:
-- **Created** automatically on `POST /api/v1/credentials` — returned in the response
-- **Returned** in `GET /api/v1/credentials` and `GET /api/v1/credentials/{connector}` responses
-- **Regenerated** via `POST /api/v1/credentials/{connector}/token/regenerate` (old token immediately invalidated)
-- **Deleted** automatically when credentials are deleted
-- **Resolved** via `POST /api/v1/credentials/resolve-token` (tenant-scoped, for internal use)
-
-Tokens are stored in the `credential_tokens` table with RLS and a unique index on the `token` column.
-
-### 3.3 Data protection (RODO/GDPR)
-
-- **Never log** personally identifiable information (PII): names, addresses, phone numbers, email addresses
-- **Never log** authentication data: passwords, tokens, API keys, certificates
-- Use the `obfuscate()` utility for any sensitive data that must appear in debug logs
-- Log retention: max 30 days in production, auto-purge after that
+- All credentials in the database MUST be encrypted at rest using AES-256-GCM with envelope encryption
+- **Never log** PII (names, addresses, phone numbers, emails) or authentication data (passwords, tokens, API keys)
+- Use the `obfuscate()` utility for sensitive data in debug logs
 - All data transfers to external systems MUST use TLS 1.2+ (never HTTP, always HTTPS)
-- Implement data anonymization for test/UAT environments — never use production customer data
+- `.env` files MUST be in `.gitignore` and `.dockerignore`; use `.env.example` with placeholders
+- Containers: non-root user, pinned base images (never `latest`), no `--privileged`, multi-stage builds only
+- Public workflow endpoints MUST support per-workflow client IP allowlists (exact IPs + CIDR ranges)
 
-### 3.4 Network security
-
-- All inter-service communication within Docker network: use internal Docker networks, no exposed ports except the API gateway
-- External-facing services: expose only through a reverse proxy (nginx/traefik) with rate limiting
-- Public or semi-public workflow HTTP endpoints (for example `GET /api/v1/workflows/{id}/call` and direct workflow execution endpoints) MUST support per-workflow client IP allowlists. Store the allowlist in the workflow trigger configuration, support both exact IPs and CIDR ranges, and return HTTP 403 for disallowed clients. These endpoints accept credential tokens (`?token=ctok_xxx`) for tenant identification instead of the full API key — never expose `pk_live_*` keys in URLs.
-- Kafka connections: SASL_SSL with certificate-based authentication
-- Database connections: SSL required, IP allowlisting for production
-- Health check endpoints (`/health`, `/readiness`): no authentication required but MUST NOT expose sensitive information
-
-### 3.5 Container security
-
-- Base images: use official slim/distroless images, pin exact versions (never `latest`)
-- Run containers as non-root user (`USER 1001` in Dockerfile)
-- No package managers in production images (multi-stage builds only)
-- Scan images for vulnerabilities in CI/CD (Trivy, Snyk, or equivalent)
-- Read-only filesystem where possible (`--read-only` flag)
-- Set resource limits (CPU, memory) for every container
-- No `--privileged` flag, no `SYS_ADMIN` capability
+> Full details: [docs/STANDARDS.md#1-security--encryption](docs/STANDARDS.md#1-security--encryption)
 
 ---
 
-## 4. Docker Standards
+## 4. Docker Standards (summary)
 
-### 4.1 Dockerfile conventions
+- Multi-stage builds, non-root user, health checks in every Dockerfile
+- Every integrator MUST include a `docker-compose.yml` for local development
+- Image naming: `ghcr.io/{your-org}/oip/{category}/{system}:{version}`
 
-Every integrator Dockerfile MUST follow this structure:
-
-```dockerfile
-# --- Build stage ---
-FROM python:3.12-slim AS build
-WORKDIR /app
-COPY requirements.txt .
-RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
-COPY . .
-
-# --- Production stage ---
-FROM python:3.12-slim
-LABEL maintainer="integrations@Pinquark.com"
-LABEL version="1.0.0"
-LABEL category="courier"
-LABEL system="dhl"
-
-RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
-WORKDIR /app
-COPY --from=build /install /usr/local
-COPY --from=build /app .
-RUN chown -R appuser:appuser /app
-USER appuser
-
-EXPOSE 8000
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD curl -f http://localhost:8000/health || exit 1
-
-ENTRYPOINT ["gunicorn", "--config", "gunicorn.conf.py", "app:create_app()"]
-```
-
-For Java/Kotlin integrators:
-
-```dockerfile
-FROM eclipse-temurin:21-jdk-alpine AS build
-WORKDIR /app
-COPY . .
-RUN ./gradlew bootJar -x test --no-daemon
-
-FROM eclipse-temurin:21-jre-alpine
-LABEL maintainer="integrations@Pinquark.com"
-RUN addgroup -S appuser && adduser -S appuser -G appuser
-WORKDIR /app
-COPY --from=build /app/build/libs/*.jar app.jar
-USER appuser
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --retries=3 \
-  CMD wget --no-verbose --tries=1 --spider http://localhost:8080/actuator/health || exit 1
-ENTRYPOINT ["java", "-XX:+UseContainerSupport", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]
-```
-
-### 4.2 Docker Compose structure
-
-Every integrator MUST include a `docker-compose.yml` for local development with:
-
-- The integrator service
-- Required dependencies (database, Kafka, Redis if needed)
-- A test runner service
-- Network isolation (dedicated bridge network per integrator)
-- Volume mounts for local development (code hot-reload)
-- Environment variable file reference (`.env`)
-
-### 4.3 Image naming and tagging
-
-```
-ghcr.io/{your-org}/oip/{category}/{system}:{version}
-
-Examples:
-  ghcr.io/your-org/oip/courier/dhl:1.0.0
-  ghcr.io/your-org/oip/ecommerce/allegro:2.1.3
-  ghcr.io/your-org/oip/erp/wapro:1.0.0-onpremise
-```
-
-- Every push to `main`/`master` → build and tag with git SHA + `latest`
-- Every git tag `v*` → build and tag with version number
-- UAT deployments: tagged with `-uat` suffix during testing
+> Full templates and details: [docs/STANDARDS.md#2-docker-standards](docs/STANDARDS.md#2-docker-standards)
 
 ---
 
-## 5. CI/CD Pipeline
+## 5. CI/CD Pipeline (summary)
 
-### 5.1 Pipeline stages
+Pipeline: Lint & Audit → Build Docker → Test (>80% coverage) → Deploy UAT → Verification Agent Loop.
 
-```
-┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐   ┌──────────┐
-│   Lint   │──▶│  Build   │──▶│   Test   │──▶│  Deploy  │──▶│  Verify  │
-│ & Audit  │   │  Docker  │   │  Unit +  │   │   UAT    │   │  Agent   │
-│          │   │  Image   │   │  Integr. │   │          │   │  Loop    │
-└──────────┘   └──────────┘   └──────────┘   └──────────┘   └──────────┘
-                                                                  │
-                                                    ┌─────────────┘
-                                                    ▼
-                                              ┌──────────┐
-                                              │ Feedback │──▶ Fix ──▶ Re-deploy ──▶ Re-verify
-                                              │   Loop   │
-                                              └──────────┘
-```
-
-### 5.2 Stage details
-
-**Stage 1: Lint & Security Audit**
-
-- Python: `ruff check`, `ruff format --check`, `mypy`
-- Java/Kotlin: Checkstyle, SpotBugs
-- Security: Semgrep scan, dependency vulnerability check (pip-audit / OWASP dependency-check)
-- Secrets detection: truffleHog or gitleaks scan
-- Docker: hadolint for Dockerfile linting
-
-**Stage 2: Build Docker Image**
-
-- Multi-stage build (see section 4.1)
-- Image vulnerability scan (Trivy)
-- Push to container registry with SHA tag
-
-**Stage 3: Test**
-
-- Unit tests (pytest / JUnit+Spock): MUST pass with >80% coverage
-- Integration tests: run against sandbox/mock APIs of external systems
-- Contract tests: verify API contracts match documentation
-
-**Stage 4: Deploy to UAT**
-
-- Deploy Docker container to UAT environment
-- Run database migrations if needed
-- Configure environment variables from secrets manager
-- Wait for health check to pass
-
-**Stage 5: Verification Agent Loop**
-
-- Automated verification agent tests all documented endpoints
-- Checks: response codes, response schemas, data integrity, error handling
-- If verification fails → generates structured feedback → implementation agent fixes → re-deploy → re-verify
-- Loop continues until all verification checks pass or max iterations (5) reached
-- On max iterations: alert human operator
-
-### 5.3 Branch strategy
+### Branch strategy
 
 
 | Branch                                     | Purpose                 | Deploys to                   |
@@ -597,7 +178,7 @@ Examples:
 | `integrator/{category}/{system}/{version}` | New integrator work     | Dev → UAT                    |
 
 
-### 5.4 Commit conventions
+### Commit conventions
 
 ```
 [CATEGORY-SYSTEM] action: description
@@ -605,569 +186,33 @@ Examples:
 Examples:
   [COURIER-DHL] feat: add multi-parcel shipment support
   [ECOMMERCE-ALLEGRO] fix: handle expired OAuth token gracefully
-  [ERP-WAPRO] docs: update ODBC connection guide
   [PLATFORM] refactor: extract common retry logic to shared library
-  [CI] fix: correct UAT deployment health check timeout
 ```
+
+> Full pipeline details: [docs/STANDARDS.md#3-cicd-pipeline](docs/STANDARDS.md#3-cicd-pipeline)
 
 ---
 
-## 6. Agent Workflow
+## 6. Agent Workflow (summary)
 
-### 6.1 Implementation Agent
+### Implementation Agent
 
-The implementation agent is responsible for building new integrators. Before writing any code:
+Before writing code: fetch API docs → check existing integrators → implement interface → write tests → create Dockerfile → create documentation → create sandbox accounts.
 
-1. **Read documentation** — Fetch and store the external system's API documentation (REST API docs, WSDL files, SDK references) into `docs/{category}/{system}/{version}/`
-2. **Check existing integrators** — Look at similar integrators in the same category for patterns
-3. **Implement the base interface** — Every integrator implements the category-specific interface (see section 7)
-4. **Write tests** — Unit tests and integration tests (with sandbox/mock APIs) MUST be written alongside implementation
-5. **Create Dockerfile** — Following section 4.1 standards
-6. **Create documentation** — `README.md` with setup instructions, API mapping, configuration reference
-7. **Create sandbox accounts** — Register sandbox/test accounts with external system if required, document credentials storage location
+### Verification & Maintenance Agent
 
-### 6.2 Verification & Maintenance Agent
+Three-tier verification: Tier 1 (health, readiness, docs) → Tier 2 (auth, account provisioning) → Tier 3 (functional smoke tests per connector). Runs on schedule (default: 7 days) or on-demand.
 
-The verification agent (`platform/verification-agent/`) is a single FastAPI microservice that combines continuous health monitoring with deep functional verification of every connector. It runs on a configurable schedule (default: every 7 days) and can also be triggered on-demand via the dashboard or API.
-
-#### 6.2.1 Architecture
-
-```
-platform/verification-agent/
-├── Dockerfile
-├── requirements.txt
-├── pyproject.toml
-└── src/
-    ├── main.py                  # FastAPI app + APScheduler
-    ├── config.py                # Pydantic settings
-    ├── db.py                    # SQLAlchemy models (verification_reports, verification_settings)
-    ├── discovery.py             # Connector discovery (connector.yaml + DB instances)
-    ├── credential_vault.py      # AES-256-GCM credential decryption
-    ├── runner.py                # Orchestrates 3-tier verification run
-    ├── reporter.py              # Persists results to PostgreSQL
-    ├── api/
-    │   └── routes.py            # REST API: trigger runs, scheduler, reports, errors
-    └── checks/
-        ├── common.py            # Shared utilities (result, get_check, req_check, PDF_STUB)
-        ├── base.py              # Tier 1: health, readiness, docs
-        ├── auth.py              # Tier 2: credentials, auth status, connection status
-        ├── functional.py        # Tier 3 dispatcher — routes to per-category module
-        ├── courier/             # Tier 3: Courier connector tests
-        │   ├── __init__.py
-        │   └── generic.py       #   Fallback for couriers without a dedicated file
-        ├── ecommerce/           # Tier 3: E-commerce connector tests
-        │   ├── __init__.py
-        │   └── generic.py       #   Fallback for e-commerce without a dedicated file
-        ├── erp/                 # Tier 3: ERP connector tests
-        │   └── __init__.py
-        ├── automation/          # Tier 3: Automation connector tests
-        │   └── __init__.py
-        └── other/               # Tier 3: Other connector tests
-            ├── __init__.py
-            ├── skanuj_fakture.py  # SkanujFakture (20+ endpoints, full CRUD cycle)
-            └── account_based.py   # Email, FTP/SFTP (generic account-based)
-```
-
-The directory layout mirrors `integrators/` categories. Each category folder contains:
-
-- `**generic.py**` — fallback tests for connectors without a dedicated file (tests common endpoints based on `connector.yaml` capabilities)
-- `**{connector_name}.py**` — connector-specific tests that exercise all documented endpoints
-
-#### 6.2.2 Three-tier verification
-
-Every connector goes through all three tiers in sequence. If a tier fails critically, subsequent tiers may be skipped.
-
-**Tier 1 — Infrastructure (all connectors, no credentials needed)**
-
-
-| Check     | Endpoint         | Pass condition                         |
-| --------- | ---------------- | -------------------------------------- |
-| Health    | `GET /health`    | HTTP 200, `status: "healthy"`          |
-| Readiness | `GET /readiness` | HTTP 200, all dependency checks pass   |
-| API docs  | `GET /docs`      | HTTP 200, Swagger/OpenAPI UI reachable |
-
-
-**Tier 2 — Authentication (requires credentials from Credential Vault)**
-
-
-| Check                | Endpoint                           | Pass condition                    |
-| -------------------- | ---------------------------------- | --------------------------------- |
-| Account provisioning | `POST /accounts`                   | Account created or already exists |
-| Auth status          | `GET /auth/{account}/status`       | `authenticated: true`             |
-| Connection status    | `GET /connection/{account}/status` | `connected: true`                 |
-
-
-**Tier 3 — Functional smoke tests (per-connector, requires credentials)**
-
-Each connector has its own test module in `checks/`. Tests exercise all documented endpoints, including:
-
-- **Read-only endpoints** — listing, searching, fetching details
-- **Write+cleanup cycles** — upload a test resource, exercise per-resource endpoints, delete it afterward
-- **Error paths** — expected 404s for missing data (e.g., KSeF for non-KSeF documents) are accepted as PASS
-- **Performance** — every check records `response_time_ms`
-
-#### 6.2.3 Scheduling & triggers
-
-
-| Mode               | How                                                  | Description                                                                              |
-| ------------------ | ---------------------------------------------------- | ---------------------------------------------------------------------------------------- |
-| Scheduled          | APScheduler `IntervalTrigger`                        | Runs every `VERIFICATION_INTERVAL_DAYS` (default: 7). Configurable via API or dashboard. |
-| On-demand (all)    | `POST /api/verification/run`                         | Verifies all discovered connectors.                                                      |
-| On-demand (single) | `POST /api/verification/run?connector_filter={name}` | Verifies a single connector.                                                             |
-| Dashboard          | Verification page toggle + "Run now" button          | UI controls for scheduler enable/disable and manual triggers.                            |
-
-
-#### 6.2.4 Maintenance responsibilities
-
-The agent also covers continuous maintenance tasks previously described as a separate "Maintenance Agent":
-
-1. **Health monitoring** — Scheduled runs verify all deployed connectors are alive and functional
-2. **Regression detection** — Functional tests catch external API changes that break integrations
-3. **Performance tracking** — Response time baselines stored per check, regressions visible in reports
-4. **Alerting** — Failed checks generate structured error reports visible in the dashboard with filtering and drill-down
-5. **Dependency health** — Tier 1 readiness checks verify database, Kafka, and external API connectivity
-
-#### 6.2.5 Report format
-
-Results are persisted to the `verification_reports` table and exposed via the API. Each report follows this structure:
-
-```json
-{
-  "integrator": "other/skanuj-fakture/v1.0.0",
-  "timestamp": "2026-02-24T12:00:00Z",
-  "status": "FAIL",
-  "checks": [
-    {
-      "name": "list_companies",
-      "status": "PASS",
-      "response_time_ms": 340
-    },
-    {
-      "name": "upload_document",
-      "status": "PASS",
-      "response_time_ms": 1200
-    },
-    {
-      "name": "get_ksef_xml",
-      "status": "SKIP",
-      "response_time_ms": 85,
-      "error": "Endpoint not found (404)"
-    },
-    {
-      "name": "get_document_file",
-      "status": "FAIL",
-      "error": "HTTP 500: Internal Server Error",
-      "suggestion": "Check file retrieval logic in get_document_file() method"
-    }
-  ],
-  "summary": {
-    "total": 20,
-    "passed": 16,
-    "failed": 2,
-    "skipped": 2
-  }
-}
-```
-
-Check statuses:
-
-
-| Status | Meaning                                                                             |
-| ------ | ----------------------------------------------------------------------------------- |
-| `PASS` | Endpoint responded correctly within thresholds                                      |
-| `FAIL` | Unexpected status code, timeout, or exception                                       |
-| `SKIP` | Check not applicable (e.g., no credentials, expected 404, capability not supported) |
-
-
-#### 6.2.6 Adding tests for a new connector
-
-When a new connector is implemented, a corresponding Tier 3 test file MUST be created. Follow these steps:
-
-**Step 1 — Create the test file in the correct category folder**
-
-Place the file under the matching category directory:
-
-```
-checks/{category}/{connector_name}.py
-
-Examples:
-  checks/courier/inpost.py
-  checks/ecommerce/allegro.py
-  checks/erp/wapro.py
-  checks/other/skanuj_fakture.py
-```
-
-Use underscores for connector names (e.g., `skanuj_fakture.py`, `base_linker.py`).
-
-The file MUST export a single `run()` function:
-
-```python
-"""Tier 3 functional checks — {ConnectorDisplayName} connector."""
-
-from typing import Any
-
-import httpx
-
-from src.checks.common import get_check, req_check, result
-from src.discovery import VerificationTarget
-
-
-async def run(
-    client: httpx.AsyncClient,
-    target: VerificationTarget,
-) -> list[dict[str, Any]]:
-    results: list[dict[str, Any]] = []
-    base = target.base_url
-    account = (target.credentials or {}).get("account_name", "verification-agent")
-    # ... test all endpoints ...
-    return results
-```
-
-If a category folder does not exist yet, create it with an `__init__.py`:
-
-```python
-"""Tier 3 checks — {Category} connector category."""
-```
-
-Each category folder may also contain a `generic.py` — a fallback module that tests common endpoints for connectors that don't have a dedicated file. Connector-specific files always take priority.
-
-**Step 2 — Test every endpoint from `connector.yaml`**
-
-Cross-reference the connector's `connector.yaml` to ensure every documented capability, action, and endpoint is covered. For each endpoint:
-
-- **Read-only endpoints** — use `get_check()` to verify HTTP 200 and measure response time
-- **Write endpoints** — use `req_check()` with a full cycle: create → verify → cleanup. Always delete test data afterward.
-- **Endpoints that may legitimately fail** — pass `accept_statuses=(200, 404)` when a 404 is expected behavior (e.g., KSeF data for non-KSeF documents)
-
-Available utilities from `checks/common.py`:
-
-
-| Function                                                                                 | Purpose                                                    |
-| ---------------------------------------------------------------------------------------- | ---------------------------------------------------------- |
-| `result(name, status, ms, error?, suggestion?)`                                          | Build a check result dict                                  |
-| `get_check(client, url, name, params?)`                                                  | Execute GET, return check result                           |
-| `req_check(client, method, url, name, *, params?, json_body?, files?, accept_statuses?)` | Execute any HTTP method, return `(check_result, response)` |
-| `PDF_STUB`                                                                               | Minimal valid PDF bytes for upload tests                   |
-
-
-**Step 3 — Auto-discovery (no registration needed)**
-
-The dispatcher in `platform/verification-agent/src/checks/functional.py` uses `importlib` to auto-discover test modules by convention. No manual registration is required — placing a file in the correct category folder is enough:
-
-```python
-# Resolution order (automatic):
-# 1. src.checks.{category}.{connector_name}  — connector-specific
-# 2. src.checks.{category}.generic           — category fallback
-```
-
-For example, adding `checks/courier/inpost.py` automatically makes it the test module for the InPost connector. If no connector-specific file exists, `checks/courier/generic.py` is used as fallback.
-
-**Step 4 — Test checklist**
-
-Every connector test file SHOULD cover:
-
-- `list_accounts` — verify account listing works
-- All read-only listing endpoints (companies, documents, orders, products, etc.)
-- All detail/get endpoints with a valid resource ID
-- At least one full write cycle (create → read → update → delete) with cleanup
-- Authentication-dependent endpoints with the provisioned account
-- Error cases where applicable (expected 404s, invalid IDs)
-- All endpoint variants (e.g., `/documents` vs `/documents/simple`, upload v1 vs v2)
-
-**Naming conventions for checks:**
-
-- Use descriptive snake_case names: `list_companies`, `upload_document`, `get_document_file`
-- Prefix variants: `list_dictionaries_CATEGORY`, `upload_document_v2`
-- Suffix cleanup steps: `delete_documents_cleanup`, `delete_v2_cleanup`
-
-**Step 5 — Rebuild and verify**
-
-```bash
-docker compose -f docker-compose.prod.yml build verification-agent
-docker compose -f docker-compose.prod.yml up -d verification-agent
-curl -X POST "http://localhost:18080/api/verification/run?connector_filter={name}"
-```
+> Full workflow, architecture, and test writing guide: [docs/CONNECTOR-DEVELOPMENT.md](docs/CONNECTOR-DEVELOPMENT.md)
 
 ---
 
-## 7. Integration Interfaces
+## 7. Coding Standards
 
-### 7.1 Courier integration interface
-
-Every courier integrator MUST implement:
-
-List will be created
-
-### 7.2 E-commerce integration interface
-
-List will be created
-
-### 7.3 ERP integration interface
-
-List will be created
-
-### 7.4 Automation integration interface
-
-List will be created
-
----
-
-## 8. On-Premise Integrators
-
-Some integrations (especially ERP systems like WAPRO, Subiekt GT, Comarch) require a locally installed program at the client site to bridge the gap between the local system and the cloud platform.
-
-### 8.1 On-premise agent architecture
-
-```
-┌─────────────────────────────────────┐
-│          Client's Network           │
-│                                     │
-│  ┌─────────────┐   ┌────────────┐  │
-│  │  Local ERP  │◀─▶│  On-Prem   │  │         ┌──────────────────┐
-│  │  (e.g.      │   │  Agent     │──│────────▶│  Pinquark Cloud  │
-│  │   WAPRO)    │   │  (Docker)  │  │  HTTPS  │  Integration Hub │
-│  └─────────────┘   └────────────┘  │         └──────────────────┘
-│                         │          │
-│                    ┌────┴─────┐    │
-│                    │ SQLite   │    │
-│                    │ local DB │    │
-│                    └──────────┘    │
-└─────────────────────────────────────┘
-```
-
-### 8.2 On-premise agent requirements
-
-- **Runs as Docker container** on client's server/VM (Docker Desktop, Docker Engine, or Podman)
-- **Auto-update mechanism** — agent checks for updates on startup and periodically (configurable interval)
-- **Offline resilience** — queues operations locally (SQLite) when cloud connection is lost, syncs when restored
-- **ERP health monitoring** — periodic ping via SQL query (e.g., `SELECT 1` or `SELECT COUNT(*) FROM config_table`)
-- **Heartbeat** — sends heartbeat to Pinquark Cloud every 60 seconds with: client name, agent version, ERP connection status, queue depth, system resources
-- **Secure tunnel** — all communication to Pinquark Cloud via HTTPS with mutual TLS (mTLS)
-- **Minimal permissions** — ERP database access: read-only where possible, write only for specific sync operations
-- **Log shipping** — forward structured logs to Pinquark Cloud for centralized monitoring (with PII redaction)
-
-### 8.3 ERP connectivity check
-
-The on-premise agent MUST implement a robust connectivity check:
-
-```python
-class ErpConnectionMonitor:
-    def ping(self) -> PingResult:
-        """
-        Execute a simple SQL query against the ERP database.
-        Returns PingResult with status, latency, and error details.
-        Runs every check_interval_seconds (default: 30).
-        """
-
-    def report_status(self) -> None:
-        """
-        Send connection status to Pinquark Cloud.
-        Includes: connected/disconnected, latency_ms, last_successful_ping,
-        consecutive_failures, erp_version, agent_version.
-        """
-```
-
-Alerting thresholds:
-
-- 3 consecutive ping failures → WARNING alert to Pinquark Cloud dashboard
-- 10 consecutive failures → CRITICAL alert + email/SMS notification to client admin
-- Connection restored after outage → RECOVERY notification
-
-### 8.4 On-premise agent configuration
-
-Configuration via environment variables or `config.yaml`:
-
-```yaml
-agent:
-  id: "unique-agent-id"
-  cloud_url: "https://integrations.Pinquark.com"
-  heartbeat_interval_seconds: 60
-  update_check_interval_hours: 6
-
-erp:
-  type: "wapro"  # wapro | comarch | subiekt | custom_odbc
-  connection_string: "${ERP_CONNECTION_STRING}"
-  ping_query: "SELECT 1"
-  ping_interval_seconds: 30
-  read_only: true
-
-sync:
-  interval_seconds: 300
-  batch_size: 100
-  retry_max: 3
-  retry_backoff_seconds: 10
-
-logging:
-  level: "INFO"
-  ship_to_cloud: true
-  redact_pii: true
-```
-
----
-
-## 9. Monitoring & Observability
-
-### 9.1 Health endpoints
-
-Every integrator (cloud and on-premise) MUST expose:
-
-
-| Endpoint         | Purpose                                        | Auth required         |
-| ---------------- | ---------------------------------------------- | --------------------- |
-| `GET /health`    | Basic liveness check (is the process running?) | No                    |
-| `GET /readiness` | Full readiness check (dependencies available?) | No                    |
-| `GET /metrics`   | Prometheus metrics                             | Internal network only |
-
-
-Health response format:
-
-```json
-{
-  "status": "healthy",
-  "version": "1.2.0",
-  "uptime_seconds": 86400,
-  "checks": {
-    "database": "ok",
-    "kafka": "ok",
-    "external_api": "ok"
-  }
-}
-```
-
-### 9.2 Structured logging
-
-All integrators MUST use structured JSON logging:
-
-```json
-{
-  "timestamp": "2026-02-20T12:00:00.000Z",
-  "level": "INFO",
-  "service": "courier-dhl-v1.0.0",
-  "trace_id": "abc123",
-  "message": "Shipment created successfully",
-  "shipment_id": "DHL-12345",
-  "response_time_ms": 340
-}
-```
-
-Rules:
-
-- Log levels: `DEBUG` (dev only), `INFO` (operations), `WARNING` (degraded), `ERROR` (failures), `CRITICAL` (system down)
-- Every external API call MUST be logged with: method, URL (without query params containing secrets), response status, response time
-- Never log request/response bodies in production (may contain PII) — use `DEBUG` level only for development
-- Include `trace_id` for distributed tracing across services
-
-### 9.3 Metrics
-
-Every integrator MUST expose Prometheus metrics:
-
-
-| Metric                                      | Type      | Labels                          | Description                     |
-| ------------------------------------------- | --------- | ------------------------------- | ------------------------------- |
-| `integrator_requests_total`                 | Counter   | `method`, `endpoint`, `status`  | Request counter                 |
-| `integrator_request_duration_seconds`       | Histogram | `method`, `endpoint`            | Request latency                 |
-| `integrator_external_api_calls_total`       | Counter   | `system`, `operation`, `status` | External API call counter       |
-| `integrator_external_api_duration_seconds`  | Histogram | `system`, `operation`           | External API latency            |
-| `integrator_errors_total`                   | Counter   | `type`                          | Error counter by type           |
-| `integrator_kafka_messages_processed_total` | Counter   | `topic`, `status`               | Kafka message counter           |
-| `integrator_active_connections`             | Gauge     | `system`                        | Active connections (on-premise) |
-
-
-### 9.4 Alerting rules
-
-
-| Metric                       | Threshold         | Severity |
-| ---------------------------- | ----------------- | -------- |
-| Error rate                   | > 5% over 5 min   | WARNING  |
-| Error rate                   | > 20% over 5 min  | CRITICAL |
-| Response time p95            | > 5s              | WARNING  |
-| Response time p95            | > 15s             | CRITICAL |
-| Health check failing         | > 3 consecutive   | CRITICAL |
-| On-premise heartbeat missing | > 5 min           | WARNING  |
-| On-premise heartbeat missing | > 15 min          | CRITICAL |
-| Kafka consumer lag           | > 1 000 messages  | WARNING  |
-| Kafka consumer lag           | > 10 000 messages | CRITICAL |
-
-
----
-
-## 10. Documentation Standards
-
-### 10.0 Platform-level documentation
-
-The following files document the platform as a whole and MUST be updated when relevant changes are made:
-
-
-| Document                   | Path                                                   | Update trigger                                                   |
-| -------------------------- | ------------------------------------------------------ | ---------------------------------------------------------------- |
-| Architecture & scalability | `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)`         | Infrastructure, scaling, data flow, deployment changes           |
-| Database schema diagram    | `[docs/database-schema.png](docs/database-schema.png)` | Any migration that adds/removes tables, columns, or foreign keys |
-| Connector configuration    | `[docs/CONNECTORS.md](docs/CONNECTORS.md)`             | New connector, config schema change, new env var                 |
-
-
-When adding a new connector, the agent MUST:
-
-1. Add the connector's config parameters to `docs/CONNECTORS.md`
-2. Verify `docs/ARCHITECTURE.md` connector count is still accurate
-3. Update the "Existing Codebases" table in this file if a new category is introduced
-
-When modifying the database schema (new migration), the agent MUST:
-
-1. Regenerate `docs/database-schema.png` to reflect the current state of all tables, columns, and relationships
-2. Verify the table overview in `docs/ARCHITECTURE.md` section 4 is still accurate
-
-### 10.1 Per-integrator documentation
-
-Every integrator version MUST have:
-
-```
-docs/{category}/{system}/{version}/
-  ├── README.md              # Setup, configuration, deployment guide
-  ├── API_MAPPING.md         # WMS fields ↔ external system fields mapping
-  ├── CHANGELOG.md           # Version history
-  ├── external-api-docs/     # Downloaded/saved external API documentation
-  │   ├── openapi.yaml       # or swagger.json, WSDL files
-  │   └── ...
-  ├── sandbox-setup.md       # How to set up sandbox/test account
-  └── known-issues.md        # Known limitations and workarounds
-```
-
-### 10.2 Documentation fetching
-
-Before implementing any integration, the agent MUST:
-
-1. Fetch the external system's latest API documentation
-2. Store it in `docs/{category}/{system}/{version}/external-api-docs/`
-3. Create `API_MAPPING.md` mapping every Pinquark WMS field to the external system's equivalent
-4. Document authentication flow and required credentials
-5. Document rate limits, sandbox URLs, and production URLs
-6. Document all possible status codes and error responses
-
-### 10.3 Changelog format
-
-```markdown
-# Changelog
-
-## [1.1.0] - 2026-02-20
-### Added
-- Multi-parcel shipment support
-- Pickup point search by coordinates
-
-### Fixed
-- OAuth token refresh race condition
-
-### Changed
-- Increased default timeout from 10s to 30s
-```
-
----
-
-## 11. Coding Standards
-
-### 11.1 Python integrators
+### 7.1 Python integrators
 
 - **Python version**: 3.12+ (match base Docker image)
-- **Framework**: FastAPI + Uvicorn for new integrators 
+- **Framework**: FastAPI + Uvicorn for new integrators
 - **Type hints**: mandatory on all function signatures
 - **Linting**: `ruff check` + `ruff format` (config in `pyproject.toml`)
 - **Static analysis**: `mypy --strict` for new code
@@ -1178,7 +223,7 @@ Before implementing any integration, the agent MUST:
 - **SOAP client**: `zeep` for WSDL-based integrations
 - **Configuration**: `pydantic-settings` for environment variable parsing
 
-### 11.2 Java/Kotlin integrators
+### 7.2 Java/Kotlin integrators
 
 - **Java version**: 21+ (LTS)
 - **Framework**: Spring Boot 3.x
@@ -1190,7 +235,7 @@ Before implementing any integration, the agent MUST:
 - **Database**: Spring Data JPA with Flyway migrations
 - **Kafka**: Spring Kafka with consumer/producer configuration per topic
 
-### 11.3 Common rules (all languages)
+### 7.3 Common rules (all languages)
 
 - **No `any` types** — use strict typing everywhere
 - **No hardcoded URLs** — all external URLs come from configuration/environment variables
@@ -1205,10 +250,9 @@ Before implementing any integration, the agent MUST:
 - **Naming**: snake_case for Python, camelCase for Java/Kotlin, kebab-case for URLs and Docker tags
 - **No inline comments explaining obvious code** — self-documenting names
 
-### 11.4 API design
+### 7.4 API design
 
 - All integrator REST APIs follow OpenAPI 3.1 specification
-- API documentation generated from code annotations (FastAPI auto-generates, Spring uses springdoc)
 - Swagger UI available at `/docs` (FastAPI) or `/swagger-ui/` (Spring)
 - Consistent error response format:
 
@@ -1228,9 +272,9 @@ Before implementing any integration, the agent MUST:
 
 ---
 
-## 12. Testing Standards
+## 8. Testing Standards
 
-### 12.1 Test categories
+### 8.1 Test categories
 
 
 | Category    | Scope                                               | Runs in CI                | Required coverage   |
@@ -1242,7 +286,7 @@ Before implementing any integration, the agent MUST:
 | Performance | Response time, throughput under load                | Pre-release               | Baseline thresholds |
 
 
-### 12.2 Test naming
+### 8.2 Test naming
 
 ```python
 # Python
@@ -1257,7 +301,7 @@ def "create shipment returns waybill number"()
 def "create shipment throws InvalidAddressException for missing city"()
 ```
 
-### 12.3 Sandbox accounts
+### 8.3 Sandbox accounts
 
 - Every external system integration MUST have a sandbox/test account
 - Sandbox credentials stored in CI/CD secrets (never in code)
@@ -1266,152 +310,54 @@ def "create shipment throws InvalidAddressException for missing city"()
 
 ---
 
-## 13. Project Structure
+## 9. Project Structure
 
 ```
 /
 ├── AGENTS.md                          # This file — global agent guidelines
 ├── docker-compose.yml                 # Root compose for full platform (dev)
 ├── .env.example                       # Environment template
-├── .gitignore
-│
-├── platform/                          # Integration platform UI & orchestration
-│   ├── Dockerfile
-│   ├── src/
-│   └── ...
-│
-├── shared/                            # Shared libraries across integrators
-│   ├── python/
-│   │   ├── Pinquark_common/           # Common DTOs, utils, base classes
-│   │   ├── setup.py
-│   │   └── requirements.txt
-│   └── java/
-│       └── common-lib/               # Common Java library
-│
+├── platform/                          # API Gateway, Flow Engine, Dashboard, Verification Agent
+├── shared/python/                     # Common DTOs, utils, base classes
 ├── integrators/                       # All integrators organized by category
-│   ├── courier/
-│   │   ├── dhl/
-│   │   │   └── v1.0.0/
-│   │   │       ├── Dockerfile
-│   │   │       ├── docker-compose.yml
-│   │   │       ├── requirements.txt
-│   │   │       ├── src/
-│   │   │       └── tests/
-│   │   ├── inpost/
-│   │   ├── dpd/
-│   │   └── ...
-│   ├── ecommerce/
-│   │   ├── allegro/
-│   │   ├── baselinker/
-│   │   ├── prestashop/
-│   │   ├── woocommerce/
-│   │   ├── shopify/
-│   │   ├── shoper/
-│   │   ├── idosell/
-│   │   └── sellasist/
-│   ├── erp/
-│   │   ├── wapro/
-│   │   ├── comarch/
-│   │   ├── subiekt-gt/
-│   │   └── sap/
-│   ├── automation/
-│   │   ├── cameras/
-│   │   ├── barriers/
-│   │   ├── sms-gateways/
-│   │   ├── info-kiosks/
-│   │   └── drones/
-│   └── other/
-│
-├── onpremise/                         # On-premise agent (installed at client site)
-│   ├── agent/
-│   │   ├── Dockerfile
-│   │   ├── src/
-│   │   └── tests/
-│   └── installers/                    # Platform-specific installers
-│
+│   ├── courier/                       #   dhl/, inpost/, dpd/, gls/, ...
+│   ├── ecommerce/                     #   allegro/, shopify/, shoper/, ...
+│   ├── erp/                           #   wapro/, comarch/, subiekt-gt/, sap/
+│   ├── automation/                    #   cameras/, barriers/, sms-gateways/, ...
+│   └── other/                         #   email-client/, skanuj-fakture/, ftp-sftp/, ...
+├── onpremise/                         # On-premise agent for local ERP
 ├── docs/                              # Documentation per system per version
-│   ├── courier/
-│   ├── ecommerce/
-│   ├── erp/
-│   ├── automation/
-│   └── other/
-│
 ├── ci/                                # CI/CD pipeline configurations
-│   ├── gitlab-ci.yml
-│   ├── github-actions/
-│   └── scripts/
-│
-├── monitoring/                        # Monitoring & alerting configuration
-│   ├── prometheus/
-│   ├── grafana/
-│   └── alertmanager/
-│
+├── monitoring/                        # Prometheus, Grafana, Alertmanager
 └── README.md
 ```
 
 ---
 
-## 14. Autonomous Operation
-
-### 14.1 Integration lifecycle
-
-```
-┌──────────────┐     ┌───────────────┐     ┌──────────────┐     ┌───────────────┐
-│  Detect new  │────▶│  Fetch docs   │────▶│  Implement   │────▶│  Build &      │
-│  API version │     │  & changelog  │     │  new version │     │  test locally │
-└──────────────┘     └───────────────┘     └──────────────┘     └───────────────┘
-                                                                        │
-      ┌─────────────────────────────────────────────────────────────────┘
-      ▼
-┌──────────────┐     ┌───────────────┐     ┌──────────────┐     ┌───────────────┐
-│  Deploy to   │────▶│  Verification │────▶│  Feedback    │────▶│  Release to   │
-│  UAT         │     │  agent tests  │     │  loop until  │     │  production   │
-└──────────────┘     └───────────────┘     │  all pass    │     │  catalog      │
-                                           └──────────────┘     └───────────────┘
-```
-
-### 14.2 Auto-update rules
-
-- Monitor external API changelogs and versioning endpoints
-- When a new API version is detected: create a new integrator version automatically
-- The old version remains available and unchanged
-- Notify platform administrators about new version availability
-- Clients choose when to switch to the new version via the platform UI
-- If an external API deprecates a version: warn all clients using that version 30 days in advance
-
-### 14.3 Self-healing
-
-- If an integrator fails health checks 5 consecutive times → automatic restart
-- If restart doesn't resolve → roll back to previous healthy version
-- If no healthy version exists → alert human operator with full diagnostic logs
-- On-premise agents: if cloud connection lost → buffer locally → auto-sync on reconnection
-
----
-
-## 15. Before Writing Code — Checklist
+## 10. Before Writing Code — Checklist
 
 Every agent MUST verify before starting implementation:
 
 - Read this entire AGENTS.md file
-- Read `[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)` for system architecture and scalability context
-- Read `[docs/CONNECTORS.md](docs/CONNECTORS.md)` for existing connector configurations
+- Read [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for system architecture and scalability context
+- Read [docs/CONNECTORS.md](docs/CONNECTORS.md) for existing connector configurations
 - Identify the integration category and target system
 - Check if a similar integrator already exists (copy patterns, not code)
 - Fetch and store external system API documentation
 - Verify sandbox/test account is available (create one if not)
-- Implement the correct category interface (section 7)
-- Follow Docker standards (section 4)
-- Follow security standards (section 3)
+- Implement the correct category interface (see [docs/CONNECTOR-DEVELOPMENT.md#5-integration-interfaces](docs/CONNECTOR-DEVELOPMENT.md#5-integration-interfaces))
+- Follow Docker standards (see [docs/STANDARDS.md#2-docker-standards](docs/STANDARDS.md#2-docker-standards))
+- Follow security standards (see [docs/STANDARDS.md#1-security--encryption](docs/STANDARDS.md#1-security--encryption))
 - If a workflow can be triggered directly over HTTP, verify whether it needs a trigger-level IP allowlist and document the expected allowed IPs/CIDR ranges.
-- Write tests meeting coverage requirements (section 12)
-- Create documentation (section 10) — including updating `docs/CONNECTORS.md`
+- Write tests meeting coverage requirements (section 8)
+- Create documentation — including updating `docs/CONNECTORS.md` (see [docs/STANDARDS.md#6-documentation-standards](docs/STANDARDS.md#6-documentation-standards))
 - If database schema was modified: regenerate `docs/database-schema.png` and update section 4 of `docs/ARCHITECTURE.md`
-- Verify CI/CD pipeline passes all stages (section 5)
-- Confirm the integrator passes verification agent checks (section 6.2)
+- Verify CI/CD pipeline passes all stages (see [docs/STANDARDS.md#3-cicd-pipeline](docs/STANDARDS.md#3-cicd-pipeline))
+- Confirm the integrator passes verification agent checks (see [docs/CONNECTOR-DEVELOPMENT.md#4-verification--maintenance-agent](docs/CONNECTOR-DEVELOPMENT.md#4-verification--maintenance-agent))
 
 ---
 
-## 16. Key Commands
+## 11. Key Commands
 
 ```bash
 # Development
@@ -1441,4 +387,3 @@ trivy image integrations/courier/dhl:dev          # Scan for vulnerabilities
 # CI/CD
 docker compose -f docker-compose.test.yml up --abort-on-container-exit  # Run full test suite
 ```
-
