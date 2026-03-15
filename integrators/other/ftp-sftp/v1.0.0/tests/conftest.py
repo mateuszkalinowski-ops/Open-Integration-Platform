@@ -73,15 +73,15 @@ def sample_base64_content() -> str:
 
 
 @pytest.fixture
-def test_client(account_manager: AccountManager) -> TestClient:
+def test_client(account_manager: AccountManager):
     application = create_app()
+    with TestClient(application, raise_server_exceptions=False) as c:
+        mock_state_store = AsyncMock(spec=StateStore)
+        mock_integration_obj = AsyncMock(spec=FtpSftpIntegration)
 
-    mock_state_store = AsyncMock(spec=StateStore)
-    mock_integration = AsyncMock(spec=FtpSftpIntegration)
+        app_state.account_manager = account_manager
+        app_state.integration = mock_integration_obj
+        app_state.state_store = mock_state_store
+        app_state.health_checker = None
 
-    app_state.account_manager = account_manager
-    app_state.integration = mock_integration
-    app_state.state_store = mock_state_store
-    app_state.health_checker = None
-
-    return TestClient(application)
+        yield c

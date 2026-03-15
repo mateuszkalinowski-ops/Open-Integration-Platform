@@ -23,26 +23,26 @@ from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client():
     application = create_app()
-
-    manager = AccountManager()
-    manager.add_account(
-        S3AccountConfig(
-            name="test-s3",
-            aws_access_key_id="AKIAEXAMPLE",
-            aws_secret_access_key="secretkey",
-            region="eu-central-1",
-            default_bucket="test-bucket",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        manager = AccountManager()
+        manager.add_account(
+            S3AccountConfig(
+                name="test-s3",
+                aws_access_key_id="AKIAEXAMPLE",
+                aws_secret_access_key="secretkey",
+                region="eu-central-1",
+                default_bucket="test-bucket",
+            )
         )
-    )
-    app_state.account_manager = manager
+        app_state.account_manager = manager
 
-    mock_integration = AsyncMock()
-    app_state.integration = mock_integration
-    app_state.health_checker = None
+        mock_integration = AsyncMock()
+        app_state.integration = mock_integration
+        app_state.health_checker = None
 
-    return TestClient(application)
+        yield c
 
 
 def test_health_endpoint(client: TestClient):

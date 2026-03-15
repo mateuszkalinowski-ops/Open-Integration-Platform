@@ -9,28 +9,21 @@ from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        AmazonAccountConfig(
-            name="test",
-            client_id="amzn1.test-client",
-            client_secret="test-secret",
-            refresh_token="Atzr|test-token",
-            marketplace_id="A1PA6795UKMFR9",
-            region="eu",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            AmazonAccountConfig(
+                name="test",
+                client_id="amzn1.test-client",
+                client_secret="test-secret",
+                refresh_token="Atzr|test-token",
+                marketplace_id="A1PA6795UKMFR9",
+                region="eu",
+            )
         )
-    )
-    app_state.account_manager = account_manager
-
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
+        app_state.account_manager = account_manager
         yield c
 
 

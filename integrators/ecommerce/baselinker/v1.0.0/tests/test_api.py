@@ -9,26 +9,19 @@ from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        BaseLinkerAccountConfig(
-            name="test",
-            api_token="test-token",
-            inventory_id=1,
-            warehouse_id=1,
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            BaseLinkerAccountConfig(
+                name="test",
+                api_token="test-token",
+                inventory_id=1,
+                warehouse_id=1,
+            )
         )
-    )
-    app_state.account_manager = account_manager
-
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
+        app_state.account_manager = account_manager
         yield c
 
 

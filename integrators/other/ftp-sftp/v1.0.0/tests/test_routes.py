@@ -20,18 +20,18 @@ from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
-def client() -> TestClient:
+def client():
     application = create_app()
+    with TestClient(application, raise_server_exceptions=False) as c:
+        manager = AccountManager()
+        manager.add_account(FtpAccountConfig(name="test-server", host="sftp.example.com"))
+        app_state.account_manager = manager
 
-    manager = AccountManager()
-    manager.add_account(FtpAccountConfig(name="test-server", host="sftp.example.com"))
-    app_state.account_manager = manager
+        mock_integration = AsyncMock()
+        app_state.integration = mock_integration
+        app_state.health_checker = None
 
-    mock_integration = AsyncMock()
-    app_state.integration = mock_integration
-    app_state.health_checker = None
-
-    return TestClient(application)
+        yield c
 
 
 def test_health_endpoint(client: TestClient):
