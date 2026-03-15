@@ -43,15 +43,15 @@ class TestAccountManager:
         assert not manager.remove_account("nonexistent")
 
     def test_add_multiple_accounts(self, manager: AccountManager) -> None:
-        a1 = SkanujFaktureAccountConfig(name="acc-1", login="a@b.com", password="p1")
-        a2 = SkanujFaktureAccountConfig(name="acc-2", login="c@d.com", password="p2")
+        a1 = SkanujFaktureAccountConfig(name="acc-1", login="a@b.com", password="p1", api_url="https://example.com/api")
+        a2 = SkanujFaktureAccountConfig(name="acc-2", login="c@d.com", password="p2", api_url="https://example.com/api")
         manager.add_account(a1)
         manager.add_account(a2)
         assert len(manager.list_accounts()) == 2
 
     def test_overwrite_account(self, manager: AccountManager) -> None:
-        a1 = SkanujFaktureAccountConfig(name="dup", login="old@test.com", password="p1")
-        a2 = SkanujFaktureAccountConfig(name="dup", login="new@test.com", password="p2")
+        a1 = SkanujFaktureAccountConfig(name="dup", login="old@test.com", password="p1", api_url="https://example.com/api")
+        a2 = SkanujFaktureAccountConfig(name="dup", login="new@test.com", password="p2", api_url="https://example.com/api")
         manager.add_account(a1)
         manager.add_account(a2)
         assert len(manager.list_accounts()) == 1

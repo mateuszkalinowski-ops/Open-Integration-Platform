@@ -74,7 +74,6 @@ from sqlalchemy.orm.attributes import flag_modified
 from api.auth import (
     generate_api_key,
     get_current_tenant,
-    get_current_tenant_or_query,
     get_current_tenant_or_token,
     hash_api_key,
 )
