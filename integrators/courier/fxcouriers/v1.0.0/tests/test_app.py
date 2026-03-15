@@ -33,7 +33,7 @@ def test_get_services(mock_integration):
             200,
         )
     )
-    response = client.get("/services?api_token=test-token")
+    response = client.get("/services", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
     data = response.json()
     assert data["service_cnt"] == 1
@@ -47,7 +47,7 @@ def test_get_company(mock_integration):
             200,
         )
     )
-    response = client.get("/company/1?api_token=test-token")
+    response = client.get("/company/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
     data = response.json()
     assert data["company"]["company_id"] == 1
@@ -98,7 +98,7 @@ def test_get_orders(mock_integration):
             200,
         )
     )
-    response = client.get("/shipments?api_token=test-token")
+    response = client.get("/shipments", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
     data = response.json()
     assert data["order_cnt"] == 2
@@ -112,7 +112,7 @@ def test_get_order(mock_integration):
             200,
         )
     )
-    response = client.get("/shipments/1?api_token=test-token")
+    response = client.get("/shipments/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
 
 
@@ -124,7 +124,7 @@ def test_delete_order(mock_integration):
             200,
         )
     )
-    response = client.delete("/shipments/1?api_token=test-token")
+    response = client.delete("/shipments/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
 
 
@@ -140,7 +140,7 @@ def test_get_order_status(mock_integration):
             200,
         )
     )
-    response = client.get("/shipments/1/status?api_token=test-token")
+    response = client.get("/shipments/1/status", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
     data = response.json()
     assert data["mapped_status"] == "IN_TRANSIT"
@@ -154,7 +154,7 @@ def test_get_tracking(mock_integration):
             200,
         )
     )
-    response = client.get("/tracking/1?api_token=test-token")
+    response = client.get("/tracking/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
 
 
@@ -206,7 +206,7 @@ def test_get_pickup(mock_integration):
             200,
         )
     )
-    response = client.get("/pickups/1?api_token=test-token")
+    response = client.get("/pickups/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
 
 
@@ -218,7 +218,7 @@ def test_cancel_pickup(mock_integration):
             200,
         )
     )
-    response = client.delete("/pickups/1?api_token=test-token")
+    response = client.delete("/pickups/1", headers={"X-Api-Token": "test-token"})
     assert response.status_code == 200
 
 

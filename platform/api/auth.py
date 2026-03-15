@@ -1,6 +1,9 @@
 """Authentication and tenant context middleware.
 
-Supports API key authentication (pk_live_xxx / pk_test_xxx).
+Supports API key authentication (pk_live_xxx / pk_test_xxx) and
+credential token authentication (ctok_xxx) for public-facing endpoints
+like workflow /call.
+
 Sets PostgreSQL session variable ``app.current_tenant_id`` so that
 Row Level Security policies enforce tenant isolation at the DB level.
 """
@@ -9,7 +12,7 @@ import hashlib
 import uuid
 
 from db.base import get_db
-from db.models import ApiKey, Tenant
+from db.models import ApiKey, CredentialToken, Tenant
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select, text
@@ -20,6 +23,13 @@ api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
 def hash_api_key(key: str) -> str:
     return hashlib.sha256(key.encode()).hexdigest()
+
+
+async def _set_rls_tenant(db: AsyncSession, tenant_id: uuid.UUID) -> None:
+    await db.execute(
+        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+        {"tid": str(tenant_id)},
+    )
 
 
 async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
@@ -41,11 +51,29 @@ async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")
 
-    await db.execute(
-        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
-        {"tid": str(tenant.id)},
-    )
+    await _set_rls_tenant(db, tenant.id)
+    return tenant
 
+
+async def _resolve_tenant_by_token(token: str, db: AsyncSession) -> Tenant:
+    result = await db.execute(
+        select(CredentialToken).where(
+            CredentialToken.token == token,
+            CredentialToken.is_active.is_(True),
+        )
+    )
+    token_row = result.scalar_one_or_none()
+    if not token_row:
+        raise HTTPException(status_code=401, detail="Invalid or inactive credential token")
+
+    tenant_result = await db.execute(
+        select(Tenant).where(Tenant.id == token_row.tenant_id, Tenant.is_active.is_(True))
+    )
+    tenant = tenant_result.scalar_one_or_none()
+    if not tenant:
+        raise HTTPException(status_code=403, detail="Tenant is disabled")
+
+    await _set_rls_tenant(db, tenant.id)
     return tenant
 
 
@@ -64,6 +92,30 @@ async def get_current_tenant_or_query(
 ) -> Tenant:
     """Auth via X-API-Key header only (query param removed for security)."""
     return await _resolve_tenant(api_key, db)
+
+
+async def get_current_tenant_or_token(
+    request: Request,
+    api_key: str | None = Security(api_key_header),
+    db: AsyncSession = Depends(get_db),
+) -> Tenant:
+    """Auth via X-API-Key header or credential token in query string.
+
+    Priority: X-API-Key header > ``token`` query parameter.
+    Designed for public-facing endpoints like workflow /call where the
+    caller may only have a credential token, not a full API key.
+    """
+    if api_key:
+        return await _resolve_tenant(api_key, db)
+
+    token = request.query_params.get("token")
+    if token:
+        return await _resolve_tenant_by_token(token, db)
+
+    raise HTTPException(
+        status_code=401,
+        detail="Provide X-API-Key header or token query parameter",
+    )
 
 
 def generate_api_key(prefix: str = "pk_live") -> tuple[str, str]:

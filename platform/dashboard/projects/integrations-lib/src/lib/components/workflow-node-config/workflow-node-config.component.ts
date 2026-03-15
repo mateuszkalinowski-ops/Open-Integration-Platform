@@ -1912,11 +1912,13 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
     if (!found) {
       const fallback = this.resolveConnector(connName, connVers);
       if (fallback) {
+        this.cfg['connector_version'] = fallback.version;
         this.snackBar.open(
-          `Connector version ${connVers} not found, using ${fallback.version} instead`,
+          `Connector version ${connVers} is no longer available. Updated to ${fallback.version}.`,
           'OK',
-          { duration: 5000 },
+          { duration: 8000 },
         );
+        this.emitChange();
       }
     }
   }

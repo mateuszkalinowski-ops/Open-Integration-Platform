@@ -39,11 +39,16 @@ class AccountManager:
             name = os.getenv(f"{prefix}NAME")
             if not name:
                 break
+            api_url = os.getenv(f"{prefix}API_URL", "").strip()
+            if not api_url:
+                logger.warning("Skipping account %s: SF_ACCOUNT_%d_API_URL is empty", name, idx)
+                idx += 1
+                continue
             account = SkanujFaktureAccountConfig(
                 name=name,
                 login=os.getenv(f"{prefix}LOGIN", ""),
                 password=os.getenv(f"{prefix}PASSWORD", ""),
-                api_url=os.getenv(f"{prefix}API_URL", ""),
+                api_url=api_url,
                 company_id=int(cid) if (cid := os.getenv(f"{prefix}COMPANY_ID")) else None,
                 environment=os.getenv(f"{prefix}ENVIRONMENT", "production"),
             )
@@ -61,6 +66,8 @@ class AccountManager:
         return list(self._accounts.values())
 
     def add_account(self, account: SkanujFaktureAccountConfig) -> None:
+        if not (account.api_url or "").strip():
+            raise ValueError(f"Cannot add account '{account.name}': api_url is required")
         self._accounts[account.name] = account
         logger.info("Added account: %s", account.name)
 

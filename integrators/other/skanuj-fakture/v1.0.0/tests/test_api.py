@@ -13,32 +13,27 @@ from src.skanuj_fakture.schemas import AuthStatusResponse, ConnectionStatus
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        SkanujFaktureAccountConfig(
-            name="test",
-            login="test@example.com",
-            password="pass",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            SkanujFaktureAccountConfig(
+                name="test",
+                login="test@example.com",
+                password="pass",
+                api_url="https://skanujfakture.pl:8443/SFApi",
+            )
         )
-    )
-    app_state.account_manager = account_manager
+        app_state.account_manager = account_manager
 
-    integration = MagicMock(spec=SkanujFaktureIntegration)
-    integration.get_auth_status.return_value = AuthStatusResponse(
-        account_name="test",
-        authenticated=True,
-    )
-    app_state.integration = integration
+        integration = MagicMock(spec=SkanujFaktureIntegration)
+        integration.get_auth_status.return_value = AuthStatusResponse(
+            account_name="test",
+            authenticated=True,
+        )
+        app_state.integration = integration
 
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
         yield c
 
 
@@ -67,6 +62,7 @@ class TestAccountEndpoints:
                 "name": "new-account",
                 "login": "new@example.com",
                 "password": "secret",
+                "api_url": "https://skanujfakture.pl:8443/SFApi",
             },
         )
         assert response.status_code == 201
@@ -79,6 +75,7 @@ class TestAccountEndpoints:
                 "name": "to-remove",
                 "login": "remove@example.com",
                 "password": "secret",
+                "api_url": "https://skanujfakture.pl:8443/SFApi",
             },
         )
         response = client.delete("/accounts/to-remove")

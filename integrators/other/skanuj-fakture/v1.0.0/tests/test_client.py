@@ -30,7 +30,7 @@ class TestClientInit:
         assert auth_header.startswith("Basic ")
 
     def test_base_url_set(self, client: SkanujFaktureClient) -> None:
-        assert str(client._client.base_url) == "https://skanujfakture.pl:8443/SFApi"
+        assert str(client._client.base_url).rstrip("/") == "https://skanujfakture.pl:8443/SFApi"
 
 
 class TestCompanyMethods:
@@ -221,7 +221,7 @@ class TestDictionaryMethods:
         mock_response.json.return_value = {"status": "ok"}
         mock_response.raise_for_status = MagicMock()
 
-        client._client.delete = AsyncMock(return_value=mock_response)
+        client._client.request = AsyncMock(return_value=mock_response)
         result = await client.delete_dictionary_items(1, [1, 2])
 
         assert result["status"] == "ok"

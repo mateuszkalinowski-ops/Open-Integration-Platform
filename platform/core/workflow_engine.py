@@ -74,6 +74,7 @@ class WorkflowContext:
         self._merge_hits: dict[str, int] = {}
         self._visited_merges: set[str] = set()
         self._merge_lock: asyncio.Lock = asyncio.Lock()
+        self._completed_nodes: set[str] = set()
 
     def set_node_output(self, node_id: str, output: Any) -> None:
         self.node_outputs[node_id] = output
@@ -271,11 +272,7 @@ class WorkflowEngine:
                 if node_id in ctx._visited_merges:
                     return
                 predecessors = graph._incoming.get(node_id, [])
-                executed_predecessors = sum(
-                    1
-                    for pid in predecessors
-                    if pid in ctx.node_outputs or pid in {r["node_id"] for r in ctx.node_results}
-                )
+                executed_predecessors = sum(1 for pid in predecessors if pid in ctx._completed_nodes)
                 expected_hits = max(executed_predecessors, 1)
                 current_hits = ctx._merge_hits.get(node_id, 0) + 1
                 ctx._merge_hits[node_id] = current_hits
@@ -348,6 +345,7 @@ class WorkflowEngine:
             elif node_type == "response":
                 output = self._exec_response(config, ctx)
                 ctx.set_node_output(node_id, output)
+                ctx._completed_nodes.add(node_id)
                 result_entry["status"] = "success"
                 result_entry["output"] = _safe_truncate(output)
                 result_entry["_raw_output"] = copy.deepcopy(output)
@@ -356,6 +354,7 @@ class WorkflowEngine:
                 return
 
             ctx.set_node_output(node_id, output)
+            ctx._completed_nodes.add(node_id)
             if isinstance(output, dict):
                 ctx.data = {**ctx.data, **output}
 
@@ -656,6 +655,7 @@ class WorkflowEngine:
         shared_merge_hits = ctx._merge_hits
         shared_visited_merges = ctx._visited_merges
         shared_merge_lock = ctx._merge_lock
+        shared_completed_nodes = ctx._completed_nodes
 
         async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any, list]:
             branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
@@ -666,6 +666,7 @@ class WorkflowEngine:
             branch_ctx._merge_hits = shared_merge_hits
             branch_ctx._visited_merges = shared_visited_merges
             branch_ctx._merge_lock = shared_merge_lock
+            branch_ctx._completed_nodes = shared_completed_nodes
 
             try:
                 async with async_session_factory() as branch_db:

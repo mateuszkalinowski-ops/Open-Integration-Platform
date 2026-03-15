@@ -75,6 +75,7 @@ from api.auth import (
     generate_api_key,
     get_current_tenant,
     get_current_tenant_or_query,
+    get_current_tenant_or_token,
     hash_api_key,
 )
 from api.credential_validator import (
@@ -3361,17 +3362,20 @@ def _sanitize_filename(name: str) -> str:
 async def call_workflow_get(
     workflow_id: uuid.UUID,
     request: Request,
-    tenant: Tenant = Depends(get_current_tenant_or_query),
+    tenant: Tenant = Depends(get_current_tenant_or_token),
     db: AsyncSession = Depends(get_db),
 ) -> Any:
     """Execute a workflow via GET with query params as trigger_data.
 
+    Auth: ``X-API-Key`` header or ``token`` query parameter (credential token).
+
     Returns the presigned URL as a redirect (302) when the output contains
     a ``url`` field, otherwise returns the full context data as JSON.
 
-    Example: /api/v1/workflows/{id}/call?key=report.pdf&bucket=my-bucket
+    Example: /api/v1/workflows/{id}/call?token=ctok_xxx&key=report.pdf
     """
-    trigger_data = {k: v for k, v in request.query_params.items() if k != "api_key"}
+    _AUTH_PARAMS = {"api_key", "token"}
+    trigger_data = {k: v for k, v in request.query_params.items() if k not in _AUTH_PARAMS}
     result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:

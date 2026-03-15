@@ -822,12 +822,12 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   get callEndpoint(): string {
     const base = this.getApiBaseUrl();
-    return `${base}/api/v1/workflows/${this.workflowId}/call?api_key=YOUR_API_KEY&key=FILENAME`;
+    return `${base}/api/v1/workflows/${this.workflowId}/call?token=YOUR_CREDENTIAL_TOKEN&key=FILENAME`;
   }
 
   get callExample(): string {
     const base = this.getApiBaseUrl();
-    return `${base}/api/v1/workflows/${this.workflowId}/call?api_key=local-dev-key&key=example-file.pdf`;
+    return `${base}/api/v1/workflows/${this.workflowId}/call?token=ctok_xxx&key=example-file.pdf`;
   }
 
   get responseExample(): string {
@@ -899,10 +899,12 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     if (!found) {
       const fallback = this.resolveConnector(connName, connVers);
       if (fallback) {
+        node.config = node.config || {};
+        node.config['connector_version'] = fallback.version;
         this.snackBar.open(
-          `Connector version ${connVers} not found, using ${fallback.version} instead`,
+          `Connector version ${connVers} is no longer available. Updated to ${fallback.version}.`,
           'OK',
-          { duration: 5000 },
+          { duration: 8000 },
         );
       }
     }

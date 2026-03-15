@@ -1169,15 +1169,18 @@ Integration credentials are managed through the platform REST API. Authenticatio
 
 | Method | Endpoint | Description | Notes |
 |--------|----------|------|-------|
-| `POST` | `/api/v1/credentials` | Save credentials | Body: `connector_name` + `credentials` object |
-| `GET` | `/api/v1/credentials/{connector}` | Retrieve credentials | Secrets are masked (`***`) |
+| `POST` | `/api/v1/credentials` | Save credentials | Body: `connector_name` + `credentials` object. Returns credential token (`ctok_xxx`). |
+| `GET` | `/api/v1/credentials/{connector}` | Retrieve credentials | All values masked (`••••••••`), returns credential token |
+| `GET` | `/api/v1/credentials` | List all credentials | Each entry includes its credential token |
 | `POST` | `/api/v1/credentials/{connector}/validate` | Validate credentials | Available for WMS connectors (JWT) |
-| `DELETE` | `/api/v1/credentials/{connector}` | Delete credentials | Irreversible |
+| `POST` | `/api/v1/credentials/{connector}/token/regenerate` | Regenerate credential token | Old token immediately invalidated |
+| `POST` | `/api/v1/credentials/resolve-token` | Resolve token to credentials | Tenant-scoped, body: `{"token": "ctok_xxx"}` |
+| `DELETE` | `/api/v1/credentials/{connector}` | Delete credentials | Also deletes associated token. Irreversible. |
 
 ### 6.2 Usage Example
 
 ```bash
-# Save InPost credentials
+# Save InPost credentials — response includes credential token
 curl -X POST http://localhost:8080/api/v1/credentials \
   -H "X-API-Key: pk_live_xxx" \
   -H "Content-Type: application/json" \
@@ -1188,10 +1191,15 @@ curl -X POST http://localhost:8080/api/v1/credentials \
       "access_token": "abc..."
     }
   }'
+# Response: { "status": "stored", "token": "ctok_aBcDeFgH...", ... }
 
-# Retrieve credentials (secrets masked)
+# Retrieve credentials — values masked, token returned
 curl http://localhost:8080/api/v1/credentials/inpost \
   -H "X-API-Key: pk_live_xxx"
+# Response: { "values": {"organization_id": "••••••••", ...}, "token": "ctok_aBcDeFgH..." }
+
+# Use token to call a workflow (instead of exposing the API key in URL)
+curl "http://localhost:8080/api/v1/workflows/{id}/call?token=ctok_aBcDeFgH...&key=file.pdf"
 ```
 
 ### 6.3 Security
@@ -1199,6 +1207,8 @@ curl http://localhost:8080/api/v1/credentials/inpost \
 | Aspect | Implementation |
 |--------|---------------|
 | Database encryption | AES-256-GCM (envelope encryption) |
-| Response masking | Keys containing `password`, `secret`, `token`, `key` → `***` |
+| Response masking | All credential values masked as `••••••••` in GET responses — only the opaque token is returned |
+| Credential tokens | Opaque `ctok_xxx` references — used instead of API keys for public-facing endpoints (e.g. workflow `/call`) |
+| Token regeneration | `POST .../token/regenerate` — old token immediately invalidated |
 | Validation | Available for WMS connectors (JWT login) and Email (IMAP+SMTP test); others → `unsupported` status |
 | Tenant isolation | Row-Level Security in PostgreSQL |

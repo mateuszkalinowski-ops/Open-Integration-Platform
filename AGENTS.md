@@ -399,6 +399,22 @@ The Admin Dashboard is distributed in two forms:
 - Database connection strings: use SSL/TLS, never plaintext connections in production
 - Courier credentials passed in API calls MUST be base64-encoded and validated server-side — never log decoded credentials
 
+### 3.2.1 Credential tokens
+
+Each credential set (per tenant, connector, and credential name) is assigned an opaque **credential token** (`ctok_xxx`). Tokens provide two security benefits:
+
+1. **GET response masking**: `GET /api/v1/credentials/{connector}` returns the token instead of actual credential values — no secrets are ever exposed in API responses.
+2. **Lightweight authentication for public endpoints**: the workflow `GET /api/v1/workflows/{id}/call` endpoint accepts `?token=ctok_xxx` in the query string instead of the full platform API key (`pk_live_xxx`). The token identifies the tenant without granting full API access.
+
+Token lifecycle:
+- **Created** automatically on `POST /api/v1/credentials` — returned in the response
+- **Returned** in `GET /api/v1/credentials` and `GET /api/v1/credentials/{connector}` responses
+- **Regenerated** via `POST /api/v1/credentials/{connector}/token/regenerate` (old token immediately invalidated)
+- **Deleted** automatically when credentials are deleted
+- **Resolved** via `POST /api/v1/credentials/resolve-token` (tenant-scoped, for internal use)
+
+Tokens are stored in the `credential_tokens` table with RLS and a unique index on the `token` column.
+
 ### 3.3 Data protection (RODO/GDPR)
 
 - **Never log** personally identifiable information (PII): names, addresses, phone numbers, email addresses
@@ -412,7 +428,7 @@ The Admin Dashboard is distributed in two forms:
 
 - All inter-service communication within Docker network: use internal Docker networks, no exposed ports except the API gateway
 - External-facing services: expose only through a reverse proxy (nginx/traefik) with rate limiting
-- Public or semi-public workflow HTTP endpoints (for example `GET /api/v1/workflows/{id}/call` and direct workflow execution endpoints) MUST support per-workflow client IP allowlists. Store the allowlist in the workflow trigger configuration, support both exact IPs and CIDR ranges, and return HTTP 403 for disallowed clients.
+- Public or semi-public workflow HTTP endpoints (for example `GET /api/v1/workflows/{id}/call` and direct workflow execution endpoints) MUST support per-workflow client IP allowlists. Store the allowlist in the workflow trigger configuration, support both exact IPs and CIDR ranges, and return HTTP 403 for disallowed clients. These endpoints accept credential tokens (`?token=ctok_xxx`) for tenant identification instead of the full API key — never expose `pk_live_*` keys in URLs.
 - Kafka connections: SASL_SSL with certificate-based authentication
 - Database connections: SSL required, IP allowlisting for production
 - Health check endpoints (`/health`, `/readiness`): no authentication required but MUST NOT expose sensitive information

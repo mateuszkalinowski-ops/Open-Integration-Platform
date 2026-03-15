@@ -143,7 +143,7 @@ class EmailPoller:
             if account.tenant_id:
                 email_data["_tenant_id"] = account.tenant_id
 
-            kafka_ok = True
+            delivered = False
             if self._kafka:
                 envelope = wrap_event(
                     connector_name="email-client",
@@ -157,20 +157,25 @@ class EmailPoller:
                         envelope,
                         key=msg_key,
                     )
+                    delivered = True
                 except Exception:
                     logger.exception("Kafka send failed for msg_key=%s", msg_key)
-                    kafka_ok = False
 
-            if not kafka_ok:
-                all_notified = False
-                continue
-
-            seen.add(msg_key)
-            await self._state.mark_seen(account.name, msg_key)
-
-            if not await self._notify_platform("email.received", email_data):
-                logger.warning("Platform notify failed for msg_key=%s, Kafka delivery succeeded", msg_key)
-                all_notified = False
+                if delivered:
+                    seen.add(msg_key)
+                    await self._state.mark_seen(account.name, msg_key)
+                    if not await self._notify_platform("email.received", email_data):
+                        logger.warning("Platform notify failed for msg_key=%s, Kafka delivery succeeded", msg_key)
+                else:
+                    all_notified = False
+                    continue
+            else:
+                if await self._notify_platform("email.received", email_data):
+                    seen.add(msg_key)
+                    await self._state.mark_seen(account.name, msg_key)
+                else:
+                    logger.warning("Platform notify failed for msg_key=%s, will retry next poll", msg_key)
+                    all_notified = False
 
         logger.info(
             "Polled %d emails (%d new) for account=%s folder=%s notified=%s",

@@ -318,6 +318,7 @@ All REST endpoints use JSON. Error format:
 ### 3.4 Authentication
 
 - **Platform API**: API key in the `X-API-Key` header (prefix `pk_live_` / `pk_test_`)
+- **Credential tokens**: opaque tokens (`ctok_xxx`) that reference stored credentials without exposing their values. Can also be used as lightweight authentication for public-facing endpoints (e.g. workflow `/call`) instead of the full API key.
 - **External API**: credentials stored in an encrypted vault (AES-256-GCM), per-tenant
 - **Kafka**: SASL/PLAIN over TLS (SASL_SSL with PLAIN mechanism, configurable via `KAFKA_SASL_MECHANISM`)
 
@@ -576,6 +577,7 @@ The entity key uniquely identifies a record across sync runs. It supports:
 | `api_keys` | Hashed API keys for platform authentication | FK → `tenants` |
 | `connector_instances` | Connectors activated by a tenant with version and config | FK → `tenants`, UQ(tenant, name, version) |
 | `credentials` | AES-256-GCM encrypted credentials per connector per tenant | FK → `tenants`, UQ(tenant, connector, name, key) |
+| `credential_tokens` | Opaque token references for credential sets — used in GET responses and as lightweight auth for public endpoints | FK → `tenants`, UQ(tenant, connector, credential_name), unique `token` |
 | `flows` | Flow rules: source event → destination action | FK → `tenants`, parent of `flow_executions` |
 | `flow_executions` | Audit log of flow executions with results and timing | FK → `flows`, FK → `tenants` |
 | `field_mappings` | Per-tenant field mapping overrides (layer 2 of hybrid model) | FK → `tenants` |
@@ -633,6 +635,16 @@ Migrations `010`–`013` add tables and indexes for OAuth2, webhooks, audit trai
 
 RLS policies (`tenant_isolation` + `admin_bypass`) are applied to all four new tables.
 
+Migration `014` adds the `credential_tokens` table:
+
+| Index | Table | Description |
+| --- | --- | --- |
+| `ix_credential_tokens_token` | `credential_tokens` | B-tree on `token` for fast lookup by opaque token |
+| `ix_credential_tokens_tenant_connector` | `credential_tokens` | Composite on `(tenant_id, connector_name)` |
+| `uq_credential_tokens_tenant_connector_cred` | `credential_tokens` | Unique on `(tenant_id, connector_name, credential_name)` |
+
+RLS policies (`tenant_isolation` + `admin_bypass`) are applied to `credential_tokens`.
+
 Additional indexes: `verification_reports` has indexes on `run_id`, `connector_name`, `status`, `created_at`. `sync_ledger` has composite indexes on `(workflow_id, entity_key)` and `(workflow_id, sync_status)`.
 
 ### 4.3 Row Level Security
@@ -646,7 +658,7 @@ Migration `007` enables PostgreSQL Row Level Security (RLS) on all tenant-scoped
 
 **Session variable lifecycle:**
 
-1. `get_current_tenant()` authenticates the API key and executes `SET LOCAL app.current_tenant_id = '<uuid>'` on the shared database session.
+1. `get_current_tenant()` authenticates via API key (header) or credential token (query param) and executes `SET LOCAL app.current_tenant_id = '<uuid>'` on the shared database session.
 2. All subsequent queries in that request are automatically scoped to the tenant by the DB engine.
 3. Cross-tenant operations (Kafka event bridge, verification runner, startup provisioning) call `set_rls_bypass(session)` to set `app.rls_bypass = 'on'`.
 
