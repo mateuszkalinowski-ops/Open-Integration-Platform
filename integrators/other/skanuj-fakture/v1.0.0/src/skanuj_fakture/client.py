@@ -130,7 +130,7 @@ class SkanujFaktureClient:
         response.raise_for_status()
         return response.json()
 
-    async def get_documents(  # noqa: PLR0912,PLR0913
+    async def get_documents(
         self,
         company_id: int,
         document_statuses: list[str] | None = None,

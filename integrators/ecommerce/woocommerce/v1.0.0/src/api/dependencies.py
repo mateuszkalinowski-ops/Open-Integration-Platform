@@ -1,13 +1,14 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
+from src.models.database import StateStore
+from src.services.account_manager import AccountManager
 from src.woocommerce.auth import WooCommerceAuth
 from src.woocommerce.client import WooCommerceClient
 from src.woocommerce.integration import WooCommerceIntegration
 from src.woocommerce.scraper import OrderScraper
-from src.models.database import StateStore
-from src.services.account_manager import AccountManager
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
 
 
 class AppState:

@@ -238,7 +238,8 @@ class Workflow(Base):
 
     tenant: Mapped["Tenant"] = relationship("Tenant")
     executions: Mapped[list["WorkflowExecution"]] = relationship(
-        back_populates="workflow", passive_deletes=True,
+        back_populates="workflow",
+        passive_deletes=True,
     )
 
 
@@ -249,7 +250,9 @@ class WorkflowExecution(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     workflow_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("workflows.id", ondelete="SET NULL"), nullable=True,
+        UUID(as_uuid=True),
+        ForeignKey("workflows.id", ondelete="SET NULL"),
+        nullable=True,
     )
     tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
     workflow_name: Mapped[str | None] = mapped_column(String(300), nullable=True)
@@ -397,9 +400,7 @@ class VerificationReport(Base):
     connector_name: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     connector_version: Mapped[str] = mapped_column(String(20), nullable=False)
     connector_category: Mapped[str] = mapped_column(String(50), nullable=False)
-    tenant_id: Mapped[uuid.UUID | None] = mapped_column(
-        UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True
-    )
+    tenant_id: Mapped[uuid.UUID | None] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=True)
     status: Mapped[str] = mapped_column(String(20), nullable=False)
     checks: Mapped[list] = mapped_column(JSONB, default=list)
     summary: Mapped[dict] = mapped_column(JSONB, default=dict)

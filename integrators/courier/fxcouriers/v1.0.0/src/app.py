@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 try:
     SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -14,8 +13,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -49,6 +49,7 @@ integration = FxCouriersIntegration()
 # Health
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": "1.0.0", "system": "fxcouriers"}
@@ -64,6 +65,7 @@ async def readiness():
 # ---------------------------------------------------------------------------
 # Services
 # ---------------------------------------------------------------------------
+
 
 @app.get("/services")
 async def get_services(
@@ -84,6 +86,7 @@ async def get_services(
 # ---------------------------------------------------------------------------
 # Company
 # ---------------------------------------------------------------------------
+
 
 @app.get("/company/{company_id}")
 async def get_company(
@@ -106,11 +109,13 @@ async def get_company(
 # Orders
 # ---------------------------------------------------------------------------
 
+
 @app.post("/shipments", status_code=201)
 async def create_order(request: CreateOrderApiRequest):
     try:
         result, status_code = await integration.create_order(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -125,14 +130,17 @@ async def create_order(request: CreateOrderApiRequest):
 @app.get("/shipments")
 async def get_orders(
     api_token: str = Header(..., alias="X-Api-Token"),
-    since: Optional[str] = Query(default=None, description="YYYY-MM-DD"),
-    offset: Optional[int] = Query(default=None),
-    company_id: Optional[int] = Query(default=None),
+    since: str | None = Query(default=None, description="YYYY-MM-DD"),
+    offset: int | None = Query(default=None),
+    company_id: int | None = Query(default=None),
 ):
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
         result, status_code = await integration.get_orders(
-            credentials, since=since, offset=offset, company_id=company_id,
+            credentials,
+            since=since,
+            offset=offset,
+            company_id=company_id,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -152,7 +160,8 @@ async def find_order_by_number(
     credentials = FxCouriersCredentials(api_token=api_token)
     try:
         result, status_code = await integration.find_order_by_number(
-            credentials, order_number,
+            credentials,
+            order_number,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -201,6 +210,7 @@ async def delete_order(
 # Status & Tracking
 # ---------------------------------------------------------------------------
 
+
 @app.get("/shipments/{order_id}/status")
 async def get_order_status(
     order_id: int,
@@ -239,13 +249,15 @@ async def get_tracking(
 # Labels
 # ---------------------------------------------------------------------------
 
+
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     import base64
 
     try:
         label_data, status_code = await integration.get_label(
-            request.credentials, request.order_id,
+            request.credentials,
+            request.order_id,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=label_data)
@@ -266,11 +278,13 @@ async def get_label(request: LabelRequest):
 # Pickup (Shipment scheduling)
 # ---------------------------------------------------------------------------
 
+
 @app.post("/pickups", status_code=201)
 async def create_pickup(request: CreatePickupApiRequest):
     try:
         result, status_code = await integration.create_shipment(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)

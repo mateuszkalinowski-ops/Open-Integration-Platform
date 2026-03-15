@@ -135,7 +135,9 @@ class GlsIntegration:
         try:
             with self._session(credentials) as session_id:
                 track_id, error = self._call_service(
-                    "adeTrackID_Get", session=session_id, number=waybill_number,
+                    "adeTrackID_Get",
+                    session=session_id,
+                    number=waybill_number,
                 )
                 if error:
                     return error[0], error[1]
@@ -179,7 +181,7 @@ class GlsIntegration:
 
                 # Step 2: create pickup (unless explicitly skipped)
                 gls_extras = command.get("extras", {}).get("gls", {})
-                pickup_create = not (str(gls_extras.get("not_pickup", "")).lower() == "true")
+                pickup_create = str(gls_extras.get("not_pickup", "")).lower() != "true"
 
                 order_id = consign_id
                 if pickup_create:
@@ -262,7 +264,9 @@ class GlsIntegration:
                 return self._get_label(session_id, waybill_number)
 
             consign, error = self._call_service(
-                "adePickup_GetConsign", session=session_id, id=parcel_id,
+                "adePickup_GetConsign",
+                session=session_id,
+                id=parcel_id,
             )
             if error:
                 return error[0], error[1]
@@ -384,10 +388,7 @@ class GlsIntegration:
                 "id": gls_extras.get("custom_attributes", {}).get("target_point"),
             },
             "parcels": {
-                "items": [
-                    {"weight": p.get("weight", 0)}
-                    for p in unraveled
-                ],
+                "items": [{"weight": p.get("weight", 0)} for p in unraveled],
             },
         }
 

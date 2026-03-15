@@ -16,7 +16,11 @@ import httpx
 import structlog
 from fastapi import HTTPException
 
-from core.connector_registry import ConnectorManifest, ConnectorRegistry, DEFAULT_CONNECTOR_PORT
+from core.connector_registry import (
+    DEFAULT_CONNECTOR_PORT,
+    ConnectorManifest,
+    ConnectorRegistry,
+)
 
 logger = structlog.get_logger()
 
@@ -123,9 +127,7 @@ def _coerce_payload(
     return payload
 
 
-def _apply_credential_mapping(
-    credentials: dict[str, str], mapping: dict
-) -> dict[str, Any]:
+def _apply_credential_mapping(credentials: dict[str, str], mapping: dict) -> dict[str, Any]:
     """Build an account payload from credential_mapping config."""
     result: dict[str, Any] = {}
     for target_key, source_spec in mapping.items():
@@ -188,20 +190,20 @@ async def _ensure_account_generic(
                 await logger.ainfo("account_updated", account=account_name)
             else:
                 await logger.awarning(
-                    "account_update_failed", account=account_name,
+                    "account_update_failed",
+                    account=account_name,
                     status=resp.status_code,
                 )
         elif already_exists:
             return account_name
         else:
-            resp = await client.post(
-                f"{base_url}{account_endpoint}", json=account_payload
-            )
+            resp = await client.post(f"{base_url}{account_endpoint}", json=account_payload)
             if resp.status_code < 300:
                 await logger.ainfo("account_provisioned", account=account_name)
             else:
                 await logger.awarning(
-                    "account_provision_failed", account=account_name,
+                    "account_provision_failed",
+                    account=account_name,
                     status=resp.status_code,
                 )
     return account_name
@@ -219,9 +221,7 @@ async def _provision_credentials(
     mode = provisioning.get("mode", "none")
 
     if mode == "account":
-        account_name = await _ensure_account_generic(
-            base_url, credentials, provisioning
-        )
+        account_name = await _ensure_account_generic(base_url, credentials, provisioning)
         field = provisioning.get("payload_field", "account_name")
         payload[field] = account_name
 
@@ -233,10 +233,7 @@ async def _provision_credentials(
                 payload[target_key] = credentials[source_field]
         if "credentials" not in payload:
             payload["credentials"] = {
-                k: credentials.get(
-                    v if isinstance(v, str) else v.get("source", k), ""
-                )
-                for k, v in mapping.items()
+                k: credentials.get(v if isinstance(v, str) else v.get("source", k), "") for k, v in mapping.items()
             }
 
     elif mode == "inject_nested":
@@ -360,9 +357,7 @@ async def dispatch_action(
     if registry:
         manifest = registry.get_by_name_version(connector_name, connector_version)
 
-    base_url = manifest.base_url if manifest else _resolve_service_url(
-        connector_name, registry, connector_version
-    )
+    base_url = manifest.base_url if manifest else _resolve_service_url(connector_name, registry, connector_version)
 
     if _rate_limiter is not None:
         rl_result = await _rate_limiter.check(
@@ -388,9 +383,7 @@ async def dispatch_action(
         route = manifest.action_routes.get(action)
 
     if credentials:
-        payload = await _provision_credentials(
-            base_url, connector_name, payload, credentials, manifest
-        )
+        payload = await _provision_credentials(base_url, connector_name, payload, credentials, manifest)
 
     payload = _coerce_payload(manifest, action, payload)
 
@@ -405,7 +398,11 @@ async def dispatch_action(
         )
         async with httpx.AsyncClient(timeout=HTTP_TIMEOUT) as client:
             response = await _execute_with_429_retry(
-                client, "POST", url, connector_name, action,
+                client,
+                "POST",
+                url,
+                connector_name,
+                action,
                 json_body=payload,
             )
             response.raise_for_status()
@@ -447,8 +444,14 @@ async def dispatch_action(
                     if k != "file" and v is not None
                 }
                 response = await _execute_with_429_retry(
-                    client, "POST", url, connector_name, action,
-                    files=files, data=remaining, params=query_params,
+                    client,
+                    "POST",
+                    url,
+                    connector_name,
+                    action,
+                    files=files,
+                    data=remaining,
+                    params=query_params,
                     headers=extra_headers or None,
                 )
             else:
@@ -460,8 +463,13 @@ async def dispatch_action(
                 )
         else:
             response = await _execute_with_429_retry(
-                client, method, url, connector_name, action,
-                json_body=body, params=query_params,
+                client,
+                method,
+                url,
+                connector_name,
+                action,
+                json_body=body,
+                params=query_params,
                 headers=extra_headers or None,
             )
 

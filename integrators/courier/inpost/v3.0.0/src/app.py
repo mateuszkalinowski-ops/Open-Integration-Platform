@@ -9,7 +9,7 @@ from __future__ import annotations
 
 import sys
 from pathlib import Path
-from typing import Any
+from typing import Any, ClassVar
 
 try:
     SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -19,6 +19,7 @@ except (IndexError, OSError):
     pass
 
 from pinquark_connector_sdk import ConnectorApp, action
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -43,8 +44,8 @@ class InPostConnector(ConnectorApp):
     description = "InPost courier integration — Paczkomaty, Kurier, International, Returns"
 
     class Config:
-        required_credentials = ["organization_id", "client_secret"]
-        rate_limits = {"default": "100/minute"}
+        required_credentials: ClassVar[list[str]] = ["organization_id", "client_secret"]
+        rate_limits: ClassVar[dict[str, str]] = {"default": "100/minute"}
 
     def __init__(self) -> None:
         self._integration = InpostIntegration()
@@ -66,7 +67,9 @@ class InPostConnector(ConnectorApp):
     @action("shipment.create")
     async def create_shipment(self, payload: dict[str, Any]) -> dict[str, Any]:
         creds = self._creds(payload)
-        request = CreateShipmentRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        request = CreateShipmentRequest(
+            credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")}
+        )
         result, status_code = await self._integration.create_order(creds, request)
         if status_code >= 400:
             return {"error": result, "status_code": status_code}
@@ -96,6 +99,7 @@ class InPostConnector(ConnectorApp):
         if status_code >= 400:
             return {"error": str(label_bytes), "status_code": status_code}
         import base64
+
         return {"label_base64": base64.b64encode(label_bytes).decode(), "content_type": "application/pdf"}
 
     @action("shipment.cancel")
@@ -146,7 +150,9 @@ class InPostConnector(ConnectorApp):
     @action("return.create")
     async def create_return(self, payload: dict[str, Any]) -> dict[str, Any]:
         creds = self._creds(payload)
-        request = ReturnsShipmentRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        request = ReturnsShipmentRequest(
+            credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")}
+        )
         returns_dto = self._integration.build_returns_dto(request)
         result, status_code = await self._integration.create_return_shipment(creds, returns_dto)
         if status_code >= 400:
@@ -156,7 +162,9 @@ class InPostConnector(ConnectorApp):
     @action("pickup.create")
     async def create_pickup(self, payload: dict[str, Any]) -> dict[str, Any]:
         creds = self._creds(payload)
-        request = PickupRequest(credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")})
+        request = PickupRequest(
+            credentials=creds, **{k: v for k, v in payload.items() if k not in ("credentials", "account_name")}
+        )
         pickup_dto = self._integration._build_pickup_order_dto(
             CreateShipmentRequest(
                 credentials=creds,
@@ -176,7 +184,9 @@ class InPostConnector(ConnectorApp):
     async def get_pickup_hours(self, payload: dict[str, Any]) -> dict[str, Any]:
         creds = self._creds(payload)
         result, status_code = await self._integration.get_pickup_hours(
-            creds, payload["postcode"], payload.get("country_code", "PL"),
+            creds,
+            payload["postcode"],
+            payload.get("country_code", "PL"),
         )
         if status_code >= 400:
             return {"error": result, "status_code": status_code}
@@ -209,39 +219,74 @@ def _calculate_inpost_rates(
 
     if is_domestic:
         if billable <= 25 and max(length, width, height) <= 41:
-            products.append(RateProduct(
-                name="InPost Paczkomat (A)", price=12.99, currency="PLN",
-                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "A"},
-            ))
+            products.append(
+                RateProduct(
+                    name="InPost Paczkomat (A)",
+                    price=12.99,
+                    currency="PLN",
+                    delivery_days=2,
+                    attributes={"source": "inpost", "service": "paczkomat", "size": "A"},
+                )
+            )
         if billable <= 25 and max(length, width, height) <= 64:
-            products.append(RateProduct(
-                name="InPost Paczkomat (B)", price=13.99, currency="PLN",
-                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "B"},
-            ))
+            products.append(
+                RateProduct(
+                    name="InPost Paczkomat (B)",
+                    price=13.99,
+                    currency="PLN",
+                    delivery_days=2,
+                    attributes={"source": "inpost", "service": "paczkomat", "size": "B"},
+                )
+            )
         if billable <= 25:
-            products.append(RateProduct(
-                name="InPost Paczkomat (C)", price=15.49, currency="PLN",
-                delivery_days=2, attributes={"source": "inpost", "service": "paczkomat", "size": "C"},
-            ))
+            products.append(
+                RateProduct(
+                    name="InPost Paczkomat (C)",
+                    price=15.49,
+                    currency="PLN",
+                    delivery_days=2,
+                    attributes={"source": "inpost", "service": "paczkomat", "size": "C"},
+                )
+            )
         if billable <= 30:
-            products.append(RateProduct(
-                name="InPost Kurier Standard", price=14.99, currency="PLN",
-                delivery_days=2, attributes={"source": "inpost", "service": "courier_standard"},
-            ))
-            products.append(RateProduct(
-                name="InPost Kurier Express", price=19.99, currency="PLN",
-                delivery_days=1, attributes={"source": "inpost", "service": "courier_express"},
-            ))
+            products.append(
+                RateProduct(
+                    name="InPost Kurier Standard",
+                    price=14.99,
+                    currency="PLN",
+                    delivery_days=2,
+                    attributes={"source": "inpost", "service": "courier_standard"},
+                )
+            )
+            products.append(
+                RateProduct(
+                    name="InPost Kurier Express",
+                    price=19.99,
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "inpost", "service": "courier_express"},
+                )
+            )
     else:
         if billable <= 30:
-            products.append(RateProduct(
-                name="InPost International Standard", price=39.99, currency="PLN",
-                delivery_days=5, attributes={"source": "inpost", "service": "international_standard"},
-            ))
-            products.append(RateProduct(
-                name="InPost International Express", price=59.99, currency="PLN",
-                delivery_days=3, attributes={"source": "inpost", "service": "international_express"},
-            ))
+            products.append(
+                RateProduct(
+                    name="InPost International Standard",
+                    price=39.99,
+                    currency="PLN",
+                    delivery_days=5,
+                    attributes={"source": "inpost", "service": "international_standard"},
+                )
+            )
+            products.append(
+                RateProduct(
+                    name="InPost International Express",
+                    price=59.99,
+                    currency="PLN",
+                    delivery_days=3,
+                    attributes={"source": "inpost", "service": "international_express"},
+                )
+            )
     return products
 
 

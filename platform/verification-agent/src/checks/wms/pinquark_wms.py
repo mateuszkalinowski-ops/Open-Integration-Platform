@@ -46,8 +46,11 @@ async def run(
     # ── Auth ──
 
     if has_creds:
-        chk, resp = await req_check(
-            client, "POST", f"{base}/auth/sign-in", "auth_sign_in",
+        chk, _ = await req_check(
+            client,
+            "POST",
+            f"{base}/auth/sign-in",
+            "auth_sign_in",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
@@ -62,22 +65,31 @@ async def run(
     # ══ ARTICLES ══
 
     if has_creds:
-        chk, resp = await req_check(
-            client, "POST", f"{base}/articles/get", "get_articles",
+        chk, _resp = await req_check(
+            client,
+            "POST",
+            f"{base}/articles/get",
+            "get_articles",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/articles/get-delete-commands", "get_articles_delete_commands",
+            client,
+            "POST",
+            f"{base}/articles/get-delete-commands",
+            "get_articles_delete_commands",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/articles/create", "create_article_dummy",
+            client,
+            "POST",
+            f"{base}/articles/create",
+            "create_article_dummy",
             json_body={
                 **creds_body,
                 "article": {
@@ -92,7 +104,10 @@ async def run(
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/articles/delete", "delete_article_dummy",
+            client,
+            "POST",
+            f"{base}/articles/delete",
+            "delete_article_dummy",
             json_body={
                 **creds_body,
                 "command": {"uniqueCode": "VER_TEST_NONEXISTENT"},
@@ -101,15 +116,17 @@ async def run(
         )
         results.append(chk)
     else:
-        for name in ("get_articles", "get_articles_delete_commands",
-                      "create_article_dummy", "delete_article_dummy"):
+        for name in ("get_articles", "get_articles_delete_commands", "create_article_dummy", "delete_article_dummy"):
             results.append(result(name, "SKIP", 0, error="No credentials available"))
 
     # ══ ARTICLE BATCHES ══
 
     if has_creds:
         chk, _ = await req_check(
-            client, "POST", f"{base}/article-batches/get", "get_article_batches",
+            client,
+            "POST",
+            f"{base}/article-batches/get",
+            "get_article_batches",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
@@ -121,21 +138,30 @@ async def run(
 
     if has_creds:
         chk, _ = await req_check(
-            client, "POST", f"{base}/documents/get", "get_documents",
+            client,
+            "POST",
+            f"{base}/documents/get",
+            "get_documents",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/documents/get-delete-commands", "get_documents_delete_commands",
+            client,
+            "POST",
+            f"{base}/documents/get-delete-commands",
+            "get_documents_delete_commands",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/documents/create", "create_document_dummy",
+            client,
+            "POST",
+            f"{base}/documents/create",
+            "create_document_dummy",
             json_body={
                 **creds_body,
                 "document": {
@@ -150,7 +176,10 @@ async def run(
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/documents/delete", "delete_document_dummy",
+            client,
+            "POST",
+            f"{base}/documents/delete",
+            "delete_document_dummy",
             json_body={
                 **creds_body,
                 "command": {"uniqueCode": "VER_TEST_NONEXISTENT"},
@@ -159,22 +188,32 @@ async def run(
         )
         results.append(chk)
     else:
-        for name in ("get_documents", "get_documents_delete_commands",
-                      "create_document_dummy", "delete_document_dummy"):
+        for name in (
+            "get_documents",
+            "get_documents_delete_commands",
+            "create_document_dummy",
+            "delete_document_dummy",
+        ):
             results.append(result(name, "SKIP", 0, error="No credentials available"))
 
     # ══ POSITIONS ══
 
     if has_creds:
         chk, _ = await req_check(
-            client, "POST", f"{base}/positions/get", "get_positions",
+            client,
+            "POST",
+            f"{base}/positions/get",
+            "get_positions",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/positions/get-delete-commands", "get_positions_delete_commands",
+            client,
+            "POST",
+            f"{base}/positions/get-delete-commands",
+            "get_positions_delete_commands",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
@@ -187,21 +226,30 @@ async def run(
 
     if has_creds:
         chk, _ = await req_check(
-            client, "POST", f"{base}/contractors/get", "get_contractors",
+            client,
+            "POST",
+            f"{base}/contractors/get",
+            "get_contractors",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/contractors/get-delete-commands", "get_contractors_delete_commands",
+            client,
+            "POST",
+            f"{base}/contractors/get-delete-commands",
+            "get_contractors_delete_commands",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/contractors/create", "create_contractor_dummy",
+            client,
+            "POST",
+            f"{base}/contractors/create",
+            "create_contractor_dummy",
             json_body={
                 **creds_body,
                 "contractor": {
@@ -215,22 +263,27 @@ async def run(
         )
         results.append(chk)
     else:
-        for name in ("get_contractors", "get_contractors_delete_commands",
-                      "create_contractor_dummy"):
+        for name in ("get_contractors", "get_contractors_delete_commands", "create_contractor_dummy"):
             results.append(result(name, "SKIP", 0, error="No credentials available"))
 
     # ══ FEEDBACK & ERRORS ══
 
     if has_creds:
         chk, _ = await req_check(
-            client, "POST", f"{base}/feedbacks/get", "get_feedbacks",
+            client,
+            "POST",
+            f"{base}/feedbacks/get",
+            "get_feedbacks",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )
         results.append(chk)
 
         chk, _ = await req_check(
-            client, "POST", f"{base}/errors/get", "get_errors",
+            client,
+            "POST",
+            f"{base}/errors/get",
+            "get_errors",
             json_body=creds_body,
             accept_statuses=(200, 401),
         )

@@ -1,23 +1,22 @@
 """Tests for Slack integrator API routes."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import SlackAccountConfig
+from src.main import create_app
+from src.services.account_manager import AccountManager
 from src.slack_client.integration import SlackIntegration
 from src.slack_client.schemas import (
     AuthStatusResponse,
     FileUploadResponse,
     SendMessageResponse,
     SlackChannel,
-    SlackMessagesPage,
     SlackMessage,
+    SlackMessagesPage,
 )
-from src.main import create_app
-from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
@@ -25,16 +24,23 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(SlackAccountConfig(
-        name="test",
-        bot_token="xoxb-test-token",
-    ))
+    account_manager.add_account(
+        SlackAccountConfig(
+            name="test",
+            bot_token="xoxb-test-token",
+        )
+    )
     app_state.account_manager = account_manager
 
     integration = MagicMock(spec=SlackIntegration)
-    integration.get_auth_status = AsyncMock(return_value=AuthStatusResponse(
-        account_name="test", authenticated=True, bot_user_id="U001", team_name="TestTeam",
-    ))
+    integration.get_auth_status = AsyncMock(
+        return_value=AuthStatusResponse(
+            account_name="test",
+            authenticated=True,
+            bot_user_id="U001",
+            team_name="TestTeam",
+        )
+    )
     app_state.integration = integration
 
     return application
@@ -65,18 +71,24 @@ class TestAccountEndpoints:
         assert data[0]["name"] == "test"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-workspace",
-            "bot_token": "xoxb-new-token",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-workspace",
+                "bot_token": "xoxb-new-token",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-workspace"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "bot_token": "xoxb-remove-token",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "bot_token": "xoxb-remove-token",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 
@@ -113,10 +125,12 @@ class TestAuthEndpoints:
 
 class TestChannelEndpoints:
     def test_list_channels(self, client: TestClient) -> None:
-        app_state.integration.list_channels = AsyncMock(return_value=[
-            SlackChannel(id="C001", name="general", is_channel=True, num_members=42),
-            SlackChannel(id="C002", name="random", is_channel=True, num_members=38),
-        ])
+        app_state.integration.list_channels = AsyncMock(
+            return_value=[
+                SlackChannel(id="C001", name="general", is_channel=True, num_members=42),
+                SlackChannel(id="C002", name="random", is_channel=True, num_members=38),
+            ]
+        )
         response = client.get("/channels?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -130,14 +144,16 @@ class TestChannelEndpoints:
 
 class TestMessageEndpoints:
     def test_get_channel_messages(self, client: TestClient) -> None:
-        app_state.integration.get_channel_history = AsyncMock(return_value=SlackMessagesPage(
-            messages=[
-                SlackMessage(channel_id="C001", user_id="U001", text="Hello!", ts="1677000001.000001"),
-            ],
-            total=1,
-            has_more=False,
-            channel_id="C001",
-        ))
+        app_state.integration.get_channel_history = AsyncMock(
+            return_value=SlackMessagesPage(
+                messages=[
+                    SlackMessage(channel_id="C001", user_id="U001", text="Hello!", ts="1677000001.000001"),
+                ],
+                total=1,
+                has_more=False,
+                channel_id="C001",
+            )
+        )
         response = client.get("/messages?account_name=test&channel=C001")
         assert response.status_code == 200
         data = response.json()
@@ -145,50 +161,75 @@ class TestMessageEndpoints:
         assert data["messages"][0]["text"] == "Hello!"
 
     def test_send_message(self, client: TestClient) -> None:
-        app_state.integration.send_message = AsyncMock(return_value=SendMessageResponse(
-            ok=True, channel="C001", ts="1677000003.000003",
-            message_text="Test message", account_name="test",
-        ))
-        response = client.post("/messages/send?account_name=test", json={
-            "channel": "C001",
-            "text": "Test message",
-        })
+        app_state.integration.send_message = AsyncMock(
+            return_value=SendMessageResponse(
+                ok=True,
+                channel="C001",
+                ts="1677000003.000003",
+                message_text="Test message",
+                account_name="test",
+            )
+        )
+        response = client.post(
+            "/messages/send?account_name=test",
+            json={
+                "channel": "C001",
+                "text": "Test message",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["ok"]
 
     def test_send_message_unknown_account(self, client: TestClient) -> None:
-        response = client.post("/messages/send?account_name=nonexistent", json={
-            "channel": "C001",
-            "text": "Test",
-        })
+        response = client.post(
+            "/messages/send?account_name=nonexistent",
+            json={
+                "channel": "C001",
+                "text": "Test",
+            },
+        )
         assert response.status_code == 404
 
 
 class TestReactionEndpoints:
     def test_add_reaction(self, client: TestClient) -> None:
-        app_state.integration.add_reaction = AsyncMock(return_value={
-            "ok": True, "channel": "C001", "reaction": "thumbsup",
-        })
-        response = client.post("/reactions/add?account_name=test", json={
-            "channel": "C001",
-            "timestamp": "1677000001.000001",
-            "name": "thumbsup",
-        })
+        app_state.integration.add_reaction = AsyncMock(
+            return_value={
+                "ok": True,
+                "channel": "C001",
+                "reaction": "thumbsup",
+            }
+        )
+        response = client.post(
+            "/reactions/add?account_name=test",
+            json={
+                "channel": "C001",
+                "timestamp": "1677000001.000001",
+                "name": "thumbsup",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["ok"]
 
 
 class TestFileEndpoints:
     def test_upload_file(self, client: TestClient) -> None:
-        app_state.integration.upload_file = AsyncMock(return_value=FileUploadResponse(
-            ok=True, file_id="F001", file_url="https://files.slack.com/test",
-        ))
-        response = client.post("/files/upload?account_name=test", json={
-            "channels": ["C001"],
-            "filename": "test.txt",
-            "content_base64": "SGVsbG8gV29ybGQ=",
-            "title": "Test File",
-        })
+        app_state.integration.upload_file = AsyncMock(
+            return_value=FileUploadResponse(
+                ok=True,
+                file_id="F001",
+                file_url="https://files.slack.com/test",
+            )
+        )
+        response = client.post(
+            "/files/upload?account_name=test",
+            json={
+                "channels": ["C001"],
+                "filename": "test.txt",
+                "content_base64": "SGVsbG8gV29ybGQ=",
+                "title": "Test File",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["ok"]
         assert response.json()["file_id"] == "F001"

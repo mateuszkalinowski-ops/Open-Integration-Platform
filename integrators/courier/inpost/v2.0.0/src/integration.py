@@ -33,31 +33,31 @@ from src.api import (
 )
 from src.config import settings
 from src.schemas import (
+    AddedServicesDto,
     AddressDto,
     AddressFieldDto,
-    AddedServicesDto,
     ContactInfoDto,
     CreateShipmentDTO,
     CreateShipmentRequest,
     CreateShipmentResponseDto,
     CustomReferences,
-    DimensionsDto,
     DestinationPointDto,
-    InsuranceDto,
+    DimensionsDto,
     InpostCredentials,
+    InsuranceDto,
     OriginPointDto,
     ParcelDto,
     PhoneNumberDto,
     PickupAddress,
     PickupContactInfo,
     PickupPhoneNumber,
-    PickupTime,
     PickupsCreatePickupOrderDto,
+    PickupTime,
     PickupVolume,
     ShipmentDto,
     ShipmentParty,
-    Tracking,
     TotalWeight,
+    Tracking,
     WeightDto,
 )
 
@@ -447,10 +447,12 @@ class InpostIntegration:
         pickup_time = None
         if pickup_date and pickup_time_from_str and pickup_time_to_str:
             from_ = datetime.strptime(
-                f"{pickup_date} {pickup_time_from_str}", "%Y-%m-%d %H:%M",
+                f"{pickup_date} {pickup_time_from_str}",
+                "%Y-%m-%d %H:%M",
             ).replace(tzinfo=ZoneInfo("Europe/Warsaw"))
             to_ = datetime.strptime(
-                f"{pickup_date} {pickup_time_to_str}", "%Y-%m-%d %H:%M",
+                f"{pickup_date} {pickup_time_to_str}",
+                "%Y-%m-%d %H:%M",
             ).replace(tzinfo=ZoneInfo("Europe/Warsaw"))
             pickup_time = PickupTime(from_=from_.isoformat(), to_=to_.isoformat())
 

@@ -1,7 +1,7 @@
 """Tests for BulkGate SMS Gateway — Pydantic schemas."""
 
 import pytest
-
+from pydantic import ValidationError
 from src.schemas import (
     BulkGateCredentials,
     BulkGateErrorResponse,
@@ -12,9 +12,9 @@ from src.schemas import (
     DeliveryReportPayload,
     IncomingSmsPayload,
     SendAdvancedSmsRequest,
+    SenderIdType,
     SendPromotionalSmsRequest,
     SendTransactionalSmsRequest,
-    SenderIdType,
     SmsChannelObject,
     SmsPartResponse,
     TransactionalSmsResponse,
@@ -29,7 +29,7 @@ class TestBulkGateCredentials:
         assert creds.application_token == "tok-abc"
 
     def test_missing_field_raises(self):
-        with pytest.raises(Exception):
+        with pytest.raises(ValidationError):
             BulkGateCredentials(application_id="12345")
 
 

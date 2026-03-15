@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 import httpx
@@ -29,9 +29,9 @@ try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
     augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
+from pinquark_common.kafka import KafkaMessageProducer
 from pinquark_common.logging import setup_logging
 from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
@@ -87,8 +87,7 @@ async def _fetch_credentials_once(
                     imap_port=int(creds.get("imap_port", "993")),
                     smtp_host=creds.get("smtp_host", ""),
                     smtp_port=int(creds.get("smtp_port", "587")),
-                    use_ssl=creds.get("use_ssl", "true").lower()
-                    in ("true", "1", "yes"),
+                    use_ssl=creds.get("use_ssl", "true").lower() in ("true", "1", "yes"),
                     polling_folder=creds.get("polling_folder", "INBOX"),
                     polling_interval_seconds=int(raw_interval) if raw_interval else None,
                 )
@@ -191,9 +190,7 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
         poller_task = asyncio.create_task(poller.start())
         logger.info("Email poller scheduled every %ds", settings.polling_interval_seconds)
 
-    cred_refresh_task = asyncio.create_task(
-        _credential_refresh_loop(account_manager, poller, integration)
-    )
+    cred_refresh_task = asyncio.create_task(_credential_refresh_loop(account_manager, poller, integration))
 
     logger.info(
         "Email Client Integrator ready — accounts=%d, kafka=%s, polling=%s",
@@ -206,18 +203,14 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
 
     logger.info("Shutting down Email Client Integrator")
     cred_refresh_task.cancel()
-    try:
+    with suppress(asyncio.CancelledError):
         await cred_refresh_task
-    except asyncio.CancelledError:
-        pass
     if app_state.poller:
         await app_state.poller.stop()
     if poller_task:
         poller_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await poller_task
-        except asyncio.CancelledError:
-            pass
     if kafka_producer:
         await kafka_producer.stop()
     await integration.close()

@@ -6,10 +6,10 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.config import settings
 from src.woocommerce.auth import WooCommerceAuth
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -90,20 +90,25 @@ class WooCommerceClient:
 
             operation = path.split("/")[0] if path else "unknown"
             metrics["external_api_calls_total"].labels(
-                system="woocommerce", operation=operation, status=response.status_code,
+                system="woocommerce",
+                operation=operation,
+                status=response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="woocommerce", operation=operation,
+                system="woocommerce",
+                operation=operation,
             ).observe(duration)
 
             if response.status_code == 401:
                 logger.warning(
                     "WooCommerce 401 on attempt %d for account=%s path=%s — check consumer_key/consumer_secret",
-                    attempt + 1, account_name, path,
+                    attempt + 1,
+                    account_name,
+                    path,
                 )
                 if attempt == settings.max_retries - 1:
                     raise WooCommerceApiError(401, "Authentication failed — invalid consumer key or secret")
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
+                backoff = settings.retry_backoff_factor * (2**attempt)
                 await asyncio.sleep(backoff)
                 continue
 
@@ -173,7 +178,10 @@ class WooCommerceClient:
         return resp.json()
 
     async def update_order(
-        self, order_id: int, account_name: str, data: dict[str, Any],
+        self,
+        order_id: int,
+        account_name: str,
+        data: dict[str, Any],
     ) -> dict[str, Any]:
         resp = await self.put(f"orders/{order_id}", account_name, json_data=data)
         resp.raise_for_status()
@@ -211,17 +219,24 @@ class WooCommerceClient:
         return resp.json()
 
     async def update_product(
-        self, product_id: int, account_name: str, data: dict[str, Any],
+        self,
+        product_id: int,
+        account_name: str,
+        data: dict[str, Any],
     ) -> dict[str, Any]:
         resp = await self.put(f"products/{product_id}", account_name, json_data=data)
         resp.raise_for_status()
         return resp.json()
 
     async def update_product_stock(
-        self, product_id: int, quantity: int, account_name: str,
+        self,
+        product_id: int,
+        quantity: int,
+        account_name: str,
     ) -> dict[str, Any]:
         return await self.update_product(
-            product_id, account_name,
+            product_id,
+            account_name,
             {"stock_quantity": quantity, "manage_stock": True},
         )
 
@@ -306,10 +321,13 @@ class WooCommerceClient:
         duration = time.monotonic() - start
 
         metrics["external_api_calls_total"].labels(
-            system="woocommerce", operation="upload_media", status=resp.status_code,
+            system="woocommerce",
+            operation="upload_media",
+            status=resp.status_code,
         ).inc()
         metrics["external_api_duration"].labels(
-            system="woocommerce", operation="upload_media",
+            system="woocommerce",
+            operation="upload_media",
         ).observe(duration)
 
         resp.raise_for_status()

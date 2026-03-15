@@ -9,9 +9,9 @@ import logging
 from typing import Any
 
 import aiosqlite
+from pinquark_common.security import decrypt_value, encrypt_value
 
 from src.config import settings
-from pinquark_common.security import encrypt_value, decrypt_value
 
 logger = logging.getLogger(__name__)
 
@@ -66,15 +66,17 @@ class TokenStore:
 
     async def load_all_tokens(self) -> dict[str, dict[str, Any]]:
         result: dict[str, dict[str, Any]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, token_data FROM oauth_tokens") as cursor:
-                async for row in cursor:
-                    account_name, stored = row
-                    try:
-                        raw = decrypt_value(stored, self._encryption_key) if self._encryption_key else stored
-                        result[account_name] = json.loads(raw)
-                    except Exception:
-                        logger.warning("Failed to decrypt token for account=%s, skipping", account_name)
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, token_data FROM oauth_tokens") as cursor,
+        ):
+            async for row in cursor:
+                account_name, stored = row
+                try:
+                    raw = decrypt_value(stored, self._encryption_key) if self._encryption_key else stored
+                    result[account_name] = json.loads(raw)
+                except Exception:
+                    logger.warning("Failed to decrypt token for account=%s, skipping", account_name)
         return result
 
     async def delete_token(self, account_name: str) -> None:
@@ -94,8 +96,10 @@ class TokenStore:
 
     async def load_all_last_event_ids(self) -> dict[str, str]:
         result: dict[str, str] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, last_event_id FROM scraper_state") as cursor:
-                async for row in cursor:
-                    result[row[0]] = row[1]
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, last_event_id FROM scraper_state") as cursor,
+        ):
+            async for row in cursor:
+                result[row[0]] = row[1]
         return result

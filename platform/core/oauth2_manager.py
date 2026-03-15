@@ -9,18 +9,18 @@ from __future__ import annotations
 
 import secrets
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
+from string import Formatter
 from typing import Any
 from urllib.parse import urlencode
-from string import Formatter
 
 import httpx
 import structlog
-from sqlalchemy import select, and_
+from db.models import OAuthToken
+from sqlalchemy import and_, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.credential_vault import CredentialVault
-from db.models import OAuthToken
 
 logger = structlog.get_logger(__name__)
 
@@ -66,13 +66,13 @@ class OAuth2Manager:
             params["scope"] = " ".join(scopes)
 
         if resolved_config.get("pkce"):
-            import hashlib
             import base64
+            import hashlib
 
             code_verifier = secrets.token_urlsafe(64)
-            code_challenge = base64.urlsafe_b64encode(
-                hashlib.sha256(code_verifier.encode()).digest()
-            ).rstrip(b"=").decode()
+            code_challenge = (
+                base64.urlsafe_b64encode(hashlib.sha256(code_verifier.encode()).digest()).rstrip(b"=").decode()
+            )
             params["code_challenge"] = code_challenge
             params["code_challenge_method"] = "S256"
 
@@ -145,7 +145,12 @@ class OAuth2Manager:
             token_data = resp.json()
 
         return await self._store_token(
-            db, tenant_id, connector_name, credential_name, connector_name, token_data,
+            db,
+            tenant_id,
+            connector_name,
+            credential_name,
+            connector_name,
+            token_data,
         )
 
     async def refresh_token(
@@ -210,7 +215,7 @@ class OAuth2Manager:
             return None
         if token.status not in ("active",):
             return None
-        if token.expires_at is not None and token.expires_at <= datetime.now(timezone.utc):
+        if token.expires_at is not None and token.expires_at <= datetime.now(UTC):
             return None
         return self._vault._decrypt(token.access_token_encrypted)
 
@@ -234,7 +239,7 @@ class OAuth2Manager:
         if token.status not in ("active",):
             return None
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expired = token.expires_at is not None and token.expires_at <= now
         if not expired:
             return self._vault._decrypt(token.access_token_encrypted)
@@ -263,7 +268,7 @@ class OAuth2Manager:
         within_seconds: int = 300,
     ) -> list[OAuthToken]:
         """Return all active tokens expiring within the given window."""
-        cutoff = datetime.now(timezone.utc) + timedelta(seconds=within_seconds)
+        cutoff = datetime.now(UTC) + timedelta(seconds=within_seconds)
         result = await db.execute(
             select(OAuthToken).where(
                 and_(
@@ -288,7 +293,7 @@ class OAuth2Manager:
         if token is None:
             return {"has_token": False, "status": "none"}
 
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         expires_in = None
         if token.expires_at:
             expires_in = max(0, int((token.expires_at - now).total_seconds()))
@@ -323,11 +328,7 @@ class OAuth2Manager:
     @staticmethod
     def resolve_oauth2_config(oauth2_config: dict[str, Any]) -> dict[str, Any]:
         """Resolve templated OAuth2 config values using the config itself as context."""
-        context = {
-            key: value
-            for key, value in oauth2_config.items()
-            if isinstance(value, (str, int, float, bool))
-        }
+        context = {key: value for key, value in oauth2_config.items() if isinstance(value, (str, int, float, bool))}
         formatter = Formatter()
 
         def _resolve(value: Any) -> Any:
@@ -359,11 +360,14 @@ class OAuth2Manager:
         credential_name: str,
     ) -> OAuthToken | None:
         result = await db.execute(
-            select(OAuthToken).where(
+            select(OAuthToken)
+            .where(
                 OAuthToken.tenant_id == tenant_id,
                 OAuthToken.connector_name == connector_name,
                 OAuthToken.credential_name == credential_name,
-            ).order_by(OAuthToken.created_at.desc()).limit(1)
+            )
+            .order_by(OAuthToken.created_at.desc())
+            .limit(1)
         )
         return result.scalar_one_or_none()
 
@@ -379,7 +383,7 @@ class OAuth2Manager:
         access_token = token_data["access_token"]
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         expires_at = None
         if expires_in:
@@ -421,7 +425,7 @@ class OAuth2Manager:
         access_token = token_data["access_token"]
         refresh_token = token_data.get("refresh_token")
         expires_in = token_data.get("expires_in")
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         oauth_token.access_token_encrypted = self._vault._encrypt(access_token)
         if refresh_token:
@@ -434,13 +438,21 @@ class OAuth2Manager:
         oauth_token.last_error = None
 
         await self._vault.store(
-            db, oauth_token.tenant_id, oauth_token.connector_name,
-            "access_token", access_token, oauth_token.credential_name,
+            db,
+            oauth_token.tenant_id,
+            oauth_token.connector_name,
+            "access_token",
+            access_token,
+            oauth_token.credential_name,
         )
         if refresh_token:
             await self._vault.store(
-                db, oauth_token.tenant_id, oauth_token.connector_name,
-                "refresh_token", refresh_token, oauth_token.credential_name,
+                db,
+                oauth_token.tenant_id,
+                oauth_token.connector_name,
+                "refresh_token",
+                refresh_token,
+                oauth_token.credential_name,
             )
 
         await db.flush()

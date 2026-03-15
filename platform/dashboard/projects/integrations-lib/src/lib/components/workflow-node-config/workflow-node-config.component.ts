@@ -11,6 +11,7 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
+import { MatSnackBar } from '@angular/material/snack-bar';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 import {
@@ -999,6 +1000,7 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
   private _selfEmit = false;
   private readonly destroy$ = new Subject<void>();
   private schemaRequestId = 0;
+  private _credentialLoadId = 0;
 
   readonly conditionOperators = CONDITION_OPERATORS;
   readonly transformTypes = TRANSFORM_TYPES;
@@ -1006,6 +1008,7 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
   constructor(
     private readonly api: PinquarkApiService,
     private readonly dialog: MatDialog,
+    private readonly snackBar: MatSnackBar,
   ) {}
 
   ngOnDestroy(): void {
@@ -1025,6 +1028,7 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
         this.cfg['allowed_ips'] = (this.cfg['allowed_ips'] as unknown[]).map(v => String(v).trim()).filter(Boolean).join('\n');
       }
       this.updateConnectorLists();
+      this.warnIfConnectorVersionSubstituted();
       this.updateFieldDefs();
       if (this.node.type === 'think') {
         this.loadCredentialNames('ai-agent');
@@ -1867,11 +1871,13 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
   private loadCredentialNames(connectorName: string): void {
     this.loadingCredentialNames = true;
     this.credentialNames = [];
+    const loadId = ++this._credentialLoadId;
     const currentCredential = typeof this.cfg['credential_name'] === 'string'
       ? String(this.cfg['credential_name'])
       : '';
     this.api.listCredentialNames(connectorName).pipe(takeUntil(this.destroy$)).subscribe({
       next: (names: string[]) => {
+        if (loadId !== this._credentialLoadId) return;
         this.credentialNames = names;
         this.loadingCredentialNames = false;
         const nextCredential = this.chooseCredentialName(names, currentCredential);
@@ -1884,10 +1890,35 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
         }
       },
       error: () => {
+        if (loadId !== this._credentialLoadId) return;
         this.loadingCredentialNames = false;
         this.credentialNames = [];
       },
     });
+  }
+
+  private warnIfConnectorVersionSubstituted(): void {
+    if (
+      this.node?.type !== 'trigger' &&
+      this.node?.type !== 'action' &&
+      this.node?.type !== 'http_request'
+    ) {
+      return;
+    }
+    const connName = String(this.cfg['connector_name'] ?? '');
+    const connVers = String(this.cfg['connector_version'] ?? '');
+    if (!connName || !connVers) return;
+    const found = this.connectors.find(c => c.name === connName && c.version === connVers);
+    if (!found) {
+      const fallback = this.resolveConnector(connName, connVers);
+      if (fallback) {
+        this.snackBar.open(
+          `Connector version ${connVers} not found, using ${fallback.version} instead`,
+          'OK',
+          { duration: 5000 },
+        );
+      }
+    }
   }
 
   // ── Trigger Filters ──

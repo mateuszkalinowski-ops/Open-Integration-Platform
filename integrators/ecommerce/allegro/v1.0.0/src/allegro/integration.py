@@ -14,11 +14,12 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+
 from src.allegro.client import AllegroClient
 from src.allegro.mapper import (
+    extract_ean_from_parameters,
     map_checkout_to_order,
     order_status_to_fulfillment,
-    extract_ean_from_parameters,
 )
 from src.allegro.schemas import AllegroCheckoutForm
 from src.services.account_manager import AccountManager
@@ -56,8 +57,11 @@ class AllegroIntegration(EcommerceIntegration):
 
         resp = await self._client.get(
             "order/checkout-forms",
-            account.name, account.client_id, account.client_secret,
-            account.api_url, account.auth_url,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.api_url,
+            account.auth_url,
             params=params,
         )
         resp.raise_for_status()
@@ -79,8 +83,12 @@ class AllegroIntegration(EcommerceIntegration):
     async def get_order(self, account_name: str, order_id: str) -> Order:
         account = self._get_account(account_name)
         checkout_data = await self._client.get_checkout_form(
-            order_id, account.name, account.client_id, account.client_secret,
-            account.api_url, account.auth_url,
+            order_id,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.api_url,
+            account.auth_url,
         )
         checkout = AllegroCheckoutForm.model_validate(checkout_data)
         return map_checkout_to_order(checkout, account_name)
@@ -94,9 +102,13 @@ class AllegroIntegration(EcommerceIntegration):
         account = self._get_account(account_name)
         fulfillment = order_status_to_fulfillment(status)
         await self._client.update_fulfillment_status(
-            order_id, fulfillment.value,
-            account.name, account.client_id, account.client_secret,
-            account.api_url, account.auth_url,
+            order_id,
+            fulfillment.value,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.api_url,
+            account.auth_url,
         )
         logger.info("Updated order=%s to status=%s (fulfillment=%s)", order_id, status, fulfillment)
 
@@ -115,8 +127,11 @@ class AllegroIntegration(EcommerceIntegration):
                 await self._client.update_offer_stock(
                     item.product_id or item.sku,
                     int(item.quantity),
-                    account.name, account.client_id, account.client_secret,
-                    account.api_url, account.auth_url,
+                    account.name,
+                    account.client_id,
+                    account.client_secret,
+                    account.api_url,
+                    account.auth_url,
                 )
                 succeeded += 1
             except Exception as exc:
@@ -136,8 +151,12 @@ class AllegroIntegration(EcommerceIntegration):
     async def get_product(self, account_name: str, product_id: str) -> Product:
         account = self._get_account(account_name)
         offer_data = await self._client.get_offer(
-            product_id, account.name, account.client_id, account.client_secret,
-            account.api_url, account.auth_url,
+            product_id,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.api_url,
+            account.auth_url,
         )
         ean = extract_ean_from_parameters(offer_data.get("parameters", []))
         return Product(
@@ -161,21 +180,28 @@ class AllegroIntegration(EcommerceIntegration):
         Step 2: PUT binary PDF to /invoices/{invoiceId}/file
         """
         account = self._get_account(account_name)
-        auth_args = (account.name, account.client_id, account.client_secret,
-                     account.api_url, account.auth_url)
+        auth_args = (account.name, account.client_id, account.client_secret, account.api_url, account.auth_url)
 
         meta = await self._client.create_invoice_metadata(
-            order_id, invoice_number or invoice_filename, invoice_filename, *auth_args,
+            order_id,
+            invoice_number or invoice_filename,
+            invoice_filename,
+            *auth_args,
         )
         invoice_id = meta["id"]
 
         await self._client.upload_invoice_file(
-            order_id, invoice_id, invoice_file, *auth_args,
+            order_id,
+            invoice_id,
+            invoice_file,
+            *auth_args,
         )
 
         logger.info(
             "Uploaded invoice=%s (id=%s) for order=%s",
-            invoice_filename, invoice_id, order_id,
+            invoice_filename,
+            invoice_id,
+            order_id,
         )
         return {"invoice_id": invoice_id, "filename": invoice_filename}
 
@@ -183,8 +209,12 @@ class AllegroIntegration(EcommerceIntegration):
         """Retrieve invoice details for an Allegro order."""
         account = self._get_account(account_name)
         return await self._client.get_order_invoices(
-            order_id, account.name, account.client_id, account.client_secret,
-            account.api_url, account.auth_url,
+            order_id,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.api_url,
+            account.auth_url,
         )
 
     async def search_products(
@@ -216,13 +246,15 @@ class AllegroIntegration(EcommerceIntegration):
         products: list[Product] = []
         for offer in all_offers:
             price_data = offer.get("sellingMode", {}).get("price", {})
-            products.append(Product(
-                external_id=offer.get("id", ""),
-                name=offer.get("name", ""),
-                price=float(price_data.get("amount", 0)),
-                currency=price_data.get("currency", "PLN"),
-                attributes={"url": offer.get("url", ""), "source": "allegro"},
-            ))
+            products.append(
+                Product(
+                    external_id=offer.get("id", ""),
+                    name=offer.get("name", ""),
+                    price=float(price_data.get("amount", 0)),
+                    currency=price_data.get("currency", "PLN"),
+                    attributes={"url": offer.get("url", ""), "source": "allegro"},
+                )
+            )
 
         total = data.get("searchMeta", {}).get("totalCount", len(products))
         return ProductsPage(

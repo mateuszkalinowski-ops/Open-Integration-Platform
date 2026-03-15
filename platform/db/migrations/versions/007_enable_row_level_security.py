@@ -14,14 +14,15 @@ Note: RLS is enforced only for non-owner roles by default.  Production
 deployments MUST use a dedicated application role that does not own the
 tables (see docs/ARCHITECTURE.md § Tenant isolation).
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 from alembic import op
 
 revision: str = "007"
-down_revision: Union[str, None] = "006"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "006"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 _RLS_TABLES = [
     "connector_instances",

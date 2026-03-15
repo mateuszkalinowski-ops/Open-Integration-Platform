@@ -12,6 +12,7 @@ Handles all FedEx REST API interactions including:
 from __future__ import annotations
 
 import base64
+import contextlib
 import io
 import logging
 import zipfile
@@ -73,6 +74,7 @@ GET_POINT_SCHEMA: dict = {
 
 def _deep_copy_schema(schema: dict) -> dict:
     import json
+
     return json.loads(json.dumps(schema))
 
 
@@ -134,19 +136,12 @@ class FedexIntegration:
 
     @staticmethod
     def _pack_errors(response: httpx.Response) -> tuple[str, int]:
-        error_str = " ".join(
-            error["message"] for error in response.json()["errors"]
-        )
+        error_str = " ".join(error["message"] for error in response.json()["errors"])
         return error_str, response.status_code
 
     @staticmethod
     def _strip_package_label(order: dict) -> dict:
-        shipments = (
-            order.get("extras", {})
-            .get("fedex", {})
-            .get("output", {})
-            .get("transactionShipments", {})
-        )
+        shipments = order.get("extras", {}).get("fedex", {}).get("output", {}).get("transactionShipments", {})
         if not shipments:
             return order
         for piece in shipments[0].get("pieceResponses", []):
@@ -200,7 +195,8 @@ class FedexIntegration:
             )
 
         access_token = await self._get_oauth_token(
-            credentials.client_id, credentials.client_secret,
+            credentials.client_id,
+            credentials.client_secret,
         )
         if not access_token:
             return (
@@ -329,7 +325,8 @@ class FedexIntegration:
             return "extras.fedex.account_id is required", HTTPStatus.BAD_REQUEST
 
         access_token = await self._get_oauth_token(
-            credentials.client_id, credentials.client_secret,
+            credentials.client_id,
+            credentials.client_secret,
         )
         if not access_token:
             return (
@@ -370,11 +367,7 @@ class FedexIntegration:
         The FedEx REST API returns encoded labels inline in the create-shipment
         response (transactionShipments.pieceResponses.packageDocuments.encodedLabel).
         """
-        shipments = (
-            shipment_response
-            .get("output", {})
-            .get("transactionShipments", [])
-        )
+        shipments = shipment_response.get("output", {}).get("transactionShipments", [])
         if not shipments:
             return "Nie znaleziono etykiet", HTTPStatus.NOT_FOUND
 
@@ -408,7 +401,8 @@ class FedexIntegration:
     ) -> tuple[dict | str, int]:
         """Find FedEx locations via /location/v1/locations."""
         access_token = await self._get_oauth_token(
-            credentials.client_id, credentials.client_secret,
+            credentials.client_id,
+            credentials.client_secret,
         )
         if not access_token:
             return (
@@ -440,11 +434,7 @@ class FedexIntegration:
             fedex_address = fedex_point["contactAndAddress"]["address"]
 
             point["type"] = fedex_point.get("locationType", "")
-            point["name"] = (
-                fedex_point["contactAndAddress"]
-                .get("addressAncillaryDetail", {})
-                .get("displayName", "")
-            )
+            point["name"] = fedex_point["contactAndAddress"].get("addressAncillaryDetail", {}).get("displayName", "")
 
             street_lines = fedex_address.get("streetLines", [])
             if len(street_lines) > 0:
@@ -470,7 +460,7 @@ class FedexIntegration:
                 hours_type = hours.get("operationalHoursType")
                 if hours_type == "OPEN_BY_HOURS" and "operationalHours" in hours:
                     oh = hours["operationalHours"]
-                    open_hours_lines.append(f'{day_name}: {oh["begins"]} - {oh["ends"]}')
+                    open_hours_lines.append(f"{day_name}: {oh['begins']} - {oh['ends']}")
                 elif hours_type == "CLOSED_ALL_DAY":
                     open_hours_lines.append(f"{day_name}: zamknięte cały dzień")
                 elif hours_type == "OPEN_ALL_DAY":
@@ -492,7 +482,8 @@ class FedexIntegration:
     ) -> tuple[dict | str, int]:
         """Retrieve shipping rates via FedEx Rate API (/rate/v1/rates/quotes)."""
         access_token = await self._get_oauth_token(
-            credentials.client_id, credentials.client_secret,
+            credentials.client_id,
+            credentials.client_secret,
         )
         if not access_token:
             return "FedEx token acquisition failed", HTTPStatus.BAD_REQUEST
@@ -565,25 +556,24 @@ class FedexIntegration:
                 charges = float(charges)
 
             transit_days = None
-            if transit := detail.get("commit", {}):
-                if date_detail := transit.get("dateDetail", {}):
-                    transit_days_str = date_detail.get("dayCount")
-                    if transit_days_str:
-                        try:
-                            transit_days = int(transit_days_str)
-                        except (ValueError, TypeError):
-                            pass
+            if (transit := detail.get("commit", {})) and (date_detail := transit.get("dateDetail", {})):
+                transit_days_str = date_detail.get("dayCount")
+                if transit_days_str:
+                    with contextlib.suppress(ValueError, TypeError):
+                        transit_days = int(transit_days_str)
 
-            products.append(RateProduct(
-                name=service_name,
-                price=float(charges),
-                currency=currency,
-                delivery_days=transit_days,
-                attributes={
-                    "source": "fedex",
-                    "service_type": service_type,
-                },
-            ))
+            products.append(
+                RateProduct(
+                    name=service_name,
+                    price=float(charges),
+                    currency=currency,
+                    delivery_days=transit_days,
+                    attributes={
+                        "source": "fedex",
+                        "service_type": service_type,
+                    },
+                )
+            )
 
         return StandardizedRateResponse(products=products, source="fedex", raw=raw)
 

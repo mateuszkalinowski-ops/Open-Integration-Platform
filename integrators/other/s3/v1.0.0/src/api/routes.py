@@ -73,17 +73,21 @@ async def all_auth_statuses() -> list[dict[str, str]]:
     for a in accounts:
         try:
             conn = await app_state.integration.test_connection(a.name)
-            results.append({
-                "name": a.name,
-                "status": conn.status,
-                "region": conn.region,
-            })
+            results.append(
+                {
+                    "name": a.name,
+                    "status": conn.status,
+                    "region": conn.region,
+                }
+            )
         except Exception:
-            results.append({
-                "name": a.name,
-                "status": "disconnected",
-                "region": a.region,
-            })
+            results.append(
+                {
+                    "name": a.name,
+                    "status": "disconnected",
+                    "region": a.region,
+                }
+            )
     return results
 
 
@@ -168,7 +172,10 @@ async def list_objects(
     _require_account(account_name)
     try:
         return await app_state.integration.list_objects(
-            account_name, bucket, prefix=prefix, max_keys=max_keys,
+            account_name,
+            bucket,
+            prefix=prefix,
+            max_keys=max_keys,
         )
     except _CLIENT_ERRORS as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -254,7 +261,9 @@ async def create_bucket(
     _require_account(account_name)
     try:
         return await app_state.integration.create_bucket(
-            account_name, body.bucket, region=body.region,
+            account_name,
+            body.bucket,
+            region=body.region,
         )
     except _CLIENT_ERRORS as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

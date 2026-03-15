@@ -127,7 +127,9 @@ async def list_files(
 ) -> list[FileInfo]:
     _require_account(account_name)
     return await app_state.integration.list_files(
-        account_name, remote_path, pattern=pattern or None,
+        account_name,
+        remote_path,
+        pattern=pattern or None,
     )
 
 

@@ -1,9 +1,7 @@
 """Tests for Amazon integrator API routes."""
 
 import pytest
-
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import AmazonAccountConfig
 from src.main import create_app
@@ -15,14 +13,16 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(AmazonAccountConfig(
-        name="test",
-        client_id="amzn1.test-client",
-        client_secret="test-secret",
-        refresh_token="Atzr|test-token",
-        marketplace_id="A1PA6795UKMFR9",
-        region="eu",
-    ))
+    account_manager.add_account(
+        AmazonAccountConfig(
+            name="test",
+            client_id="amzn1.test-client",
+            client_secret="test-secret",
+            refresh_token="Atzr|test-token",
+            marketplace_id="A1PA6795UKMFR9",
+            region="eu",
+        )
+    )
     app_state.account_manager = account_manager
 
     return application
@@ -54,25 +54,31 @@ class TestAccountEndpoints:
         assert data[0]["region"] == "eu"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-seller",
-            "client_id": "amzn1.new-client",
-            "client_secret": "new-secret",
-            "refresh_token": "Atzr|new-token",
-            "marketplace_id": "ATVPDKIKX0DER",
-            "region": "na",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-seller",
+                "client_id": "amzn1.new-client",
+                "client_secret": "new-secret",
+                "refresh_token": "Atzr|new-token",
+                "marketplace_id": "ATVPDKIKX0DER",
+                "region": "na",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-seller"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "client_id": "amzn1.temp",
-            "client_secret": "temp",
-            "refresh_token": "Atzr|temp",
-            "marketplace_id": "A1PA6795UKMFR9",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "client_id": "amzn1.temp",
+                "client_secret": "temp",
+                "refresh_token": "Atzr|temp",
+                "marketplace_id": "A1PA6795UKMFR9",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 

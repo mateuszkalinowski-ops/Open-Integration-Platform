@@ -28,10 +28,10 @@ jobs:
       - run: pip install ruff
 
       - name: Ruff check
-        run: ruff check platform/ integrators/ --output-format=github
+        run: ruff check platform/ integrators/ --config ruff.toml --output-format=github
 
       - name: Ruff format check
-        run: ruff format --check platform/ integrators/
+        run: ruff format --check platform/ integrators/ --config ruff.toml
 
   test:
     name: Test Platform & Connectors
@@ -53,7 +53,8 @@ jobs:
 
       - name: Test platform
         run: |
-          pip install -r platform/requirements.txt
+          grep -v 'file:///shared/python' platform/requirements.txt > /tmp/platform-reqs.txt
+          pip install -r /tmp/platform-reqs.txt
           pip install pytest pytest-asyncio pytest-cov httpx
           cd platform && python -m pytest tests/ -v --tb=short --cov=. --cov-report=term
 
@@ -159,8 +160,8 @@ jobs:
       matrix:
         include:
           - name: connector-inpost-v3
-            context: ./integrators/courier/inpost/v3.0.0
-            dockerfile: ./integrators/courier/inpost/v3.0.0/Dockerfile
+            context: .
+            dockerfile: integrators/courier/inpost/v3.0.0/Dockerfile
           - name: connector-dhl
             context: ./integrators/courier/dhl/v1.0.0
             dockerfile: ./integrators/courier/dhl/v1.0.0/Dockerfile

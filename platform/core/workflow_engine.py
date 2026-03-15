@@ -18,14 +18,14 @@ import operator
 import re
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable, Coroutine
+from collections.abc import Callable, Coroutine
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
+from db.models import Workflow, WorkflowExecution
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from db.models import Workflow, WorkflowExecution
 
 logger = structlog.get_logger()
 
@@ -73,6 +73,7 @@ class WorkflowContext:
         self._workflow_chain: list[str] = []
         self._merge_hits: dict[str, int] = {}
         self._visited_merges: set[str] = set()
+        self._merge_lock: asyncio.Lock = asyncio.Lock()
 
     def set_node_output(self, node_id: str, output: Any) -> None:
         self.node_outputs[node_id] = output
@@ -185,20 +186,22 @@ class WorkflowEngine:
 
             ctx.set_node_output(trigger_node["id"], trigger_data)
             ctx.data = copy.deepcopy(trigger_data)
-            ctx.node_results.append({
-                "node_id": trigger_node["id"],
-                "node_type": "trigger",
-                "label": trigger_node.get("label", trigger_node["id"]),
-                "status": "success",
-                "output": _safe_truncate(trigger_data),
-                "_raw_output": copy.deepcopy(trigger_data),
-                "_replay_state": {
-                    "data": copy.deepcopy(ctx.data),
-                    "variables": copy.deepcopy(ctx.variables),
-                    "node_outputs": copy.deepcopy(ctx.node_outputs),
-                },
-                "duration_ms": 0,
-            })
+            ctx.node_results.append(
+                {
+                    "node_id": trigger_node["id"],
+                    "node_type": "trigger",
+                    "label": trigger_node.get("label", trigger_node["id"]),
+                    "status": "success",
+                    "output": _safe_truncate(trigger_data),
+                    "_raw_output": copy.deepcopy(trigger_data),
+                    "_replay_state": {
+                        "data": copy.deepcopy(ctx.data),
+                        "variables": copy.deepcopy(ctx.variables),
+                        "node_outputs": copy.deepcopy(ctx.node_outputs),
+                    },
+                    "duration_ms": 0,
+                }
+            )
 
             successors = graph.get_successors(trigger_node["id"])
             await asyncio.wait_for(
@@ -207,7 +210,7 @@ class WorkflowEngine:
             )
 
             execution.status = "success"
-        except asyncio.TimeoutError:
+        except TimeoutError:
             execution.status = "failed"
             execution.error = f"Workflow execution timed out after {global_timeout}s"
         except WorkflowError as exc:
@@ -220,7 +223,7 @@ class WorkflowEngine:
 
         execution.node_results = ctx.node_results
         execution.context_snapshot = ctx.snapshot()
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
         execution.duration_ms = int((time.monotonic() - start_time) * 1000)
 
         await db.flush()
@@ -264,17 +267,20 @@ class WorkflowEngine:
         node_start = time.monotonic()
 
         if node_type == "merge":
-            if node_id in ctx._visited_merges:
-                return
-            predecessors = graph._incoming.get(node_id, [])
-            executed_predecessors = sum(
-                1 for pid in predecessors if pid in ctx.node_outputs or pid in {r["node_id"] for r in ctx.node_results}
-            )
-            expected_hits = max(executed_predecessors, 1)
-            current_hits = ctx._merge_hits.get(node_id, 0) + 1
-            ctx._merge_hits[node_id] = current_hits
-            if current_hits < expected_hits:
-                return
+            async with ctx._merge_lock:
+                if node_id in ctx._visited_merges:
+                    return
+                predecessors = graph._incoming.get(node_id, [])
+                executed_predecessors = sum(
+                    1
+                    for pid in predecessors
+                    if pid in ctx.node_outputs or pid in {r["node_id"] for r in ctx.node_results}
+                )
+                expected_hits = max(executed_predecessors, 1)
+                current_hits = ctx._merge_hits.get(node_id, 0) + 1
+                ctx._merge_hits[node_id] = current_hits
+                if current_hits < expected_hits:
+                    return
 
         result_entry: dict[str, Any] = {
             "node_id": node_id,
@@ -324,7 +330,8 @@ class WorkflowEngine:
             elif node_type == "set_variable":
                 output = self._exec_set_variable(config, ctx)
             elif node_type == "merge":
-                ctx._visited_merges.add(node_id)
+                async with ctx._merge_lock:
+                    ctx._visited_merges.add(node_id)
                 output = ctx.data
             elif node_type == "parallel":
                 output = await self._exec_parallel(db, graph, node, config, ctx, workflow, depth)
@@ -415,7 +422,12 @@ class WorkflowEngine:
                 }
                 ctx.variables["_error"] = error_info
                 await self._execute_single_node(
-                    db, graph, error_handler, ctx, workflow, depth + 1,
+                    db,
+                    graph,
+                    error_handler,
+                    ctx,
+                    workflow,
+                    depth + 1,
                 )
                 return
 
@@ -431,9 +443,7 @@ class WorkflowEngine:
 
     # ── Node executors ──
 
-    async def _exec_action(
-        self, config: dict, ctx: WorkflowContext, workflow: Workflow
-    ) -> dict[str, Any]:
+    async def _exec_action(self, config: dict, ctx: WorkflowContext, workflow: Workflow) -> dict[str, Any]:
         connector_name = config.get("connector_name", "")
         action = config.get("action", "")
         credential_name = config.get("credential_name", "default")
@@ -446,9 +456,14 @@ class WorkflowEngine:
         if ctx.dry_run:
             schema_fields: list[dict[str, Any]] = []
             if self._mock_output_schema_resolver:
-                schema_fields = self._mock_output_schema_resolver(
-                    connector_name, connector_version, action,
-                ) or []
+                schema_fields = (
+                    self._mock_output_schema_resolver(
+                        connector_name,
+                        connector_version,
+                        action,
+                    )
+                    or []
+                )
             return {
                 "dry_run": True,
                 "connector": connector_name,
@@ -468,9 +483,7 @@ class WorkflowEngine:
             )
         return {"dispatched": True, "connector": connector_name, "action": action, "payload": payload}
 
-    async def _exec_think(
-        self, config: dict, ctx: WorkflowContext, workflow: Workflow
-    ) -> dict[str, Any]:
+    async def _exec_think(self, config: dict, ctx: WorkflowContext, workflow: Workflow) -> dict[str, Any]:
         """Execute a Think (AI Agent) node — sends prompt + data to ai-agent connector."""
         import json as _json
 
@@ -502,9 +515,7 @@ class WorkflowEngine:
 
         redact = config.get("redact_pii", True)
         if redact:
-            send_data = await _redact_pii(
-                ctx.data, self._action_executor, workflow.tenant_id, credential_name
-            )
+            send_data = await _redact_pii(ctx.data, self._action_executor, workflow.tenant_id, credential_name)
         else:
             send_data = ctx.data
 
@@ -535,25 +546,18 @@ class WorkflowEngine:
 
         return {"dispatched": True, "connector": "ai-agent", "action": action, "prompt": prompt}
 
-    def _exec_condition(
-        self, config: dict, ctx: WorkflowContext
-    ) -> tuple[dict[str, Any], str]:
+    def _exec_condition(self, config: dict, ctx: WorkflowContext) -> tuple[dict[str, Any], str]:
         conditions = config.get("conditions", [])
         logic = config.get("logic", "and")
 
         results = [self._evaluate_condition(c, ctx) for c in conditions]
 
-        if logic == "or":
-            passed = any(results)
-        else:
-            passed = all(results)
+        passed = any(results) if logic == "or" else all(results)
 
         handle = "true" if passed else "false"
         return {"condition_result": passed, "handle": handle}, handle
 
-    def _exec_switch(
-        self, config: dict, ctx: WorkflowContext
-    ) -> tuple[dict[str, Any], str]:
+    def _exec_switch(self, config: dict, ctx: WorkflowContext) -> tuple[dict[str, Any], str]:
         field = config.get("field", "")
         cases = config.get("cases", [])
         default_handle = config.get("default_handle", "default")
@@ -649,14 +653,19 @@ class WorkflowEngine:
 
         from db.base import async_session_factory, set_rls_bypass
 
+        shared_merge_hits = ctx._merge_hits
+        shared_visited_merges = ctx._visited_merges
+        shared_merge_lock = ctx._merge_lock
+
         async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any, list]:
             branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
             branch_ctx.variables = copy.deepcopy(ctx.variables)
             branch_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
             branch_ctx.dry_run = ctx.dry_run
             branch_ctx._workflow_chain = list(ctx._workflow_chain)
-            branch_ctx._merge_hits = copy.deepcopy(ctx._merge_hits)
-            branch_ctx._visited_merges = set(ctx._visited_merges)
+            branch_ctx._merge_hits = shared_merge_hits
+            branch_ctx._visited_merges = shared_visited_merges
+            branch_ctx._merge_lock = shared_merge_lock
 
             try:
                 async with async_session_factory() as branch_db:
@@ -672,10 +681,10 @@ class WorkflowEngine:
 
         try:
             done = await asyncio.wait_for(asyncio.gather(*tasks, return_exceptions=True), timeout=timeout)
-        except asyncio.TimeoutError:
+        except TimeoutError as exc:
             for t in tasks:
                 t.cancel()
-            raise WorkflowError(f"Parallel node timed out after {timeout}s")
+            raise WorkflowError(f"Parallel node timed out after {timeout}s") from exc
 
         results: dict[str, Any] = {}
         for item in done:
@@ -745,10 +754,17 @@ class WorkflowEngine:
         elif strategy == "concat":
             return {"aggregated": flat_products, "winner": None, "total_results": len(flat_products)}
 
-        return {"aggregated": flat_products, "winner": flat_products[0] if flat_products else None, "total_results": len(flat_products)}
+        return {
+            "aggregated": flat_products,
+            "winner": flat_products[0] if flat_products else None,
+            "total_results": len(flat_products),
+        }
 
     async def _exec_http_request(
-        self, config: dict, ctx: WorkflowContext, workflow: Workflow,
+        self,
+        config: dict,
+        ctx: WorkflowContext,
+        workflow: Workflow,
     ) -> dict[str, Any]:
         import httpx
 
@@ -780,10 +796,7 @@ class WorkflowEngine:
         url = base_url.rstrip("/") + "/" + path.lstrip("/")
         method = config.get("method", "GET").upper()
 
-        headers = {
-            k: self._interpolate_string(v, ctx)
-            for k, v in config.get("headers", {}).items()
-        }
+        headers = {k: self._interpolate_string(v, ctx) for k, v in config.get("headers", {}).items()}
 
         query_params: dict[str, str] = {}
         for qp in config.get("query_params", []):
@@ -800,18 +813,27 @@ class WorkflowEngine:
 
         async with httpx.AsyncClient(timeout=timeout) as client:
             response = await client.request(
-                method, url, headers=headers, params=query_params, json=body,
+                method,
+                url,
+                headers=headers,
+                params=query_params,
+                json=body,
             )
             try:
                 response_data = response.json()
             except Exception:
                 response_data = {"text": response.text[:2000]}
 
-        _SENSITIVE_HEADERS = {"authorization", "cookie", "set-cookie", "x-api-key", "x-admin-secret", "x-internal-secret", "proxy-authorization"}
-        safe_headers = {
-            k: ("***" if k.lower() in _SENSITIVE_HEADERS else v)
-            for k, v in response.headers.items()
+        _SENSITIVE_HEADERS = {
+            "authorization",
+            "cookie",
+            "set-cookie",
+            "x-api-key",
+            "x-admin-secret",
+            "x-internal-secret",
+            "proxy-authorization",
         }
+        safe_headers = {k: ("***" if k.lower() in _SENSITIVE_HEADERS else v) for k, v in response.headers.items()}
 
         return {
             "status_code": response.status_code,
@@ -1031,9 +1053,7 @@ class WorkflowEngine:
         body_node_ids = config.get("body_nodes", [])
         if body_node_ids:
             body_nodes = [
-                body_node
-                for body_node_id in body_node_ids
-                if (body_node := graph.get_node(body_node_id)) is not None
+                body_node for body_node_id in body_node_ids if (body_node := graph.get_node(body_node_id)) is not None
             ]
         else:
             body_nodes = graph.get_successors(node["id"], handle="body")
@@ -1064,7 +1084,12 @@ class WorkflowEngine:
                         async with async_session_factory() as item_db:
                             await set_rls_bypass(item_db)
                             await self._execute_nodes(
-                                item_db, graph, body_nodes, item_ctx, workflow, depth + 1,
+                                item_db,
+                                graph,
+                                body_nodes,
+                                item_ctx,
+                                workflow,
+                                depth + 1,
                             )
                             await item_db.commit()
 
@@ -1177,9 +1202,7 @@ class WorkflowEngine:
 
         return _get_nested(ctx.data, path)
 
-    def _resolve_sources(
-        self, m: dict, ctx: WorkflowContext
-    ) -> list[Any]:
+    def _resolve_sources(self, m: dict, ctx: WorkflowContext) -> list[Any]:
         """Resolve all source values for a mapping rule.
 
         Supports both legacy single-source (``from``) and multi-source
@@ -1196,9 +1219,7 @@ class WorkflowEngine:
             return [m.get("from_custom", "")]
         return [self._resolve_value(from_field, ctx)]
 
-    def _apply_field_mapping(
-        self, mappings: list[dict], ctx: WorkflowContext
-    ) -> dict[str, Any]:
+    def _apply_field_mapping(self, mappings: list[dict], ctx: WorkflowContext) -> dict[str, Any]:
         result: dict[str, Any] = {}
         body_text_extras: list[str] = []
         subject_extras: list[str] = []
@@ -1247,7 +1268,7 @@ class WorkflowEngine:
             extra_html = "".join(
                 f'<div style="background:#f0f4ff;border-left:4px solid #1565c0;'
                 f'padding:12px;margin-bottom:16px;font-family:sans-serif;">'
-                f'<strong>AI:</strong> {_html_escape(e)}</div>'
+                f"<strong>AI:</strong> {_html_escape(e)}</div>"
                 for e in body_text_extras
             )
             result["body_html"] = extra_html + result["body_html"]
@@ -1451,9 +1472,7 @@ class WorkflowEngine:
         event: str,
         event_data: dict[str, Any],
     ) -> list[WorkflowExecution]:
-        workflows = await self.get_workflows_for_event(
-            db, tenant_id, connector_name, event
-        )
+        workflows = await self.get_workflows_for_event(db, tenant_id, connector_name, event)
         await logger.ainfo(
             "workflow_event_received",
             connector=connector_name,
@@ -1525,7 +1544,11 @@ class WorkflowEngine:
 
         if mode == "force":
             check = await sync_mgr.should_sync(
-                db, workflow.id, entity_key, content_hash, max_retries=max_retries,
+                db,
+                workflow.id,
+                entity_key,
+                content_hash,
+                max_retries=max_retries,
                 tenant_id=workflow.tenant_id,
                 source_connector=connector_name,
                 source_event=event,
@@ -1557,7 +1580,11 @@ class WorkflowEngine:
             return execution
 
         check = await sync_mgr.should_sync(
-            db, workflow.id, entity_key, content_hash, max_retries=max_retries,
+            db,
+            workflow.id,
+            entity_key,
+            content_hash,
+            max_retries=max_retries,
             tenant_id=workflow.tenant_id,
             source_connector=connector_name,
             source_event=event,
@@ -1628,7 +1655,11 @@ class WorkflowEngine:
         if not sync_cfg or not sync_cfg.get("enabled"):
             return
 
-        from core.sync_state import SyncStateManager, compute_content_hash, resolve_entity_key
+        from core.sync_state import (
+            SyncStateManager,
+            compute_content_hash,
+            resolve_entity_key,
+        )
 
         key_field = sync_cfg.get("entity_key_field")
         if not key_field:
@@ -1646,7 +1677,10 @@ class WorkflowEngine:
 
         sync_mgr = SyncStateManager()
         check = await sync_mgr.should_sync(
-            db, workflow.id, entity_key, content_hash,
+            db,
+            workflow.id,
+            entity_key,
+            content_hash,
             tenant_id=workflow.tenant_id,
             source_connector=connector_name,
             source_event=event,
@@ -1675,7 +1709,6 @@ class WorkflowEngine:
                 error=execution.error or "unknown error",
                 ledger_id=check.ledger_id,
             )
-
 
     async def rerun_from_node(
         self,
@@ -1744,7 +1777,7 @@ class WorkflowEngine:
             )
 
             execution.status = "success"
-        except asyncio.TimeoutError:
+        except TimeoutError:
             execution.status = "failed"
             execution.error = f"Re-run timed out after {global_timeout}s"
         except WorkflowError as exc:
@@ -1757,7 +1790,7 @@ class WorkflowEngine:
 
         execution.node_results = ctx.node_results
         execution.context_snapshot = ctx.snapshot()
-        execution.completed_at = datetime.now(timezone.utc)
+        execution.completed_at = datetime.now(UTC)
         execution.duration_ms = int((time.monotonic() - start_time) * 1000)
 
         await db.flush()
@@ -1863,13 +1896,9 @@ _PII_PLACEHOLDER = "[RODO_REDACTED]"
 _EMAIL_RE = re.compile(r"[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}")
 _PESEL_RE = re.compile(r"\b\d{11}\b")
 _NIP_RE = re.compile(r"\b\d{3}[-]?\d{3}[-]?\d{2}[-]?\d{2}\b")
-_IBAN_RE = re.compile(
-    r"\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}\b"
-)
+_IBAN_RE = re.compile(r"\b[A-Z]{2}\d{2}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}[\s]?\d{4}\b")
 _CREDIT_CARD_RE = re.compile(r"\b(?:\d[ -]*?){13,19}\b")
-_PHONE_RE = re.compile(
-    r"(?<!\d)(?:\+\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3}[\s.-]?\d{2,4}(?!\d)"
-)
+_PHONE_RE = re.compile(r"(?<!\d)(?:\+\d{1,3}[\s.-]?)?\(?\d{2,4}\)?[\s.-]?\d{3}[\s.-]?\d{2,4}(?!\d)")
 _IP_RE = re.compile(r"\b\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}\b")
 
 _PII_CLASSIFY_PROMPT = (
@@ -1918,9 +1947,7 @@ def _is_pii_value(value: Any) -> bool:
     if _IP_RE.fullmatch(value.strip()):
         return True
     v = re.sub(r"[\s\-]", "", value)
-    if _CREDIT_CARD_RE.fullmatch(v) and len(v) >= 13:
-        return True
-    return False
+    return bool(_CREDIT_CARD_RE.fullmatch(v) and len(v) >= 13)
 
 
 def _redact_by_paths(data: Any, pii_paths: set[str], current: str = "", depth: int = 0) -> Any:
@@ -2006,9 +2033,7 @@ async def _redact_pii(
     if action_executor:
         field_paths = _collect_field_paths(data)
         if field_paths:
-            pii_paths = await _classify_pii_fields(
-                field_paths, action_executor, tenant_id, credential_name
-            )
+            pii_paths = await _classify_pii_fields(field_paths, action_executor, tenant_id, credential_name)
     return _redact_by_paths(data, pii_paths)
 
 
@@ -2160,9 +2185,7 @@ class WorkflowGraph:
     def get_node(self, node_id: str) -> dict[str, Any] | None:
         return self._nodes.get(node_id)
 
-    def get_successors(
-        self, node_id: str, handle: str | None = None
-    ) -> list[dict[str, Any]]:
+    def get_successors(self, node_id: str, handle: str | None = None) -> list[dict[str, Any]]:
         edges = self._adjacency.get(node_id, [])
         result = []
         for edge in edges:
@@ -2177,7 +2200,6 @@ class WorkflowGraph:
 
     def get_predecessor_count(self, node_id: str) -> int:
         return len(self._incoming.get(node_id, []))
-
 
 
 class WorkflowError(Exception):
@@ -2211,7 +2233,7 @@ def _get_nested_array(data: dict | Any, key: str) -> Any:
     """
     bracket_pos = key.index("[]")
     array_path = key[:bracket_pos]
-    rest = key[bracket_pos + 2:]
+    rest = key[bracket_pos + 2 :]
     if rest.startswith("."):
         rest = rest[1:]
 
@@ -2242,7 +2264,7 @@ def _set_nested(data: dict, key: str, value: Any, concat: bool = True) -> None:
             if isinstance(value, list):
                 current[final_key] = existing + value
             else:
-                current[final_key] = existing + [value]
+                current[final_key] = [*existing, value]
         else:
             current[final_key] = f"{value} {existing}"
     else:
@@ -2259,7 +2281,7 @@ def _set_nested_array(data: dict, key: str, value: Any) -> None:
     """
     bracket_pos = key.index("[]")
     array_path = key[:bracket_pos]
-    rest = key[bracket_pos + 2:]
+    rest = key[bracket_pos + 2 :]
     if rest.startswith("."):
         rest = rest[1:]
 

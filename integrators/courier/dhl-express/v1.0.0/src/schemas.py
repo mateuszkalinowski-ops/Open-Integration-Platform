@@ -4,10 +4,10 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Shared address / party schemas
 # ---------------------------------------------------------------------------
+
 
 class Address(BaseModel):
     street_line1: str = Field(..., alias="streetLine1", max_length=45)
@@ -47,6 +47,7 @@ class RegistrationNumber(BaseModel):
 # Parcel / package
 # ---------------------------------------------------------------------------
 
+
 class Dimensions(BaseModel):
     length: float
     width: float
@@ -62,6 +63,7 @@ class Package(BaseModel):
 # ---------------------------------------------------------------------------
 # Export declaration / customs
 # ---------------------------------------------------------------------------
+
 
 class LineItem(BaseModel):
     number: int = 1
@@ -90,6 +92,7 @@ class ExportDeclaration(BaseModel):
 # Value-added services
 # ---------------------------------------------------------------------------
 
+
 class ValueAddedService(BaseModel):
     service_code: str = Field(..., alias="serviceCode")
     value: float | None = None
@@ -101,6 +104,7 @@ class ValueAddedService(BaseModel):
 # ---------------------------------------------------------------------------
 # Shipment creation request
 # ---------------------------------------------------------------------------
+
 
 class ShipmentContent(BaseModel):
     packages: list[Package]
@@ -131,10 +135,12 @@ class CreateShipmentRequest(BaseModel):
     receiver: Party
     content: ShipmentContent
     output_image_properties: ShipmentOutput = Field(
-        default_factory=ShipmentOutput, alias="outputImageProperties",
+        default_factory=ShipmentOutput,
+        alias="outputImageProperties",
     )
     value_added_services: list[ValueAddedService] = Field(
-        default_factory=list, alias="valueAddedServices",
+        default_factory=list,
+        alias="valueAddedServices",
     )
     pickup: dict = Field(default_factory=dict)
     customer_references: list[dict] = Field(default_factory=list, alias="customerReferences")
@@ -145,6 +151,7 @@ class CreateShipmentRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Rate request
 # ---------------------------------------------------------------------------
+
 
 class RateRequest(BaseModel):
     shipper_country_code: str = Field("PL", alias="shipperCountryCode")
@@ -168,6 +175,7 @@ class RateRequest(BaseModel):
 # Pickup request
 # ---------------------------------------------------------------------------
 
+
 class PickupRequest(BaseModel):
     planned_pickup_date_and_time: str = Field(..., alias="plannedPickupDateAndTime")
     close_time: str = Field(..., alias="closeTime")
@@ -185,6 +193,7 @@ class PickupRequest(BaseModel):
 # Tracking request
 # ---------------------------------------------------------------------------
 
+
 class TrackingQuery(BaseModel):
     tracking_number: str
     tracking_view: str = "all-checkpoints"
@@ -194,6 +203,7 @@ class TrackingQuery(BaseModel):
 # ---------------------------------------------------------------------------
 # Standardized rate response (used by shipping price comparison workflow)
 # ---------------------------------------------------------------------------
+
 
 class RateProduct(BaseModel):
     name: str

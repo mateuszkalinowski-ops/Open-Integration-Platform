@@ -1,9 +1,8 @@
 import logging
-from contextlib import asynccontextmanager
-from http import HTTPStatus
 import sys
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncIterator
 
 try:
     SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -14,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI
 from fastapi.responses import JSONResponse, Response
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:

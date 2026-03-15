@@ -5,11 +5,12 @@ protocols, with retry logic and structured logging.
 """
 
 import asyncio
+import contextlib
 import io
 import logging
 import os
 import stat as stat_module
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import PurePosixPath
 from typing import Any
 
@@ -56,8 +57,8 @@ class FtpSftpClient:
         resolved = PurePosixPath(os.path.normpath(str(combined)))
         try:
             resolved.relative_to(base)
-        except ValueError:
-            raise ValueError(f"Path escapes base directory: {remote_path}")
+        except ValueError as err:
+            raise ValueError(f"Path escapes base directory: {remote_path}") from err
         return str(resolved)
 
     # ------------------------------------------------------------------
@@ -77,17 +78,17 @@ class FtpSftpClient:
                 modify_str = info.get("modify")
                 modified = None
                 if modify_str:
-                    try:
-                        modified = datetime.strptime(modify_str, "%Y%m%d%H%M%S").replace(tzinfo=timezone.utc)
-                    except ValueError:
-                        pass
-                files.append(FileInfo(
-                    filename=name,
-                    path=str(PurePosixPath(resolved) / name),
-                    size=size,
-                    is_directory=is_dir,
-                    modified_at=modified,
-                ))
+                    with contextlib.suppress(ValueError):
+                        modified = datetime.strptime(modify_str, "%Y%m%d%H%M%S").replace(tzinfo=UTC)
+                files.append(
+                    FileInfo(
+                        filename=name,
+                        path=str(PurePosixPath(resolved) / name),
+                        size=size,
+                        is_directory=is_dir,
+                        modified_at=modified,
+                    )
+                )
             return files
 
     async def _ftp_upload(self, remote_path: str, data: bytes) -> int:
@@ -138,10 +139,8 @@ class FtpSftpClient:
             }
 
     async def _ftp_ensure_dir(self, client: aioftp.Client, path: str) -> None:
-        try:
+        with contextlib.suppress(aioftp.StatusCodeError):
             await client.make_directory(path)
-        except aioftp.StatusCodeError:
-            pass
 
     def _ftp_connect(self) -> aioftp.Client:
         return aioftp.Client.context(
@@ -200,15 +199,17 @@ class FtpSftpClient:
                     is_dir = stat_module.S_ISDIR(attrs.permissions) if attrs.permissions else False
                     modified = None
                     if attrs.mtime is not None:
-                        modified = datetime.fromtimestamp(attrs.mtime, tz=timezone.utc)
-                    files.append(FileInfo(
-                        filename=name,
-                        path=str(PurePosixPath(resolved) / name),
-                        size=attrs.size or 0,
-                        is_directory=is_dir,
-                        modified_at=modified,
-                        permissions=oct(attrs.permissions)[-3:] if attrs.permissions else None,
-                    ))
+                        modified = datetime.fromtimestamp(attrs.mtime, tz=UTC)
+                    files.append(
+                        FileInfo(
+                            filename=name,
+                            path=str(PurePosixPath(resolved) / name),
+                            size=attrs.size or 0,
+                            is_directory=is_dir,
+                            modified_at=modified,
+                            permissions=oct(attrs.permissions)[-3:] if attrs.permissions else None,
+                        )
+                    )
                 return files
         finally:
             conn.close()
@@ -220,10 +221,8 @@ class FtpSftpClient:
         try:
             async with conn.start_sftp_client() as sftp:
                 parent = str(PurePosixPath(resolved).parent)
-                try:
+                with contextlib.suppress(asyncssh.SFTPError):
                     await sftp.makedirs(parent)
-                except asyncssh.SFTPError:
-                    pass
                 async with sftp.open(resolved, "wb") as f:
                     await f.write(data)
                 return len(data)
@@ -235,9 +234,8 @@ class FtpSftpClient:
         resolved = self._resolve_path(remote_path)
         conn = await self._sftp_connect()
         try:
-            async with conn.start_sftp_client() as sftp:
-                async with sftp.open(resolved, "rb") as f:
-                    return await f.read()
+            async with conn.start_sftp_client() as sftp, sftp.open(resolved, "rb") as f:
+                return await f.read()
         finally:
             conn.close()
             await conn.wait_closed()
@@ -268,10 +266,8 @@ class FtpSftpClient:
         conn = await self._sftp_connect()
         try:
             async with conn.start_sftp_client() as sftp:
-                try:
+                with contextlib.suppress(asyncssh.SFTPError):
                     await sftp.makedirs(resolved)
-                except asyncssh.SFTPError:
-                    pass
         finally:
             conn.close()
             await conn.wait_closed()

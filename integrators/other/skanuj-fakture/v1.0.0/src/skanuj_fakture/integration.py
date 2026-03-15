@@ -1,10 +1,9 @@
 """SkanujFakture integration facade — multi-account management over the API client."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from src.config import SkanujFaktureAccountConfig
 from src.services.account_manager import AccountManager
 from src.skanuj_fakture.client import SkanujFaktureClient
 from src.skanuj_fakture.schemas import AuthStatusResponse, ConnectionStatus
@@ -72,10 +71,15 @@ class SkanujFaktureIntegration:
     ) -> dict[str, Any]:
         client = self._get_client(account_name)
         return await client.upload_document_v2(
-            company_id, file_content, filename, single_document, invoice_type, company_entity_id,
+            company_id,
+            file_content,
+            filename,
+            single_document,
+            invoice_type,
+            company_entity_id,
         )
 
-    async def get_documents(  # noqa: PLR0913
+    async def get_documents(
         self,
         account_name: str,
         company_id: int,
@@ -320,7 +324,7 @@ class SkanujFaktureIntegration:
         return AuthStatusResponse(
             account_name=account_name,
             authenticated=True,
-            last_checked=datetime.now(timezone.utc),
+            last_checked=datetime.now(UTC),
         )
 
     async def get_connection_status(self, account_name: str) -> ConnectionStatus:
@@ -331,13 +335,13 @@ class SkanujFaktureIntegration:
                 account_name=account_name,
                 connected=True,
                 companies_count=len(companies),
-                last_checked=datetime.now(timezone.utc),
+                last_checked=datetime.now(UTC),
             )
         except Exception as e:
             logger.warning("Connection check failed for %s: %s", account_name, str(e))
             return ConnectionStatus(
                 account_name=account_name,
                 connected=False,
-                last_checked=datetime.now(timezone.utc),
+                last_checked=datetime.now(UTC),
                 error=str(e),
             )

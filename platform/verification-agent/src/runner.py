@@ -4,14 +4,14 @@ import asyncio
 import logging
 import time
 import uuid
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
 
 from src.checks.api_version import check_api_version
-from src.checks.base import run_tier1, TIMEOUT
 from src.checks.auth import run_tier2
+from src.checks.base import TIMEOUT, run_tier1
 from src.checks.functional import run_tier3
 from src.config import settings
 from src.credential_vault import CredentialVault
@@ -74,11 +74,16 @@ async def run_verification(
                     if vault and target.tenant_id:
                         try:
                             cred_names = await vault.list_credential_names(
-                                db, uuid.UUID(target.tenant_id), target.manifest.name,
+                                db,
+                                uuid.UUID(target.tenant_id),
+                                target.manifest.name,
                             )
                             cred_name = cred_names[0] if cred_names else "default"
                             creds = await vault.retrieve_all(
-                                db, uuid.UUID(target.tenant_id), target.manifest.name, cred_name,
+                                db,
+                                uuid.UUID(target.tenant_id),
+                                target.manifest.name,
+                                cred_name,
                             )
                             if creds:
                                 creds["account_name"] = cred_name.replace(" ", "-")
@@ -93,7 +98,9 @@ async def run_verification(
                         except Exception as exc:
                             logger.exception(
                                 "Verification aborted for connector %s v%s: %s",
-                                target.manifest.name, target.manifest.version, exc,
+                                target.manifest.name,
+                                target.manifest.version,
+                                exc,
                             )
                             report_data = [{"name": "runner", "status": "FAIL", "error": str(exc)}]
 
@@ -106,13 +113,15 @@ async def run_verification(
                             checks=report_data,
                             tenant_id=target.tenant_id,
                         )
-                        total_reports.append({
-                            "connector": f"{target.manifest.category}/{target.manifest.name}/{target.manifest.version}",
-                            "status": report.status,
-                            "summary": report.summary,
-                        })
+                        total_reports.append(
+                            {
+                                "connector": f"{target.manifest.category}/{target.manifest.name}/{target.manifest.version}",
+                                "status": report.status,
+                                "summary": report.summary,
+                            }
+                        )
 
-                next_run = datetime.now(timezone.utc) + timedelta(days=settings.verification_interval_days)
+                next_run = datetime.now(UTC) + timedelta(days=settings.verification_interval_days)
                 await update_last_run(db, next_run_at=next_run)
                 await db.commit()
 
@@ -127,7 +136,12 @@ async def run_verification(
 
     logger.info(
         "Verification run %s completed: %d connectors, %d pass, %d fail, %d skip, %dms",
-        run_id, len(total_reports), passed, failed, skipped, elapsed,
+        run_id,
+        len(total_reports),
+        passed,
+        failed,
+        skipped,
+        elapsed,
     )
 
     return {

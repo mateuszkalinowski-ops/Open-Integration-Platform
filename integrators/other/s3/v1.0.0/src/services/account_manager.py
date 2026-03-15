@@ -32,8 +32,10 @@ class AccountManager:
             self._accounts[account.name] = account
             logger.info(
                 "Loaded account: %s (region=%s, endpoint=%s, env=%s)",
-                account.name, account.region,
-                account.endpoint_url or "aws", account.environment,
+                account.name,
+                account.region,
+                account.endpoint_url or "aws",
+                account.environment,
             )
 
     def _load_from_env(self) -> None:
@@ -64,7 +66,9 @@ class AccountManager:
             )
             self._accounts[name] = account
             logger.info(
-                "Loaded account from env: %s (region=%s)", name, account.region,
+                "Loaded account from env: %s (region=%s)",
+                name,
+                account.region,
             )
             idx += 1
 
@@ -81,7 +85,9 @@ class AccountManager:
         self._accounts[account.name] = account
         logger.info(
             "Added account: %s (region=%s, endpoint=%s)",
-            account.name, account.region, account.endpoint_url or "aws",
+            account.name,
+            account.region,
+            account.endpoint_url or "aws",
         )
 
     def remove_account(self, name: str) -> bool:

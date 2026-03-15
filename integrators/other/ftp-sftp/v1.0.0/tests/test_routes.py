@@ -1,13 +1,13 @@
 """Tests for FastAPI route handlers."""
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
+from src.config import FtpAccountConfig
 from src.ftp_client.schemas import (
     ConnectionTestResponse,
     DirectoryCreateResponse,
@@ -16,7 +16,6 @@ from src.ftp_client.schemas import (
     FileUploadResponse,
 )
 from src.main import create_app
-from src.config import FtpAccountConfig
 from src.services.account_manager import AccountManager
 
 
@@ -55,11 +54,14 @@ def test_list_accounts(client: TestClient):
 
 
 def test_add_account(client: TestClient):
-    response = client.post("/accounts", json={
-        "name": "new-server",
-        "host": "ftp.new.com",
-        "protocol": "ftp",
-    })
+    response = client.post(
+        "/accounts",
+        json={
+            "name": "new-server",
+            "host": "ftp.new.com",
+            "protocol": "ftp",
+        },
+    )
     assert response.status_code == 201
     assert response.json()["name"] == "new-server"
 
@@ -81,7 +83,7 @@ def test_list_files(client: TestClient):
             filename="report.csv",
             path="/data/report.csv",
             size=1024,
-            modified_at=datetime(2026, 1, 15, tzinfo=timezone.utc),
+            modified_at=datetime(2026, 1, 15, tzinfo=UTC),
         ),
     ]
     response = client.get("/files?account_name=test-server&remote_path=/data")

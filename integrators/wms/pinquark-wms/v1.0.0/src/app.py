@@ -28,6 +28,8 @@ try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
     augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
+from pinquark_common.kafka import KafkaMessageProducer
+
 from src.client import PinquarkWmsClient, WriteResult
 from src.config import settings
 from src.event_poller import EventPoller
@@ -42,7 +44,6 @@ from src.schemas import (
     PositionWrapper,
     WmsCredentials,
 )
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger("pinquark-wms")
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(name)s %(message)s")
@@ -55,6 +56,7 @@ event_poller: EventPoller | None = None
 
 
 _CREDENTIAL_REFRESH_INTERVAL = 300
+_poller_tasks: set[asyncio.Task[None]] = set()
 
 
 async def _fetch_credentials_once() -> int:
@@ -150,6 +152,7 @@ app = FastAPI(
 
 # --- Health ---
 
+
 @app.get("/health", tags=["health"])
 async def health() -> dict[str, str]:
     return {"status": "healthy", "service": "pinquark-wms", "version": "1.0.0"}
@@ -161,6 +164,7 @@ async def readiness() -> dict[str, str]:
 
 
 # --- Helpers ---
+
 
 class CredentialsBody(BaseModel):
     credentials: WmsCredentials
@@ -201,7 +205,7 @@ async def _forward_get(creds: WmsCredentials, path_label: str, client_method):
             raise _error(f"{path_label} returned HTTP {status}: {data}", status)
         return data
     except httpx.HTTPError as exc:
-        raise _error(f"{path_label} request failed: {exc}")
+        raise _error(f"{path_label} request failed: {exc}") from exc
 
 
 async def _forward_post(creds: WmsCredentials, body: Any, path_label: str, client_method):
@@ -211,7 +215,7 @@ async def _forward_post(creds: WmsCredentials, body: Any, path_label: str, clien
             raise _error(f"{path_label} returned HTTP {status}: {data}", status)
         return data
     except httpx.HTTPError as exc:
-        raise _error(f"{path_label} request failed: {exc}")
+        raise _error(f"{path_label} request failed: {exc}") from exc
 
 
 def _write_result_to_response(result: WriteResult, path_label: str) -> dict[str, Any]:
@@ -250,12 +254,13 @@ async def _forward_write(
         result = await wms_client.write_with_feedback(creds, entity, action, path, body)
         return _write_result_to_response(result, path_label)
     except httpx.HTTPError as exc:
-        raise _error(f"{path_label} request failed: {exc}")
+        raise _error(f"{path_label} request failed: {exc}") from exc
 
 
 # =========================================================================
 # AUTH
 # =========================================================================
+
 
 class LoginRequest(BaseModel):
     credentials: WmsCredentials
@@ -267,12 +272,13 @@ async def login(req: LoginRequest) -> dict:
         token = await wms_client._login(req.credentials)
         return {"status": "authenticated", "accessToken": token}
     except Exception as exc:
-        raise _error(f"Login failed: {exc}", 401)
+        raise _error(f"Login failed: {exc}", 401) from exc
 
 
 # =========================================================================
 # ARTICLES
 # =========================================================================
+
 
 @app.post("/articles/get", tags=["articles"])
 async def get_articles(req: CredentialsBody) -> Any:
@@ -282,7 +288,8 @@ async def get_articles(req: CredentialsBody) -> Any:
 @app.post("/articles/get-delete-commands", tags=["articles"])
 async def get_articles_delete_commands(req: CredentialsBody) -> Any:
     return await _forward_get(
-        req.credentials, "GET /articles/delete-commands",
+        req.credentials,
+        "GET /articles/delete-commands",
         wms_client.get_articles_delete_commands,
     )
 
@@ -302,8 +309,11 @@ class CreateArticleRequest(BaseModel):
 @app.post("/articles/create", tags=["articles"])
 async def create_article(req: CreateArticleRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.article.model_dump(exclude_none=True),
-        entity="ARTICLE", action="SAVE", path="/articles",
+        req.credentials,
+        req.article.model_dump(exclude_none=True),
+        entity="ARTICLE",
+        action="SAVE",
+        path="/articles",
         path_label="POST /articles",
     )
 
@@ -318,7 +328,9 @@ async def create_articles(req: CreateArticlesRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [a.model_dump(exclude_none=True) for a in req.articles],
-        entity="ARTICLE", action="SAVE", path="/articles/list",
+        entity="ARTICLE",
+        action="SAVE",
+        path="/articles/list",
         path_label="POST /articles/list",
     )
 
@@ -338,8 +350,11 @@ class DeleteArticleRequest(BaseModel):
 @app.post("/articles/delete", tags=["articles"])
 async def delete_article(req: DeleteArticleRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.command.model_dump(exclude_none=True),
-        entity="ARTICLE", action="DELETE", path="/articles/delete-commands",
+        req.credentials,
+        req.command.model_dump(exclude_none=True),
+        entity="ARTICLE",
+        action="DELETE",
+        path="/articles/delete-commands",
         path_label="POST /articles/delete-commands",
     )
 
@@ -361,7 +376,9 @@ async def delete_articles(req: DeleteArticlesRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [c.model_dump(exclude_none=True) for c in req.commands],
-        entity="ARTICLE", action="DELETE", path="/articles/delete-commands/list",
+        entity="ARTICLE",
+        action="DELETE",
+        path="/articles/delete-commands/list",
         path_label="POST /articles/delete-commands/list",
     )
 
@@ -369,6 +386,7 @@ async def delete_articles(req: DeleteArticlesRequest) -> Any:
 # =========================================================================
 # ARTICLE BATCHES
 # =========================================================================
+
 
 @app.post("/article-batches/get", tags=["article-batches"])
 async def get_batches(req: CredentialsBody) -> Any:
@@ -390,8 +408,11 @@ class CreateBatchRequest(BaseModel):
 @app.post("/article-batches/create", tags=["article-batches"])
 async def create_batch(req: CreateBatchRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.batch.model_dump(exclude_none=True),
-        entity="ARTICLE_BATCH", action="SAVE", path="/article-batches",
+        req.credentials,
+        req.batch.model_dump(exclude_none=True),
+        entity="ARTICLE_BATCH",
+        action="SAVE",
+        path="/article-batches",
         path_label="POST /article-batches",
     )
 
@@ -406,7 +427,9 @@ async def create_batches(req: CreateBatchesRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [b.model_dump(exclude_none=True) for b in req.batches],
-        entity="ARTICLE_BATCH", action="SAVE", path="/article-batches/list",
+        entity="ARTICLE_BATCH",
+        action="SAVE",
+        path="/article-batches/list",
         path_label="POST /article-batches/list",
     )
 
@@ -414,6 +437,7 @@ async def create_batches(req: CreateBatchesRequest) -> Any:
 # =========================================================================
 # DOCUMENTS
 # =========================================================================
+
 
 @app.post("/documents/get", tags=["documents"])
 async def get_documents(req: CredentialsBody) -> Any:
@@ -423,7 +447,8 @@ async def get_documents(req: CredentialsBody) -> Any:
 @app.post("/documents/get-delete-commands", tags=["documents"])
 async def get_documents_delete_commands(req: CredentialsBody) -> Any:
     return await _forward_get(
-        req.credentials, "GET /documents/delete-commands",
+        req.credentials,
+        "GET /documents/delete-commands",
         wms_client.get_documents_delete_commands,
     )
 
@@ -443,8 +468,11 @@ class CreateDocumentRequest(BaseModel):
 @app.post("/documents/create", tags=["documents"])
 async def create_document(req: CreateDocumentRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.document.model_dump(exclude_none=True),
-        entity="DOCUMENT", action="SAVE", path="/documents",
+        req.credentials,
+        req.document.model_dump(exclude_none=True),
+        entity="DOCUMENT",
+        action="SAVE",
+        path="/documents",
         path_label="POST /documents",
     )
 
@@ -464,8 +492,11 @@ class CreateDocumentsRequest(BaseModel):
 @app.post("/documents/create-list", tags=["documents"])
 async def create_documents(req: CreateDocumentsRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.wrapper.model_dump(exclude_none=True),
-        entity="DOCUMENT", action="SAVE", path="/documents/wrappers",
+        req.credentials,
+        req.wrapper.model_dump(exclude_none=True),
+        entity="DOCUMENT",
+        action="SAVE",
+        path="/documents/wrappers",
         path_label="POST /documents/wrappers",
     )
 
@@ -485,8 +516,11 @@ class DeleteDocumentRequest(BaseModel):
 @app.post("/documents/delete", tags=["documents"])
 async def delete_document(req: DeleteDocumentRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.command.model_dump(exclude_none=True),
-        entity="DOCUMENT", action="DELETE", path="/documents/delete-commands",
+        req.credentials,
+        req.command.model_dump(exclude_none=True),
+        entity="DOCUMENT",
+        action="DELETE",
+        path="/documents/delete-commands",
         path_label="POST /documents/delete-commands",
     )
 
@@ -508,7 +542,9 @@ async def delete_documents(req: DeleteDocumentsRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [c.model_dump(exclude_none=True) for c in req.commands],
-        entity="DOCUMENT", action="DELETE", path="/documents/delete-commands/list",
+        entity="DOCUMENT",
+        action="DELETE",
+        path="/documents/delete-commands/list",
         path_label="POST /documents/delete-commands/list",
     )
 
@@ -516,6 +552,7 @@ async def delete_documents(req: DeleteDocumentsRequest) -> Any:
 # =========================================================================
 # POSITIONS
 # =========================================================================
+
 
 @app.post("/positions/get", tags=["positions"])
 async def get_positions(req: CredentialsBody) -> Any:
@@ -525,7 +562,8 @@ async def get_positions(req: CredentialsBody) -> Any:
 @app.post("/positions/get-delete-commands", tags=["positions"])
 async def get_positions_delete_commands(req: CredentialsBody) -> Any:
     return await _forward_get(
-        req.credentials, "GET /positions/delete-commands",
+        req.credentials,
+        "GET /positions/delete-commands",
         wms_client.get_positions_delete_commands,
     )
 
@@ -545,8 +583,11 @@ class CreatePositionRequest(BaseModel):
 @app.post("/positions/create", tags=["positions"])
 async def create_position(req: CreatePositionRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.position.model_dump(exclude_none=True),
-        entity="POSITION", action="SAVE", path="/positions",
+        req.credentials,
+        req.position.model_dump(exclude_none=True),
+        entity="POSITION",
+        action="SAVE",
+        path="/positions",
         path_label="POST /positions",
     )
 
@@ -568,7 +609,9 @@ async def create_positions(req: CreatePositionsRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [p.model_dump(exclude_none=True) for p in req.positions],
-        entity="POSITION", action="SAVE", path="/positions/list",
+        entity="POSITION",
+        action="SAVE",
+        path="/positions/list",
         path_label="POST /positions/list",
     )
 
@@ -588,8 +631,11 @@ class DeletePositionRequest(BaseModel):
 @app.post("/positions/delete", tags=["positions"])
 async def delete_position(req: DeletePositionRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.command.model_dump(exclude_none=True),
-        entity="POSITION", action="DELETE", path="/positions/delete-commands",
+        req.credentials,
+        req.command.model_dump(exclude_none=True),
+        entity="POSITION",
+        action="DELETE",
+        path="/positions/delete-commands",
         path_label="POST /positions/delete-commands",
     )
 
@@ -611,7 +657,9 @@ async def delete_positions(req: DeletePositionsRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [c.model_dump(exclude_none=True) for c in req.commands],
-        entity="POSITION", action="DELETE", path="/positions/delete-commands/list",
+        entity="POSITION",
+        action="DELETE",
+        path="/positions/delete-commands/list",
         path_label="POST /positions/delete-commands/list",
     )
 
@@ -619,6 +667,7 @@ async def delete_positions(req: DeletePositionsRequest) -> Any:
 # =========================================================================
 # CONTRACTORS
 # =========================================================================
+
 
 @app.post("/contractors/get", tags=["contractors"])
 async def get_contractors(req: CredentialsBody) -> Any:
@@ -628,7 +677,8 @@ async def get_contractors(req: CredentialsBody) -> Any:
 @app.post("/contractors/get-delete-commands", tags=["contractors"])
 async def get_contractors_delete_commands(req: CredentialsBody) -> Any:
     return await _forward_get(
-        req.credentials, "GET /contractors/delete-commands",
+        req.credentials,
+        "GET /contractors/delete-commands",
         wms_client.get_contractors_delete_commands,
     )
 
@@ -648,8 +698,11 @@ class CreateContractorRequest(BaseModel):
 @app.post("/contractors/create", tags=["contractors"])
 async def create_contractor(req: CreateContractorRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.contractor.model_dump(exclude_none=True),
-        entity="CONTRACTOR", action="SAVE", path="/contractors",
+        req.credentials,
+        req.contractor.model_dump(exclude_none=True),
+        entity="CONTRACTOR",
+        action="SAVE",
+        path="/contractors",
         path_label="POST /contractors",
     )
 
@@ -664,7 +717,9 @@ async def create_contractors(req: CreateContractorsRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [c.model_dump(exclude_none=True) for c in req.contractors],
-        entity="CONTRACTOR", action="SAVE", path="/contractors/list",
+        entity="CONTRACTOR",
+        action="SAVE",
+        path="/contractors/list",
         path_label="POST /contractors/list",
     )
 
@@ -684,8 +739,11 @@ class DeleteContractorRequest(BaseModel):
 @app.post("/contractors/delete", tags=["contractors"])
 async def delete_contractor(req: DeleteContractorRequest) -> Any:
     return await _forward_write(
-        req.credentials, req.command.model_dump(exclude_none=True),
-        entity="CONTRACTOR", action="DELETE", path="/contractors/delete-commands",
+        req.credentials,
+        req.command.model_dump(exclude_none=True),
+        entity="CONTRACTOR",
+        action="DELETE",
+        path="/contractors/delete-commands",
         path_label="POST /contractors/delete-commands",
     )
 
@@ -707,7 +765,9 @@ async def delete_contractors(req: DeleteContractorsRequest) -> Any:
     return await _forward_write(
         req.credentials,
         [c.model_dump(exclude_none=True) for c in req.commands],
-        entity="CONTRACTOR", action="DELETE", path="/contractors/delete-commands/list",
+        entity="CONTRACTOR",
+        action="DELETE",
+        path="/contractors/delete-commands/list",
         path_label="POST /contractors/delete-commands/list",
     )
 
@@ -715,6 +775,7 @@ async def delete_contractors(req: DeleteContractorsRequest) -> Any:
 # =========================================================================
 # FEEDBACK & ERRORS
 # =========================================================================
+
 
 @app.post("/feedbacks/get", tags=["feedback"])
 async def get_feedbacks(req: CredentialsBody) -> Any:
@@ -729,6 +790,7 @@ async def get_errors(req: CredentialsBody) -> Any:
 # =========================================================================
 # EVENT POLLER MANAGEMENT
 # =========================================================================
+
 
 class RegisterPollingRequest(BaseModel):
     account_name: str = "default"
@@ -761,9 +823,7 @@ async def poller_status() -> dict[str, Any]:
             }
             for name, creds in event_poller._credential_store.items()
         },
-        "tracked_entities": {
-            k: len(v) for k, v in event_poller._state.items()
-        },
+        "tracked_entities": {k: len(v) for k, v in event_poller._state.items()},
         "initialized_entities": list(event_poller._initialized),
         "platform_url": settings.platform_api_url,
     }
@@ -781,7 +841,9 @@ async def poller_poll_now() -> dict[str, str]:
     """Trigger an immediate poll cycle (does not wait for result)."""
     if not event_poller._running:
         raise HTTPException(status_code=400, detail="Poller is not running")
-    asyncio.create_task(event_poller._poll_cycle())
+    task = asyncio.create_task(event_poller._poll_cycle())
+    _poller_tasks.add(task)
+    task.add_done_callback(_poller_tasks.discard)
     return {"status": "triggered", "message": "Poll cycle started"}
 
 

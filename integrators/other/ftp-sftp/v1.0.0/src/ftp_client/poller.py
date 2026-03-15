@@ -2,14 +2,15 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 from src.config import settings
 from src.ftp_client.client import FtpSftpClient
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,9 @@ class FilePoller:
         if new_files:
             logger.info(
                 "Found %d new files for account=%s in %s",
-                len(new_files), account_name, poll_path,
+                len(new_files),
+                account_name,
+                poll_path,
             )
             for f in new_files:
                 await self._emit_file_event(account_name, f)
@@ -92,7 +95,7 @@ class FilePoller:
             "size": file_info.size,
             "modified_at": file_info.modified_at.isoformat() if file_info.modified_at else None,
             "account_name": account_name,
-            "detected_at": datetime.now(timezone.utc).isoformat(),
+            "detected_at": datetime.now(UTC).isoformat(),
         }
 
         if self._kafka_producer:

@@ -10,10 +10,12 @@ health-check failures.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Callable, Awaitable
+from typing import Any
 
 import httpx
 import structlog
@@ -48,6 +50,7 @@ _REDIS_KEY_PREFIX = "connector:health:"
 @dataclass
 class _HealthTarget:
     """Everything needed to check one connector instance."""
+
     manifest: ConnectorManifest
     instance_id: Any = None
     instance_key: str = ""
@@ -139,10 +142,8 @@ class ConnectorHealthMonitor:
         if self._task is None:
             return
         self._task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await self._task
-        except asyncio.CancelledError:
-            pass
         self._task = None
         logger.info("connector_health_monitor.stopped")
 
@@ -166,29 +167,30 @@ class ConnectorHealthMonitor:
         if self._session_factory is None:
             return [_HealthTarget(manifest=m) for m in self._registry.get_all()]
 
-        from db.models import ConnectorInstance
         from db.base import set_rls_bypass
+        from db.models import ConnectorInstance
 
         targets: list[_HealthTarget] = []
         async with self._session_factory() as db:
             await set_rls_bypass(db)
-            result = await db.execute(
-                select(ConnectorInstance).where(ConnectorInstance.is_enabled.is_(True))
-            )
+            result = await db.execute(select(ConnectorInstance).where(ConnectorInstance.is_enabled.is_(True)))
             instances = result.scalars().all()
             for inst in instances:
                 manifest = self._registry.get_by_name_version(
-                    inst.connector_name, inst.connector_version,
+                    inst.connector_name,
+                    inst.connector_version,
                 )
                 if not manifest:
                     fallbacks = self._registry.get_by_name(inst.connector_name)
                     manifest = fallbacks[0] if fallbacks else None
                 if manifest:
-                    targets.append(_HealthTarget(
-                        manifest=manifest,
-                        instance_id=inst.id,
-                        instance_key=str(inst.id),
-                    ))
+                    targets.append(
+                        _HealthTarget(
+                            manifest=manifest,
+                            instance_id=inst.id,
+                            instance_key=str(inst.id),
+                        )
+                    )
         return targets
 
     async def _check_one(self, client: httpx.AsyncClient, target: _HealthTarget) -> None:
@@ -263,20 +265,22 @@ class ConnectorHealthMonitor:
         )
 
     async def _auto_disable_instance(
-        self, instance_id: Any, ikey: str, connector_name: str, consecutive: int,
+        self,
+        instance_id: Any,
+        ikey: str,
+        connector_name: str,
+        consecutive: int,
     ) -> None:
         if self._session_factory is None:
             return
         try:
-            from db.models import ConnectorInstance
             from db.base import set_rls_bypass
+            from db.models import ConnectorInstance
 
             async with self._session_factory() as db:
                 await set_rls_bypass(db)
                 await db.execute(
-                    update(ConnectorInstance)
-                    .where(ConnectorInstance.id == instance_id)
-                    .values(is_enabled=False)
+                    update(ConnectorInstance).where(ConnectorInstance.id == instance_id).values(is_enabled=False)
                 )
                 await db.commit()
             self._failure_counts[ikey] = 0
@@ -331,7 +335,7 @@ class ConnectorHealthMonitor:
             cursor, keys = await redis.scan(cursor=cursor, match=f"{_REDIS_KEY_PREFIX}*", count=100)
             if keys:
                 values = await redis.mget(*keys)
-                for key, raw in zip(keys, values):
+                for key, raw in zip(keys, values, strict=False):
                     if raw is None:
                         continue
                     try:

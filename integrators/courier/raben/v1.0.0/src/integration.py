@@ -20,22 +20,19 @@ from src.api import (
 )
 from src.config import settings
 from src.schemas import (
-    Address,
     AdditionalServices,
-    ClaimResponse,
+    Address,
     ClaimType,
     ContactInfo,
     CreateClaimRequest,
     CreateShipmentRequest,
     CreateTransportOrderRequest,
-    DeliveryConfirmation,
     EtaInfo,
     RabenCredentials,
     ShipmentStatus,
     ShipmentStatusResponse,
     TrackingEvent,
     TrackingResponse,
-    TransportOrderResponse,
 )
 
 logger = logging.getLogger("courier-raben")

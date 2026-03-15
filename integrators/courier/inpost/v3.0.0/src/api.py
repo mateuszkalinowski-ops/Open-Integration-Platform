@@ -33,14 +33,14 @@ from src.schemas import (
 logger = logging.getLogger("courier-inpost-int-2025")
 
 AUTH_SCOPES = (
-    "openid api:points:read api:shipments:write "
-    "api:tracking:read api:one-time-pickups:write api:one-time-pickups:read"
+    "openid api:points:read api:shipments:write api:tracking:read api:one-time-pickups:write api:one-time-pickups:read"
 )
 
 
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
+
 
 class ApiAuth:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -70,7 +70,8 @@ async def refresh_credentials(
 ) -> str:
     """Refresh InPost access token and update credentials object."""
     token = await ApiAuth(client, base_url).get_access_token(
-        credentials.organization_id, credentials.client_secret,
+        credentials.organization_id,
+        credentials.client_secret,
     )
     credentials.access_token = token
     return token
@@ -78,6 +79,7 @@ async def refresh_credentials(
 
 def retry_on_unauthorized(func):
     """Decorator: retry on 401 after refreshing the access token."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -93,17 +95,20 @@ def retry_on_unauthorized(func):
                     await refresh_credentials(credentials, self._client)
                     return await func(*args, **kwargs)
             raise
+
     return wrapper
 
 
 def handle_errors(func):
     """Decorator: convert httpx.HTTPStatusError to formatted error tuple."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as exc:
             return _format_rest_error_response(exc.response)
+
     return wrapper
 
 
@@ -117,7 +122,8 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "InPost API error — path=%s status=%s",
-        response.url.path, response.status_code,
+        response.url.path,
+        response.status_code,
     )
     return msg, response.status_code
 
@@ -125,6 +131,7 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
 # ---------------------------------------------------------------------------
 # Shipping API (v2)
 # ---------------------------------------------------------------------------
+
 
 class ApiShipping:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -159,10 +166,7 @@ class ApiShipping:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /shipping/v2/organizations/{orgId}/shipments/{trackingNumber}/label."""
-        url = (
-            f"{self._base_url}/shipping/v2/organizations/{organization_id}"
-            f"/shipments/{tracking_number}/label"
-        )
+        url = f"{self._base_url}/shipping/v2/organizations/{organization_id}/shipments/{tracking_number}/label"
         response = await self._client.get(
             url,
             headers={
@@ -181,10 +185,7 @@ class ApiShipping:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /shipping/v2/organizations/{orgId}/shipments/{trackingNumber}."""
-        url = (
-            f"{self._base_url}/shipping/v2/organizations/{organization_id}"
-            f"/shipments/{tracking_number}"
-        )
+        url = f"{self._base_url}/shipping/v2/organizations/{organization_id}/shipments/{tracking_number}"
         response = await self._client.get(
             url,
             headers={"Content-Type": "application/json", **auth_header},
@@ -196,6 +197,7 @@ class ApiShipping:
 # ---------------------------------------------------------------------------
 # Tracking API (v1)
 # ---------------------------------------------------------------------------
+
 
 class ApiTracking:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -223,6 +225,7 @@ class ApiTracking:
 # ---------------------------------------------------------------------------
 # Pickups API (v1)
 # ---------------------------------------------------------------------------
+
 
 class ApiPickups:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -269,10 +272,7 @@ class ApiPickups:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /pickups/v1/organizations/{orgId}/one-time-pickups/{orderId}."""
-        url = (
-            f"{self._base_url}/pickups/v1/organizations/{organization_id}"
-            f"/one-time-pickups/{order_id}"
-        )
+        url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups/{order_id}"
         response = await self._client.get(
             url,
             headers={"Content-Type": "application/json", **auth_header},
@@ -287,10 +287,7 @@ class ApiPickups:
         auth_header: dict[str, str],
     ) -> dict:
         """PUT /pickups/v1/organizations/{orgId}/one-time-pickups/{orderId}/cancel."""
-        url = (
-            f"{self._base_url}/pickups/v1/organizations/{organization_id}"
-            f"/one-time-pickups/{order_id}/cancel"
-        )
+        url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups/{order_id}/cancel"
         response = await self._client.put(
             url,
             headers={"Content-Type": "application/json", **auth_header},
@@ -317,6 +314,7 @@ class ApiPickups:
 # ---------------------------------------------------------------------------
 # Location API (v1) — replaces Points API from 2024
 # ---------------------------------------------------------------------------
+
 
 class ApiLocation:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -419,6 +417,7 @@ class ApiLocation:
 # Returns API (v1)
 # ---------------------------------------------------------------------------
 
+
 class ApiReturns:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
         self._client = client
@@ -447,10 +446,7 @@ class ApiReturns:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /returns/v1/organizations/{orgId}/shipments/{shipmentId}."""
-        url = (
-            f"{self._base_url}/returns/v1/organizations/{organization_id}"
-            f"/shipments/{shipment_id}"
-        )
+        url = f"{self._base_url}/returns/v1/organizations/{organization_id}/shipments/{shipment_id}"
         response = await self._client.get(
             url,
             headers={"Content-Type": "application/json", **auth_header},
@@ -466,10 +462,7 @@ class ApiReturns:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /returns/v1/organizations/{orgId}/shipments/{trackingNumber}/label."""
-        url = (
-            f"{self._base_url}/returns/v1/organizations/{organization_id}"
-            f"/shipments/{tracking_number}/label"
-        )
+        url = f"{self._base_url}/returns/v1/organizations/{organization_id}/shipments/{tracking_number}/label"
         response = await self._client.get(
             url,
             headers={

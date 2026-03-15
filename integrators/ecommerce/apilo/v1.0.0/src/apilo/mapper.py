@@ -5,6 +5,7 @@ Apilo order statuses are integer IDs. Common defaults:
 Actual IDs depend on the account configuration (GET /orders/status/map/).
 """
 
+import contextlib
 import logging
 from typing import Any
 
@@ -110,7 +111,7 @@ def map_apilo_order_to_order(
     currency = order_data.get("originalCurrency", "PLN")
 
     payment_type_id = order_data.get("paymentType", 0)
-    payment_status = order_data.get("paymentStatus", 0)
+    _payment_status = order_data.get("paymentStatus", 0)
 
     notes_list = order_data.get("orderNotes", [])
     notes = "; ".join(n.get("comment", "") for n in notes_list if n.get("comment"))
@@ -137,10 +138,8 @@ def map_apilo_order_to_order(
 def map_apilo_product_to_product(product_data: dict[str, Any]) -> Product:
     """Map an Apilo product dict to the unified Product schema."""
     price_with_tax = 0.0
-    try:
+    with contextlib.suppress(ValueError, TypeError):
         price_with_tax = float(product_data.get("priceWithTax", 0))
-    except (ValueError, TypeError):
-        pass
 
     return Product(
         external_id=str(product_data.get("id", "")),
@@ -205,30 +204,28 @@ def _map_order_items(items: list[dict[str, Any]]) -> list[OrderLine]:
     lines: list[OrderLine] = []
     for item in items:
         unit_price = 0.0
-        try:
+        with contextlib.suppress(ValueError, TypeError):
             unit_price = float(item.get("originalPriceWithTax", 0))
-        except (ValueError, TypeError):
-            pass
 
         tax_rate: float | None = None
         tax_str = item.get("tax")
         if tax_str is not None:
-            try:
+            with contextlib.suppress(ValueError, TypeError):
                 tax_rate = float(tax_str)
-            except (ValueError, TypeError):
-                pass
 
-        lines.append(OrderLine(
-            external_id=str(item.get("id", "")),
-            offer_id=str(item.get("idExternal", "")),
-            product_id=str(item.get("productId", "")),
-            sku=item.get("sku", "") or "",
-            ean=item.get("ean", "") or "",
-            name=item.get("originalName", ""),
-            quantity=float(item.get("quantity", 1)),
-            unit=item.get("unit", "szt.") or "szt.",
-            unit_price=unit_price,
-            currency="PLN",
-            tax_rate=tax_rate,
-        ))
+        lines.append(
+            OrderLine(
+                external_id=str(item.get("id", "")),
+                offer_id=str(item.get("idExternal", "")),
+                product_id=str(item.get("productId", "")),
+                sku=item.get("sku", "") or "",
+                ean=item.get("ean", "") or "",
+                name=item.get("originalName", ""),
+                quantity=float(item.get("quantity", 1)),
+                unit=item.get("unit", "szt.") or "szt.",
+                unit_price=unit_price,
+                currency="PLN",
+                tax_rate=tax_rate,
+            )
+        )
     return lines

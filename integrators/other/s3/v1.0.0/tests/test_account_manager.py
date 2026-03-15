@@ -21,20 +21,32 @@ def test_add_and_get_account():
 
 def test_list_accounts():
     manager = AccountManager()
-    manager.add_account(S3AccountConfig(
-        name="a", aws_access_key_id="k1", aws_secret_access_key="s1",
-    ))
-    manager.add_account(S3AccountConfig(
-        name="b", aws_access_key_id="k2", aws_secret_access_key="s2",
-    ))
+    manager.add_account(
+        S3AccountConfig(
+            name="a",
+            aws_access_key_id="k1",
+            aws_secret_access_key="s1",
+        )
+    )
+    manager.add_account(
+        S3AccountConfig(
+            name="b",
+            aws_access_key_id="k2",
+            aws_secret_access_key="s2",
+        )
+    )
     assert len(manager.list_accounts()) == 2
 
 
 def test_remove_account():
     manager = AccountManager()
-    manager.add_account(S3AccountConfig(
-        name="temp", aws_access_key_id="k", aws_secret_access_key="s",
-    ))
+    manager.add_account(
+        S3AccountConfig(
+            name="temp",
+            aws_access_key_id="k",
+            aws_secret_access_key="s",
+        )
+    )
     assert manager.remove_account("temp") is True
     assert manager.get_account("temp") is None
 

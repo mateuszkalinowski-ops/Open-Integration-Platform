@@ -56,8 +56,7 @@ async def run_tier3(
 ) -> list[dict[str, Any]]:
     """Run Tier 3 functional checks based on connector identity."""
     if not target.credentials:
-        return [result("functional_tests", "SKIP", 0,
-                       error="No credentials — skipping functional tests")]
+        return [result("functional_tests", "SKIP", 0, error="No credentials — skipping functional tests")]
 
     name = target.manifest.name
     interface = target.manifest.interface
@@ -68,5 +67,11 @@ async def run_tier3(
     if module:
         return await module.run(client, target)
 
-    return [result("functional_smoke", "SKIP", 0,
-                   error=f"No functional tests defined for category={category} interface={interface}")]
+    return [
+        result(
+            "functional_smoke",
+            "SKIP",
+            0,
+            error=f"No functional tests defined for category={category} interface={interface}",
+        )
+    ]

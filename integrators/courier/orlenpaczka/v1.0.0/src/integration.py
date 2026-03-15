@@ -36,6 +36,7 @@ logger = logging.getLogger("courier-orlenpaczka")
 # Utility helpers
 # ---------------------------------------------------------------------------
 
+
 def wsdl_to_json(data: object) -> dict:
     """Convert a zeep SOAP response object to a JSON-serializable dict."""
     return json.loads(json.dumps(serialize_object(data)))
@@ -44,6 +45,7 @@ def wsdl_to_json(data: object) -> dict:
 # ---------------------------------------------------------------------------
 # Orlen Paczka Return Codes
 # ---------------------------------------------------------------------------
+
 
 class OrlenPaczkaReturnCodes(Enum):
     """Enum representing possible return codes that Orlen Paczka API returns."""
@@ -124,6 +126,7 @@ class OrlenPaczkaReturnCodes(Enum):
 # Orlen Paczka Integration
 # ---------------------------------------------------------------------------
 
+
 class OrlenPaczkaIntegration:
     """Orlen Paczka SOAP integration.
 
@@ -164,7 +167,10 @@ class OrlenPaczkaIntegration:
             "PackCode": order_id,
             "PhoneNumber": None,
         }
-        extract: Callable = lambda r: r._value_1._value_1[0].get("PackStatus")
+
+        def extract(r: object) -> object:
+            return r._value_1._value_1[0].get("PackStatus")
+
         response, err = self._call_service("GiveMePackStatus", extract, **payload)
         if err:
             return err
@@ -174,7 +180,7 @@ class OrlenPaczkaIntegration:
         else:
             logger.error("Error fetching orlenpaczka status: %s", response["ErrDes"])
             return (
-                f'Error code: {response["Err"]}, Details: {response["ErrDes"]}',
+                f"Error code: {response['Err']}, Details: {response['ErrDes']}",
                 HTTPStatus.BAD_REQUEST,
             )
 
@@ -230,9 +236,9 @@ class OrlenPaczkaIntegration:
             "PartnerKey": credentials.partner_key,
             "PackCode": order_id,
         }
-        delete_extraction_func: Callable = (
-            lambda r: r._value_1._value_1[0].get("CustomerPackCanceled")
-        )
+
+        def delete_extraction_func(r: object) -> object:
+            return r._value_1._value_1[0].get("CustomerPackCanceled")
 
         _, err = self._call_service(
             method="PutCustomerPackCanceled",
@@ -269,11 +275,9 @@ class OrlenPaczkaIntegration:
             "PackCodeList": array_of_string_type(waybill_numbers),
             "Format": "PDF",
         }
-        status_extraction_func: Callable = (
-            lambda r: r.LabelPrintDuplicateListResult._value_1._value_1[0].get(
-                "LabelPrintDuplicateList"
-            )
-        )
+
+        def status_extraction_func(r: object) -> object:
+            return r.LabelPrintDuplicateListResult._value_1._value_1[0].get("LabelPrintDuplicateList")
 
         try:
             response = self.client.service.LabelPrintDuplicateList(**payload)
@@ -442,7 +446,11 @@ class OrlenPaczkaIntegration:
         irregular nested response structures.
         """
         if extract is None:
-            extract = lambda r: r._value_1._value_1[0].get(method)
+
+            def _default_extract(r: object) -> object:
+                return r._value_1._value_1[0].get(method)
+
+            extract = _default_extract
 
         try:
             response = getattr(self.client.service, method)(*args, **kwargs)

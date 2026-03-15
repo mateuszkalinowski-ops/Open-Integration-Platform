@@ -11,10 +11,10 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.config import IdoSellAccountConfig, settings
 from src.idosell.auth import IdoSellAuthManager
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -93,22 +93,31 @@ class IdoSellClient:
         for attempt in range(settings.max_retries):
             start = time.monotonic()
             last_response = await http_client.request(
-                method, path, headers=headers, params=params, json=json_data,
+                method,
+                path,
+                headers=headers,
+                params=params,
+                json=json_data,
             )
             duration = time.monotonic() - start
 
             operation = path.split("/")[0] if path else "unknown"
             metrics["external_api_calls_total"].labels(
-                system="idosell", operation=operation, status=last_response.status_code,
+                system="idosell",
+                operation=operation,
+                status=last_response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="idosell", operation=operation,
+                system="idosell",
+                operation=operation,
             ).observe(duration)
 
             if last_response.status_code == 401:
                 logger.error(
                     "IdoSell 401 Unauthorized for account=%s path=%s (mode=%s)",
-                    account.name, path, account.auth_mode,
+                    account.name,
+                    path,
+                    account.auth_mode,
                 )
                 raise IdoSellApiError(
                     401,
@@ -120,16 +129,24 @@ class IdoSellClient:
                 retry_after = float(last_response.headers.get(RETRY_AFTER_HEADER, "5.0"))
                 logger.warning(
                     "IdoSell rate limited for account=%s, waiting %.1fs (attempt %d/%d)",
-                    account.name, retry_after, attempt + 1, settings.max_retries,
+                    account.name,
+                    retry_after,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(retry_after)
                 continue
 
             if last_response.status_code >= 500:
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
+                backoff = settings.retry_backoff_factor * (2**attempt)
                 logger.warning(
                     "IdoSell %d for account=%s path=%s, retrying in %.1fs (attempt %d/%d)",
-                    last_response.status_code, account.name, path, backoff, attempt + 1, settings.max_retries,
+                    last_response.status_code,
+                    account.name,
+                    path,
+                    backoff,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(backoff)
                 continue
@@ -220,10 +237,12 @@ class IdoSellClient:
         """PUT /orders/orders — update order status."""
         body: dict[str, Any] = {
             "params": {
-                "orders": [{
-                    "orderSerialNumber": order_serial_number,
-                    "orderStatus": new_status,
-                }]
+                "orders": [
+                    {
+                        "orderSerialNumber": order_serial_number,
+                        "orderStatus": new_status,
+                    }
+                ]
             }
         }
         resp = await self.put("orders/orders", account, json_data=body)
@@ -285,17 +304,16 @@ class IdoSellClient:
         tracking_numbers: list[str],
     ) -> dict[str, Any]:
         """POST /orders/packages — create shipping packages for an order."""
-        packages = [
-            {"deliveryPackageNumber": num, "courierId": courier_id}
-            for num in tracking_numbers
-        ]
+        packages = [{"deliveryPackageNumber": num, "courierId": courier_id} for num in tracking_numbers]
         body: dict[str, Any] = {
             "params": {
-                "orderPackages": [{
-                    "eventType": "order",
-                    "eventId": str(order_serial_number),
-                    "packages": packages,
-                }]
+                "orderPackages": [
+                    {
+                        "eventType": "order",
+                        "eventId": str(order_serial_number),
+                        "packages": packages,
+                    }
+                ]
             }
         }
         resp = await self.post("orders/packages", account, json_data=body)

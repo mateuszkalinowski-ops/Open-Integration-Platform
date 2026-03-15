@@ -1,11 +1,12 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
-from src.slack_client.integration import SlackIntegration
-from src.slack_client.poller import MessagePoller
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
+from src.slack_client.integration import SlackIntegration
+from src.slack_client.poller import MessagePoller
 
 
 class AppState:

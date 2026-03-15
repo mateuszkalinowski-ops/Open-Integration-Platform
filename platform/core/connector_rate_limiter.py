@@ -5,8 +5,9 @@ from __future__ import annotations
 import asyncio
 import re
 import time
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass
-from typing import Any, Awaitable, Callable
+from typing import Any
 
 import structlog
 
@@ -81,7 +82,9 @@ class ConnectorRateLimiter:
                 try:
                     return _parse_rate(action_rate)
                 except ValueError:
-                    logger.warning("connector_rate_limiter.invalid_action_rate", connector=connector_name, action=action)
+                    logger.warning(
+                        "connector_rate_limiter.invalid_action_rate", connector=connector_name, action=action
+                    )
 
         global_rate = rate_limits.get("global")
         if global_rate:
@@ -168,21 +171,21 @@ class ConnectorRateLimiter:
         )
 
     async def wait_if_needed(
-            self,
-            connector_name: str,
-            action: str | None = None,
-            tenant_id: str | None = None,
-            connector_version: str | None = None,
-        ) -> RateLimitResult:
-            result = await self.check(connector_name, action, tenant_id, connector_version)
-            if result.allowed:
-                return result
+        self,
+        connector_name: str,
+        action: str | None = None,
+        tenant_id: str | None = None,
+        connector_version: str | None = None,
+    ) -> RateLimitResult:
+        result = await self.check(connector_name, action, tenant_id, connector_version)
+        if result.allowed:
+            return result
 
-            wait = min(result.retry_after or 1.0, 30.0)
-            logger.debug(
-                "connector_rate_limiter.waiting",
-                connector=connector_name,
-                wait_seconds=wait,
-            )
-            await asyncio.sleep(wait)
-            return await self.check(connector_name, action, tenant_id, connector_version)
+        wait = min(result.retry_after or 1.0, 30.0)
+        logger.debug(
+            "connector_rate_limiter.waiting",
+            connector=connector_name,
+            wait_seconds=wait,
+        )
+        await asyncio.sleep(wait)
+        return await self.check(connector_name, action, tenant_id, connector_version)

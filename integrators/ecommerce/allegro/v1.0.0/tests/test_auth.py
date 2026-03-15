@@ -1,9 +1,9 @@
 """Tests for Allegro OAuth2 authentication manager."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, patch
 
+import pytest
 from src.allegro.auth import AllegroAuthManager
 from src.allegro.schemas import AllegroTokenResponse
 
@@ -32,7 +32,7 @@ class TestAllegroAuthManager:
                     "expires_in": 3600,
                     "token_type": "Bearer",
                 },
-                "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
             }
         }
         await auth_mgr.initialize()
@@ -67,7 +67,7 @@ class TestAllegroAuthManager:
                     "expires_in": 3600,
                     "token_type": "Bearer",
                 },
-                "expires_at": (datetime.now(timezone.utc) + timedelta(hours=1)).isoformat(),
+                "expires_at": (datetime.now(UTC) + timedelta(hours=1)).isoformat(),
             }
         }
         await auth_mgr.initialize()
@@ -84,7 +84,7 @@ class TestAllegroAuthManager:
                     "expires_in": 3600,
                     "token_type": "Bearer",
                 },
-                "expires_at": (datetime.now(timezone.utc) - timedelta(hours=1)).isoformat(),
+                "expires_at": (datetime.now(UTC) - timedelta(hours=1)).isoformat(),
             }
         }
         await auth_mgr.initialize()

@@ -30,6 +30,7 @@ except ImportError:
 from src import ai_engine
 from src.config import settings
 from src.schemas import (
+    AiCredentials,
     AnalyzeRequest,
     CourierRecommendationRequest,
     DataExtractionRequest,
@@ -58,6 +59,7 @@ app = FastAPI(
 
 # ── Health ───────────────────────────────────────────────────────
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": "1.0.0", "system": "ai-agent"}
@@ -74,6 +76,7 @@ async def readiness():
 
 
 # ── Connection status ────────────────────────────────────────────
+
 
 @app.get("/connection/{account_name}/status")
 async def connection_status(
@@ -100,6 +103,7 @@ async def connection_status(
 
 # ── PRIMARY: Generic prompt-based analysis ──────────────────────
 
+
 @app.post("/analyze", status_code=200)
 async def analyze(request: AnalyzeRequest):
     """Main endpoint — send prompt + data, get AI response."""
@@ -119,6 +123,7 @@ async def analyze(request: AnalyzeRequest):
 
 
 # ── TEMPLATE: Risk Analysis ─────────────────────────────────────
+
 
 @app.post("/analyze/risk", status_code=200)
 async def analyze_risk(request: RiskAnalysisRequest):
@@ -152,6 +157,7 @@ async def analyze_risk(request: RiskAnalysisRequest):
 
 # ── TEMPLATE: Courier Recommendation ────────────────────────────
 
+
 @app.post("/analyze/courier", status_code=200)
 async def recommend_courier(request: CourierRecommendationRequest):
     try:
@@ -170,6 +176,7 @@ async def recommend_courier(request: CourierRecommendationRequest):
 
 # ── TEMPLATE: Priority Classification ───────────────────────────
 
+
 @app.post("/analyze/priority", status_code=200)
 async def classify_priority(request: PriorityClassificationRequest):
     try:
@@ -187,6 +194,7 @@ async def classify_priority(request: PriorityClassificationRequest):
 
 # ── TEMPLATE: Data Extraction ───────────────────────────────────
 
+
 @app.post("/analyze/extract", status_code=200)
 async def extract_data(request: DataExtractionRequest):
     try:
@@ -203,6 +211,7 @@ async def extract_data(request: DataExtractionRequest):
 
 
 # ── Generic action endpoint (used by Flow Engine dispatcher) ────
+
 
 @app.post("/actions/{action}")
 async def generic_action(action: str, payload: dict):
@@ -225,8 +234,7 @@ async def generic_action(action: str, payload: dict):
     return await handler(payload)
 
 
-def _make_credentials(payload: dict) -> "AiCredentials":
-    from src.schemas import AiCredentials
+def _make_credentials(payload: dict) -> AiCredentials:
     return AiCredentials(
         gemini_api_key=payload.pop("gemini_api_key", settings.gemini_api_key),
         model_name=payload.pop("model_name", settings.model_name),
@@ -259,6 +267,7 @@ async def _handle_risk(payload: dict) -> dict:
 
 async def _handle_courier(payload: dict) -> dict:
     from src.schemas import CourierPreferences
+
     creds = _make_credentials(payload)
     prefs_data = payload.get("preferences")
     prefs = CourierPreferences(**prefs_data) if prefs_data else None

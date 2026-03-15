@@ -12,15 +12,14 @@ import json
 import logging
 import uuid
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from enum import Enum
 from typing import Any
 
+from db.models import SyncLedger
 from sqlalchemy import func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from db.models import SyncLedger
 
 
 class SyncDecision(str, Enum):
@@ -50,10 +49,7 @@ def compute_content_hash(
     if hash_fields and hash_fields != ["*"]:
         subset = {k: data.get(k) for k in hash_fields}
     else:
-        subset = {
-            k: v for k, v in data.items()
-            if not k.startswith("_") and k not in ("account_name", "polled_at")
-        }
+        subset = {k: v for k, v in data.items() if not k.startswith("_") and k not in ("account_name", "polled_at")}
     raw = json.dumps(subset, sort_keys=True, default=str)
     return hashlib.sha256(raw.encode()).hexdigest()
 
@@ -137,7 +133,8 @@ class SyncStateManager:
             except Exception:
                 logging.getLogger(__name__).exception(
                     "sync_ledger insert failed (not a race condition) workflow=%s entity=%s",
-                    workflow_id, entity_key,
+                    workflow_id,
+                    entity_key,
                 )
                 raise
             return SyncCheckResult(decision=SyncDecision.SYNC, ledger_id=pending.id)
@@ -190,7 +187,7 @@ class SyncStateManager:
         content_hash: str,
         ledger_id: uuid.UUID | None = None,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if ledger_id:
             await db.execute(
@@ -230,7 +227,7 @@ class SyncStateManager:
         error: str,
         ledger_id: uuid.UUID | None = None,
     ) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
 
         if ledger_id:
             await db.execute(
@@ -272,8 +269,7 @@ class SyncStateManager:
         if tenant_id is not None:
             filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
-            update(SyncLedger).where(*filters)
-            .values(sync_status="stale", updated_at=datetime.now(timezone.utc))
+            update(SyncLedger).where(*filters).values(sync_status="stale", updated_at=datetime.now(UTC))
         )
         return result.rowcount  # type: ignore[return-value]
 
@@ -314,10 +310,7 @@ class SyncStateManager:
         if tenant_id is not None:
             filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
-            select(SyncLedger)
-            .where(*filters)
-            .order_by(SyncLedger.updated_at.desc())
-            .limit(limit)
+            select(SyncLedger).where(*filters).order_by(SyncLedger.updated_at.desc()).limit(limit)
         )
         return [
             {
@@ -350,7 +343,7 @@ class SyncStateManager:
                 sync_status="pending",
                 attempt_count=0,
                 last_error=None,
-                updated_at=datetime.now(timezone.utc),
+                updated_at=datetime.now(UTC),
             )
         )
         return result.rowcount  # type: ignore[return-value]
@@ -363,10 +356,9 @@ class SyncStateManager:
     ) -> int:
         """Delete all ledger entries for a workflow (force full re-sync)."""
         from sqlalchemy import delete
+
         filters = [SyncLedger.workflow_id == workflow_id]
         if tenant_id is not None:
             filters.append(SyncLedger.tenant_id == tenant_id)
-        result = await db.execute(
-            delete(SyncLedger).where(*filters)
-        )
+        result = await db.execute(delete(SyncLedger).where(*filters))
         return result.rowcount  # type: ignore[return-value]

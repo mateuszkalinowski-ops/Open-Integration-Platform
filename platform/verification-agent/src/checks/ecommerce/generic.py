@@ -21,15 +21,23 @@ async def run(
     account = (target.credentials or {}).get("account_name", "verification-agent")
 
     if "order.fetch" in target.manifest.actions:
-        results.append(await get_check(
-            client, f"{base}/orders", "list_orders",
-            params={"account_name": account, "per_page": "1"},
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/orders",
+                "list_orders",
+                params={"account_name": account, "per_page": "1"},
+            )
+        )
 
     if "product.search" in target.manifest.actions:
-        results.append(await get_check(
-            client, f"{base}/products/search", "search_products",
-            params={"account_name": account, "query": "test", "page": "1", "page_size": "1"},
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/products/search",
+                "search_products",
+                params={"account_name": account, "query": "test", "page": "1", "page_size": "1"},
+            )
+        )
 
     return results

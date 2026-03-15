@@ -1,7 +1,7 @@
 """Tests for Pydantic schema validation."""
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.ftp_client.schemas import (
     ConnectionTestResponse,
@@ -21,7 +21,7 @@ def test_file_info_creation():
         path="/home/test.txt",
         size=256,
         is_directory=False,
-        modified_at=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        modified_at=datetime(2026, 1, 1, tzinfo=UTC),
         permissions="755",
     )
     assert info.filename == "test.txt"

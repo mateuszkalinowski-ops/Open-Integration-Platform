@@ -1,9 +1,9 @@
 """Tests for Shoper authentication service."""
 
-import pytest
-from datetime import datetime, timezone, timedelta
-from unittest.mock import AsyncMock, patch, MagicMock
+from datetime import UTC, datetime, timedelta
+from unittest.mock import AsyncMock, MagicMock, patch
 
+import pytest
 from src.shoper.auth import ShoperAuthManager
 
 
@@ -47,22 +47,25 @@ class TestShoperAuthManager:
     @pytest.mark.asyncio
     async def test_get_access_token_returns_cached(self) -> None:
         self.auth._tokens["cached"] = "Bearer cached_token"
-        self.auth._expiry["cached"] = datetime.now(timezone.utc) + timedelta(hours=1)
+        self.auth._expiry["cached"] = datetime.now(UTC) + timedelta(hours=1)
 
         token = await self.auth.get_access_token(
-            "cached", "https://test.shoparena.pl", "admin", "pass",
+            "cached",
+            "https://test.shoparena.pl",
+            "admin",
+            "pass",
         )
         assert token == "Bearer cached_token"
 
     def test_invalidate_removes_token(self) -> None:
         self.auth._tokens["test"] = "Bearer token"
-        self.auth._expiry["test"] = datetime.now(timezone.utc) + timedelta(hours=1)
+        self.auth._expiry["test"] = datetime.now(UTC) + timedelta(hours=1)
 
         self.auth.invalidate("test")
         assert not self.auth.is_authenticated("test")
 
     def test_expired_token_not_authenticated(self) -> None:
         self.auth._tokens["expired"] = "Bearer old_token"
-        self.auth._expiry["expired"] = datetime.now(timezone.utc) - timedelta(hours=1)
+        self.auth._expiry["expired"] = datetime.now(UTC) - timedelta(hours=1)
 
         assert not self.auth.is_authenticated("expired")

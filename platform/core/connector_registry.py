@@ -222,9 +222,7 @@ class ConnectorRegistry:
         return self._connectors.get(connector_id)
 
     def get_latest(self, category: str, name: str) -> ConnectorManifest | None:
-        versions = [
-            c for c in self._connectors.values() if c.category == category and c.name == name
-        ]
+        versions = [c for c in self._connectors.values() if c.category == category and c.name == name]
         if not versions:
             return None
         return max(versions, key=lambda c: _parse_semver(c.version))

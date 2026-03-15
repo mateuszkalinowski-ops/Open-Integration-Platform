@@ -3,8 +3,8 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
@@ -20,18 +20,19 @@ try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
     augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
-from src.woocommerce.auth import WooCommerceAuth
-from src.woocommerce.client import WooCommerceClient
-from src.woocommerce.integration import WooCommerceIntegration
-from src.woocommerce.scraper import OrderScraper
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.logging import setup_logging
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.api.dependencies import app_state
 from src.api.routes import router
 from src.config import settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.logging import setup_logging
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
+from src.woocommerce.auth import WooCommerceAuth
+from src.woocommerce.client import WooCommerceClient
+from src.woocommerce.integration import WooCommerceIntegration
+from src.woocommerce.scraper import OrderScraper
 
 logger = logging.getLogger(__name__)
 
@@ -58,8 +59,11 @@ async def lifespan(application: FastAPI):
     # Register auth for each account
     for account in account_manager.list_accounts():
         auth.register_account(
-            account.name, account.store_url, account.consumer_key,
-            account.consumer_secret, account.api_version,
+            account.name,
+            account.store_url,
+            account.consumer_key,
+            account.consumer_secret,
+            account.api_version,
         )
 
     # WooCommerce HTTP client
@@ -87,10 +91,12 @@ async def lifespan(application: FastAPI):
                 break
             except Exception as exc:
                 if attempt < 4:
-                    wait = 2 ** attempt
+                    wait = 2**attempt
                     logger.warning(
                         "Kafka start attempt %d/5 failed (%s), retrying in %ds",
-                        attempt + 1, exc, wait,
+                        attempt + 1,
+                        exc,
+                        wait,
                     )
                     await asyncio.sleep(wait)
                 else:
@@ -129,10 +135,8 @@ async def lifespan(application: FastAPI):
         await app_state.scraper.stop()
     if scraper_task:
         scraper_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await scraper_task
-        except asyncio.CancelledError:
-            pass
     if kafka_producer:
         await kafka_producer.stop()
     await client.close()

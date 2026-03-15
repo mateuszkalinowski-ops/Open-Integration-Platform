@@ -11,6 +11,7 @@ Handles all UPS REST API interactions including:
 from __future__ import annotations
 
 import base64
+import contextlib
 import functools
 import logging
 import os
@@ -30,7 +31,6 @@ from src.schemas import (
     CreateShipmentRequest,
     Parcel,
     RateProduct,
-    RateRequest,
     ShipmentParty,
     ShipmentPartyResponse,
     StandardizedRateResponse,
@@ -44,6 +44,7 @@ logger = logging.getLogger("courier-ups")
 # ---------------------------------------------------------------------------
 # Utility: unravel parcels (ported from app.integrations.utils)
 # ---------------------------------------------------------------------------
+
 
 def unravel_parcels(parcels: list[Parcel]) -> list[Parcel]:
     """Expand parcels with quantity > 1 into individual entries."""
@@ -59,6 +60,7 @@ def unravel_parcels(parcels: list[Parcel]) -> list[Parcel]:
 # Async retry-with-token-refresh decorator
 # ---------------------------------------------------------------------------
 
+
 def retry_with_refresh_token(func):
     """Decorator that retries an async method after refreshing the OAuth2 token.
 
@@ -67,8 +69,9 @@ def retry_with_refresh_token(func):
     2. If 401 Unauthorized → call ``login()`` to get a fresh token.
     3. Retry the wrapped method once with the new token.
     """
+
     @functools.wraps(func)
-    async def wrapper(self: "UpsIntegration", credentials: UpsCredentials, *args, **kwargs):
+    async def wrapper(self: UpsIntegration, credentials: UpsCredentials, *args, **kwargs):
         result, status = await func(self, credentials, *args, **kwargs)
         if status != HTTPStatus.UNAUTHORIZED:
             return result, status
@@ -89,13 +92,14 @@ def retry_with_refresh_token(func):
 # Format REST error response (ported from Integration base)
 # ---------------------------------------------------------------------------
 
+
 async def _format_rest_error_response(response: httpx.Response) -> tuple[Any, int]:
     """Extract a meaningful error message from a UPS error response."""
     try:
         body = response.json()
         msg = body.get("message", "")
         if "Check details object for more info" in msg:
-            msg = f'{msg} {body.get("details", "")}'
+            msg = f"{msg} {body.get('details', '')}"
         if not msg:
             msg = str(body)
     except (ValueError, KeyError, AttributeError):
@@ -107,6 +111,7 @@ async def _format_rest_error_response(response: httpx.Response) -> tuple[Any, in
 # ---------------------------------------------------------------------------
 # UPS Integration
 # ---------------------------------------------------------------------------
+
 
 class UpsIntegration:
     """UPS REST API integration with OAuth2 authentication."""
@@ -375,13 +380,20 @@ class UpsIntegration:
             rated_shipments = [rated_shipments]
 
         service_names = {
-            "01": "UPS Next Day Air", "02": "UPS 2nd Day Air",
-            "03": "UPS Ground", "07": "UPS Worldwide Express",
-            "08": "UPS Worldwide Expedited", "11": "UPS Standard",
-            "12": "UPS 3 Day Select", "14": "UPS Next Day Air Early",
-            "54": "UPS Worldwide Express Plus", "65": "UPS Saver",
-            "70": "UPS Access Point Economy", "71": "UPS Worldwide Express Freight Midday",
-            "72": "UPS Worldwide Economy", "74": "UPS Express 12:00",
+            "01": "UPS Next Day Air",
+            "02": "UPS 2nd Day Air",
+            "03": "UPS Ground",
+            "07": "UPS Worldwide Express",
+            "08": "UPS Worldwide Expedited",
+            "11": "UPS Standard",
+            "12": "UPS 3 Day Select",
+            "14": "UPS Next Day Air Early",
+            "54": "UPS Worldwide Express Plus",
+            "65": "UPS Saver",
+            "70": "UPS Access Point Economy",
+            "71": "UPS Worldwide Express Freight Midday",
+            "72": "UPS Worldwide Economy",
+            "74": "UPS Express 12:00",
             "75": "UPS Heavy Goods",
         }
 
@@ -394,21 +406,21 @@ class UpsIntegration:
 
             days = None
             if guaranteed := shipment.get("GuaranteedDelivery", {}):
-                try:
+                with contextlib.suppress(ValueError, TypeError):
                     days = int(guaranteed.get("BusinessDaysInTransit", 0))
-                except (ValueError, TypeError):
-                    pass
 
-            products.append(RateProduct(
-                name=name,
-                price=price,
-                currency=currency,
-                delivery_days=days,
-                attributes={
-                    "source": "ups",
-                    "service_code": service_code,
-                },
-            ))
+            products.append(
+                RateProduct(
+                    name=name,
+                    price=price,
+                    currency=currency,
+                    delivery_days=days,
+                    attributes={
+                        "source": "ups",
+                        "service_code": service_code,
+                    },
+                )
+            )
 
         return StandardizedRateResponse(products=products, source="ups", raw=raw)
 
@@ -506,9 +518,7 @@ class UpsIntegration:
         shipper_account_number = credentials.shipper_number
         shipper_payload["ShipperNumber"] = shipper_account_number
 
-        receiver_account_number = (
-            command.payment.receiver_account_id if command.payment else None
-        )
+        receiver_account_number = command.payment.receiver_account_id if command.payment else None
 
         ups_extras_raw = command.extras.get("ups", {})
         ups_extras = UpsExtras(**ups_extras_raw) if isinstance(ups_extras_raw, dict) else ups_extras_raw
@@ -527,7 +537,8 @@ class UpsIntegration:
         parcels = unravel_parcels(command.parcels)
 
         insurance_value_decimal = round(
-            Decimal(str(ups_extras.insurance_value)) / max(len(parcels), 1), 2,
+            Decimal(str(ups_extras.insurance_value)) / max(len(parcels), 1),
+            2,
         )
         formatted_insurance_value = f"{float(insurance_value_decimal):.2f}"
 
@@ -544,28 +555,34 @@ class UpsIntegration:
         # --- Payment / shipment charges ---
         shipment_charges: list[dict] = []
         if receiver_account_number and payer_type in ("RECIPIENT", "RECEIVER"):
-            shipment_charges.append({
-                "Type": "01",
-                "BillReceiver": {
-                    "AccountNumber": receiver_account_number,
-                },
-            })
+            shipment_charges.append(
+                {
+                    "Type": "01",
+                    "BillReceiver": {
+                        "AccountNumber": receiver_account_number,
+                    },
+                }
+            )
         else:
-            shipment_charges.append({
-                "Type": "01",
-                "BillShipper": {
-                    "AccountNumber": shipper_account_number,
-                },
-            })
+            shipment_charges.append(
+                {
+                    "Type": "01",
+                    "BillShipper": {
+                        "AccountNumber": shipper_account_number,
+                    },
+                }
+            )
 
         customs_payer_type = command.payment.customs_payer_type if command.payment else None
         if customs_payer_type and customs_payer_type == "SHIPPER":
-            shipment_charges.append({
-                "Type": "02",
-                "BillShipper": {
-                    "AccountNumber": shipper_account_number,
-                },
-            })
+            shipment_charges.append(
+                {
+                    "Type": "02",
+                    "BillShipper": {
+                        "AccountNumber": shipper_account_number,
+                    },
+                }
+            )
 
         # --- International forms ---
         international_forms: dict | None = None
@@ -594,10 +611,12 @@ class UpsIntegration:
         receiver_email = command.receiver.email or ""
         if receiver_email:
             for code in ("6", "7", "8"):
-                notifications.append({
-                    "NotificationCode": code,
-                    "EMail": {"EMailAddress": receiver_email},
-                })
+                notifications.append(
+                    {
+                        "NotificationCode": code,
+                        "EMail": {"EMailAddress": receiver_email},
+                    }
+                )
 
         # --- Shipment service options ---
         shipment_service_options: dict[str, Any] = {}
@@ -666,10 +685,7 @@ class UpsIntegration:
         """
         address_line = " ".join(filter(None, [party.street, party.building_number]))
         chunk_size = 35
-        address_lines = [
-            address_line[i: i + chunk_size]
-            for i in range(0, len(address_line), chunk_size)
-        ]
+        address_lines = [address_line[i : i + chunk_size] for i in range(0, len(address_line), chunk_size)]
         if len(address_lines) > 3:
             logger.warning("Address too long, truncating to 3 lines")
             address_lines = address_lines[:3]

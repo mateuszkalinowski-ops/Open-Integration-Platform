@@ -4,15 +4,14 @@ Covers Orders API (v0), Catalog Items API (2022-04-01), Feeds API (2021-06-30),
 and Reports API (2021-06-30).
 """
 
-from datetime import datetime
 from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Orders API
 # ---------------------------------------------------------------------------
+
 
 class AmazonMoney(BaseModel):
     CurrencyCode: str = ""
@@ -100,6 +99,7 @@ class AmazonOrderItemsResponse(BaseModel):
 # Catalog Items API
 # ---------------------------------------------------------------------------
 
+
 class CatalogItemSummary(BaseModel):
     marketplaceId: str = ""
     brandName: str = ""
@@ -139,6 +139,7 @@ class CatalogSearchResponse(BaseModel):
 # Feeds API
 # ---------------------------------------------------------------------------
 
+
 class AmazonFeed(BaseModel):
     feedId: str = ""
     feedType: str = ""
@@ -158,6 +159,7 @@ class AmazonFeedDocument(BaseModel):
 # ---------------------------------------------------------------------------
 # Reports API
 # ---------------------------------------------------------------------------
+
 
 class AmazonReport(BaseModel):
     reportId: str = ""

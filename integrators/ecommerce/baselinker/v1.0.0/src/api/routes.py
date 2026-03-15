@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -13,6 +11,8 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
+from pydantic import BaseModel
+
 from src.api.dependencies import app_state
 from src.config import BaseLinkerAccountConfig
 
@@ -149,7 +149,10 @@ async def create_parcel(
 ) -> dict[str, Any]:
     _require_account(account_name)
     result = await app_state.integration.create_parcel(
-        account_name, body.order_id, body.courier_code, body.package_number,
+        account_name,
+        body.order_id,
+        body.courier_code,
+        body.package_number,
     )
     return {"status": "created", **result}
 

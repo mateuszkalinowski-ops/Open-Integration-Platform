@@ -191,9 +191,8 @@ class PaxyIntegration:
             )
 
         response_formatted = response.json()
-        if response.status_code == HTTPStatus.OK:
-            if response_formatted.get("message"):
-                return response_formatted["message"], HTTPStatus.OK
+        if response.status_code == HTTPStatus.OK and response_formatted.get("message"):
+            return response_formatted["message"], HTTPStatus.OK
 
         return response_formatted.get("message", "Unknown error"), HTTPStatus.BAD_REQUEST
 

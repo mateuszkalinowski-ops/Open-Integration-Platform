@@ -11,12 +11,8 @@ class Settings(BaseSettings):
     soap_timeout: int = 30
     soap_operation_timeout: int = 600
 
-    poczta_polska_tracking_wsdl: str = (
-        "https://tt.poczta-polska.pl/Sledzenie/services/Sledzenie?wsdl"
-    )
-    poczta_polska_posting_wsdl: str = (
-        "https://e-nadawca.poczta-polska.pl/websrv/en.php?wsdl"
-    )
+    poczta_polska_tracking_wsdl: str = "https://tt.poczta-polska.pl/Sledzenie/services/Sledzenie?wsdl"
+    poczta_polska_posting_wsdl: str = "https://e-nadawca.poczta-polska.pl/websrv/en.php?wsdl"
     use_pocztapolska_guid: bool = True
 
     @property

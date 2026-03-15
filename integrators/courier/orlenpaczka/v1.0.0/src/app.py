@@ -11,8 +11,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -24,7 +25,6 @@ from src.schemas import (
     CreateOrderRequest,
     DeleteRequest,
     LabelRequest,
-    OrlenPaczkaCredentials,
     PointsRequest,
     StatusRequest,
 )
@@ -88,16 +88,14 @@ async def get_status(request: StatusRequest):
 
 @app.get("/shipments/{order_id}/tracking")
 async def get_tracking(order_id: str):
-    result, status_code = integration.get_tracking_info(order_id)
+    result, _status_code = integration.get_tracking_info(order_id)
     return result.model_dump()
 
 
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     try:
-        label_data, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers
-        )
+        label_data, status_code = integration.get_waybill_label_bytes(request.credentials, request.waybill_numbers)
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=str(label_data))
         return Response(content=label_data, media_type="application/pdf")

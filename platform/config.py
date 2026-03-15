@@ -1,5 +1,4 @@
 import logging
-import warnings
 
 from pydantic import Field
 from pydantic_settings import BaseSettings
@@ -81,21 +80,13 @@ class Settings(BaseSettings):
 
     # Kafka
     kafka_enabled: bool = Field(default=False, alias="KAFKA_ENABLED")
-    kafka_bootstrap_servers: str = Field(
-        default="kafka:9092", alias="KAFKA_BOOTSTRAP_SERVERS"
-    )
-    kafka_security_protocol: str = Field(
-        default="SASL_SSL", alias="KAFKA_SECURITY_PROTOCOL"
-    )
-    kafka_sasl_mechanism: str = Field(
-        default="PLAIN", alias="KAFKA_SASL_MECHANISM"
-    )
+    kafka_bootstrap_servers: str = Field(default="kafka:9092", alias="KAFKA_BOOTSTRAP_SERVERS")
+    kafka_security_protocol: str = Field(default="SASL_SSL", alias="KAFKA_SECURITY_PROTOCOL")
+    kafka_sasl_mechanism: str = Field(default="PLAIN", alias="KAFKA_SASL_MECHANISM")
     kafka_sasl_username: str = Field(default="", alias="KAFKA_SASL_USERNAME")
     kafka_sasl_password: str = Field(default="", alias="KAFKA_SASL_PASSWORD")
     kafka_ssl_cafile: str = Field(default="", alias="KAFKA_SSL_CAFILE")
-    kafka_consumer_group: str = Field(
-        default="platform-event-bridge", alias="KAFKA_CONSUMER_GROUP"
-    )
+    kafka_consumer_group: str = Field(default="platform-event-bridge", alias="KAFKA_CONSUMER_GROUP")
     kafka_event_topics: list[str] = Field(default_factory=lambda: list(KAFKA_DEFAULT_TOPICS))
 
     model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "extra": "ignore"}
@@ -108,14 +99,12 @@ _logger = logging.getLogger(__name__)
 if not settings.encryption_key:
     _logger.warning(
         "ENCRYPTION_KEY is not set — credential encryption will fail at runtime. "
-        "Generate one with: python -c \"import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())\""
+        'Generate one with: python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"'
     )
 if not settings.jwt_secret_key:
     _logger.warning(
         "JWT_SECRET_KEY is not set — JWT operations will fail at runtime. "
-        "Generate one with: python -c \"import secrets; print(secrets.token_urlsafe(32))\""
+        'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
     )
 if not settings.admin_secret:
-    _logger.warning(
-        "ADMIN_SECRET is not set — tenant management endpoints are locked."
-    )
+    _logger.warning("ADMIN_SECRET is not set — tenant management endpoints are locked.")

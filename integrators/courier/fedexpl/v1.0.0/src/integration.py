@@ -171,7 +171,8 @@ class FedexPlIntegration:
         receiver = command.receiver
 
         pickup_date = datetime.strptime(
-            command.shipment_date.split(" ")[0], "%Y-%m-%d",
+            command.shipment_date.split(" ")[0],
+            "%Y-%m-%d",
         ).date()
 
         cod_field: dict | None = None

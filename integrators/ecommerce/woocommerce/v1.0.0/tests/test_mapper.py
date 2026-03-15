@@ -1,7 +1,6 @@
 """Tests for WooCommerce order and product mapping logic."""
 
 import pytest
-
 from pinquark_common.schemas.ecommerce import OrderStatus
 from src.woocommerce.mapper import (
     map_woo_order_to_order,
@@ -238,16 +237,22 @@ class TestMapWooProductToProduct:
 
     def test_maps_product_sale_price_fallback(self):
         woo_product = WooProduct(
-            id=45, name="Sale Item", sku="SALE-001",
-            regular_price="", price="19.99",
+            id=45,
+            name="Sale Item",
+            sku="SALE-001",
+            regular_price="",
+            price="19.99",
         )
         product = map_woo_product_to_product(woo_product)
         assert product.price == 19.99
 
     def test_maps_product_no_stock(self):
         woo_product = WooProduct(
-            id=46, name="No Stock", sku="NS-001",
-            manage_stock=False, stock_quantity=None,
+            id=46,
+            name="No Stock",
+            sku="NS-001",
+            manage_stock=False,
+            stock_quantity=None,
         )
         product = map_woo_product_to_product(woo_product)
         assert product.stock_quantity == 0.0

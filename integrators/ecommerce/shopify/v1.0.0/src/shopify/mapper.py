@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrderStatus,
     Product,
 )
+
 from src.shopify.schemas import (
     ShopifyAddress,
     ShopifyOrder,
@@ -23,6 +24,7 @@ logger = logging.getLogger(__name__)
 
 # --- Order status mapping ---
 # Shopify uses a combination of financial_status + fulfillment_status + cancelled_at
+
 
 def map_shopify_order_status(order: ShopifyOrder) -> OrderStatus:
     """Derive unified OrderStatus from Shopify order state."""
@@ -51,6 +53,7 @@ ORDER_STATUS_TO_SHOPIFY_ACTION: dict[OrderStatus, str] = {
 
 
 # --- Order mapping ---
+
 
 def map_shopify_order_to_order(
     shopify_order: ShopifyOrder,
@@ -84,18 +87,20 @@ def map_shopify_order_to_order(
 
     lines: list[OrderLine] = []
     for item in shopify_order.line_items:
-        lines.append(OrderLine(
-            external_id=str(item.id),
-            offer_id=str(item.variant_id or ""),
-            product_id=str(item.product_id or ""),
-            sku=item.sku,
-            ean="",
-            name=item.name or item.title,
-            quantity=float(item.quantity),
-            unit="szt.",
-            unit_price=float(item.price),
-            currency=shopify_order.currency,
-        ))
+        lines.append(
+            OrderLine(
+                external_id=str(item.id),
+                offer_id=str(item.variant_id or ""),
+                product_id=str(item.product_id or ""),
+                sku=item.sku,
+                ean="",
+                name=item.name or item.title,
+                quantity=float(item.quantity),
+                unit="szt.",
+                unit_price=float(item.price),
+                currency=shopify_order.currency,
+            )
+        )
 
     delivery_method = ""
     if shopify_order.shipping_lines:
@@ -142,6 +147,7 @@ def _map_address(addr: ShopifyAddress | None) -> Address | None:
 
 
 # --- Product mapping ---
+
 
 def map_shopify_product_to_product(product: ShopifyProduct) -> Product:
     """Map a Shopify product to the unified Product schema."""

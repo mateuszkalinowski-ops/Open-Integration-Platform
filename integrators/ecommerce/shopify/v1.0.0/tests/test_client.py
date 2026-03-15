@@ -1,11 +1,10 @@
 """Tests for Shopify HTTP client."""
 
-import pytest
-import httpx
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock
 
+import pytest
 from src.config import ShopifyAccountConfig
-from src.shopify.client import ShopifyClient, ShopifyApiError
+from src.shopify.client import ShopifyClient
 
 
 @pytest.fixture

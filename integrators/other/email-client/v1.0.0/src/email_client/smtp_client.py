@@ -9,16 +9,16 @@ import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from email.utils import formataddr, formatdate, make_msgid
+from email.utils import formatdate, make_msgid
 from functools import partial
 
+from src.email_client.metrics import metrics
 from src.email_client.schemas import (
     Attachment,
     EmailPriority,
     SendEmailRequest,
     SendEmailResponse,
 )
-from src.email_client.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -70,7 +70,8 @@ class SmtpClient:
             msg["Reply-To"] = request.reply_to
 
         x_priority, importance = PRIORITY_HEADERS.get(
-            request.priority, ("3", "Normal"),
+            request.priority,
+            ("3", "Normal"),
         )
         msg["X-Priority"] = x_priority
         msg["Importance"] = importance
@@ -135,16 +136,21 @@ class SmtpClient:
             )
             duration = time.monotonic() - start
             metrics["external_api_calls_total"].labels(
-                system="email_smtp", operation="send", status="ok",
+                system="email_smtp",
+                operation="send",
+                status="ok",
             ).inc()
             metrics["external_api_duration"].labels(
-                system="email_smtp", operation="send",
+                system="email_smtp",
+                operation="send",
             ).observe(duration)
 
             message_id = mime_msg["Message-ID"] or ""
             logger.info(
                 "Email sent via %s, message_id=%s, recipients=%d",
-                account_name, message_id, len(all_recipients),
+                account_name,
+                message_id,
+                len(all_recipients),
             )
             return SendEmailResponse(
                 status="sent",
@@ -154,10 +160,13 @@ class SmtpClient:
         except Exception as exc:
             duration = time.monotonic() - start
             metrics["external_api_calls_total"].labels(
-                system="email_smtp", operation="send", status="error",
+                system="email_smtp",
+                operation="send",
+                status="error",
             ).inc()
             metrics["external_api_duration"].labels(
-                system="email_smtp", operation="send",
+                system="email_smtp",
+                operation="send",
             ).observe(duration)
             raise SmtpConnectionError(f"SMTP send failed: {exc}") from exc
 
@@ -165,6 +174,7 @@ class SmtpClient:
         """Test SMTP connectivity by opening and closing a connection."""
         loop = asyncio.get_event_loop()
         try:
+
             def _test_connection() -> bool:
                 ssl_ctx = ssl.create_default_context()
                 if self._use_ssl and self._port == 465:

@@ -9,11 +9,11 @@ import imaplib
 import logging
 import ssl
 import time
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from email.message import Message
 from functools import partial
-from typing import Any
 
+from src.email_client.metrics import metrics
 from src.email_client.schemas import (
     Attachment,
     EmailAddress,
@@ -22,7 +22,6 @@ from src.email_client.schemas import (
     EmailsPage,
     FolderInfo,
 )
-from src.email_client.metrics import metrics
 
 logger = logging.getLogger(__name__)
 
@@ -119,21 +118,20 @@ def _extract_attachments(msg: Message) -> list[Attachment]:
             continue
 
         filename = part.get_filename()
-        if filename:
-            filename = _decode_header_value(filename)
-        else:
-            filename = f"attachment_{len(attachments)}"
+        filename = _decode_header_value(filename) if filename else f"attachment_{len(attachments)}"
 
         payload = part.get_payload(decode=True)
         if payload is None:
             continue
 
-        attachments.append(Attachment(
-            filename=filename,
-            content_type=part.get_content_type(),
-            content_base64=base64.b64encode(payload).decode("ascii"),
-            size_bytes=len(payload),
-        ))
+        attachments.append(
+            Attachment(
+                filename=filename,
+                content_type=part.get_content_type(),
+                content_base64=base64.b64encode(payload).decode("ascii"),
+                size_bytes=len(payload),
+            )
+        )
 
     return attachments
 
@@ -146,7 +144,7 @@ def _parse_email_message(raw_data: bytes, folder: str, account_name: str) -> Ema
     date_parsed: datetime | None = None
     if date_str:
         date_tuple = email.utils.parsedate_to_datetime(date_str)
-        date_parsed = date_tuple.astimezone(timezone.utc) if date_tuple else None
+        date_parsed = date_tuple.astimezone(UTC) if date_tuple else None
 
     body_text, body_html = _extract_body(msg)
     attachments = _extract_attachments(msg)
@@ -216,19 +214,25 @@ class ImapClient:
             )
             duration = time.monotonic() - start
             metrics["external_api_calls_total"].labels(
-                system="email_imap", operation="connect", status="ok",
+                system="email_imap",
+                operation="connect",
+                status="ok",
             ).inc()
             metrics["external_api_duration"].labels(
-                system="email_imap", operation="connect",
+                system="email_imap",
+                operation="connect",
             ).observe(duration)
             logger.info("IMAP connected to %s:%d", self._host, self._port)
         except Exception as exc:
             duration = time.monotonic() - start
             metrics["external_api_calls_total"].labels(
-                system="email_imap", operation="connect", status="error",
+                system="email_imap",
+                operation="connect",
+                status="error",
             ).inc()
             metrics["external_api_duration"].labels(
-                system="email_imap", operation="connect",
+                system="email_imap",
+                operation="connect",
             ).observe(duration)
             raise ImapConnectionError(f"IMAP connection failed: {exc}") from exc
 
@@ -255,13 +259,16 @@ class ImapClient:
         loop = asyncio.get_event_loop()
 
         start = time.monotonic()
-        status, folder_data = await loop.run_in_executor(None, self._connection.list)
+        _status, folder_data = await loop.run_in_executor(None, self._connection.list)
         duration = time.monotonic() - start
         metrics["external_api_calls_total"].labels(
-            system="email_imap", operation="list_folders", status="ok",
+            system="email_imap",
+            operation="list_folders",
+            status="ok",
         ).inc()
         metrics["external_api_duration"].labels(
-            system="email_imap", operation="list_folders",
+            system="email_imap",
+            operation="list_folders",
         ).observe(duration)
 
         folders: list[FolderInfo] = []
@@ -297,7 +304,7 @@ class ImapClient:
         search_criteria = "UNSEEN" if unseen_only else "ALL"
         if since:
             date_str = since.strftime("%d-%b-%Y")
-            search_criteria = f'(SINCE {date_str}{" UNSEEN" if unseen_only else ""})'
+            search_criteria = f"(SINCE {date_str}{' UNSEEN' if unseen_only else ''})"
 
         start = time.monotonic()
         status, msg_ids_raw = await loop.run_in_executor(
@@ -306,10 +313,13 @@ class ImapClient:
         )
         duration = time.monotonic() - start
         metrics["external_api_calls_total"].labels(
-            system="email_imap", operation="search", status=status,
+            system="email_imap",
+            operation="search",
+            status=status,
         ).inc()
         metrics["external_api_duration"].labels(
-            system="email_imap", operation="search",
+            system="email_imap",
+            operation="search",
         ).observe(duration)
 
         if status != "OK" or not msg_ids_raw or not msg_ids_raw[0]:
@@ -329,10 +339,13 @@ class ImapClient:
                 )
                 fetch_duration = time.monotonic() - fetch_start
                 metrics["external_api_calls_total"].labels(
-                    system="email_imap", operation="fetch", status=status,
+                    system="email_imap",
+                    operation="fetch",
+                    status=status,
                 ).inc()
                 metrics["external_api_duration"].labels(
-                    system="email_imap", operation="fetch",
+                    system="email_imap",
+                    operation="fetch",
                 ).observe(fetch_duration)
 
                 if status == "OK" and data and data[0] and isinstance(data[0], tuple):

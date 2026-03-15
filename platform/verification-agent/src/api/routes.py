@@ -14,6 +14,7 @@ from src.reporter import ensure_settings
 from src.runner import is_running, run_verification
 
 router = APIRouter()
+_verification_tasks: set[asyncio.Task[None]] = set()
 
 
 class SchedulerUpdate(BaseModel):
@@ -40,7 +41,9 @@ async def trigger_run() -> RunResponse:
     if is_running():
         raise HTTPException(status_code=409, detail="A verification run is already in progress")
     rid = uuid.uuid4()
-    asyncio.create_task(run_verification(run_id=rid))
+    task = asyncio.create_task(run_verification(run_id=rid))
+    _verification_tasks.add(task)
+    task.add_done_callback(_verification_tasks.discard)
     return RunResponse(run_id=str(rid), status="started")
 
 
@@ -53,9 +56,9 @@ async def trigger_single_run(
     if is_running():
         raise HTTPException(status_code=409, detail="A verification run is already in progress")
     rid = uuid.uuid4()
-    asyncio.create_task(
-        run_verification(connector_filter=connector_name, version_filter=version, run_id=rid)
-    )
+    task = asyncio.create_task(run_verification(connector_filter=connector_name, version_filter=version, run_id=rid))
+    _verification_tasks.add(task)
+    task.add_done_callback(_verification_tasks.discard)
     return RunResponse(run_id=str(rid), status="started")
 
 
@@ -88,6 +91,7 @@ async def update_scheduler(body: SchedulerUpdate) -> dict[str, Any]:
 
         if body.interval_days is not None:
             from src.main import reschedule
+
             reschedule(row.interval_days)
 
         return {
@@ -132,8 +136,12 @@ async def list_runs(
                 runs[rid] = {
                     "run_id": rid,
                     "created_at": r.created_at.isoformat(),
-                    "total": 0, "passed": 0, "failed": 0, "skipped": 0,
-                    "duration_ms": 0, "connectors": [],
+                    "total": 0,
+                    "passed": 0,
+                    "failed": 0,
+                    "skipped": 0,
+                    "duration_ms": 0,
+                    "connectors": [],
                 }
             run = runs[rid]
             run["total"] += 1
@@ -142,14 +150,16 @@ async def list_runs(
             run["failed"] += s.get("failed", 0)
             run["skipped"] += s.get("skipped", 0)
             run["duration_ms"] += s.get("duration_ms", 0)
-            run["connectors"].append({
-                "connector_name": r.connector_name,
-                "connector_version": r.connector_version,
-                "connector_category": r.connector_category,
-                "status": r.status,
-                "summary": r.summary,
-                "created_at": r.created_at.isoformat(),
-            })
+            run["connectors"].append(
+                {
+                    "connector_name": r.connector_name,
+                    "connector_version": r.connector_version,
+                    "connector_category": r.connector_category,
+                    "status": r.status,
+                    "summary": r.summary,
+                    "created_at": r.created_at.isoformat(),
+                }
+            )
 
         return {"total": total, "page": page, "page_size": page_size, "runs": list(runs.values())}
 
@@ -182,16 +192,18 @@ async def get_run(run_id: str) -> dict[str, Any]:
             total_failed += s.get("failed", 0)
             total_skipped += s.get("skipped", 0)
             total_duration += s.get("duration_ms", 0)
-            connectors.append({
-                "id": str(r.id),
-                "connector_name": r.connector_name,
-                "connector_version": r.connector_version,
-                "connector_category": r.connector_category,
-                "status": r.status,
-                "checks": r.checks,
-                "summary": r.summary,
-                "created_at": r.created_at.isoformat(),
-            })
+            connectors.append(
+                {
+                    "id": str(r.id),
+                    "connector_name": r.connector_name,
+                    "connector_version": r.connector_version,
+                    "connector_category": r.connector_category,
+                    "status": r.status,
+                    "checks": r.checks,
+                    "summary": r.summary,
+                    "created_at": r.created_at.isoformat(),
+                }
+            )
 
         return {
             "run_id": run_id,
@@ -240,19 +252,21 @@ async def list_errors(
 
         errors: list[dict[str, Any]] = []
         for report in reports:
-            for check in (report.checks or []):
+            for check in report.checks or []:
                 if check.get("status") == "FAIL":
-                    errors.append({
-                        "connector_name": report.connector_name,
-                        "connector_version": report.connector_version,
-                        "connector_category": report.connector_category,
-                        "check_name": check["name"],
-                        "error": check.get("error", ""),
-                        "suggestion": check.get("suggestion"),
-                        "response_time_ms": check.get("response_time_ms", 0),
-                        "run_id": str(report.run_id),
-                        "created_at": report.created_at.isoformat(),
-                    })
+                    errors.append(
+                        {
+                            "connector_name": report.connector_name,
+                            "connector_version": report.connector_version,
+                            "connector_category": report.connector_category,
+                            "check_name": check["name"],
+                            "error": check.get("error", ""),
+                            "suggestion": check.get("suggestion"),
+                            "response_time_ms": check.get("response_time_ms", 0),
+                            "run_id": str(report.run_id),
+                            "created_at": report.created_at.isoformat(),
+                        }
+                    )
 
         return {"total_reports": total_reports, "page": page, "page_size": page_size, "errors": errors}
 
@@ -310,33 +324,37 @@ async def latest_reports() -> dict[str, Any]:
             manifest = active_versions[key]
             report = report_map.get(key)
             if report:
-                connectors.append({
-                    "connector_name": report.connector_name,
-                    "connector_version": report.connector_version,
-                    "connector_category": report.connector_category,
-                    "status": report.status,
-                    "checks": report.checks,
-                    "summary": report.summary,
-                    "created_at": report.created_at.isoformat(),
-                })
+                connectors.append(
+                    {
+                        "connector_name": report.connector_name,
+                        "connector_version": report.connector_version,
+                        "connector_category": report.connector_category,
+                        "status": report.status,
+                        "checks": report.checks,
+                        "summary": report.summary,
+                        "created_at": report.created_at.isoformat(),
+                    }
+                )
                 continue
 
-            connectors.append({
-                "connector_name": manifest.name,
-                "connector_version": manifest.version,
-                "connector_category": manifest.category,
-                "status": "NOT_RUN",
-                "checks": [],
-                "summary": {
-                    "total": 0,
-                    "passed": 0,
-                    "failed": 0,
-                    "skipped": 0,
-                    "warned": 0,
-                    "duration_ms": 0,
-                },
-                "created_at": None,
-            })
+            connectors.append(
+                {
+                    "connector_name": manifest.name,
+                    "connector_version": manifest.version,
+                    "connector_category": manifest.category,
+                    "status": "NOT_RUN",
+                    "checks": [],
+                    "summary": {
+                        "total": 0,
+                        "passed": 0,
+                        "failed": 0,
+                        "skipped": 0,
+                        "warned": 0,
+                        "duration_ms": 0,
+                    },
+                    "created_at": None,
+                }
+            )
 
         return {
             "run_id": str(most_recent.run_id) if most_recent else None,

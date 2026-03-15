@@ -10,8 +10,6 @@ import uuid
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-import pytest_asyncio
-
 from core.mapping_resolver import MappingResolver
 
 
@@ -197,7 +195,9 @@ class TestResolverApplyTransform:
         assert resolver._apply_transform(["bad"], t) == "bad"
 
     def test_math_add(self, resolver: MappingResolver) -> None:
-        assert resolver._apply_transform([10], {"type": "math", "operation": "add", "operand": 5}) == pytest.approx(15.0)
+        assert resolver._apply_transform([10], {"type": "math", "operation": "add", "operand": 5}) == pytest.approx(
+            15.0
+        )
 
     def test_math_sub(self, resolver: MappingResolver) -> None:
         assert resolver._apply_transform([10], {"type": "math", "operation": "sub", "operand": 3}) == pytest.approx(7.0)
@@ -206,7 +206,9 @@ class TestResolverApplyTransform:
         assert resolver._apply_transform([6], {"type": "math", "operation": "mul", "operand": 7}) == pytest.approx(42.0)
 
     def test_math_div(self, resolver: MappingResolver) -> None:
-        assert resolver._apply_transform([100], {"type": "math", "operation": "div", "operand": 4}) == pytest.approx(25.0)
+        assert resolver._apply_transform([100], {"type": "math", "operation": "div", "operand": 4}) == pytest.approx(
+            25.0
+        )
 
     def test_math_div_zero(self, resolver: MappingResolver) -> None:
         assert resolver._apply_transform([10], {"type": "math", "operation": "div", "operand": 0}) == 10
@@ -242,13 +244,9 @@ class TestResolverApplyTransform:
 
 class TestResolverResolve:
     @pytest.mark.asyncio()
-    async def test_simple_flow_mapping(
-        self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock
-    ) -> None:
+    async def test_simple_flow_mapping(self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock) -> None:
         flow_mapping = [{"from": "buyer.first_name", "to": "name"}]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"name": "Anna"}
 
     @pytest.mark.asyncio()
@@ -262,9 +260,7 @@ class TestResolverResolve:
                 "transform": {"type": "join", "separator": " "},
             }
         ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"full_name": "Anna Nowak"}
 
     @pytest.mark.asyncio()
@@ -281,9 +277,7 @@ class TestResolverResolve:
                 ],
             }
         ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"street": "DŁUGA 10"}
 
     @pytest.mark.asyncio()
@@ -294,49 +288,31 @@ class TestResolverResolve:
             {"from": "buyer.email", "to": "contact.email"},
             {"from": "buyer.first_name", "to": "contact.name"},
         ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"contact": {"email": "anna@example.com", "name": "Anna"}}
 
     @pytest.mark.asyncio()
     async def test_custom_source_target_in_resolve(
         self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock
     ) -> None:
-        flow_mapping = [
-            {"from": "__custom__", "from_custom": "MANUAL", "to": "__custom__", "to_custom": "source_type"}
-        ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        flow_mapping = [{"from": "__custom__", "from_custom": "MANUAL", "to": "__custom__", "to_custom": "source_type"}]
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"source_type": "MANUAL"}
 
     @pytest.mark.asyncio()
-    async def test_none_values_skipped(
-        self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock
-    ) -> None:
+    async def test_none_values_skipped(self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock) -> None:
         flow_mapping = [{"from": "empty_field", "to": "out"}]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {}
 
     @pytest.mark.asyncio()
-    async def test_empty_flow_mapping(
-        self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock
-    ) -> None:
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_field_mapping=[]
-        )
+    async def test_empty_flow_mapping(self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock) -> None:
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_field_mapping=[])
         assert result == {}
 
     @pytest.mark.asyncio()
-    async def test_no_flow_mapping(
-        self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock
-    ) -> None:
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_field_mapping=None
-        )
+    async def test_no_flow_mapping(self, resolver: MappingResolver, source_data: dict, mock_db: AsyncMock) -> None:
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_field_mapping=None)
         assert result == {}
 
     @pytest.mark.asyncio()
@@ -354,9 +330,7 @@ class TestResolverResolve:
                 ],
             }
         ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result == {"ref": "SHP-789"}
 
     @pytest.mark.asyncio()
@@ -373,7 +347,5 @@ class TestResolverResolve:
                 ],
             }
         ]
-        result = await resolver.resolve(
-            mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping
-        )
+        result = await resolver.resolve(mock_db, uuid.uuid4(), "test", "order", source_data, flow_mapping)
         assert result["total_vat"] == pytest.approx(307.50)

@@ -109,8 +109,8 @@ class ProductCreatePayload(BaseModel):
             return v
         try:
             float(v)
-        except ValueError:
-            raise ValueError(f"Price must be a numeric string, got '{v}'")
+        except ValueError as err:
+            raise ValueError(f"Price must be a numeric string, got '{v}'") from err
         return v
 
 
@@ -164,8 +164,8 @@ class CouponCreatePayload(BaseModel):
             return v
         try:
             float(v)
-        except ValueError:
-            raise ValueError(f"Amount must be a numeric string, got '{v}'")
+        except ValueError as err:
+            raise ValueError(f"Amount must be a numeric string, got '{v}'") from err
         return v
 
 

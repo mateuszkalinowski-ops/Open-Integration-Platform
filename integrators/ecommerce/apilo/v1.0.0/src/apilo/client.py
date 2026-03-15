@@ -5,15 +5,16 @@ high-level methods for Orders, Warehouse, Shipment, Finance, and Media APIs.
 """
 
 import asyncio
+import contextlib
 import logging
 import time
 from typing import Any
 
 import httpx
-
-from src.config import ApiloAccountConfig, settings
-from src.apilo.auth import TokenManager
 from pinquark_common.monitoring.metrics import setup_metrics
+
+from src.apilo.auth import TokenManager
+from src.config import ApiloAccountConfig, settings
 
 logger = logging.getLogger(__name__)
 
@@ -99,26 +100,34 @@ class ApiloClient:
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="apilo", operation=operation_name, status=last_response.status_code,
+                system="apilo",
+                operation=operation_name,
+                status=last_response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="apilo", operation=operation_name,
+                system="apilo",
+                operation=operation_name,
             ).observe(duration)
 
             if last_response.status_code == 429:
                 retry_after = float(last_response.headers.get("Retry-After", "5"))
                 logger.warning(
                     "Apilo rate limited, waiting %.1fs (attempt %d/%d)",
-                    retry_after, attempt + 1, settings.max_retries,
+                    retry_after,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(retry_after)
                 continue
 
             if last_response.status_code >= 500:
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
+                backoff = settings.retry_backoff_factor * (2**attempt)
                 logger.warning(
                     "Apilo %d, retrying in %.1fs (attempt %d/%d)",
-                    last_response.status_code, backoff, attempt + 1, settings.max_retries,
+                    last_response.status_code,
+                    backoff,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(backoff)
                 continue
@@ -130,10 +139,8 @@ class ApiloClient:
 
         if last_response.status_code >= 400:
             error_body: dict[str, Any] = {}
-            try:
+            with contextlib.suppress(Exception):
                 error_body = last_response.json()
-            except Exception:
-                pass
             raise ApiloApiError(
                 last_response.status_code,
                 error_body.get("message", last_response.text[:200]),
@@ -206,10 +213,15 @@ class ApiloClient:
 
     async def update_order_status(self, account: ApiloAccountConfig, order_id: str, status: int) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/status/"
-        return await self._request("PUT", url, account, json_body={"status": status}, operation_name="updateOrderStatus")
+        return await self._request(
+            "PUT", url, account, json_body={"status": status}, operation_name="updateOrderStatus"
+        )
 
     async def add_order_payment(
-        self, account: ApiloAccountConfig, order_id: str, payment_data: dict[str, Any],
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        payment_data: dict[str, Any],
     ) -> Any:
         url = f"{account.api_url}/orders/{order_id}/payment/"
         return await self._request("POST", url, account, json_body=payment_data, operation_name="addOrderPayment")
@@ -219,55 +231,88 @@ class ApiloClient:
         return await self._request("GET", url, account, operation_name="getOrderNotes")
 
     async def add_order_note(
-        self, account: ApiloAccountConfig, order_id: str, comment: str, note_type: int = 2,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        comment: str,
+        note_type: int = 2,
     ) -> Any:
         url = f"{account.api_url}/orders/{order_id}/note/"
         return await self._request(
-            "POST", url, account,
+            "POST",
+            url,
+            account,
             json_body={"type": note_type, "comment": comment},
             operation_name="addOrderNote",
         )
 
     async def get_order_documents(
-        self, account: ApiloAccountConfig, order_id: str, *, offset: int = 0, limit: int = 100,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 100,
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/documents/"
         params: dict[str, Any] = {"offset": offset, "limit": min(limit, 512)}
         return await self._request("GET", url, account, params=params, operation_name="getOrderDocuments")
 
     async def create_order_document(
-        self, account: ApiloAccountConfig, order_id: str, doc_data: dict[str, Any],
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        doc_data: dict[str, Any],
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/documents/"
         return await self._request("POST", url, account, json_body=doc_data, operation_name="createOrderDocument")
 
     async def delete_order_document(
-        self, account: ApiloAccountConfig, order_id: str, document_id: str,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        document_id: str,
     ) -> Any:
         url = f"{account.api_url}/orders/{order_id}/documents/{document_id}/"
         return await self._request("DELETE", url, account, operation_name="deleteOrderDocument")
 
     async def get_order_shipments(
-        self, account: ApiloAccountConfig, order_id: str, *, offset: int = 0, limit: int = 100,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 100,
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/shipment/"
         params: dict[str, Any] = {"offset": offset, "limit": min(limit, 512)}
         return await self._request("GET", url, account, params=params, operation_name="getOrderShipments")
 
     async def add_order_shipment(
-        self, account: ApiloAccountConfig, order_id: str, shipment_data: dict[str, Any],
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        shipment_data: dict[str, Any],
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/shipment/"
         return await self._request("POST", url, account, json_body=shipment_data, operation_name="addOrderShipment")
 
     async def get_order_shipment_detail(
-        self, account: ApiloAccountConfig, order_id: str, shipment_id: str,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        shipment_id: str,
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/shipment/{shipment_id}/"
         return await self._request("GET", url, account, operation_name="getOrderShipmentDetail")
 
     async def get_order_tags(
-        self, account: ApiloAccountConfig, order_id: str, *, offset: int = 0, limit: int = 100,
+        self,
+        account: ApiloAccountConfig,
+        order_id: str,
+        *,
+        offset: int = 0,
+        limit: int = 100,
     ) -> dict[str, Any]:
         url = f"{account.api_url}/orders/{order_id}/tag/"
         params: dict[str, Any] = {"offset": offset, "limit": min(limit, 512)}
@@ -369,7 +414,11 @@ class ApiloClient:
         return await self._request("DELETE", url, account, operation_name="deleteProduct")
 
     async def get_categories(
-        self, account: ApiloAccountConfig, *, offset: int = 0, limit: int = 100,
+        self,
+        account: ApiloAccountConfig,
+        *,
+        offset: int = 0,
+        limit: int = 100,
     ) -> dict[str, Any]:
         url = f"{account.api_url}/warehouse/category/"
         params: dict[str, Any] = {"offset": offset, "limit": min(limit, 512)}
@@ -427,10 +476,14 @@ class ApiloClient:
         url = f"{account.api_url}/shipping/carrier-account/{carrier_account_id}/method/"
         return await self._request("GET", url, account, operation_name="getCarrierMethods")
 
-    async def confirm_shipment(self, account: ApiloAccountConfig, confirmations: list[dict[str, Any]]) -> dict[str, Any]:
+    async def confirm_shipment(
+        self, account: ApiloAccountConfig, confirmations: list[dict[str, Any]]
+    ) -> dict[str, Any]:
         url = f"{account.api_url}/shipping/carrier-document/"
         return await self._request(
-            "POST", url, account,
+            "POST",
+            url,
+            account,
             json_body={"shippingConfirmations": confirmations},
             operation_name="confirmShipment",
         )
@@ -459,7 +512,10 @@ class ApiloClient:
     # -----------------------------------------------------------------------
 
     async def upload_media(
-        self, account: ApiloAccountConfig, file_content: bytes, filename: str = "",
+        self,
+        account: ApiloAccountConfig,
+        file_content: bytes,
+        filename: str = "",
     ) -> dict[str, Any]:
         extra_headers: dict[str, str] = {}
         if filename:
@@ -467,7 +523,9 @@ class ApiloClient:
 
         url = f"{account.api_url}/media/"
         return await self._request(
-            "POST", url, account,
+            "POST",
+            url,
+            account,
             content=file_content,
             extra_headers=extra_headers,
             operation_name="uploadMedia",

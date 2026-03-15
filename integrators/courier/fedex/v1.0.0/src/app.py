@@ -11,8 +11,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, HTTPException, Response
+from fastapi import FastAPI, HTTPException
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -23,7 +24,6 @@ from src.integration import FedexIntegration
 from src.schemas import (
     CreateShipmentRequest,
     DeleteShipmentRequest,
-    FedexCredentials,
     LabelRequest,
     PointsRequest,
     RateRequest,
@@ -59,7 +59,8 @@ async def readiness():
 async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = await integration.create_order(
-            request.credentials, request.command,
+            request.credentials,
+            request.command,
         )
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
@@ -71,7 +72,9 @@ async def create_shipment(request: CreateShipmentRequest):
 async def cancel_shipment(order_id: str, request: DeleteShipmentRequest):
     try:
         result, status_code = await integration.delete_order(
-            request.credentials, order_id, request.extras,
+            request.credentials,
+            order_id,
+            request.extras,
         )
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
@@ -98,7 +101,8 @@ async def get_rates(request: RateRequest):
     """Return standardized shipping rates via FedEx Rate API."""
     try:
         result, status_code = await integration.get_rates(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         if status_code != 200:
             return StandardizedRateResponse(

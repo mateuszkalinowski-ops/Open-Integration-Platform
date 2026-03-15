@@ -2,7 +2,6 @@
 
 import pytest
 from httpx import ASGITransport, AsyncClient
-
 from pinquark_common.schemas.ecommerce import Order, OrdersPage, OrderStatus, Product
 from src.main import create_app
 
@@ -35,11 +34,14 @@ class TestAccountEndpoints:
         assert data[0]["name"] == "test-shop"
 
     async def test_add_account(self, client: AsyncClient) -> None:
-        response = await client.post("/accounts", json={
-            "name": "new-shop",
-            "shop_url": "https://new.idosell.com",
-            "api_key": "key123",
-        })
+        response = await client.post(
+            "/accounts",
+            json={
+                "name": "new-shop",
+                "shop_url": "https://new.idosell.com",
+                "api_key": "key123",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["status"] == "created"
 
@@ -79,6 +81,7 @@ class TestOrderEndpoints:
 class TestStockEndpoints:
     async def test_sync_stock(self, client: AsyncClient, mock_integration) -> None:  # type: ignore[no-untyped-def]
         from pinquark_common.schemas.common import SyncResult, SyncStatus
+
         mock_integration.sync_stock.return_value = SyncResult(
             status=SyncStatus.SUCCESS,
             total=1,

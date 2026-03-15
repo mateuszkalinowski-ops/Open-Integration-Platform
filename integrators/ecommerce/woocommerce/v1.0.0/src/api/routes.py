@@ -5,9 +5,7 @@ import logging
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, UploadFile, File
-from pydantic import BaseModel, field_validator
-
+from fastapi import APIRouter, File, HTTPException, Query, UploadFile
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -15,17 +13,19 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
-from src.woocommerce.schemas import AuthStatusResponse
+from pydantic import BaseModel, field_validator
+
 from src.api.dependencies import app_state
 from src.config import WooCommerceAccountConfig
 from src.validators import (
-    ORDER_STATUSES,
-    PRODUCT_TYPES,
-    PRODUCT_STATUSES,
-    STOCK_STATUSES,
     DISCOUNT_TYPES,
+    ORDER_STATUSES,
+    PRODUCT_STATUSES,
+    PRODUCT_TYPES,
+    STOCK_STATUSES,
     WEBHOOK_STATUSES,
 )
+from src.woocommerce.schemas import AuthStatusResponse
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -166,10 +166,7 @@ class AccountCreateRequest(BaseModel):
 @router.get("/accounts")
 async def list_accounts():
     accounts = app_state.account_manager.list_accounts()
-    return [
-        {"name": a.name, "environment": a.environment, "store_url": a.store_url}
-        for a in accounts
-    ]
+    return [{"name": a.name, "environment": a.environment, "store_url": a.store_url} for a in accounts]
 
 
 @router.post("/accounts", status_code=201)
@@ -177,8 +174,11 @@ async def add_account(req: AccountCreateRequest):
     account = WooCommerceAccountConfig(**req.model_dump())
     app_state.account_manager.add_account(account)
     app_state.auth.register_account(
-        account.name, account.store_url, account.consumer_key,
-        account.consumer_secret, account.api_version,
+        account.name,
+        account.store_url,
+        account.consumer_key,
+        account.consumer_secret,
+        account.api_version,
     )
     return {"status": "created", "name": account.name}
 
@@ -210,8 +210,15 @@ async def list_orders(
 ):
     _require_auth(account_name)
     return await app_state.integration.fetch_orders(
-        account_name, since, page, page_size, status,
-        customer=customer, product=product, after=after, before=before,
+        account_name,
+        since,
+        page,
+        page_size,
+        status,
+        customer=customer,
+        product=product,
+        after=after,
+        before=before,
     )
 
 
@@ -382,7 +389,11 @@ async def upload_invoice_multipart(
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
     result = await app_state.integration.upload_invoice(
-        account_name, order_id, contents, file.filename or "invoice.pdf", customer_note,
+        account_name,
+        order_id,
+        contents,
+        file.filename or "invoice.pdf",
+        customer_note,
     )
     return {"status": "uploaded", "order_id": order_id, **result}
 
@@ -397,7 +408,11 @@ async def upload_invoice_json(order_id: str, body: InvoiceUploadJsonRequest, acc
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
     result = await app_state.integration.upload_invoice(
-        account_name, order_id, contents, body.filename, body.customer_note,
+        account_name,
+        order_id,
+        contents,
+        body.filename,
+        body.customer_note,
     )
     return {"status": "uploaded", "order_id": order_id, **result}
 
@@ -426,12 +441,25 @@ async def list_products(
     orderby: str | None = Query(None),
     order: str | None = Query(None),
 ):
-    params = _strip_none({
-        "search": search, "sku": sku, "status": status, "type": product_type,
-        "category": category, "tag": tag, "featured": featured, "on_sale": on_sale,
-        "stock_status": stock_status, "after": after, "before": before,
-        "page": page, "per_page": per_page, "orderby": orderby, "order": order,
-    })
+    params = _strip_none(
+        {
+            "search": search,
+            "sku": sku,
+            "status": status,
+            "type": product_type,
+            "category": category,
+            "tag": tag,
+            "featured": featured,
+            "on_sale": on_sale,
+            "stock_status": stock_status,
+            "after": after,
+            "before": before,
+            "page": page,
+            "per_page": per_page,
+            "orderby": orderby,
+            "order": order,
+        }
+    )
     return await _proxy_get("products", account_name, params=params)
 
 
@@ -502,8 +530,8 @@ class ProductCreateRequest(BaseModel):
         if v is not None and v != "":
             try:
                 float(v)
-            except ValueError:
-                raise ValueError(f"Price must be a numeric string, got '{v}'")
+            except ValueError as err:
+                raise ValueError(f"Price must be a numeric string, got '{v}'") from err
         return v
 
 
@@ -571,7 +599,9 @@ async def list_variations(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
 ):
-    return await _proxy_get(f"products/{product_id}/variations", account_name, params={"page": page, "per_page": per_page})
+    return await _proxy_get(
+        f"products/{product_id}/variations", account_name, params={"page": page, "per_page": per_page}
+    )
 
 
 @router.get("/products/{product_id}/variations/{variation_id}")
@@ -590,13 +620,19 @@ async def update_variation(product_id: int, variation_id: int, body: dict[str, A
 
 
 @router.delete("/products/{product_id}/variations/{variation_id}")
-async def delete_variation(product_id: int, variation_id: int, account_name: str = Query(...), force: bool = Query(False)):
-    return await _proxy_delete(f"products/{product_id}/variations/{variation_id}", account_name, params={"force": force})
+async def delete_variation(
+    product_id: int, variation_id: int, account_name: str = Query(...), force: bool = Query(False)
+):
+    return await _proxy_delete(
+        f"products/{product_id}/variations/{variation_id}", account_name, params={"force": force}
+    )
 
 
 @router.post("/products/{product_id}/variations/batch")
 async def batch_variations(product_id: int, body: BatchRequest, account_name: str = Query(...)):
-    return await _proxy_post(f"products/{product_id}/variations/batch", account_name, json_data=_strip_none(body.model_dump()))
+    return await _proxy_post(
+        f"products/{product_id}/variations/batch", account_name, json_data=_strip_none(body.model_dump())
+    )
 
 
 # ── Product Attributes ──
@@ -639,8 +675,12 @@ async def delete_product_attribute(attribute_id: int, account_name: str = Query(
 
 
 @router.get("/products/attributes/{attribute_id}/terms")
-async def list_attribute_terms(attribute_id: int, account_name: str = Query(...), page: int = Query(1), per_page: int = Query(50)):
-    return await _proxy_get(f"products/attributes/{attribute_id}/terms", account_name, params={"page": page, "per_page": per_page})
+async def list_attribute_terms(
+    attribute_id: int, account_name: str = Query(...), page: int = Query(1), per_page: int = Query(50)
+):
+    return await _proxy_get(
+        f"products/attributes/{attribute_id}/terms", account_name, params={"page": page, "per_page": per_page}
+    )
 
 
 @router.get("/products/attributes/{attribute_id}/terms/{term_id}")
@@ -659,8 +699,12 @@ async def update_attribute_term(attribute_id: int, term_id: int, body: dict[str,
 
 
 @router.delete("/products/attributes/{attribute_id}/terms/{term_id}")
-async def delete_attribute_term(attribute_id: int, term_id: int, account_name: str = Query(...), force: bool = Query(True)):
-    return await _proxy_delete(f"products/attributes/{attribute_id}/terms/{term_id}", account_name, params={"force": force})
+async def delete_attribute_term(
+    attribute_id: int, term_id: int, account_name: str = Query(...), force: bool = Query(True)
+):
+    return await _proxy_delete(
+        f"products/attributes/{attribute_id}/terms/{term_id}", account_name, params={"force": force}
+    )
 
 
 # ── Product Categories ──
@@ -675,7 +719,9 @@ async def list_product_categories(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
 ):
-    params = _strip_none({"search": search, "parent": parent, "hide_empty": hide_empty, "page": page, "per_page": per_page})
+    params = _strip_none(
+        {"search": search, "parent": parent, "hide_empty": hide_empty, "page": page, "per_page": per_page}
+    )
     return await _proxy_get("products/categories", account_name, params=params)
 
 
@@ -849,10 +895,17 @@ async def list_customers(
     orderby: str | None = Query(None),
     order: str | None = Query(None),
 ):
-    params = _strip_none({
-        "search": search, "email": email, "role": role,
-        "page": page, "per_page": per_page, "orderby": orderby, "order": order,
-    })
+    params = _strip_none(
+        {
+            "search": search,
+            "email": email,
+            "role": role,
+            "page": page,
+            "per_page": per_page,
+            "orderby": orderby,
+            "order": order,
+        }
+    )
     return await _proxy_get("customers", account_name, params=params)
 
 
@@ -892,7 +945,9 @@ async def update_customer(customer_id: int, body: CustomerUpdateRequest, account
 
 
 @router.delete("/customers/{customer_id}")
-async def delete_customer(customer_id: int, account_name: str = Query(...), force: bool = Query(True), reassign: int | None = Query(None)):
+async def delete_customer(
+    customer_id: int, account_name: str = Query(...), force: bool = Query(True), reassign: int | None = Query(None)
+):
     params = _strip_none({"force": force, "reassign": reassign})
     return await _proxy_delete(f"customers/{customer_id}", account_name, params=params)
 
@@ -922,7 +977,9 @@ async def list_coupons(
     page: int = Query(1, ge=1),
     per_page: int = Query(50, ge=1, le=100),
 ):
-    params = _strip_none({"search": search, "code": code, "after": after, "before": before, "page": page, "per_page": per_page})
+    params = _strip_none(
+        {"search": search, "code": code, "after": after, "before": before, "page": page, "per_page": per_page}
+    )
     return await _proxy_get("coupons", account_name, params=params)
 
 
@@ -964,8 +1021,8 @@ class CouponCreateRequest(BaseModel):
         if v is not None and v != "":
             try:
                 float(v)
-            except ValueError:
-                raise ValueError(f"Amount must be a numeric string, got '{v}'")
+            except ValueError as err:
+                raise ValueError(f"Amount must be a numeric string, got '{v}'") from err
         return v
 
 

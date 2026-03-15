@@ -11,6 +11,7 @@ from pydantic import BaseModel, Field
 
 class BLResponse(BaseModel):
     """Common BaseLinker API response wrapper."""
+
     status: str = ""
     error_code: str = ""
     error_message: str = ""

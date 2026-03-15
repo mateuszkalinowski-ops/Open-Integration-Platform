@@ -23,14 +23,22 @@ async def run(
     results.append(await get_check(client, f"{base}/accounts", "list_accounts"))
 
     if target.manifest.name == "email-client":
-        results.append(await get_check(
-            client, f"{base}/folders", "list_folders",
-            params={"account_name": account},
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/folders",
+                "list_folders",
+                params={"account_name": account},
+            )
+        )
     elif target.manifest.name == "ftp-sftp":
-        results.append(await get_check(
-            client, f"{base}/files", "list_files",
-            params={"account_name": account, "remote_path": "/"},
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/files",
+                "list_files",
+                params={"account_name": account, "remote_path": "/"},
+            )
+        )
 
     return results

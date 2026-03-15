@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -22,7 +23,6 @@ from src.config import settings
 from src.integration import SchenkerIntegration
 from src.schemas import (
     CreateShipmentRequest,
-    DeleteOrderRequest,
     LabelRequest,
     SchenkerCredentials,
 )
@@ -71,9 +71,7 @@ async def get_status(
     password: str = Header(..., alias="X-Password"),
     credentials_id: str = Header("", alias="X-Credentials-Id"),
 ):
-    credentials = SchenkerCredentials(
-        login=login, password=password, credentials_id=credentials_id
-    )
+    credentials = SchenkerCredentials(login=login, password=password, credentials_id=credentials_id)
     try:
         result, status_code = integration.get_order_status(credentials, waybill_number)
         return JSONResponse(content={"status": result}, status_code=status_code)
@@ -90,9 +88,7 @@ async def get_tracking(waybill_number: str):
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     try:
-        label_bytes, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers, {}
-        )
+        label_bytes, status_code = integration.get_waybill_label_bytes(request.credentials, request.waybill_numbers, {})
         if status_code == 200:
             return Response(content=label_bytes, media_type="application/pdf")
         return JSONResponse(content={"error": label_bytes}, status_code=status_code)
@@ -108,9 +104,7 @@ async def cancel_shipment(
     password: str = Header(..., alias="X-Password"),
     credentials_id: str = Header("", alias="X-Credentials-Id"),
 ):
-    credentials = SchenkerCredentials(
-        login=login, password=password, credentials_id=credentials_id
-    )
+    credentials = SchenkerCredentials(login=login, password=password, credentials_id=credentials_id)
     try:
         result, status_code = integration.delete_order(credentials, waybill_number)
         return JSONResponse(content=result, status_code=status_code)

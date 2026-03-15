@@ -10,7 +10,7 @@ from typing import Any
 
 import httpx
 
-from src.config import AmazonAccountConfig, LWA_TOKEN_URL
+from src.config import LWA_TOKEN_URL, AmazonAccountConfig
 
 logger = logging.getLogger(__name__)
 

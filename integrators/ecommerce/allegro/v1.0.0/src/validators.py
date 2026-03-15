@@ -2,7 +2,6 @@
 
 from pydantic import BaseModel, Field, field_validator
 
-
 SELLING_FORMATS = {"BUY_NOW", "AUCTION", "ADVERTISEMENT"}
 PUBLICATION_STATUSES = {"ACTIVE", "INACTIVE", "ENDED"}
 OFFER_EVENT_TYPES = {
@@ -76,9 +75,7 @@ class OfferCreatePayload(BaseModel):
     def validate_selling_mode(cls, v: dict) -> dict:
         fmt = v.get("format")
         if fmt and fmt not in SELLING_FORMATS:
-            raise ValueError(
-                f"Invalid selling format '{fmt}', must be one of: {', '.join(sorted(SELLING_FORMATS))}"
-            )
+            raise ValueError(f"Invalid selling format '{fmt}', must be one of: {', '.join(sorted(SELLING_FORMATS))}")
         return v
 
 
@@ -100,9 +97,7 @@ class UpdateOrderStatusPayload(BaseModel):
     @classmethod
     def validate_status(cls, v: str) -> str:
         if v not in FULFILLMENT_STATUSES:
-            raise ValueError(
-                f"Invalid status '{v}', must be one of: {', '.join(sorted(FULFILLMENT_STATUSES))}"
-            )
+            raise ValueError(f"Invalid status '{v}', must be one of: {', '.join(sorted(FULFILLMENT_STATUSES))}")
         return v
 
 
@@ -114,9 +109,7 @@ class RefundPayload(BaseModel):
     @classmethod
     def validate_reason_code(cls, v: str) -> str:
         if v not in REFUND_REASON_CODES:
-            raise ValueError(
-                f"Invalid reason code '{v}', must be one of: {', '.join(sorted(REFUND_REASON_CODES))}"
-            )
+            raise ValueError(f"Invalid reason code '{v}', must be one of: {', '.join(sorted(REFUND_REASON_CODES))}")
         return v
 
 
@@ -128,9 +121,7 @@ class WarrantyCreatePayload(BaseModel):
     @classmethod
     def validate_type(cls, v: str) -> str:
         if v not in WARRANTY_TYPES:
-            raise ValueError(
-                f"Invalid warranty type '{v}', must be one of: {', '.join(sorted(WARRANTY_TYPES))}"
-            )
+            raise ValueError(f"Invalid warranty type '{v}', must be one of: {', '.join(sorted(WARRANTY_TYPES))}")
         return v
 
 
@@ -143,9 +134,7 @@ class PointOfServiceCreatePayload(BaseModel):
     @classmethod
     def validate_type(cls, v: str) -> str:
         if v not in POINT_OF_SERVICE_TYPES:
-            raise ValueError(
-                f"Invalid POS type '{v}', must be one of: {', '.join(sorted(POINT_OF_SERVICE_TYPES))}"
-            )
+            raise ValueError(f"Invalid POS type '{v}', must be one of: {', '.join(sorted(POINT_OF_SERVICE_TYPES))}")
         return v
 
 

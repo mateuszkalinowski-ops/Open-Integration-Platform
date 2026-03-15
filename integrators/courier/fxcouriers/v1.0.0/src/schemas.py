@@ -18,10 +18,10 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class FxCouriersCredentials(BaseModel):
     api_token: str = Field(description="Bearer API token")
@@ -31,6 +31,7 @@ class FxCouriersCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
 
 class OrderStatus(str, Enum):
     NEW = "NEW"
@@ -54,6 +55,7 @@ class PaymentMethod(str, Enum):
 # Address DTOs
 # ---------------------------------------------------------------------------
 
+
 class FxAddress(BaseModel):
     name: str = Field(...)
     country: str = Field(default="PL")
@@ -71,6 +73,7 @@ class FxAddress(BaseModel):
 # ---------------------------------------------------------------------------
 # Service / Additional service DTOs
 # ---------------------------------------------------------------------------
+
 
 class FxService(BaseModel):
     code: str = Field(...)
@@ -92,6 +95,7 @@ class FxAdditionalServiceConfig(BaseModel):
 # Package / Item DTOs
 # ---------------------------------------------------------------------------
 
+
 class FxItem(BaseModel):
     content: str = Field(default="")
     package_type: str = Field(default="BOX")
@@ -107,6 +111,7 @@ class FxItem(BaseModel):
 # ---------------------------------------------------------------------------
 # Service configuration DTOs
 # ---------------------------------------------------------------------------
+
 
 class FxPackageConfig(BaseModel):
     code: str
@@ -128,6 +133,7 @@ class FxServicesResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Order DTOs
 # ---------------------------------------------------------------------------
+
 
 class FxCreateOrderRequest(BaseModel):
     company_id: int
@@ -171,6 +177,7 @@ class FxOrdersListResponse(BaseModel):
 # Shipment / Pickup DTOs
 # ---------------------------------------------------------------------------
 
+
 class FxCreateShipmentRequest(BaseModel):
     pickup_date: str = Field(..., description="YYYY-MM-DD")
     pickup_time_from: str = Field(..., description="HH:MM")
@@ -181,6 +188,7 @@ class FxCreateShipmentRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Company DTOs
 # ---------------------------------------------------------------------------
+
 
 class FxCompanyAddress(BaseModel):
     name: str | None = None
@@ -212,6 +220,7 @@ class FxCompany(BaseModel):
 # ---------------------------------------------------------------------------
 # FastAPI request wrappers (with credentials)
 # ---------------------------------------------------------------------------
+
 
 class CreateOrderApiRequest(BaseModel):
     credentials: FxCouriersCredentials

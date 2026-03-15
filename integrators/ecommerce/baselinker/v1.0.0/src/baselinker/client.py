@@ -11,9 +11,9 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.config import BaseLinkerAccountConfig, settings
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -73,21 +73,32 @@ class BaseLinkerClient:
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="baselinker", operation=method, status=last_response.status_code,
+                system="baselinker",
+                operation=method,
+                status=last_response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="baselinker", operation=method,
+                system="baselinker",
+                operation=method,
             ).observe(duration)
 
             if last_response.status_code == 429:
                 backoff = float(last_response.headers.get("Retry-After", "60"))
-                logger.warning("BaseLinker rate limited, waiting %.0fs (attempt %d/%d)", backoff, attempt + 1, settings.max_retries)
+                logger.warning(
+                    "BaseLinker rate limited, waiting %.0fs (attempt %d/%d)", backoff, attempt + 1, settings.max_retries
+                )
                 await asyncio.sleep(backoff)
                 continue
 
             if last_response.status_code >= 500:
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
-                logger.warning("BaseLinker %d, retrying in %.1fs (attempt %d/%d)", last_response.status_code, backoff, attempt + 1, settings.max_retries)
+                backoff = settings.retry_backoff_factor * (2**attempt)
+                logger.warning(
+                    "BaseLinker %d, retrying in %.1fs (attempt %d/%d)",
+                    last_response.status_code,
+                    backoff,
+                    attempt + 1,
+                    settings.max_retries,
+                )
                 await asyncio.sleep(backoff)
                 continue
 
@@ -139,10 +150,14 @@ class BaseLinkerClient:
         order_id: int,
         status_id: int,
     ) -> dict[str, Any]:
-        return await self.call("setOrderStatus", account, {
-            "order_id": order_id,
-            "status_id": status_id,
-        })
+        return await self.call(
+            "setOrderStatus",
+            account,
+            {
+                "order_id": order_id,
+                "status_id": status_id,
+            },
+        )
 
     async def set_order_fields(
         self,
@@ -172,10 +187,14 @@ class BaseLinkerClient:
         inventory_id: int,
         page: int = 1,
     ) -> dict[str, Any]:
-        return await self.call("getInventoryProductsList", account, {
-            "inventory_id": inventory_id,
-            "page": page,
-        })
+        return await self.call(
+            "getInventoryProductsList",
+            account,
+            {
+                "inventory_id": inventory_id,
+                "page": page,
+            },
+        )
 
     async def get_inventory_products_data(
         self,
@@ -183,10 +202,14 @@ class BaseLinkerClient:
         inventory_id: int,
         products: list[int],
     ) -> dict[str, Any]:
-        return await self.call("getInventoryProductsData", account, {
-            "inventory_id": inventory_id,
-            "products": products,
-        })
+        return await self.call(
+            "getInventoryProductsData",
+            account,
+            {
+                "inventory_id": inventory_id,
+                "products": products,
+            },
+        )
 
     async def get_inventory_products_stock(
         self,
@@ -194,10 +217,14 @@ class BaseLinkerClient:
         inventory_id: int,
         page: int = 1,
     ) -> dict[str, Any]:
-        return await self.call("getInventoryProductsStock", account, {
-            "inventory_id": inventory_id,
-            "page": page,
-        })
+        return await self.call(
+            "getInventoryProductsStock",
+            account,
+            {
+                "inventory_id": inventory_id,
+                "page": page,
+            },
+        )
 
     async def update_inventory_products_stock(
         self,
@@ -206,10 +233,14 @@ class BaseLinkerClient:
         products: dict[str, dict[str, float]],
     ) -> dict[str, Any]:
         """Update stock. products = { product_id: { warehouse_id: quantity } }"""
-        return await self.call("updateInventoryProductsStock", account, {
-            "inventory_id": inventory_id,
-            "products": products,
-        })
+        return await self.call(
+            "updateInventoryProductsStock",
+            account,
+            {
+                "inventory_id": inventory_id,
+                "products": products,
+            },
+        )
 
     async def create_package(
         self,
@@ -218,11 +249,15 @@ class BaseLinkerClient:
         courier_code: str,
         fields: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        return await self.call("createPackage", account, {
-            "order_id": order_id,
-            "courier_code": courier_code,
-            **(fields or {}),
-        })
+        return await self.call(
+            "createPackage",
+            account,
+            {
+                "order_id": order_id,
+                "courier_code": courier_code,
+                **(fields or {}),
+            },
+        )
 
     async def create_package_manual(
         self,
@@ -231,11 +266,15 @@ class BaseLinkerClient:
         courier_code: str,
         package_number: str,
     ) -> dict[str, Any]:
-        return await self.call("createPackageManual", account, {
-            "order_id": order_id,
-            "courier_code": courier_code,
-            "package_number": package_number,
-        })
+        return await self.call(
+            "createPackageManual",
+            account,
+            {
+                "order_id": order_id,
+                "courier_code": courier_code,
+                "package_number": package_number,
+            },
+        )
 
     async def get_inventories(self, account: BaseLinkerAccountConfig) -> dict[str, Any]:
         return await self.call("getInventories", account)

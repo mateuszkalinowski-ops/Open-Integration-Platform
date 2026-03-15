@@ -49,10 +49,7 @@ class DhlExpressIntegration:
     - DHL Unified Location Finder API — DHL-API-Key header
     """
 
-    TRACKING_URL = (
-        "https://www.dhl.com/pl-en/home/tracking/tracking-parcel.html"
-        "?submit=1&tracking-id={tracking_number}"
-    )
+    TRACKING_URL = "https://www.dhl.com/pl-en/home/tracking/tracking-parcel.html?submit=1&tracking-id={tracking_number}"
 
     def __init__(self) -> None:
         self._base_url = settings.api_base_url.rstrip("/")
@@ -60,7 +57,8 @@ class DhlExpressIntegration:
         self._api_secret = settings.dhl_express_api_secret
 
         self._auth_header = self._build_auth_header(
-            self._api_key, self._api_secret,
+            self._api_key,
+            self._api_secret,
         )
 
         # MyDHL Express API client (Basic Auth — for shipments, rates, pickups)
@@ -133,7 +131,9 @@ class DhlExpressIntegration:
             params["levelOfDetail"] = level_of_detail
 
         response = await self._unified_request(
-            "GET", settings.dhl_tracking_url, params=params,
+            "GET",
+            settings.dhl_tracking_url,
+            params=params,
         )
         tracking_url = self.TRACKING_URL.format(tracking_number=tracking_number)
         response["_trackingUrl"] = tracking_url
@@ -216,8 +216,9 @@ class DhlExpressIntegration:
 
     async def get_label_bytes(self, tracking_number: str) -> tuple[bytes, int]:
         """Convenience method returning raw PDF label bytes."""
-        response, status_code = await self.get_shipment_image(
-            tracking_number, type_code="label",
+        response, _status_code = await self.get_shipment_image(
+            tracking_number,
+            type_code="label",
         )
         if isinstance(response, dict) and "documents" in response:
             for doc in response["documents"]:
@@ -380,7 +381,10 @@ class DhlExpressIntegration:
         """Execute HTTP request against MyDHL Express API (Basic Auth)."""
         logger.debug("DHL Express API %s %s", method, path)
         response = await self._express_client.request(
-            method, path, json=json, params=params,
+            method,
+            path,
+            json=json,
+            params=params,
         )
         return self._handle_response(response)
 
@@ -400,7 +404,9 @@ class DhlExpressIntegration:
         """Execute HTTP request against DHL Unified APIs (DHL-API-Key header)."""
         logger.debug("DHL Unified API %s %s", method, url)
         response = await self._unified_client.request(
-            method, url, params=params,
+            method,
+            url,
+            params=params,
         )
         return self._handle_response(response)
 

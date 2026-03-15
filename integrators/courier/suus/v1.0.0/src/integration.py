@@ -18,7 +18,8 @@ import json
 import logging
 from http import HTTPStatus
 
-from zeep import Client, Settings as ZeepSettings, Transport
+from zeep import Client, Transport
+from zeep import Settings as ZeepSettings
 from zeep.exceptions import Fault, TransportError
 from zeep.helpers import serialize_object
 
@@ -142,7 +143,9 @@ class SuusIntegration:
         Extracts error codes from raw XML elements in the response when present.
         """
         create_command = self._prepare_suus_command(
-            command, credentials.login, credentials.password,
+            command,
+            credentials.login,
+            credentials.password,
         )
 
         response = None
@@ -201,7 +204,9 @@ class SuusIntegration:
         """
         package_id = waybill_numbers[0]
         label_data, status_code = self._generate_labels(
-            credentials.login, credentials.password, package_id,
+            credentials.login,
+            credentials.password,
+            package_id,
         )
 
         if status_code == HTTPStatus.OK:
@@ -235,54 +240,50 @@ class SuusIntegration:
         currency = "PLN"
         if cod and command.cod_curr:
             currency = command.cod_curr
-        elif (
-            suus_extras.get("insurance")
-            and suus_extras.get("insurance_value")
-            and suus_extras["insurance_value"] > 0
-        ):
+        elif suus_extras.get("insurance") and suus_extras.get("insurance_value") and suus_extras["insurance_value"] > 0:
             currency = suus_extras.get("insurance_curr", "PLN")
 
         services: list[dict] = []
 
         if cod:
             cod_value = command.cod_value
-            services.append({
-                "symbol": "RohligCOD",
-                "decimal1": cod_value,
-            })
+            services.append(
+                {
+                    "symbol": "RohligCOD",
+                    "decimal1": cod_value,
+                }
+            )
 
         shipper = command.shipper
         receiver = command.receiver
 
-        if (
-            suus_extras.get("insurance")
-            and suus_extras.get("insurance_value")
-            and suus_extras["insurance_value"] > 0
-        ):
+        if suus_extras.get("insurance") and suus_extras.get("insurance_value") and suus_extras["insurance_value"] > 0:
             value = suus_extras["insurance_value"]
-            services.append({
-                "symbol": "RohligUbezpieczenie3",
-                "decimal1": value,
-                "decimal2": 0,
-                "varchar1": "PLN",
-                "int01": 1,
-            })
+            services.append(
+                {
+                    "symbol": "RohligUbezpieczenie3",
+                    "decimal1": value,
+                    "decimal2": 0,
+                    "varchar1": "PLN",
+                    "int01": 1,
+                }
+            )
 
         packages: list[dict] = []
         for parcel in command.parcels:
-            packages.append({
-                "symbol": parcel.parcel_type,
-                "quantity": parcel.quantity,
-                "weightKg": parcel.weight,
-                "lenghtCm": parcel.length,
-                "widthCm": parcel.width,
-                "heightCm": parcel.height,
-            })
+            packages.append(
+                {
+                    "symbol": parcel.parcel_type,
+                    "quantity": parcel.quantity,
+                    "weightKg": parcel.weight,
+                    "lenghtCm": parcel.length,
+                    "widthCm": parcel.width,
+                    "heightCm": parcel.height,
+                }
+            )
 
         receiver_name = return_shorten_value(
-            (receiver.company_name or "") + " "
-            + (receiver.first_name or "") + " "
-            + (receiver.last_name or ""),
+            (receiver.company_name or "") + " " + (receiver.first_name or "") + " " + (receiver.last_name or ""),
             100,
         )
 

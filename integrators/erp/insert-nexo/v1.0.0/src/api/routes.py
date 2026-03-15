@@ -55,7 +55,7 @@ async def agent_health(account: str) -> dict[str, Any]:
     try:
         return await proxy.health()
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}")
+        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}") from exc
 
 
 @router.get("/agents/{account}/connection/status")
@@ -64,10 +64,11 @@ async def agent_connection_status(account: str) -> dict[str, Any]:
     try:
         return await proxy.get("/connection/status")
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}")
+        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}") from exc
 
 
 # --- Contractors ---
+
 
 @router.get("/agents/{account}/contractors")
 async def list_contractors(
@@ -109,6 +110,7 @@ async def delete_contractor(account: str, symbol: str) -> dict[str, Any]:
 
 # --- Products ---
 
+
 @router.get("/agents/{account}/products")
 async def list_products(
     account: str,
@@ -142,6 +144,7 @@ async def update_product(account: str, symbol: str, data: dict[str, Any]) -> dic
 
 
 # --- Documents ---
+
 
 @router.get("/agents/{account}/documents/sales")
 async def list_sales_documents(
@@ -179,6 +182,7 @@ async def create_warehouse_receipt(account: str, data: dict[str, Any]) -> dict[s
 
 # --- Orders ---
 
+
 @router.get("/agents/{account}/orders")
 async def list_orders(
     account: str,
@@ -197,6 +201,7 @@ async def create_order(account: str, data: dict[str, Any]) -> dict[str, Any]:
 
 
 # --- Stock ---
+
 
 @router.get("/agents/{account}/stock")
 async def get_stock_levels(
@@ -218,6 +223,7 @@ async def get_stock_for_product(account: str, product_symbol: str) -> dict[str, 
 
 
 # --- Agent sync endpoint (receives data pushed from on-premise agent) ---
+
 
 @router.post("/agents/heartbeat")
 async def receive_heartbeat(data: dict[str, Any]) -> dict[str, str]:

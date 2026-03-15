@@ -39,6 +39,7 @@ class PointsRequest(BaseModel):
 # Rate request / standardized response (for shipping price comparison)
 # ---------------------------------------------------------------------------
 
+
 class RateRequest(BaseModel):
     credentials: FedexCredentials | None = None
     sender_postal_code: str = ""

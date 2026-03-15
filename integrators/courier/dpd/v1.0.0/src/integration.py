@@ -179,7 +179,9 @@ class DpdIntegration:
 
             if response.session.statusInfo.status == "INCORRECT_PKGS_FOR_SESSION_TYPE":
                 dpd_services_params_v1_international = self._get_dpd_services_params_v1(
-                    waybill_numbers, package_id, session_type="INTERNATIONAL",
+                    waybill_numbers,
+                    package_id,
+                    session_type="INTERNATIONAL",
                 )
                 response = self.client.service.generateSpedLabelsV4(
                     dpdServicesParamsV1=dpd_services_params_v1_international,
@@ -198,11 +200,7 @@ class DpdIntegration:
         if response is None:
             return "Brak danych", HTTPStatus.OK
 
-        status_code = (
-            HTTPStatus.OK
-            if response.session.statusInfo.status == "OK"
-            else HTTPStatus.BAD_REQUEST
-        )
+        status_code = HTTPStatus.OK if response.session.statusInfo.status == "OK" else HTTPStatus.BAD_REQUEST
         if status_code != HTTPStatus.OK:
             return (
                 f"Generate sped label error: {response.session.statusInfo.status}, "
@@ -227,12 +225,16 @@ class DpdIntegration:
 
         if session_type:
             service_params = self._get_dpd_services_params_v1(
-                waybill_numbers=waybill_numbers, fid=fid, package_id=None,
+                waybill_numbers=waybill_numbers,
+                fid=fid,
+                package_id=None,
                 session_type=session_type,
             )
         else:
             service_params = self._get_dpd_services_params_v1(
-                waybill_numbers=waybill_numbers, fid=fid, package_id=None,
+                waybill_numbers=waybill_numbers,
+                fid=fid,
+                package_id=None,
             )
 
         try:
@@ -250,11 +252,7 @@ class DpdIntegration:
         if response is None:
             return "Brak danych", HTTPStatus.OK
 
-        status_code = (
-            HTTPStatus.OK
-            if response.session.statusInfo.status == "OK"
-            else HTTPStatus.BAD_REQUEST
-        )
+        status_code = HTTPStatus.OK if response.session.statusInfo.status == "OK" else HTTPStatus.BAD_REQUEST
         if status_code != HTTPStatus.OK:
             return (
                 f"Generate protocol error: {response.session.statusInfo.status}, "
@@ -531,10 +529,7 @@ class DpdIntegration:
                 "packages": [
                     {
                         "packageId": package_id if package_id else None,
-                        "parcels": [
-                            {"waybill": waybill}
-                            for waybill in waybill_numbers
-                        ],
+                        "parcels": [{"waybill": waybill} for waybill in waybill_numbers],
                     },
                 ],
                 "sessionType": session_type,

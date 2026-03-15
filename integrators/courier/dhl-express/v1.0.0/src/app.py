@@ -3,10 +3,10 @@
 from __future__ import annotations
 
 import logging
-from contextlib import asynccontextmanager
 import sys
+from collections.abc import AsyncGenerator
+from contextlib import asynccontextmanager
 from pathlib import Path
-from typing import AsyncGenerator
 
 try:
     SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -18,6 +18,7 @@ except (IndexError, OSError):
 import httpx
 from fastapi import FastAPI, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -32,7 +33,6 @@ from src.schemas import (
     RateRequest,
     StandardizedRateResponse,
 )
-
 
 logging.basicConfig(
     level=settings.log_level,
@@ -86,10 +86,9 @@ async def connection_status(
     if not key or not secret:
         return {"connected": False, "error": "No DHL Express API credentials configured"}
     import base64 as _b64
+
     auth_value = _b64.b64encode(f"{key}:{secret}".encode()).decode()
-    base_url = (
-        settings.dhl_express_base_url if sandbox_mode else settings.api_base_url
-    ).rstrip("/")
+    base_url = (settings.dhl_express_base_url if sandbox_mode else settings.api_base_url).rstrip("/")
     try:
         async with httpx.AsyncClient(timeout=httpx.Timeout(15.0)) as c:
             r = await c.get(
@@ -255,18 +254,20 @@ def _normalize_dhl_express_rates(raw: dict) -> StandardizedRateResponse:
         if delivery := exchange.get("deliveryCapabilities", {}):
             delivery_date = delivery.get("estimatedDeliveryDateAndTime", "")
 
-        products.append(RateProduct(
-            name=exchange.get("productName", exchange.get("productCode", "unknown")),
-            price=price,
-            currency=currency,
-            delivery_days=delivery_days,
-            delivery_date=delivery_date,
-            attributes={
-                "source": "dhl-express",
-                "product_code": exchange.get("productCode", ""),
-                "weight_unit": exchange.get("weight", {}).get("unitOfMeasurement", ""),
-            },
-        ))
+        products.append(
+            RateProduct(
+                name=exchange.get("productName", exchange.get("productCode", "unknown")),
+                price=price,
+                currency=currency,
+                delivery_days=delivery_days,
+                delivery_date=delivery_date,
+                attributes={
+                    "source": "dhl-express",
+                    "product_code": exchange.get("productCode", ""),
+                    "weight_unit": exchange.get("weight", {}).get("unitOfMeasurement", ""),
+                },
+            )
+        )
 
     return StandardizedRateResponse(products=products, source="dhl-express", raw=raw)
 
@@ -314,7 +315,7 @@ async def get_products(
 @app.get("/shipments/{tracking_number}/label")
 async def get_label(tracking_number: str) -> Response:
     try:
-        label_bytes, status_code = await integration.get_label_bytes(tracking_number)
+        label_bytes, _status_code = await integration.get_label_bytes(tracking_number)
         if not label_bytes:
             raise HTTPException(status_code=404, detail="Label not found")
         return Response(content=label_bytes, media_type="application/pdf")
@@ -333,7 +334,8 @@ async def get_documents(
 ) -> dict:
     try:
         result, _ = await integration.get_shipment_image(
-            tracking_number, type_code=type_code,
+            tracking_number,
+            type_code=type_code,
         )
         if isinstance(result, dict):
             for doc in result.get("documents", []):
@@ -369,7 +371,8 @@ async def update_pickup(
 ) -> dict:
     try:
         result, _ = await integration.update_pickup(
-            dispatch_confirmation_number, payload,
+            dispatch_confirmation_number,
+            payload,
         )
         return result
     except DhlExpressError as exc:

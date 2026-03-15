@@ -5,6 +5,7 @@ Access tokens are valid for 21 days, refresh tokens for 2 months.
 """
 
 import base64
+import contextlib
 import logging
 import time
 from typing import Any
@@ -58,7 +59,7 @@ class TokenManager:
     def _cache_tokens(self, account_name: str, token_data: dict[str, Any]) -> str:
         access_token = token_data["accessToken"]
         refresh_token = token_data.get("refreshToken", "")
-        expires_at_str = token_data.get("accessTokenExpireAt", "")
+        _expires_at_str = token_data.get("accessTokenExpireAt", "")
 
         expires_in = 21 * 24 * 3600
         expires_at = time.monotonic() + expires_in - TOKEN_REFRESH_MARGIN_SECONDS
@@ -72,16 +73,22 @@ class TokenManager:
         return cached[1] if cached else None
 
     async def _exchange_authorization_code(self, account: ApiloAccountConfig) -> dict[str, Any]:
-        return await self._token_request(account, {
-            "grantType": "authorization_code",
-            "token": account.authorization_code,
-        })
+        return await self._token_request(
+            account,
+            {
+                "grantType": "authorization_code",
+                "token": account.authorization_code,
+            },
+        )
 
     async def _refresh_token(self, account: ApiloAccountConfig, refresh_token: str) -> dict[str, Any]:
-        return await self._token_request(account, {
-            "grantType": "refresh_token",
-            "token": refresh_token,
-        })
+        return await self._token_request(
+            account,
+            {
+                "grantType": "refresh_token",
+                "token": refresh_token,
+            },
+        )
 
     async def _token_request(self, account: ApiloAccountConfig, payload: dict[str, Any]) -> dict[str, Any]:
         credentials = base64.b64encode(f"{account.client_id}:{account.client_secret}".encode()).decode()
@@ -96,10 +103,8 @@ class TokenManager:
 
         if response.status_code not in (200, 201):
             body: dict[str, Any] = {}
-            try:
+            with contextlib.suppress(Exception):
                 body = response.json()
-            except Exception:
-                pass
             raise ApiloAuthError(
                 f"Apilo token request failed: {response.status_code} — {body.get('message', response.text[:200])}",
                 raw=body,

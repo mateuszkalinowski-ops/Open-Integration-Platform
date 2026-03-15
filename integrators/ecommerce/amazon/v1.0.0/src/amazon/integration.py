@@ -2,7 +2,7 @@
 
 import json
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pinquark_common.interfaces.ecommerce import EcommerceIntegration
@@ -14,13 +14,13 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
-from src.config import AmazonAccountConfig
+
 from src.amazon.client import AmazonClient
 from src.amazon.mapper import (
     map_amazon_order_to_order,
-    map_amazon_status_to_order_status,
     map_catalog_item_to_product,
 )
+from src.config import AmazonAccountConfig
 from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,7 @@ class AmazonIntegration(EcommerceIntegration):
 
         created_after = None
         if since:
-            created_after = since.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            created_after = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         all_orders: list[Order] = []
         next_token: str | None = None
@@ -87,7 +87,7 @@ class AmazonIntegration(EcommerceIntegration):
                 break
 
         start = (page - 1) * page_size
-        page_slice = all_orders[start:start + page_size]
+        page_slice = all_orders[start : start + page_size]
 
         return OrdersPage(
             orders=page_slice,
@@ -124,11 +124,11 @@ class AmazonIntegration(EcommerceIntegration):
             logger.info(
                 "Order %s status->SHIPPED requires shipment confirmation with tracking. "
                 "Use POST /orders/%s/ship endpoint instead.",
-                order_id, order_id,
+                order_id,
+                order_id,
             )
             raise ValueError(
-                "To mark as SHIPPED, use the /orders/{order_id}/ship endpoint "
-                "with carrier and tracking information."
+                "To mark as SHIPPED, use the /orders/{order_id}/ship endpoint with carrier and tracking information."
             )
 
         if status == OrderStatus.CANCELLED:
@@ -160,11 +160,16 @@ class AmazonIntegration(EcommerceIntegration):
     ) -> dict[str, Any]:
         account = self._get_account(account_name)
         if not ship_date:
-            ship_date = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+            ship_date = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
         result = await self._client.submit_shipment_confirmation(
-            account, order_id, carrier_code, tracking_number, ship_date,
-            carrier_name=carrier_name, items=items,
+            account,
+            order_id,
+            carrier_code,
+            tracking_number,
+            ship_date,
+            carrier_name=carrier_name,
+            items=items,
         )
         logger.info("Shipment confirmed for order=%s, carrier=%s, tracking=%s", order_id, carrier_code, tracking_number)
         return result
@@ -180,11 +185,13 @@ class AmazonIntegration(EcommerceIntegration):
         inventory_records = []
         for item in items:
             sku = item.sku or item.product_id
-            inventory_records.append({
-                "sku": sku,
-                "quantity": int(item.quantity),
-                "fulfillment_channel_code": "DEFAULT",
-            })
+            inventory_records.append(
+                {
+                    "sku": sku,
+                    "quantity": int(item.quantity),
+                    "fulfillment_channel_code": "DEFAULT",
+                }
+            )
 
         feed_content = json.dumps({"inventory": inventory_records})
 
@@ -195,7 +202,7 @@ class AmazonIntegration(EcommerceIntegration):
 
             await self._client.upload_feed_data(upload_url, feed_content)
 
-            result = await self._client.create_feed(
+            _result = await self._client.create_feed(
                 account,
                 feed_type="POST_INVENTORY_AVAILABILITY_DATA",
                 input_feed_document_id=feed_doc_id,
@@ -223,7 +230,8 @@ class AmazonIntegration(EcommerceIntegration):
         """Get product by ASIN from Amazon Catalog API."""
         account = self._get_account(account_name)
         result = await self._client.get_catalog_item(
-            account, product_id,
+            account,
+            product_id,
             included_data=["summaries", "identifiers", "images", "attributes"],
         )
         return map_catalog_item_to_product(result)
@@ -257,7 +265,8 @@ class AmazonIntegration(EcommerceIntegration):
     ) -> dict[str, Any]:
         account = self._get_account(account_name)
         return await self._client.create_report(
-            account, report_type,
+            account,
+            report_type,
             data_start_time=data_start_time,
             data_end_time=data_end_time,
         )

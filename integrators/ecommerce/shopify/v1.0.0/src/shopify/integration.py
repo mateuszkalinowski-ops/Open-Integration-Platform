@@ -14,13 +14,14 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+
+from src.services.account_manager import AccountManager
 from src.shopify.client import ShopifyClient
 from src.shopify.mapper import (
-    map_shopify_order_to_order,
-    map_shopify_order_status,
-    map_shopify_product_to_product,
-    map_product_to_shopify,
     ORDER_STATUS_TO_SHOPIFY_ACTION,
+    map_product_to_shopify,
+    map_shopify_order_to_order,
+    map_shopify_product_to_product,
 )
 from src.shopify.schemas import (
     ShopifyOrder,
@@ -28,7 +29,6 @@ from src.shopify.schemas import (
     ShopifyProduct,
     ShopifyProductsResponse,
 )
-from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
 
@@ -98,7 +98,10 @@ class ShopifyIntegration(EcommerceIntegration):
 
         if status in (OrderStatus.SHIPPED, OrderStatus.READY_FOR_SHIPMENT):
             await self._create_fulfillment(
-                order_id, account_name, tracking_number, tracking_company,
+                order_id,
+                account_name,
+                tracking_number,
+                tracking_company,
             )
             return
 
@@ -109,7 +112,9 @@ class ShopifyIntegration(EcommerceIntegration):
 
         logger.info(
             "Order status %s mapped to action=%s for order=%s",
-            status, action or "none", order_id,
+            status,
+            action or "none",
+            order_id,
         )
 
     async def _create_fulfillment(
@@ -125,10 +130,7 @@ class ShopifyIntegration(EcommerceIntegration):
         fo_raw = await self._client.get_fulfillment_orders(order_id, account)
         fulfillment_orders = fo_raw.get("fulfillment_orders", [])
 
-        open_fo_ids = [
-            fo["id"] for fo in fulfillment_orders
-            if fo.get("status") in ("open", "in_progress")
-        ]
+        open_fo_ids = [fo["id"] for fo in fulfillment_orders if fo.get("status") in ("open", "in_progress")]
 
         if not open_fo_ids:
             logger.warning("No open fulfillment orders for order=%s", order_id)
@@ -143,7 +145,9 @@ class ShopifyIntegration(EcommerceIntegration):
         )
         logger.info(
             "Created fulfillment for order=%s (fo_ids=%s, tracking=%s)",
-            order_id, open_fo_ids, tracking_number,
+            order_id,
+            open_fo_ids,
+            tracking_number,
         )
 
     async def sync_stock(

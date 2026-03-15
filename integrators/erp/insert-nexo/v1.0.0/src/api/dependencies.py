@@ -1,7 +1,8 @@
 """FastAPI dependency injection for the cloud connector."""
 
-from src.services.account_manager import AccountManager
 from pinquark_common.monitoring.health import HealthChecker
+
+from src.services.account_manager import AccountManager
 
 
 class AppState:

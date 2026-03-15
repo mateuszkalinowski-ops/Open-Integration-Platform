@@ -1,12 +1,13 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
-from src.models.database import StateStore
-from src.services.account_manager import AccountManager
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.idosell.client import IdoSellClient
 from src.idosell.integration import IdoSellIntegration
 from src.idosell.scraper import OrderScraper
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
+from src.models.database import StateStore
+from src.services.account_manager import AccountManager
 
 
 class AppState:

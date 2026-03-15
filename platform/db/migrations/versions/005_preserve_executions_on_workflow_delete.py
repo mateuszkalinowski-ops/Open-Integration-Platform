@@ -8,15 +8,16 @@ Changes workflow_executions.workflow_id from NOT NULL with CASCADE DELETE
 to nullable with ON DELETE SET NULL. Adds workflow_name column so the
 execution retains the workflow's name even after the workflow is deleted.
 """
-from typing import Sequence, Union
+
+from collections.abc import Sequence
 
 import sqlalchemy as sa
 from alembic import op
 
 revision: str = "005"
-down_revision: Union[str, None] = "004"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "004"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:

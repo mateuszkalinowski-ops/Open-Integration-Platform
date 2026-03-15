@@ -884,6 +884,30 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     return [...matches].sort((left, right) => this.compareConnectorVersions(right.version, left.version))[0];
   }
 
+  private warnIfConnectorVersionSubstituted(node: WorkflowNode): void {
+    if (
+      node.type !== 'trigger' &&
+      node.type !== 'action' &&
+      node.type !== 'http_request'
+    ) {
+      return;
+    }
+    const connName = String(node.config?.['connector_name'] ?? '');
+    const connVers = String(node.config?.['connector_version'] ?? '');
+    if (!connName || !connVers) return;
+    const found = this.connectors.find(c => c.name === connName && c.version === connVers);
+    if (!found) {
+      const fallback = this.resolveConnector(connName, connVers);
+      if (fallback) {
+        this.snackBar.open(
+          `Connector version ${connVers} not found, using ${fallback.version} instead`,
+          'OK',
+          { duration: 5000 },
+        );
+      }
+    }
+  }
+
   ngOnInit(): void {
     this.workflowId = this.route.snapshot.paramMap.get('id');
 
@@ -942,6 +966,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   }
 
   onOpenNodeMapper(node: WorkflowNode): void {
+    this.warnIfConnectorVersionSubstituted(node);
     const cfg = node.config || {};
     const sourceFields = this.getSourceFieldsForNode(node);
     const destFields = this.getDestFieldsForNode(node);

@@ -2,12 +2,9 @@
 
 from __future__ import annotations
 
-import pytest
-
 from src.schemas import (
     Address,
     ClaimType,
-    ContactInfo,
     CreateShipmentRequest,
     Package,
     PackageDimensions,
@@ -148,12 +145,20 @@ class TestCreateShipmentRequest:
         request = CreateShipmentRequest(
             credentials=RabenCredentials(username="u", password="p"),
             sender=ShipmentParty(
-                companyName="S", contactPerson="J", phone="1",
-                street="S", city="W", postalCode="00-001",
+                companyName="S",
+                contactPerson="J",
+                phone="1",
+                street="S",
+                city="W",
+                postalCode="00-001",
             ),
             receiver=ShipmentParty(
-                companyName="R", contactPerson="A", phone="2",
-                street="R", city="K", postalCode="30-001",
+                companyName="R",
+                contactPerson="A",
+                phone="2",
+                street="R",
+                city="K",
+                postalCode="30-001",
             ),
             packages=[Package(weight=100.0)],
         )

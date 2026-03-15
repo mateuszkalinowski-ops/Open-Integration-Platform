@@ -82,20 +82,22 @@ class SlackIntegration:
         messages: list[SlackMessage] = []
         for msg_data in data.get("messages", []):
             user_name = await self._resolve_user_name(account_name, msg_data.get("user", ""))
-            messages.append(SlackMessage(
-                channel_id=channel,
-                user_id=msg_data.get("user", ""),
-                user_name=user_name,
-                text=msg_data.get("text", ""),
-                ts=msg_data.get("ts", ""),
-                thread_ts=msg_data.get("thread_ts", ""),
-                reply_count=msg_data.get("reply_count", 0),
-                bot_id=msg_data.get("bot_id", ""),
-                attachments=msg_data.get("attachments", []),
-                blocks=msg_data.get("blocks", []),
-                files=msg_data.get("files", []),
-                account_name=account_name,
-            ))
+            messages.append(
+                SlackMessage(
+                    channel_id=channel,
+                    user_id=msg_data.get("user", ""),
+                    user_name=user_name,
+                    text=msg_data.get("text", ""),
+                    ts=msg_data.get("ts", ""),
+                    thread_ts=msg_data.get("thread_ts", ""),
+                    reply_count=msg_data.get("reply_count", 0),
+                    bot_id=msg_data.get("bot_id", ""),
+                    attachments=msg_data.get("attachments", []),
+                    blocks=msg_data.get("blocks", []),
+                    files=msg_data.get("files", []),
+                    account_name=account_name,
+                )
+            )
 
         return SlackMessagesPage(
             messages=messages,

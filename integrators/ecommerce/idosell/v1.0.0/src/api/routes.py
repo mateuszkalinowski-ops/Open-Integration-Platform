@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -13,6 +11,8 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
+from pydantic import BaseModel
+
 from src.api.dependencies import app_state
 from src.config import IdoSellAccountConfig
 from src.idosell.schemas import IdoSellAuthStatus
@@ -57,6 +57,7 @@ async def validate_auth(account_name: str) -> dict[str, Any]:
     if not account:
         raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found")
     from src.idosell.auth import IdoSellAuthManager
+
     auth_mgr = IdoSellAuthManager()
     valid = await auth_mgr.validate(account)
     return {"account_name": account_name, "valid": valid}
@@ -177,7 +178,10 @@ async def create_parcel(
 ) -> dict[str, Any]:
     _require_account(account_name)
     result = await app_state.integration.create_parcel(
-        account_name, body.order_serial_number, body.courier_id, body.tracking_numbers,
+        account_name,
+        body.order_serial_number,
+        body.courier_id,
+        body.tracking_numbers,
     )
     return {"status": "created", "result": result}
 

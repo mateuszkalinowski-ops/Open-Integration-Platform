@@ -16,6 +16,7 @@ import json
 import logging
 from datetime import datetime
 from http import HTTPStatus
+from typing import ClassVar
 
 import httpx
 
@@ -23,6 +24,7 @@ from src.config import settings
 from src.schemas import (
     CreateShipmentRequest,
     InpostCredentials,
+    ShipmentParty,
     Tracking,
 )
 
@@ -86,6 +88,7 @@ def _deep_copy_schema(schema: dict) -> dict:
 # InPost Integration
 # ---------------------------------------------------------------------------
 
+
 class InpostIntegration:
     """InPost REST (ShipX) integration.
 
@@ -95,7 +98,7 @@ class InpostIntegration:
 
     TRACKING_URL = "https://inpost.pl/sledzenie-przesylek?number={tracking_number}"
 
-    COURIER_SERVICES = [
+    COURIER_SERVICES: ClassVar[list[str]] = [
         "inpost_courier_standard",
         "inpost_courier_express_1000",
         "inpost_courier_express_1200",
@@ -201,7 +204,8 @@ class InpostIntegration:
         )
 
         waybill_number, waybill_status_code = await self._get_waybill_number_with_retry(
-            credentials, order["id"],
+            credentials,
+            order["id"],
         )
         if waybill_status_code == HTTPStatus.NOT_ACCEPTABLE:
             return waybill_number, HTTPStatus.NOT_ACCEPTABLE
@@ -386,27 +390,21 @@ class InpostIntegration:
             params={"id": order_id},
         )
         if response.status_code == HTTPStatus.OK:
-            waybill_number = (
-                response.json().get("items", [{}])[0].get("tracking_number")
-            )
+            waybill_number = response.json().get("items", [{}])[0].get("tracking_number")
 
             if waybill_number is None:
                 shipment = response.json().get("items", [None])[0]
-                if shipment:
-                    if (
-                        shipment.get("selected_offer") is None
-                        and shipment.get("offers")
-                        and len(shipment.get("offers")) > 0
-                    ):
-                        offer = shipment["offers"][0]
-                        if (
-                            offer.get("status") == "unavailable"
-                            and offer.get("unavailability_reasons")
-                        ):
-                            error_unavailable = "Błąd podczas zamawiania w Inpost:"
-                            for reason in offer["unavailability_reasons"]:
-                                error_unavailable += " " + str(reason)
-                            return error_unavailable, HTTPStatus.NOT_ACCEPTABLE
+                if shipment and (
+                    shipment.get("selected_offer") is None
+                    and shipment.get("offers")
+                    and len(shipment.get("offers")) > 0
+                ):
+                    offer = shipment["offers"][0]
+                    if offer.get("status") == "unavailable" and offer.get("unavailability_reasons"):
+                        error_unavailable = "Błąd podczas zamawiania w Inpost:"
+                        for reason in offer["unavailability_reasons"]:
+                            error_unavailable += " " + str(reason)
+                        return error_unavailable, HTTPStatus.NOT_ACCEPTABLE
 
             if waybill_number is not None:
                 return waybill_number, response.status_code
@@ -466,11 +464,7 @@ class InpostIntegration:
             "delivery_email": "email",
             "rod": "rod",
         }
-        return [
-            service
-            for key, service in service_mappings.items()
-            if inpost_extras.get(key, False)
-        ]
+        return [service for key, service in service_mappings.items() if inpost_extras.get(key, False)]
 
     # ------------------------------------------------------------------
     # Private — build create-order payload
@@ -484,9 +478,8 @@ class InpostIntegration:
         additional_services = self._get_additional_services(inpost_extras, command.service_name)
 
         end_of_week_collection = False
-        if "locker" in command.service_name:
-            if inpost_extras.get("delivery_saturday"):
-                end_of_week_collection = True
+        if "locker" in command.service_name and inpost_extras.get("delivery_saturday"):
+            end_of_week_collection = True
 
         insurance_amount = 0
         if inpost_extras.get("insurance") is True:
@@ -590,7 +583,7 @@ class InpostIntegration:
         }
 
     @staticmethod
-    def _normalize_shipment_party_from_schema(party: "ShipmentParty") -> dict:
+    def _normalize_shipment_party_from_schema(party: ShipmentParty) -> dict:
         """Convert a command-side ShipmentParty to a response-side structure."""
         street = party.street
         building = party.building_number

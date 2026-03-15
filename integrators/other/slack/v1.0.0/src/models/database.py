@@ -51,19 +51,23 @@ class StateStore:
             await db.commit()
 
     async def get_timestamp(self, account_name: str, entity: str) -> str | None:
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute(
                 "SELECT last_timestamp FROM poller_state WHERE account_name = ? AND entity = ?",
                 (account_name, entity),
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            return row[0] if row else None
 
     async def load_all_timestamps(self) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor:
-                async for row in cursor:
-                    account_name, entity, timestamp = row
-                    result.setdefault(account_name, {})[entity] = timestamp
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor,
+        ):
+            async for row in cursor:
+                account_name, entity, timestamp = row
+                result.setdefault(account_name, {})[entity] = timestamp
         return result

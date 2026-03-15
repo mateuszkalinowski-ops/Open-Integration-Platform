@@ -64,8 +64,8 @@ def map_amazon_order_to_order(
     status = map_amazon_status_to_order_status(amazon_status)
 
     order_total = order_data.get("OrderTotal")
-    total_amount = float(order_total.get("Amount", 0)) if order_total else sum(
-        line.unit_price * line.quantity for line in lines
+    total_amount = (
+        float(order_total.get("Amount", 0)) if order_total else sum(line.unit_price * line.quantity for line in lines)
     )
     currency = order_total.get("CurrencyCode", "USD") if order_total else "USD"
 
@@ -140,17 +140,19 @@ def _map_order_items(items: list[dict[str, Any]]) -> list[OrderLine]:
             currency = item_price.get("CurrencyCode", "USD")
             unit_price = total_price / qty if qty > 0 else total_price
 
-        lines.append(OrderLine(
-            external_id=item.get("OrderItemId", ""),
-            offer_id=item.get("ASIN", ""),
-            product_id=item.get("ASIN", ""),
-            sku=item.get("SellerSKU", ""),
-            name=item.get("Title", ""),
-            quantity=float(qty),
-            unit="szt.",
-            unit_price=unit_price,
-            currency=currency,
-        ))
+        lines.append(
+            OrderLine(
+                external_id=item.get("OrderItemId", ""),
+                offer_id=item.get("ASIN", ""),
+                product_id=item.get("ASIN", ""),
+                sku=item.get("SellerSKU", ""),
+                name=item.get("Title", ""),
+                quantity=float(qty),
+                unit="szt.",
+                unit_price=unit_price,
+                currency=currency,
+            )
+        )
     return lines
 
 

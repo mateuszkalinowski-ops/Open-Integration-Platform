@@ -2,7 +2,7 @@
 
 import logging
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
@@ -13,9 +13,9 @@ from starlette.responses import Response as StarletteResponse
 
 from src.api.routes import router
 from src.config import settings
+from src.db import async_session_factory
 from src.reporter import ensure_settings, get_settings
 from src.runner import is_running, run_verification
-from src.db import async_session_factory
 
 logging.basicConfig(
     level=getattr(logging, settings.log_level.upper(), logging.INFO),
@@ -62,7 +62,7 @@ async def _init_scheduler() -> None:
         days=interval_days,
         id="verification_run",
         replace_existing=True,
-        next_run_time=datetime.now(timezone.utc) + timedelta(minutes=1),
+        next_run_time=datetime.now(UTC) + timedelta(minutes=1),
     )
     scheduler.start()
     logger.info("Scheduler started — interval=%d days", interval_days)
@@ -90,7 +90,9 @@ async def health() -> dict[str, str]:
 
 
 VERIFICATION_RUNS_TOTAL = Counter(
-    "verification_runs_total", "Total verification runs", ["status"],
+    "verification_runs_total",
+    "Total verification runs",
+    ["status"],
 )
 
 

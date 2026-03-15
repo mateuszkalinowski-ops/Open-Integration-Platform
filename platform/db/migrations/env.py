@@ -9,9 +9,9 @@ from sqlalchemy.ext.asyncio import async_engine_from_config
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2]))
 
-from config import settings  # noqa: E402
-from db.base import Base  # noqa: E402
-from db.models import *  # noqa: E402,F401,F403
+from config import settings
+from db.base import Base
+from db.models import *  # noqa: F403
 
 config = context.config
 config.set_main_option("sqlalchemy.url", settings.database_url)

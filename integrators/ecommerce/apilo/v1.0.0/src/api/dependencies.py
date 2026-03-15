@@ -1,12 +1,13 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
-from src.models.database import StateStore
-from src.services.account_manager import AccountManager
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.apilo.client import ApiloClient
 from src.apilo.integration import ApiloIntegration
 from src.apilo.scraper import ApiloScraper
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
+from src.models.database import StateStore
+from src.services.account_manager import AccountManager
 
 
 class AppState:

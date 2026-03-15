@@ -4,19 +4,20 @@ import asyncio
 import logging
 from typing import Any
 
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+
 from src.allegro.client import AllegroClient
-from src.allegro.mapper import map_checkout_to_order, extract_ean_from_parameters
+from src.allegro.mapper import extract_ean_from_parameters, map_checkout_to_order
 from src.allegro.schemas import (
+    PROCESSABLE_EVENT_TYPES,
     AllegroCheckoutForm,
     AllegroOrderEvent,
     AllegroOrderEventsResponse,
     OrderEventType,
-    PROCESSABLE_EVENT_TYPES,
 )
 from src.config import AllegroAccountConfig, settings
 from src.models.database import TokenStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -145,12 +146,17 @@ class OrderScraper:
             )
             logger.info(
                 "Published order=%s event=%s to Kafka for account=%s",
-                order.external_id, event_name, account.name,
+                order.external_id,
+                event_name,
+                account.name,
             )
         else:
             logger.info(
                 "Order scraped (no Kafka): id=%s account=%s event=%s status=%s",
-                order.external_id, account.name, event_name, order.status,
+                order.external_id,
+                account.name,
+                event_name,
+                order.status,
             )
 
     async def _fetch_product_details(
@@ -164,8 +170,12 @@ class OrderScraper:
             offer_id = item.offer.id
             try:
                 offer_data = await self._client.get_offer(
-                    offer_id, account.name, account.client_id, account.client_secret,
-                    account.api_url, account.auth_url,
+                    offer_id,
+                    account.name,
+                    account.client_id,
+                    account.client_secret,
+                    account.api_url,
+                    account.auth_url,
                 )
                 ean = extract_ean_from_parameters(offer_data.get("parameters", []))
                 product_id = ""
@@ -173,8 +183,12 @@ class OrderScraper:
                     product_id = offer_data["product"]["id"]
                     try:
                         product_data = await self._client.get_product(
-                            product_id, account.name, account.client_id, account.client_secret,
-                            account.api_url, account.auth_url,
+                            product_id,
+                            account.name,
+                            account.client_id,
+                            account.client_secret,
+                            account.api_url,
+                            account.auth_url,
                         )
                         if not ean:
                             ean = extract_ean_from_parameters(product_data.get("parameters", []))
@@ -183,7 +197,9 @@ class OrderScraper:
 
                 details[offer_id] = {
                     "ean": ean,
-                    "sku": offer_data.get("external", {}).get("id", offer_id) if offer_data.get("external") else offer_id,
+                    "sku": offer_data.get("external", {}).get("id", offer_id)
+                    if offer_data.get("external")
+                    else offer_id,
                     "name": offer_data.get("name", ""),
                     "product_id": product_id,
                 }

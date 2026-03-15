@@ -7,8 +7,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ── Enums ────────────────────────────────────────────────────────
+
 
 class RiskLevel(str, Enum):
     LOW = "low"
@@ -38,12 +38,14 @@ class CourierPreference(str, Enum):
 
 # ── Credentials ──────────────────────────────────────────────────
 
+
 class AiCredentials(BaseModel):
     gemini_api_key: str = Field(..., description="Google Gemini API key")
     model_name: str = Field(default="gemini-2.5-flash")
 
 
 # ── Main action: agent.analyze (prompt + data → result) ─────────
+
 
 class AnalyzeRequest(BaseModel):
     credentials: AiCredentials
@@ -66,15 +68,12 @@ class AnalyzeResponse(BaseModel):
 
 # ── Template: Risk Analysis ─────────────────────────────────────
 
+
 class RiskAnalysisRequest(BaseModel):
     credentials: AiCredentials
     order_data: dict[str, Any] = Field(..., description="Order data to analyze")
-    customer_history: dict[str, Any] | None = Field(
-        default=None, description="Past orders, returns, disputes"
-    )
-    extra_context: str | None = Field(
-        default=None, description="Additional context for the analysis"
-    )
+    customer_history: dict[str, Any] | None = Field(default=None, description="Past orders, returns, disputes")
+    extra_context: str | None = Field(default=None, description="Additional context for the analysis")
 
 
 class RiskFactor(BaseModel):
@@ -95,6 +94,7 @@ class RiskAnalysisResponse(BaseModel):
 
 # ── Template: Courier Recommendation ────────────────────────────
 
+
 class CourierPreferences(BaseModel):
     optimize_for: CourierPreference = CourierPreference.COST
     max_delivery_days: int | None = None
@@ -106,9 +106,7 @@ class CourierPreferences(BaseModel):
 class CourierRecommendationRequest(BaseModel):
     credentials: AiCredentials
     order_data: dict[str, Any] = Field(..., description="Order data with dimensions/weight")
-    available_couriers: list[str] | None = Field(
-        default=None, description="Courier names to choose from"
-    )
+    available_couriers: list[str] | None = Field(default=None, description="Courier names to choose from")
     preferences: CourierPreferences | None = None
     destination_country: str = Field(default="PL")
 
@@ -134,15 +132,12 @@ class CourierRecommendationResponse(BaseModel):
 
 # ── Template: Priority Classification ───────────────────────────
 
+
 class PriorityClassificationRequest(BaseModel):
     credentials: AiCredentials
     order_data: dict[str, Any]
-    customer_tier: str | None = Field(
-        default=None, description="standard / premium / vip"
-    )
-    sla_rules: dict[str, Any] | None = Field(
-        default=None, description="Custom SLA rules"
-    )
+    customer_tier: str | None = Field(default=None, description="standard / premium / vip")
+    sla_rules: dict[str, Any] | None = Field(default=None, description="Custom SLA rules")
 
 
 class PriorityClassificationResponse(BaseModel):
@@ -155,15 +150,12 @@ class PriorityClassificationResponse(BaseModel):
 
 # ── Template: Data Extraction ───────────────────────────────────
 
+
 class DataExtractionRequest(BaseModel):
     credentials: AiCredentials
     input_text: str = Field(..., description="Unstructured text to extract data from")
-    extraction_schema: dict[str, Any] = Field(
-        ..., description="JSON schema describing fields to extract"
-    )
-    input_type: str = Field(
-        default="custom", description="email / invoice / address / custom"
-    )
+    extraction_schema: dict[str, Any] = Field(..., description="JSON schema describing fields to extract")
+    input_type: str = Field(default="custom", description="email / invoice / address / custom")
 
 
 class DataExtractionResponse(BaseModel):

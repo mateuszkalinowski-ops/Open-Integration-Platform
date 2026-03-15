@@ -1,8 +1,8 @@
 """UPS Courier Integrator — FastAPI application."""
 
 import logging
-from http import HTTPStatus
 import sys
+from http import HTTPStatus
 from pathlib import Path
 
 try:
@@ -14,6 +14,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -71,7 +72,8 @@ async def login(request: LoginRequest):
 async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = await integration.create_order(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
@@ -83,7 +85,8 @@ async def create_shipment(request: CreateShipmentRequest):
 async def get_label(request: LabelRequest):
     try:
         label_bytes, status_code = await integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers,
+            request.credentials,
+            request.waybill_numbers,
         )
         if status_code == HTTPStatus.OK:
             return Response(content=label_bytes, media_type="application/pdf")
@@ -97,7 +100,8 @@ async def get_label(request: LabelRequest):
 async def get_status(waybill: str, request: StatusRequest):
     try:
         result, status_code = await integration.get_order_status(
-            request.credentials, waybill,
+            request.credentials,
+            waybill,
         )
         return JSONResponse(
             content={"status": result} if status_code == HTTPStatus.OK else {"error": result},
@@ -137,7 +141,8 @@ async def upload_document(request: UploadDocumentRequest):
             "type": request.document_type,
         }
         result, status_code = await integration.upload_file_to_order(
-            request.credentials, params,
+            request.credentials,
+            params,
         )
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:

@@ -1,7 +1,6 @@
 """Tests for AccountManager."""
 
 import pytest
-
 from src.config import FtpAccountConfig
 from src.services.account_manager import AccountManager
 

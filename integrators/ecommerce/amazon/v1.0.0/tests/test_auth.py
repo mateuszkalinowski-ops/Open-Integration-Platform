@@ -1,11 +1,10 @@
 """Tests for Amazon LWA authentication module."""
 
-import pytest
 import httpx
+import pytest
 import respx
-
-from src.amazon.auth import TokenManager, AmazonAuthError
-from src.config import AmazonAccountConfig, LWA_TOKEN_URL
+from src.amazon.auth import AmazonAuthError, TokenManager
+from src.config import LWA_TOKEN_URL, AmazonAccountConfig
 
 
 @pytest.fixture
@@ -24,14 +23,16 @@ def account() -> AmazonAccountConfig:
 class TestTokenManager:
     @respx.mock
     async def test_get_access_token_success(self, account: AmazonAccountConfig) -> None:
-        respx.post(LWA_TOKEN_URL).mock(return_value=httpx.Response(
-            200,
-            json={
-                "access_token": "Atza|test-access-token",
-                "token_type": "bearer",
-                "expires_in": 3600,
-            },
-        ))
+        respx.post(LWA_TOKEN_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "access_token": "Atza|test-access-token",
+                    "token_type": "bearer",
+                    "expires_in": 3600,
+                },
+            )
+        )
 
         async with httpx.AsyncClient() as http:
             manager = TokenManager(http)
@@ -40,14 +41,16 @@ class TestTokenManager:
 
     @respx.mock
     async def test_get_access_token_cached(self, account: AmazonAccountConfig) -> None:
-        route = respx.post(LWA_TOKEN_URL).mock(return_value=httpx.Response(
-            200,
-            json={
-                "access_token": "Atza|cached-token",
-                "token_type": "bearer",
-                "expires_in": 3600,
-            },
-        ))
+        route = respx.post(LWA_TOKEN_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={
+                    "access_token": "Atza|cached-token",
+                    "token_type": "bearer",
+                    "expires_in": 3600,
+                },
+            )
+        )
 
         async with httpx.AsyncClient() as http:
             manager = TokenManager(http)
@@ -58,10 +61,12 @@ class TestTokenManager:
 
     @respx.mock
     async def test_get_access_token_auth_error(self, account: AmazonAccountConfig) -> None:
-        respx.post(LWA_TOKEN_URL).mock(return_value=httpx.Response(
-            400,
-            json={"error": "invalid_grant", "error_description": "Invalid refresh token"},
-        ))
+        respx.post(LWA_TOKEN_URL).mock(
+            return_value=httpx.Response(
+                400,
+                json={"error": "invalid_grant", "error_description": "Invalid refresh token"},
+            )
+        )
 
         async with httpx.AsyncClient() as http:
             manager = TokenManager(http)
@@ -70,10 +75,12 @@ class TestTokenManager:
 
     @respx.mock
     async def test_invalidate_clears_cache(self, account: AmazonAccountConfig) -> None:
-        route = respx.post(LWA_TOKEN_URL).mock(return_value=httpx.Response(
-            200,
-            json={"access_token": "Atza|fresh", "expires_in": 3600},
-        ))
+        route = respx.post(LWA_TOKEN_URL).mock(
+            return_value=httpx.Response(
+                200,
+                json={"access_token": "Atza|fresh", "expires_in": 3600},
+            )
+        )
 
         async with httpx.AsyncClient() as http:
             manager = TokenManager(http)

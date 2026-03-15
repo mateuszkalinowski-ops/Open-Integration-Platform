@@ -1,9 +1,9 @@
 """Tests for the Slack Web API client."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
+from unittest.mock import AsyncMock, patch
 
-from src.slack_client.client import SlackClient, SlackApiError
+import pytest
+from src.slack_client.client import SlackApiError, SlackClient
 
 
 @pytest.fixture
@@ -59,7 +59,12 @@ class TestSlackClient:
     @pytest.mark.asyncio
     async def test_api_error_raises(self, client):
         error_response = {"ok": False, "error": "channel_not_found"}
-        with patch.object(client, "_call", new_callable=AsyncMock, side_effect=SlackApiError("test", "channel_not_found", error_response)):
+        with patch.object(
+            client,
+            "_call",
+            new_callable=AsyncMock,
+            side_effect=SlackApiError("test", "channel_not_found", error_response),
+        ):
             with pytest.raises(SlackApiError) as exc_info:
                 await client.conversations_history("INVALID")
             assert "channel_not_found" in str(exc_info.value)

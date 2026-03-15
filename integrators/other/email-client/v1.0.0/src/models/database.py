@@ -60,11 +60,13 @@ class StateStore:
 
     async def load_all_timestamps(self) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor:
-                async for row in cursor:
-                    account_name, entity, timestamp = row
-                    result.setdefault(account_name, {})[entity] = timestamp
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor,
+        ):
+            async for row in cursor:
+                account_name, entity, timestamp = row
+                result.setdefault(account_name, {})[entity] = timestamp
         return result
 
     async def mark_seen(self, account_name: str, message_id: str) -> None:
@@ -76,22 +78,26 @@ class StateStore:
             await db.commit()
 
     async def is_seen(self, account_name: str, message_id: str) -> bool:
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute(
                 "SELECT 1 FROM seen_message_ids WHERE account_name = ? AND message_id = ?",
                 (account_name, message_id),
-            ) as cursor:
-                return await cursor.fetchone() is not None
+            ) as cursor,
+        ):
+            return await cursor.fetchone() is not None
 
     async def load_seen_ids(self, account_name: str, limit: int = 500) -> set[str]:
         result: set[str] = set()
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute(
                 "SELECT message_id FROM seen_message_ids WHERE account_name = ? ORDER BY seen_at DESC LIMIT ?",
                 (account_name, limit),
-            ) as cursor:
-                async for row in cursor:
-                    result.add(row[0])
+            ) as cursor,
+        ):
+            async for row in cursor:
+                result.add(row[0])
         return result
 
     async def prune_seen_ids(self, account_name: str, keep: int = 1000) -> None:

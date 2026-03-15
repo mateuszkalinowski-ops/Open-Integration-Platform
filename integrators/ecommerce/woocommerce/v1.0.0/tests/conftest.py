@@ -1,19 +1,18 @@
 import os
+from unittest.mock import AsyncMock
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_woocommerce.db")
 os.environ.setdefault("DATABASE_ENCRYPTION_KEY", "")
 os.environ.setdefault("WOOCOMMERCE_SCRAPING_ENABLED", "false")
 
-from src.woocommerce.auth import WooCommerceAuth
-from src.woocommerce.client import WooCommerceClient
-from src.woocommerce.integration import WooCommerceIntegration
 from src.config import WooCommerceAccountConfig
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-
+from src.woocommerce.auth import WooCommerceAuth
+from src.woocommerce.client import WooCommerceClient
+from src.woocommerce.integration import WooCommerceIntegration
 
 SANDBOX_ACCOUNT = WooCommerceAccountConfig(
     name="test-store",

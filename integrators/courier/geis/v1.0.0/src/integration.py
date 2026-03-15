@@ -152,9 +152,7 @@ class GeisIntegration:
             Request={
                 "Header": self._get_header(credentials),
                 "RequestObject": {
-                    "ShipmentNumbers": [
-                        {"LabelItem": {"ShipmentNumber": waybill_numbers[0]}}
-                    ],
+                    "ShipmentNumbers": [{"LabelItem": {"ShipmentNumber": waybill_numbers[0]}}],
                     "DistributionChannel": self.CARGO_DISTRIBUTION_CHANNEL,
                     "Format": 5,
                     "Position": 1,
@@ -224,9 +222,7 @@ class GeisIntegration:
         if resp["ErrorCode"] != self.ERROR_CODE_SUCCESS:
             return resp["ErrorMessage"], HTTPStatus.BAD_REQUEST
 
-        deleted_items_response: list = resp["ResponseObject"]["ShipmentsNumbers"][
-            "DeleteShipmentItemResponse"
-        ]
+        deleted_items_response: list = resp["ResponseObject"]["ShipmentsNumbers"]["DeleteShipmentItemResponse"]
         for del_response in deleted_items_response:
             if not del_response["IsStorno"]:
                 return del_response["ErrorMessage"], HTTPStatus.BAD_REQUEST
@@ -359,9 +355,7 @@ class GeisIntegration:
         date_from = datetime.strptime(
             f"{extras['pickup_date']}T{extras['pickup_time_from']}", "%Y-%m-%dT%H:%M"
         ).isoformat()
-        date_to = datetime.strptime(
-            f"{extras['pickup_date']}T{extras['pickup_time_to']}", "%Y-%m-%dT%H:%M"
-        ).isoformat()
+        date_to = datetime.strptime(f"{extras['pickup_date']}T{extras['pickup_time_to']}", "%Y-%m-%dT%H:%M").isoformat()
 
         return {
             "DistributionChannel": self.CARGO_DISTRIBUTION_CHANNEL,
@@ -405,19 +399,23 @@ class GeisIntegration:
         services: list[dict] = []
 
         if command.cod:
-            services.append({
-                "Code": "COD",
-                "Parameter_1": command.cod_value,
-                "Parameter_2": command.cod_curr,
-                "Parameter_4": command.payment.account_id,
-            })
+            services.append(
+                {
+                    "Code": "COD",
+                    "Parameter_1": command.cod_value,
+                    "Parameter_2": command.cod_curr,
+                    "Parameter_4": command.payment.account_id,
+                }
+            )
 
         if extras.get("insurance"):
-            services.append({
-                "Code": "POJ",
-                "Parameter_1": extras.get("insurance_value"),
-                "Parameter_2": extras.get("insurance_curr"),
-            })
+            services.append(
+                {
+                    "Code": "POJ",
+                    "Parameter_1": extras.get("insurance_value"),
+                    "Parameter_2": extras.get("insurance_curr"),
+                }
+            )
 
         return services
 

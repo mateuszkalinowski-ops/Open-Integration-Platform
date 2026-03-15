@@ -1,12 +1,9 @@
 """Tests for BaseLinker API client."""
 
-import json
-
-import pytest
 import httpx
+import pytest
 import respx
-
-from src.baselinker.client import BaseLinkerClient, BaseLinkerApiError
+from src.baselinker.client import BaseLinkerApiError, BaseLinkerClient
 from src.config import BaseLinkerAccountConfig
 
 
@@ -44,11 +41,14 @@ class TestBaseLinkerClient:
     @pytest.mark.asyncio
     async def test_call_raises_on_api_error(self, client: BaseLinkerClient, account: BaseLinkerAccountConfig) -> None:
         respx.post("https://api.baselinker.com/connector.php").mock(
-            return_value=httpx.Response(200, json={
-                "status": "ERROR",
-                "error_code": "ERROR_INVALID_TOKEN",
-                "error_message": "Invalid API token",
-            })
+            return_value=httpx.Response(
+                200,
+                json={
+                    "status": "ERROR",
+                    "error_code": "ERROR_INVALID_TOKEN",
+                    "error_message": "Invalid API token",
+                },
+            )
         )
 
         with pytest.raises(BaseLinkerApiError) as exc_info:
@@ -61,7 +61,9 @@ class TestBaseLinkerClient:
     @respx.mock
     @pytest.mark.asyncio
     async def test_get_orders_calls_correct_method(
-        self, client: BaseLinkerClient, account: BaseLinkerAccountConfig,
+        self,
+        client: BaseLinkerClient,
+        account: BaseLinkerAccountConfig,
     ) -> None:
         respx.post("https://api.baselinker.com/connector.php").mock(
             return_value=httpx.Response(200, json={"status": "SUCCESS", "orders": []})
@@ -86,15 +88,20 @@ class TestBaseLinkerClient:
     @pytest.mark.asyncio
     async def test_update_stock(self, client: BaseLinkerClient, account: BaseLinkerAccountConfig) -> None:
         respx.post("https://api.baselinker.com/connector.php").mock(
-            return_value=httpx.Response(200, json={
-                "status": "SUCCESS",
-                "warnings": {},
-                "counter": 1,
-            })
+            return_value=httpx.Response(
+                200,
+                json={
+                    "status": "SUCCESS",
+                    "warnings": {},
+                    "counter": 1,
+                },
+            )
         )
 
         result = await client.update_inventory_products_stock(
-            account, 1, {"5001": {"1": 100.0}},
+            account,
+            1,
+            {"5001": {"1": 100.0}},
         )
         assert result["status"] == "SUCCESS"
         await client.close()
@@ -103,12 +110,15 @@ class TestBaseLinkerClient:
     @pytest.mark.asyncio
     async def test_get_order_status_list(self, client: BaseLinkerClient, account: BaseLinkerAccountConfig) -> None:
         respx.post("https://api.baselinker.com/connector.php").mock(
-            return_value=httpx.Response(200, json={
-                "status": "SUCCESS",
-                "statuses": [
-                    {"id": 12345, "name": "Nowe", "name_for_customer": "New", "color": "#00FF00"},
-                ],
-            })
+            return_value=httpx.Response(
+                200,
+                json={
+                    "status": "SUCCESS",
+                    "statuses": [
+                        {"id": 12345, "name": "Nowe", "name_for_customer": "New", "color": "#00FF00"},
+                    ],
+                },
+            )
         )
 
         result = await client.get_order_status_list(account)

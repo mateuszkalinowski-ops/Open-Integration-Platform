@@ -60,11 +60,13 @@ class StateStore:
 
     async def load_all_timestamps(self) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor:
-                async for row in cursor:
-                    account_name, entity, timestamp = row
-                    result.setdefault(account_name, {})[entity] = timestamp
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, entity, last_timestamp FROM poller_state") as cursor,
+        ):
+            async for row in cursor:
+                account_name, entity, timestamp = row
+                result.setdefault(account_name, {})[entity] = timestamp
         return result
 
     async def save_document_id(self, account_name: str, document_id: int) -> None:
@@ -77,11 +79,13 @@ class StateStore:
 
     async def load_known_document_ids(self, account_name: str) -> set[int]:
         result: set[int] = set()
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute(
                 "SELECT document_id FROM known_documents WHERE account_name = ?",
                 (account_name,),
-            ) as cursor:
-                async for row in cursor:
-                    result.add(row[0])
+            ) as cursor,
+        ):
+            async for row in cursor:
+                result.add(row[0])
         return result

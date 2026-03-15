@@ -1,11 +1,11 @@
 """Shared test fixtures for FTP/SFTP integrator tests."""
 
 import base64
-from unittest.mock import AsyncMock, MagicMock
+from datetime import UTC
+from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import FtpAccountConfig
 from src.ftp_client.integration import FtpSftpIntegration
@@ -56,14 +56,14 @@ def mock_integration(account_manager: AccountManager) -> FtpSftpIntegration:
 
 @pytest.fixture
 def sample_file_info() -> FileInfo:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return FileInfo(
         filename="report.csv",
         path="/data/report.csv",
         size=1024,
         is_directory=False,
-        modified_at=datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
+        modified_at=datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC),
     )
 
 

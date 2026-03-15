@@ -3,7 +3,6 @@
 import os
 
 import pytest
-import pytest_asyncio
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test.db")
 os.environ.setdefault("SHOPER_SCRAPING_ENABLED", "false")

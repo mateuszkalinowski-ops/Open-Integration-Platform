@@ -3,8 +3,6 @@
 import hashlib
 from datetime import date
 
-import pytest
-
 from src.config import IdoSellAccountConfig
 from src.idosell.auth import IdoSellAuthManager, _sha1
 from src.idosell.client import IdoSellClient

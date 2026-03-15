@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrderStatus,
     Product,
 )
+
 from src.idosell.schemas import (
     IdoSellBillingAddress,
     IdoSellDeliveryAddress,
@@ -97,8 +98,10 @@ def map_idosell_order_to_order(ido_order: IdoSellOrder, account_name: str) -> Or
             payment_type = details.payments.orderPaymentType
             if details.payments.orderBaseCurrency:
                 currency = details.payments.orderBaseCurrency.billingCurrency or "PLN"
-                total_amount = details.payments.orderBaseCurrency.orderProductsCost + \
-                    details.payments.orderBaseCurrency.orderDeliveryCost
+                total_amount = (
+                    details.payments.orderBaseCurrency.orderProductsCost
+                    + details.payments.orderBaseCurrency.orderDeliveryCost
+                )
         if details.dispatch:
             delivery_method = details.dispatch.courierName
         created_at_str = details.orderAddDate
@@ -106,12 +109,14 @@ def map_idosell_order_to_order(ido_order: IdoSellOrder, account_name: str) -> Or
         if created_at_str:
             try:
                 from datetime import datetime
+
                 created_at = datetime.strptime(created_at_str, "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 pass
         if updated_at_str:
             try:
                 from datetime import datetime
+
                 updated_at = datetime.strptime(updated_at_str, "%Y-%m-%d %H:%M:%S")
             except ValueError:
                 pass
@@ -189,14 +194,16 @@ def _map_buyer(client: Any | None, delivery_addr: Address | None) -> Buyer:
 def _map_order_lines(products: list[Any]) -> list[OrderLine]:
     lines: list[OrderLine] = []
     for idx, product in enumerate(products):
-        lines.append(OrderLine(
-            external_id=str(product.productId or idx),
-            product_id=str(product.productId or ""),
-            sku=product.productCode,
-            name=product.productName,
-            quantity=product.productQuantity,
-            unit_price=product.productOrderPrice,
-        ))
+        lines.append(
+            OrderLine(
+                external_id=str(product.productId or idx),
+                product_id=str(product.productId or ""),
+                sku=product.productCode,
+                name=product.productName,
+                quantity=product.productQuantity,
+                unit_price=product.productOrderPrice,
+            )
+        )
     return lines
 
 

@@ -11,12 +11,11 @@ import os
 import secrets
 import uuid
 
+from config import settings
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
+from db.models import Credential, CredentialToken
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from config import settings
-from db.models import Credential, CredentialToken
 
 _NONCE_SIZE = 12
 _TOKEN_PREFIX = "ctok_"
@@ -229,7 +228,9 @@ class CredentialVault:
         if not token_row:
             return None
         return await self.retrieve_all(
-            db, token_row.tenant_id, token_row.connector_name,
+            db,
+            token_row.tenant_id,
+            token_row.connector_name,
             credential_name=token_row.credential_name,
         )
 

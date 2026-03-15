@@ -1,11 +1,10 @@
 """Test fixtures for Shopify integrator tests."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.config import ShopifyAccountConfig
 from src.shopify.schemas import (
     ShopifyAddress,
@@ -105,15 +104,15 @@ def sample_shopify_order() -> ShopifyOrder:
             ),
         ],
         note="Please deliver to paczkomat",
-        created_at=datetime(2026, 2, 20, 12, 0, 0, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 2, 20, 14, 30, 0, tzinfo=timezone.utc),
+        created_at=datetime(2026, 2, 20, 12, 0, 0, tzinfo=UTC),
+        updated_at=datetime(2026, 2, 20, 14, 30, 0, tzinfo=UTC),
     )
 
 
 @pytest.fixture
 def sample_shopify_order_cancelled(sample_shopify_order: ShopifyOrder) -> ShopifyOrder:
     order = sample_shopify_order.model_copy()
-    order.cancelled_at = datetime(2026, 2, 21, 10, 0, 0, tzinfo=timezone.utc)
+    order.cancelled_at = datetime(2026, 2, 21, 10, 0, 0, tzinfo=UTC)
     return order
 
 
@@ -127,7 +126,7 @@ def sample_shopify_order_fulfilled(sample_shopify_order: ShopifyOrder) -> Shopif
 @pytest.fixture
 def sample_shopify_order_closed(sample_shopify_order: ShopifyOrder) -> ShopifyOrder:
     order = sample_shopify_order.model_copy()
-    order.closed_at = datetime(2026, 2, 22, 8, 0, 0, tzinfo=timezone.utc)
+    order.closed_at = datetime(2026, 2, 22, 8, 0, 0, tzinfo=UTC)
     order.fulfillment_status = ShopifyOrderFulfillmentStatus.FULFILLED
     return order
 

@@ -20,13 +20,21 @@ async def run(
     base = target.base_url
 
     if "get_pickup_points" in target.manifest.capabilities:
-        results.append(await get_check(
-            client, f"{base}/pickup-points", "list_pickup_points",
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/pickup-points",
+                "list_pickup_points",
+            )
+        )
 
     if "get_rates" in target.manifest.capabilities or "rates.get" in target.manifest.actions:
-        results.append(await get_check(
-            client, f"{base}/rates", "rates_endpoint",
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/rates",
+                "rates_endpoint",
+            )
+        )
 
     return results

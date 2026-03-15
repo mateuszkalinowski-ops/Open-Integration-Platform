@@ -19,30 +19,45 @@ async def run(
 
     results.append(await get_check(client, f"{base}/accounts", "list_accounts"))
 
-    results.append(await get_check(
-        client, f"{base}/buckets", "list_buckets",
-        params={"account_name": account},
-    ))
+    results.append(
+        await get_check(
+            client,
+            f"{base}/buckets",
+            "list_buckets",
+            params={"account_name": account},
+        )
+    )
 
     test_bucket = (target.credentials or {}).get("default_bucket", "")
 
     if test_bucket:
-        results.append(await get_check(
-            client, f"{base}/objects", "list_objects",
-            params={"account_name": account, "bucket": test_bucket, "prefix": "", "max_keys": "10"},
-        ))
+        results.append(
+            await get_check(
+                client,
+                f"{base}/objects",
+                "list_objects",
+                params={"account_name": account, "bucket": test_bucket, "prefix": "", "max_keys": "10"},
+            )
+        )
     else:
-        results.append(result(
-            "list_objects", "SKIP", 0,
-            error="No default_bucket configured — cannot list objects without explicit bucket",
-        ))
+        results.append(
+            result(
+                "list_objects",
+                "SKIP",
+                0,
+                error="No default_bucket configured — cannot list objects without explicit bucket",
+            )
+        )
 
     test_key = f"verification-agent/test-{account}.txt"
     test_content = base64.b64encode(b"verification-agent-test-file").decode()
 
     if test_bucket:
         chk, resp = await req_check(
-            client, "POST", f"{base}/objects/upload", "upload_object",
+            client,
+            "POST",
+            f"{base}/objects/upload",
+            "upload_object",
             params={"account_name": account},
             json_body={
                 "bucket": test_bucket,
@@ -54,13 +69,20 @@ async def run(
         results.append(chk)
 
         if resp and resp.status_code in (200, 201):
-            results.append(await get_check(
-                client, f"{base}/objects/download", "download_object",
-                params={"account_name": account, "bucket": test_bucket, "key": test_key},
-            ))
+            results.append(
+                await get_check(
+                    client,
+                    f"{base}/objects/download",
+                    "download_object",
+                    params={"account_name": account, "bucket": test_bucket, "key": test_key},
+                )
+            )
 
             chk_presign, _ = await req_check(
-                client, "POST", f"{base}/objects/presign", "presign_object",
+                client,
+                "POST",
+                f"{base}/objects/presign",
+                "presign_object",
                 params={"account_name": account},
                 json_body={
                     "bucket": test_bucket,
@@ -73,7 +95,10 @@ async def run(
 
             copy_key = f"verification-agent/test-{account}-copy.txt"
             chk_copy, _ = await req_check(
-                client, "POST", f"{base}/objects/copy", "copy_object",
+                client,
+                "POST",
+                f"{base}/objects/copy",
+                "copy_object",
                 params={"account_name": account},
                 json_body={
                     "source_bucket": test_bucket,
@@ -85,26 +110,39 @@ async def run(
             results.append(chk_copy)
 
             chk_del_copy, _ = await req_check(
-                client, "DELETE", f"{base}/objects", "delete_object_copy_cleanup",
+                client,
+                "DELETE",
+                f"{base}/objects",
+                "delete_object_copy_cleanup",
                 params={"account_name": account},
                 json_body={"bucket": test_bucket, "key": copy_key},
             )
             results.append(chk_del_copy)
 
             chk_del, _ = await req_check(
-                client, "DELETE", f"{base}/objects", "delete_object_cleanup",
+                client,
+                "DELETE",
+                f"{base}/objects",
+                "delete_object_cleanup",
                 params={"account_name": account},
                 json_body={"bucket": test_bucket, "key": test_key},
             )
             results.append(chk_del)
     else:
-        results.append(result(
-            "upload_object", "SKIP", 0,
-            error="No default_bucket configured — skipping write tests",
-        ))
+        results.append(
+            result(
+                "upload_object",
+                "SKIP",
+                0,
+                error="No default_bucket configured — skipping write tests",
+            )
+        )
 
     chk_conn, _ = await req_check(
-        client, "POST", f"{base}/auth/{account}/test", "connection_test",
+        client,
+        "POST",
+        f"{base}/auth/{account}/test",
+        "connection_test",
         accept_statuses=(200, 404, 502),
     )
     results.append(chk_conn)

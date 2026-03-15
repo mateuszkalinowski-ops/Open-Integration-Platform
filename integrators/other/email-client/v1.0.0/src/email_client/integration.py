@@ -1,5 +1,6 @@
 """Email integration layer — orchestrates IMAP and SMTP operations per account."""
 
+import contextlib
 import logging
 from datetime import datetime
 
@@ -55,10 +56,8 @@ class EmailIntegration:
         """Drop cached IMAP/SMTP clients so next call reconnects with fresh credentials."""
         imap = self._imap_clients.pop(account_name, None)
         if imap:
-            try:
+            with contextlib.suppress(Exception):
                 await imap.disconnect()
-            except Exception:
-                pass
         self._smtp_clients.pop(account_name, None)
 
     def _require_account(self, account_name: str) -> EmailAccountConfig:
@@ -139,11 +138,11 @@ class EmailIntegration:
 
     def get_auth_status(self, account_name: str) -> AuthStatusResponse:
         imap = self._imap_clients.get(account_name)
-        smtp = self._smtp_clients.get(account_name)
+        _smtp = self._smtp_clients.get(account_name)
         return AuthStatusResponse(
             account_name=account_name,
             imap_connected=imap.is_connected() if imap else False,
-            smtp_connected=False,
+            smtp_connected=bool(_smtp),
         )
 
     async def close(self) -> None:

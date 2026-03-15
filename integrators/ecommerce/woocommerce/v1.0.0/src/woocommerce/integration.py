@@ -14,6 +14,8 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+
+from src.services.account_manager import AccountManager
 from src.woocommerce.client import WooCommerceClient
 from src.woocommerce.mapper import (
     map_woo_order_to_order,
@@ -21,7 +23,6 @@ from src.woocommerce.mapper import (
     order_status_to_woo_status,
 )
 from src.woocommerce.schemas import WooOrder, WooProduct
-from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
 
@@ -33,7 +34,7 @@ class WooCommerceIntegration(EcommerceIntegration):
         self._client = client
         self._accounts = account_manager
 
-    def _get_account(self, account_name: str):  # noqa: ANN202
+    def _get_account(self, account_name: str):
         account = self._accounts.get_account(account_name)
         if not account:
             raise ValueError(f"Account '{account_name}' not found")
@@ -96,7 +97,9 @@ class WooCommerceIntegration(EcommerceIntegration):
         self._get_account(account_name)
         woo_status = order_status_to_woo_status(status)
         await self._client.update_order(
-            int(order_id), account_name, {"status": woo_status.value},
+            int(order_id),
+            account_name,
+            {"status": woo_status.value},
         )
         logger.info("Updated order=%s to status=%s (woo=%s)", order_id, status, woo_status.value)
 
@@ -119,7 +122,9 @@ class WooCommerceIntegration(EcommerceIntegration):
                     raise ValueError(f"Cannot resolve product for sku={item.sku}, product_id={item.product_id}")
 
                 await self._client.update_product_stock(
-                    product_id, int(item.quantity), account_name,
+                    product_id,
+                    int(item.quantity),
+                    account_name,
                 )
                 succeeded += 1
             except Exception as exc:
@@ -192,21 +197,32 @@ class WooCommerceIntegration(EcommerceIntegration):
         oid = int(order_id)
 
         media = await self._client.upload_media(
-            account_name, invoice_file, invoice_filename,
+            account_name,
+            invoice_file,
+            invoice_filename,
         )
         media_url = media.get("source_url", "")
         media_id = media.get("id", "")
 
         await self._client.update_order_meta(
-            oid, account_name, "_invoice_url", media_url,
+            oid,
+            account_name,
+            "_invoice_url",
+            media_url,
         )
         await self._client.update_order_meta(
-            oid, account_name, "_invoice_media_id", str(media_id),
+            oid,
+            account_name,
+            "_invoice_media_id",
+            str(media_id),
         )
 
         note_text = f"Faktura: {invoice_filename} — {media_url}"
         await self._client.create_order_note(
-            oid, account_name, note_text, customer_note=customer_note,
+            oid,
+            account_name,
+            note_text,
+            customer_note=customer_note,
         )
 
         logger.info("Uploaded invoice=%s for order=%s, media_id=%s", invoice_filename, order_id, media_id)

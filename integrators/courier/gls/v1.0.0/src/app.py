@@ -11,8 +11,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -148,35 +149,43 @@ def _calculate_gls_rates(
         else:
             base = 28.00 + (billable - 40) * 0.9
 
-        products.append(RateProduct(
-            name="GLS Business Parcel",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=2,
-            attributes={"source": "gls", "service": "business_parcel"},
-        ))
-        products.append(RateProduct(
-            name="GLS ShopDelivery",
-            price=round(base * 0.82, 2),
-            currency="PLN",
-            delivery_days=3,
-            attributes={"source": "gls", "service": "shop_delivery"},
-        ))
+        products.append(
+            RateProduct(
+                name="GLS Business Parcel",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "gls", "service": "business_parcel"},
+            )
+        )
+        products.append(
+            RateProduct(
+                name="GLS ShopDelivery",
+                price=round(base * 0.82, 2),
+                currency="PLN",
+                delivery_days=3,
+                attributes={"source": "gls", "service": "shop_delivery"},
+            )
+        )
         if billable <= 31.5:
-            products.append(RateProduct(
-                name="GLS 10:00",
-                price=round(base * 2.3, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "gls", "service": "guarantee_1000"},
-            ))
-            products.append(RateProduct(
-                name="GLS 12:00",
-                price=round(base * 1.9, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "gls", "service": "guarantee_1200"},
-            ))
+            products.append(
+                RateProduct(
+                    name="GLS 10:00",
+                    price=round(base * 2.3, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "gls", "service": "guarantee_1000"},
+                )
+            )
+            products.append(
+                RateProduct(
+                    name="GLS 12:00",
+                    price=round(base * 1.9, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "gls", "service": "guarantee_1200"},
+                )
+            )
     else:
         if billable <= 5:
             base = 50.00
@@ -187,13 +196,15 @@ def _calculate_gls_rates(
         else:
             base = 75.00 + (billable - 20) * 2.8
 
-        products.append(RateProduct(
-            name="GLS EuroBusinessParcel",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=5,
-            attributes={"source": "gls", "service": "euro_business_parcel"},
-        ))
+        products.append(
+            RateProduct(
+                name="GLS EuroBusinessParcel",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=5,
+                attributes={"source": "gls", "service": "euro_business_parcel"},
+            )
+        )
 
     return products
 
@@ -205,7 +216,9 @@ async def get_label(request: LabelRequest):
         if request.external_id:
             args["external_id"] = request.external_id
         label_bytes, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers, args,
+            request.credentials,
+            request.waybill_numbers,
+            args,
         )
         if status_code != 200:
             raise HTTPException(status_code=status_code, detail=str(label_bytes))

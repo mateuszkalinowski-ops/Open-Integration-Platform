@@ -14,6 +14,7 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+
 from src.config import ShoperAccountConfig
 from src.services.account_manager import AccountManager
 from src.shoper.client import ShoperClient
@@ -57,6 +58,7 @@ class ShoperIntegration(EcommerceIntegration):
         params: dict[str, Any] = {"page": page}
         if filters:
             import json
+
             params["filters"] = json.dumps(filters)
 
         resp = await self._client.get("orders", *self._creds(account), params=params)
@@ -67,7 +69,8 @@ class ShoperIntegration(EcommerceIntegration):
         order_ids = [str(o.get("order_id")) for o in order_list]
 
         order_products_raw = await self._client.get_bulk(
-            "order-products", *self._creds(account),
+            "order-products",
+            *self._creds(account),
             filters={"order_id": {"IN": order_ids}} if order_ids else None,
         )
         products_by_order: dict[str, list[dict[str, Any]]] = {}
@@ -93,7 +96,8 @@ class ShoperIntegration(EcommerceIntegration):
         order_data = await self._client.get_one("orders", int(order_id), *self._creds(account))
 
         order_products = await self._client.get_bulk(
-            "order-products", *self._creds(account),
+            "order-products",
+            *self._creds(account),
             filters={"order_id": {"=": int(order_id)}},
         )
         return map_shoper_order_to_order(order_data, order_products, account_name)
@@ -108,7 +112,8 @@ class ShoperIntegration(EcommerceIntegration):
         shoper_status = order_status_to_shoper(status)
 
         resp = await self._client.update_entity(
-            "orders", int(order_id),
+            "orders",
+            int(order_id),
             {"status_id": shoper_status},
             *self._creds(account),
         )
@@ -129,7 +134,8 @@ class ShoperIntegration(EcommerceIntegration):
             try:
                 product_id = int(item.product_id or item.sku)
                 resp = await self._client.update_entity(
-                    "products", product_id,
+                    "products",
+                    product_id,
                     {"stock": {"stock": item.quantity}},
                     *self._creds(account),
                 )
@@ -230,7 +236,8 @@ class ShoperIntegration(EcommerceIntegration):
         account = self._get_account(account_name)
 
         parcels = await self._client.get_paged(
-            "parcels", *self._creds(account),
+            "parcels",
+            *self._creds(account),
             filters={"order_id": {"=": order_id}},
         )
         if not parcels:

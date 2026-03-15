@@ -1,7 +1,5 @@
 """Tests for email account manager."""
 
-import pytest
-
 from src.config import EmailAccountConfig
 from src.services.account_manager import AccountManager
 

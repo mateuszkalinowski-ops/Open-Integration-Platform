@@ -7,7 +7,6 @@ and integration between these components.
 from __future__ import annotations
 
 import pytest
-
 from core.workflow_engine import WorkflowContext, WorkflowEngine
 
 
@@ -134,7 +133,10 @@ class TestApplyTransformSingleValue:
         assert engine._apply_transform([None], {"type": "split"}) == []
 
     def test_replace(self, engine: WorkflowEngine) -> None:
-        assert engine._apply_transform(["hello world"], {"type": "replace", "old": "world", "new": "there"}) == "hello there"
+        assert (
+            engine._apply_transform(["hello world"], {"type": "replace", "old": "world", "new": "there"})
+            == "hello there"
+        )
 
     def test_replace_none(self, engine: WorkflowEngine) -> None:
         assert engine._apply_transform([None], {"type": "replace", "old": "x", "new": "y"}) is None
@@ -287,7 +289,9 @@ class TestApplyTransformMultiSource:
 
     def test_template_three_sources(self, engine: WorkflowEngine) -> None:
         t = {"type": "template", "template": "{0}, {1} {2}"}
-        assert engine._apply_transform(["Marszałkowska 1", "00-001", "Warszawa"], t) == "Marszałkowska 1, 00-001 Warszawa"
+        assert (
+            engine._apply_transform(["Marszałkowska 1", "00-001", "Warszawa"], t) == "Marszałkowska 1, 00-001 Warszawa"
+        )
 
     def test_join(self, engine: WorkflowEngine) -> None:
         t = {"type": "join", "separator": ", "}

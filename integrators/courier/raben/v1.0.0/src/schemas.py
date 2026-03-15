@@ -22,10 +22,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class RabenCredentials(BaseModel):
     username: str = Field(description="myRaben login / API username")
@@ -38,6 +38,7 @@ class RabenCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # Enums
 # ---------------------------------------------------------------------------
+
 
 class ServiceType(str, Enum):
     CARGO_CLASSIC = "cargo_classic"
@@ -78,6 +79,7 @@ class ClaimType(str, Enum):
 # Address / Party DTOs
 # ---------------------------------------------------------------------------
 
+
 class Address(BaseModel):
     street: str = Field(...)
     building_number: str | None = Field(default=None, alias="buildingNumber")
@@ -117,6 +119,7 @@ class ShipmentParty(BaseModel):
 # Package DTOs
 # ---------------------------------------------------------------------------
 
+
 class PackageDimensions(BaseModel):
     length: float = Field(..., description="Length in cm")
     width: float = Field(..., description="Width in cm")
@@ -139,14 +142,19 @@ class Package(BaseModel):
 # Transport order DTOs (myOrder)
 # ---------------------------------------------------------------------------
 
+
 class AdditionalServices(BaseModel):
     pcd_enabled: bool = Field(default=False, alias="pcdEnabled", description="Photo Confirming Delivery")
-    email_notification: bool = Field(default=False, alias="emailNotification", description="Email notification to receiver with ETA")
+    email_notification: bool = Field(
+        default=False, alias="emailNotification", description="Email notification to receiver with ETA"
+    )
     notification_email: str | None = Field(default=None, alias="notificationEmail")
     delivery_window_from: str | None = Field(default=None, alias="deliveryWindowFrom")
     delivery_window_to: str | None = Field(default=None, alias="deliveryWindowTo")
     tail_lift_pickup: bool = Field(default=False, alias="tailLiftPickup", description="Tail lift required at pickup")
-    tail_lift_delivery: bool = Field(default=False, alias="tailLiftDelivery", description="Tail lift required at delivery")
+    tail_lift_delivery: bool = Field(
+        default=False, alias="tailLiftDelivery", description="Tail lift required at delivery"
+    )
 
     model_config = {"populate_by_name": True}
 
@@ -182,6 +190,7 @@ class TransportOrderResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Tracking / Status DTOs
 # ---------------------------------------------------------------------------
+
 
 class TrackingEvent(BaseModel):
     timestamp: datetime
@@ -223,6 +232,7 @@ class ShipmentStatusResponse(BaseModel):
 # Label DTOs
 # ---------------------------------------------------------------------------
 
+
 class LabelResponse(BaseModel):
     waybill_number: str = Field(..., alias="waybillNumber")
     label_format: str = Field(..., alias="labelFormat")
@@ -234,6 +244,7 @@ class LabelResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Delivery confirmation (PCD) DTOs
 # ---------------------------------------------------------------------------
+
 
 class DeliveryConfirmation(BaseModel):
     waybill_number: str = Field(..., alias="waybillNumber")
@@ -251,6 +262,7 @@ class DeliveryConfirmation(BaseModel):
 # ---------------------------------------------------------------------------
 # Claim DTOs (myClaim)
 # ---------------------------------------------------------------------------
+
 
 class CreateClaimRequest(BaseModel):
     waybill_number: str = Field(..., alias="waybillNumber")
@@ -276,6 +288,7 @@ class ClaimResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # FastAPI request schemas (wrapper with credentials)
 # ---------------------------------------------------------------------------
+
 
 class CreateShipmentRequest(BaseModel):
     credentials: RabenCredentials

@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -13,14 +11,17 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
-from src.shopify.schemas import AuthStatusResponse
+from pydantic import BaseModel
+
 from src.api.dependencies import app_state
 from src.config import ShopifyAccountConfig
+from src.shopify.schemas import AuthStatusResponse
 
 router = APIRouter()
 
 
 # --- Health ---
+
 
 @router.get("/health")
 async def health() -> dict[str, Any]:
@@ -43,6 +44,7 @@ async def readiness() -> dict[str, Any]:
 
 
 # --- Auth ---
+
 
 @router.post("/auth/{account_name}/validate")
 async def validate_credentials(account_name: str) -> dict[str, Any]:
@@ -70,6 +72,7 @@ async def all_auth_statuses() -> list[AuthStatusResponse]:
 
 
 # --- Accounts ---
+
 
 class AccountCreateRequest(BaseModel):
     name: str
@@ -102,6 +105,7 @@ async def remove_account(account_name: str) -> dict[str, str]:
 
 
 # --- Orders ---
+
 
 @router.get("/orders", response_model=OrdersPage)
 async def list_orders(
@@ -137,7 +141,9 @@ async def update_order_status(
 ) -> dict[str, Any]:
     _require_auth(account_name)
     await app_state.integration.update_order_status(
-        account_name, order_id, body.status,
+        account_name,
+        order_id,
+        body.status,
         tracking_number=body.tracking_number,
         tracking_company=body.tracking_company,
     )
@@ -158,7 +164,9 @@ async def fulfill_order(
 ) -> dict[str, Any]:
     _require_auth(account_name)
     await app_state.integration.update_order_status(
-        account_name, order_id, OrderStatus.SHIPPED,
+        account_name,
+        order_id,
+        OrderStatus.SHIPPED,
         tracking_number=body.tracking_number,
         tracking_company=body.tracking_company,
     )
@@ -166,6 +174,7 @@ async def fulfill_order(
 
 
 # --- Stock ---
+
 
 class StockSyncRequest(BaseModel):
     items: list[StockItem]
@@ -182,6 +191,7 @@ async def sync_stock(
 
 
 # --- Products ---
+
 
 @router.get("/products/{product_id}", response_model=Product)
 async def get_product(
@@ -219,12 +229,10 @@ async def sync_products(
 
 # --- Helpers ---
 
+
 def _require_auth(account_name: str) -> None:
     if not app_state.auth_manager.is_authenticated(account_name):
         raise HTTPException(
             status_code=401,
-            detail=(
-                f"Account '{account_name}' not authenticated. "
-                f"Use POST /auth/{account_name}/validate first."
-            ),
+            detail=(f"Account '{account_name}' not authenticated. Use POST /auth/{account_name}/validate first."),
         )

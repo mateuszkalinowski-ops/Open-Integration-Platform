@@ -1,0 +1,18 @@
+target-version = "py312"
+line-length = 120
+
+[lint]
+select = ["E", "F", "I", "B", "SIM", "UP", "N", "RUF"]
+ignore = [
+    "N815",    # camelCase field names required by external APIs (Amazon, Apilo)
+    "N806",    # camelCase variable names in API response handling
+    "N801",    # camelCase class names matching external API conventions
+    "B008",    # FastAPI uses Query/File/Depends in argument defaults by design
+    "UP042",   # str+Enum inheritance needed for JSON serialization
+    "E501",    # line length handled by formatter
+    "E402",    # module-level import not at top (conditional imports)
+]
+
+[lint.per-file-ignores]
+"tests/*" = ["F841"]
+"**/tests/*" = ["F841"]

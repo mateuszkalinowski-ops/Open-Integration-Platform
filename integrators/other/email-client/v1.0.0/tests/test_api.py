@@ -1,17 +1,15 @@
 """Tests for Email Client integrator API routes."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
 
+import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import EmailAccountConfig
 from src.email_client.integration import EmailIntegration
 from src.email_client.schemas import (
     AuthStatusResponse,
     ConnectionStatus,
-    EmailMessage,
     EmailsPage,
     FolderInfo,
     SendEmailResponse,
@@ -25,18 +23,22 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(EmailAccountConfig(
-        name="test",
-        email_address="test@example.com",
-        password="pass",
-        imap_host="imap.example.com",
-        smtp_host="smtp.example.com",
-    ))
+    account_manager.add_account(
+        EmailAccountConfig(
+            name="test",
+            email_address="test@example.com",
+            password="pass",
+            imap_host="imap.example.com",
+            smtp_host="smtp.example.com",
+        )
+    )
     app_state.account_manager = account_manager
 
     integration = MagicMock(spec=EmailIntegration)
     integration.get_auth_status.return_value = AuthStatusResponse(
-        account_name="test", imap_connected=False, smtp_connected=False,
+        account_name="test",
+        imap_connected=False,
+        smtp_connected=False,
     )
     app_state.integration = integration
 
@@ -69,24 +71,30 @@ class TestAccountEndpoints:
         assert data[0]["email_address"] == "test@example.com"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-account",
-            "email_address": "new@example.com",
-            "password": "secret",
-            "imap_host": "imap.example.com",
-            "smtp_host": "smtp.example.com",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-account",
+                "email_address": "new@example.com",
+                "password": "secret",
+                "imap_host": "imap.example.com",
+                "smtp_host": "smtp.example.com",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-account"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "email_address": "remove@example.com",
-            "password": "secret",
-            "imap_host": "imap.example.com",
-            "smtp_host": "smtp.example.com",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "email_address": "remove@example.com",
+                "password": "secret",
+                "imap_host": "imap.example.com",
+                "smtp_host": "smtp.example.com",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 
@@ -116,9 +124,15 @@ class TestEmailEndpoints:
         assert response.status_code == 404
 
     def test_list_emails(self, client: TestClient) -> None:
-        app_state.integration.fetch_emails = AsyncMock(return_value=EmailsPage(
-            emails=[], total=0, page=1, page_size=50, folder="INBOX",
-        ))
+        app_state.integration.fetch_emails = AsyncMock(
+            return_value=EmailsPage(
+                emails=[],
+                total=0,
+                page=1,
+                page_size=50,
+                folder="INBOX",
+            )
+        )
         response = client.get("/emails?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -131,14 +145,21 @@ class TestEmailEndpoints:
         assert response.status_code == 404
 
     def test_send_email(self, client: TestClient) -> None:
-        app_state.integration.send_email = AsyncMock(return_value=SendEmailResponse(
-            status="sent", message_id="<test@example.com>", account_name="test",
-        ))
-        response = client.post("/emails/send?account_name=test", json={
-            "to": ["recipient@example.com"],
-            "subject": "Test",
-            "body_text": "Hello",
-        })
+        app_state.integration.send_email = AsyncMock(
+            return_value=SendEmailResponse(
+                status="sent",
+                message_id="<test@example.com>",
+                account_name="test",
+            )
+        )
+        response = client.post(
+            "/emails/send?account_name=test",
+            json={
+                "to": ["recipient@example.com"],
+                "subject": "Test",
+                "body_text": "Hello",
+            },
+        )
         assert response.status_code == 200
         assert response.json()["status"] == "sent"
 
@@ -167,10 +188,12 @@ class TestEmailEndpoints:
 
 class TestFolderEndpoints:
     def test_list_folders(self, client: TestClient) -> None:
-        app_state.integration.list_folders = AsyncMock(return_value=[
-            FolderInfo(name="INBOX", delimiter="/"),
-            FolderInfo(name="Sent", delimiter="/"),
-        ])
+        app_state.integration.list_folders = AsyncMock(
+            return_value=[
+                FolderInfo(name="INBOX", delimiter="/"),
+                FolderInfo(name="Sent", delimiter="/"),
+            ]
+        )
         response = client.get("/folders?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -186,7 +209,9 @@ class TestConnectionEndpoint:
     def test_connection_status(self, client: TestClient) -> None:
         app_state.integration.get_connection_status = AsyncMock(
             return_value=ConnectionStatus(
-                account_name="test", imap_connected=True, smtp_connected=True,
+                account_name="test",
+                imap_connected=True,
+                smtp_connected=True,
             ),
         )
         response = client.get("/connection/test/status")

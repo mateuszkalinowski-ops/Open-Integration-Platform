@@ -3,13 +3,15 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import logging
-from typing import Any, Awaitable, Callable
+from collections.abc import Awaitable, Callable
+from typing import Any
 
 import httpx
-
 from config import settings
+
 from core.connector_registry import ConnectorRegistry
 
 logger = logging.getLogger(__name__)
@@ -45,10 +47,8 @@ class SchemaRegistry:
         if self._task is None:
             return
         self._task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await self._task
-        except asyncio.CancelledError:
-            pass
         self._task = None
 
     async def get_action_schema(
@@ -143,10 +143,14 @@ class SchemaRegistry:
             except Exception:
                 consecutive_failures += 1
                 logger.exception("schema_registry.refresh_failed", consecutive_failures=consecutive_failures)
-            backoff = min(
-                self._refresh_interval_seconds * (2 ** min(consecutive_failures, 5)),
-                self._refresh_interval_seconds * 32,
-            ) if consecutive_failures > 0 else self._refresh_interval_seconds
+            backoff = (
+                min(
+                    self._refresh_interval_seconds * (2 ** min(consecutive_failures, 5)),
+                    self._refresh_interval_seconds * 32,
+                )
+                if consecutive_failures > 0
+                else self._refresh_interval_seconds
+            )
             await asyncio.sleep(backoff)
 
     async def _build_schema_payload(
@@ -226,11 +230,7 @@ class SchemaRegistry:
         current = {field["field"]: field for field in current_fields if field.get("field")}
         added = sorted(name for name in current.keys() - previous.keys())
         removed = sorted(name for name in previous.keys() - current.keys())
-        changed = sorted(
-            name
-            for name in current.keys() & previous.keys()
-            if current[name] != previous[name]
-        )
+        changed = sorted(name for name in current.keys() & previous.keys() if current[name] != previous[name])
         return {
             "added": added,
             "removed": removed,

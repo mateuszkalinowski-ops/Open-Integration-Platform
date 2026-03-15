@@ -2,14 +2,15 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from src.config import settings
-from src.s3_client.client import S3Client
-from src.models.database import StateStore
-from src.services.account_manager import AccountManager
 from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+
+from src.config import settings
+from src.models.database import StateStore
+from src.s3_client.client import S3Client
+from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
 
@@ -86,7 +87,8 @@ class ObjectPoller:
         )
 
         objects = await client.list_objects(
-            poll_bucket, prefix=poll_prefix,
+            poll_bucket,
+            prefix=poll_prefix,
         )
 
         known_keys = await self._state_store.get_known_files(account_name)
@@ -101,7 +103,10 @@ class ObjectPoller:
         if new_objects:
             logger.info(
                 "Found %d new objects for account=%s in s3://%s/%s",
-                len(new_objects), account_name, poll_bucket, settings.polling_prefix,
+                len(new_objects),
+                account_name,
+                poll_bucket,
+                settings.polling_prefix,
             )
             for obj in new_objects:
                 await self._emit_object_event(account_name, poll_bucket, obj)
@@ -121,7 +126,7 @@ class ObjectPoller:
             "last_modified": obj.last_modified.isoformat() if obj.last_modified else None,
             "etag": obj.etag,
             "account_name": account_name,
-            "detected_at": datetime.now(timezone.utc).isoformat(),
+            "detected_at": datetime.now(UTC).isoformat(),
         }
 
         if self._kafka_producer:

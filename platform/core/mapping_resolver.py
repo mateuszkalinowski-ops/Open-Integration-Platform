@@ -15,11 +15,11 @@ from pathlib import Path
 from typing import Any
 
 import yaml
+from db.models import FieldMapping
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.redis_client import cache_delete, cache_get, cache_set
-from db.models import FieldMapping
 
 logger = logging.getLogger(__name__)
 
@@ -87,9 +87,7 @@ class MappingResolver:
         )
         return list(result.scalars().all())
 
-    def _resolve_sources(
-        self, mapping_entry: dict, source_data: dict[str, Any]
-    ) -> list[Any]:
+    def _resolve_sources(self, mapping_entry: dict, source_data: dict[str, Any]) -> list[Any]:
         """Resolve all source values for a mapping rule."""
         sources: list[str] = mapping_entry.get("sources", [])
         if sources:
@@ -151,10 +149,7 @@ class MappingResolver:
         for override in overrides:
             values = [self._get_nested(source_data, override.source_field)]
             if values[0] is not None:
-                if override.transform:
-                    value = self._apply_transform(values, override.transform)
-                else:
-                    value = values[0]
+                value = self._apply_transform(values, override.transform) if override.transform else values[0]
                 self._set_nested(mapped, override.target_field, value)
 
         return mapped
@@ -179,7 +174,7 @@ class MappingResolver:
     def _get_nested_array(self, data: dict, key: str) -> Any:
         bracket_pos = key.index("[]")
         array_path = key[:bracket_pos]
-        rest = key[bracket_pos + 2:]
+        rest = key[bracket_pos + 2 :]
         if rest.startswith("."):
             rest = rest[1:]
 
@@ -205,7 +200,7 @@ class MappingResolver:
     def _set_nested_array(self, data: dict, key: str, value: Any) -> None:
         bracket_pos = key.index("[]")
         array_path = key[:bracket_pos]
-        rest = key[bracket_pos + 2:]
+        rest = key[bracket_pos + 2 :]
         if rest.startswith("."):
             rest = rest[1:]
 

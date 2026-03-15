@@ -1,5 +1,6 @@
 """Maps WooCommerce orders/products to pinquark unified schemas and vice versa."""
 
+import contextlib
 import logging
 
 from pinquark_common.schemas.ecommerce import (
@@ -10,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrderStatus,
     Product,
 )
+
 from src.woocommerce.schemas import WooOrder, WooOrderStatus, WooProduct
 
 logger = logging.getLogger(__name__)
@@ -133,15 +135,11 @@ def map_woo_product_to_product(woo_product: WooProduct) -> Product:
     """Map a WooCommerce product to the unified Product schema."""
     price = 0.0
     if woo_product.regular_price:
-        try:
+        with contextlib.suppress(ValueError):
             price = float(woo_product.regular_price)
-        except ValueError:
-            pass
     elif woo_product.price:
-        try:
+        with contextlib.suppress(ValueError):
             price = float(woo_product.price)
-        except ValueError:
-            pass
 
     attrs: dict[str, list[str]] = {}
     for attr in woo_product.attributes:

@@ -19,10 +19,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class InpostCredentials(BaseModel):
     organization_id: str = Field(description="InPost organization ID (login / client_id)")
@@ -34,6 +34,7 @@ class InpostCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # Shipping request DTOs
 # ---------------------------------------------------------------------------
+
 
 class ShippingContactInfo(BaseModel):
     company_name: str | None = Field(default=None, alias="companyName")
@@ -164,7 +165,8 @@ class ShippingCreateShipmentDto(BaseModel):
     return_destination: ReturnDestination | None = Field(default=None, alias="returnDestination")
     references: ShippingCustomReferences | None = None
     value_added_services: list[StandardValueAdded | FlagValueAdded | CurrencyValueAdded] | None = Field(
-        default=None, alias="valueAddedServices",
+        default=None,
+        alias="valueAddedServices",
     )
     parcels: list[RvmParcel] | list[StandardParcel]
 
@@ -174,6 +176,7 @@ class ShippingCreateShipmentDto(BaseModel):
 # ---------------------------------------------------------------------------
 # Returns DTOs
 # ---------------------------------------------------------------------------
+
 
 class ReturnsContactInfo(BaseModel):
     company_name: str | None = Field(default=None, alias="companyName")
@@ -258,6 +261,7 @@ class ReturnsCreateShipmentDto(BaseModel):
 # Pickup DTOs
 # ---------------------------------------------------------------------------
 
+
 class PickupPhoneNumber(BaseModel):
     prefix: str = Field(...)
     number: str = Field(...)
@@ -322,6 +326,7 @@ class PickupsCreatePickupOrderDto(BaseModel):
 # ---------------------------------------------------------------------------
 # Points / location response DTOs
 # ---------------------------------------------------------------------------
+
 
 class PointCoordinatesDto(BaseModel):
     latitude: float = Field(...)
@@ -397,6 +402,7 @@ class GetPointsResponse(BaseModel):
 # Tracking
 # ---------------------------------------------------------------------------
 
+
 class Tracking(BaseModel):
     tracking_number: str | None = None
     tracking_url: str | None = None
@@ -405,6 +411,7 @@ class Tracking(BaseModel):
 # ---------------------------------------------------------------------------
 # FastAPI request schemas
 # ---------------------------------------------------------------------------
+
 
 class ShipmentParty(BaseModel):
     first_name: str
@@ -500,6 +507,7 @@ class ReturnsShipmentRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Rate request / standardized response (for shipping price comparison)
 # ---------------------------------------------------------------------------
+
 
 class RateRequest(BaseModel):
     credentials: InpostCredentials | None = None

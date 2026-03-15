@@ -8,13 +8,12 @@ Row Level Security policies enforce tenant isolation at the DB level.
 import hashlib
 import uuid
 
+from db.base import get_db
+from db.models import ApiKey, Tenant
 from fastapi import Depends, HTTPException, Request, Security
 from fastapi.security import APIKeyHeader
 from sqlalchemy import select, text
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from db.base import get_db
-from db.models import ApiKey, Tenant
 
 api_key_header = APIKeyHeader(name="X-API-Key", auto_error=False)
 
@@ -28,11 +27,7 @@ async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
         raise HTTPException(status_code=401, detail="Missing API key")
 
     key_hash = hash_api_key(api_key)
-    result = await db.execute(
-        select(ApiKey)
-        .where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
-        .options()
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True)).options())
     api_key_record = result.scalar_one_or_none()
 
     if not api_key_record:

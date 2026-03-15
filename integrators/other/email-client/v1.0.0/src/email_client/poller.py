@@ -1,17 +1,18 @@
 """Background poller — periodically checks for new emails via IMAP."""
 
 import asyncio
+import contextlib
 import hashlib
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import httpx
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 from src.config import EmailAccountConfig, settings
 from src.email_client.imap_client import ImapClient
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -52,20 +53,20 @@ class EmailPoller:
         mid = getattr(email_msg, "message_id", None)
         if mid:
             return mid
-        parts = "|".join([
-            getattr(email_msg, "subject", "") or "",
-            getattr(email_msg, "sender", "") or "",
-            getattr(email_msg, "date", "") or "",
-        ])
+        parts = "|".join(
+            [
+                getattr(email_msg, "subject", "") or "",
+                getattr(email_msg, "sender", "") or "",
+                getattr(email_msg, "date", "") or "",
+            ]
+        )
         return "sha256:" + hashlib.sha256(parts.encode()).hexdigest()
 
     async def start(self) -> None:
         self._running = True
         self._last_timestamps = await self._state.load_all_timestamps()
         for account in self._accounts.list_accounts():
-            self._seen_cache[account.name] = await self._state.load_seen_ids(
-                account.name, self._seen_cache_limit
-            )
+            self._seen_cache[account.name] = await self._state.load_seen_ids(account.name, self._seen_cache_limit)
         if settings.platform_event_notify:
             self._http_client = httpx.AsyncClient(timeout=15.0)
         logger.info(
@@ -100,20 +101,18 @@ class EmailPoller:
         """Disconnect and remove cached IMAP client so next poll reconnects."""
         client = self._imap_clients.pop(account_name, None)
         if client:
-            try:
+            with contextlib.suppress(Exception):
                 await client.disconnect()
-            except Exception:
-                pass
 
     async def _poll_account(self, account: EmailAccountConfig) -> None:
         imap = self._get_imap_client(account)
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
         last = self._get_last_timestamp(account.name, "emails")
         since: datetime | None = None
         if last:
-            since = datetime.strptime(last, "%Y-%m-%d %H:%M:%S").replace(tzinfo=timezone.utc)
+            since = datetime.strptime(last, "%Y-%m-%d %H:%M:%S").replace(tzinfo=UTC)
 
         folder = account.polling_folder or settings.polling_folder
         page = await imap.fetch_emails(
@@ -129,10 +128,7 @@ class EmailPoller:
             return
 
         seen = self._seen_cache.setdefault(account.name, set())
-        new_emails = [
-            m for m in page.emails
-            if self._derive_message_key(m) not in seen
-        ]
+        new_emails = [m for m in page.emails if self._derive_message_key(m) not in seen]
         if not new_emails:
             await self._save_timestamp(account.name, "emails", now_str)
             return
@@ -169,17 +165,20 @@ class EmailPoller:
                 all_notified = False
                 continue
 
-            platform_ok = await self._notify_platform("email.received", email_data)
+            seen.add(msg_key)
+            await self._state.mark_seen(account.name, msg_key)
 
-            if platform_ok:
-                seen.add(msg_key)
-                await self._state.mark_seen(account.name, msg_key)
-            else:
+            if not await self._notify_platform("email.received", email_data):
+                logger.warning("Platform notify failed for msg_key=%s, Kafka delivery succeeded", msg_key)
                 all_notified = False
 
         logger.info(
             "Polled %d emails (%d new) for account=%s folder=%s notified=%s",
-            len(page.emails), len(new_emails), account.name, folder, all_notified,
+            len(page.emails),
+            len(new_emails),
+            account.name,
+            folder,
+            all_notified,
         )
         if all_notified:
             await self._save_timestamp(account.name, "emails", now_str)

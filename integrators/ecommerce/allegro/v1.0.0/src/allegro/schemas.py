@@ -10,8 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # --- Enums ---
+
 
 class CheckoutFormStatus(str, Enum):
     BOUGHT = "BOUGHT"
@@ -51,12 +51,14 @@ PROCESSABLE_EVENT_TYPES = {
 
 # --- Price ---
 
+
 class AllegroPrice(BaseModel):
     amount: str
     currency: str = "PLN"
 
 
 # --- Buyer ---
+
 
 class AllegroBuyerAddress(BaseModel):
     street: str = ""
@@ -83,6 +85,7 @@ class AllegroBuyer(BaseModel):
 
 # --- Delivery ---
 
+
 class AllegroDeliveryAddress(BaseModel):
     first_name: str = Field(default="", alias="firstName")
     last_name: str = Field(default="", alias="lastName")
@@ -107,6 +110,7 @@ class AllegroDelivery(BaseModel):
 
 # --- Invoice ---
 
+
 class AllegroInvoiceAddress(BaseModel):
     street: str = ""
     city: str = ""
@@ -125,6 +129,7 @@ class AllegroInvoice(BaseModel):
 
 # --- Payment ---
 
+
 class AllegroPayment(BaseModel):
     id: str | None = None
     type: str = ""
@@ -134,6 +139,7 @@ class AllegroPayment(BaseModel):
 
 
 # --- Line Items ---
+
 
 class AllegroOfferRef(BaseModel):
     id: str
@@ -154,6 +160,7 @@ class AllegroLineItem(BaseModel):
 
 # --- Summary ---
 
+
 class AllegroSummary(BaseModel):
     total_to_pay: AllegroPrice | None = Field(default=None, alias="totalToPay")
 
@@ -161,6 +168,7 @@ class AllegroSummary(BaseModel):
 
 
 # --- Fulfillment ---
+
 
 class AllegroFulfillment(BaseModel):
     status: FulfillmentStatus | None = None
@@ -170,6 +178,7 @@ class AllegroFulfillment(BaseModel):
 
 
 # --- Checkout Form (main order entity) ---
+
 
 class AllegroCheckoutForm(BaseModel):
     id: str
@@ -187,6 +196,7 @@ class AllegroCheckoutForm(BaseModel):
 
 
 # --- Order Events ---
+
 
 class AllegroOrderRef(BaseModel):
     seller: dict[str, str] | None = None
@@ -210,6 +220,7 @@ class AllegroOrderEventsResponse(BaseModel):
 
 
 # --- Offer / Product (for EAN extraction) ---
+
 
 class AllegroParameter(BaseModel):
     id: str
@@ -244,11 +255,13 @@ class AllegroProduct(BaseModel):
 
 # --- Status update command ---
 
+
 class SetFulfillmentStatusCommand(BaseModel):
     status: FulfillmentStatus
 
 
 # --- Device auth ---
+
 
 class AllegroDeviceCodeResponse(BaseModel):
     user_code: str = Field(alias="user_code")

@@ -33,6 +33,7 @@ logger = logging.getLogger("courier-dhl")
 # Utility helpers (ported from app.integrations.utils)
 # ---------------------------------------------------------------------------
 
+
 def wsdl_to_json(data: object) -> dict:
     """Convert a zeep SOAP response object to a JSON-serializable dict."""
     return json.loads(json.dumps(serialize_object(data)))
@@ -93,13 +94,11 @@ GET_POINT_SCHEMA: dict = {
 # DHL Integration
 # ---------------------------------------------------------------------------
 
+
 class DhlIntegration:
     """DHL SOAP integration for both DHL24 and DHL ServicePoint (Parcelshop) APIs."""
 
-    TRACKING_URL = (
-        "https://www.dhl.com/pl-en/home/tracking/tracking-parcel.html"
-        "?submit=1&tracking-id={tracking_number}"
-    )
+    TRACKING_URL = "https://www.dhl.com/pl-en/home/tracking/tracking-parcel.html?submit=1&tracking-id={tracking_number}"
     DEFAULT_COD_FORM = "BANK_TRANSFER"
 
     def __init__(self) -> None:
@@ -212,7 +211,9 @@ class DhlIntegration:
 
         if not extras_dhl.get("book_courier", True):
             get_order_response, sc = self.get_order(
-                credentials, extras_dhl["shipment_id"], {},
+                credentials,
+                extras_dhl["shipment_id"],
+                {},
             )
             if sc == HTTPStatus.OK:
                 get_order_response.setdefault("extras", {}).setdefault("dhl", {})
@@ -271,7 +272,9 @@ class DhlIntegration:
             return labels, status_code
 
         label_bytes, status_code = self.get_waybill_label_bytes(
-            credentials, waybill_numbers, data,
+            credentials,
+            waybill_numbers,
+            data,
         )
         return label_bytes, status_code
 
@@ -298,10 +301,7 @@ class DhlIntegration:
             response = self.client.service.getLabels(
                 authData=self._get_auth_data(credentials),
                 itemsToPrint={
-                    "item": [
-                        {"labelType": "BLP", "shipmentId": wbn}
-                        for wbn in waybill_numbers
-                    ],
+                    "item": [{"labelType": "BLP", "shipmentId": wbn} for wbn in waybill_numbers],
                 },
             )
         except TransportError as exc:
@@ -315,11 +315,7 @@ class DhlIntegration:
         status_code = (
             HTTPStatus.OK
             if not hasattr(response, "code")
-            else (
-                HTTPStatus.UNAUTHORIZED
-                if response.code == "100"
-                else HTTPStatus.BAD_REQUEST
-            )
+            else (HTTPStatus.UNAUTHORIZED if response.code == "100" else HTTPStatus.BAD_REQUEST)
         )
         if status_code == HTTPStatus.OK:
             return wsdl_to_json(response), status_code
@@ -445,11 +441,7 @@ class DhlIntegration:
         status_code = (
             HTTPStatus.OK
             if not hasattr(response, "code")
-            else (
-                HTTPStatus.UNAUTHORIZED
-                if response.code == "100"
-                else HTTPStatus.BAD_REQUEST
-            )
+            else (HTTPStatus.UNAUTHORIZED if response.code == "100" else HTTPStatus.BAD_REQUEST)
         )
 
         if status_code != HTTPStatus.OK:
@@ -526,17 +518,15 @@ class DhlIntegration:
         status_code = (
             HTTPStatus.CREATED
             if isinstance(response, list)
-            else (
-                HTTPStatus.UNAUTHORIZED
-                if response.code == "100"
-                else HTTPStatus.BAD_REQUEST
-            )
+            else (HTTPStatus.UNAUTHORIZED if response.code == "100" else HTTPStatus.BAD_REQUEST)
         )
         if status_code == HTTPStatus.CREATED:
             offer_id = wsdl_to_json(response[0])
 
             resp_json, get_order_sc = self.get_order(
-                credentials, extras_dhl["shipment_id"], extras_dhl,
+                credentials,
+                extras_dhl["shipment_id"],
+                extras_dhl,
             )
             if get_order_sc != HTTPStatus.OK:
                 return resp_json, get_order_sc
@@ -567,7 +557,8 @@ class DhlIntegration:
                     shipment={
                         "authData": self._get_auth_data(credentials),
                         "shipmentData": self._get_create_order_structure(
-                            command, target_point,
+                            command,
+                            target_point,
                         ),
                     },
                 )
@@ -593,11 +584,7 @@ class DhlIntegration:
         status_code = (
             HTTPStatus.OK
             if isinstance(response, list)
-            else (
-                HTTPStatus.UNAUTHORIZED
-                if response.code == "100"
-                else HTTPStatus.BAD_REQUEST
-            )
+            else (HTTPStatus.UNAUTHORIZED if response.code == "100" else HTTPStatus.BAD_REQUEST)
         )
         if status_code == HTTPStatus.OK:
             return wsdl_to_json(response[0]), status_code
@@ -722,14 +709,16 @@ class DhlIntegration:
 
         items = []
         for p in parcels:
-            items.append({
-                "type": p.get("type", p.get("parcel_type", "PACKAGE")),
-                "width": p.get("width", 0),
-                "height": p.get("height", 0),
-                "length": p.get("length", 0),
-                "weight": p.get("weight", 0),
-                "quantity": p.get("quantity", 1),
-            })
+            items.append(
+                {
+                    "type": p.get("type", p.get("parcel_type", "PACKAGE")),
+                    "width": p.get("width", 0),
+                    "height": p.get("height", 0),
+                    "length": p.get("length", 0),
+                    "weight": p.get("weight", 0),
+                    "quantity": p.get("quantity", 1),
+                }
+            )
 
         dhl24_structure = {
             "item": {
@@ -778,14 +767,11 @@ class DhlIntegration:
                     "collectOnDeliveryValue": cod_value if cod else None,
                     "collectOnDeliveryForm": self.DEFAULT_COD_FORM if cod else None,
                     "insurance": bool(dhl_extras.get("insurance")),
-                    "insuranceValue": (
-                        dhl_extras.get("insurance_value")
-                        if dhl_extras.get("insurance")
-                        else None
-                    ),
+                    "insuranceValue": (dhl_extras.get("insurance_value") if dhl_extras.get("insurance") else None),
                     "returnOnDelivery": dhl_extras.get("rod", False),
                     "predeliveryInformation": dhl_extras.get(
-                        "predelivery_information", False,
+                        "predelivery_information",
+                        False,
                     ),
                     "deliveryOnSaturday": dhl_extras.get("deliveryOnSaturday", False),
                 },
@@ -797,11 +783,7 @@ class DhlIntegration:
         if cod:
             svc = dhl24_structure["item"]["service"]
             svc["insurance"] = True
-            svc["insuranceValue"] = (
-                dhl_extras.get("insurance_value")
-                if dhl_extras.get("insurance")
-                else cod_value
-            )
+            svc["insuranceValue"] = dhl_extras.get("insurance_value") if dhl_extras.get("insurance") else cod_value
 
         logger.debug("DHL24 create-order payload assembled")
         return dhl24_structure
@@ -821,28 +803,34 @@ class DhlIntegration:
         payment = command.get("payment", {})
 
         if dhlps_extras.get("insurance"):
-            extra_services.append({
-                "item": {
-                    "serviceType": "UBEZP",
-                    "serviceValue": str(dhlps_extras.get("insurance_value", 0)),
-                },
-            })
+            extra_services.append(
+                {
+                    "item": {
+                        "serviceType": "UBEZP",
+                        "serviceValue": str(dhlps_extras.get("insurance_value", 0)),
+                    },
+                }
+            )
 
         if cod:
             if not dhlps_extras.get("insurance"):
-                extra_services.append({
+                extra_services.append(
+                    {
+                        "item": {
+                            "serviceType": "UBEZP",
+                            "serviceValue": str(cod_value * 2),
+                        },
+                    }
+                )
+            extra_services.append(
+                {
                     "item": {
-                        "serviceType": "UBEZP",
-                        "serviceValue": str(cod_value * 2),
+                        "serviceType": "COD",
+                        "serviceValue": str(cod_value),
+                        "collectOnDeliveryForm": payment.get("payment_method", "BANK_TRANSFER"),
                     },
-                })
-            extra_services.append({
-                "item": {
-                    "serviceType": "COD",
-                    "serviceValue": str(cod_value),
-                    "collectOnDeliveryForm": payment.get("payment_method", "BANK_TRANSFER"),
-                },
-            })
+                }
+            )
 
         return extra_services
 
@@ -887,18 +875,14 @@ class DhlIntegration:
         receiver = command.get("receiver", {})
 
         order["receiver"] = dict(receiver)
-        order["receiver"]["name"] = (
-            f"{receiver.get('first_name', '')} {receiver.get('last_name', '')}"
-        )
+        order["receiver"]["name"] = f"{receiver.get('first_name', '')} {receiver.get('last_name', '')}"
         order["receiver"]["contactPhone"] = receiver.get("phone", "")
         order["receiver"]["contactEmail"] = receiver.get("email", "")
         order["receiver"]["postalCode"] = receiver.get("postal_code", "")
         order["receiver"]["houseNumber"] = receiver.get("building_number", "")
 
         order["shipper"] = dict(shipper)
-        order["shipper"]["name"] = (
-            f"{shipper.get('first_name', '')} {shipper.get('last_name', '')}"
-        )
+        order["shipper"]["name"] = f"{shipper.get('first_name', '')} {shipper.get('last_name', '')}"
         order["shipper"]["contactPhone"] = shipper.get("phone", "")
         order["shipper"]["contactEmail"] = shipper.get("email", "")
         order["shipper"]["postalCode"] = shipper.get("postal_code", "")
@@ -977,7 +961,7 @@ class DhlIntegration:
             for label in labels:
                 ext = DhlIntegration._guess_extension(label.get("labelMimeType", "application/pdf"))
                 zf.writestr(
-                    f'{label["shipmentId"]}{ext}',
+                    f"{label['shipmentId']}{ext}",
                     base64.b64decode(label["labelData"]),
                 )
         return output.getvalue()
@@ -986,6 +970,7 @@ class DhlIntegration:
 # ---------------------------------------------------------------------------
 # Module-level helper
 # ---------------------------------------------------------------------------
+
 
 def _deep_copy_schema(schema: dict) -> dict:
     """Return a deep copy of a nested dict template."""

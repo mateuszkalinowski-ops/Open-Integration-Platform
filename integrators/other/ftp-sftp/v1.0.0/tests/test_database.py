@@ -1,9 +1,9 @@
 """Tests for StateStore (polling state persistence)."""
 
 import os
+
 import pytest
 import pytest_asyncio
-
 from src.models.database import StateStore
 
 

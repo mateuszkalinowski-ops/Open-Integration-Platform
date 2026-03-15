@@ -1,17 +1,17 @@
 """Shared test fixtures for S3 integrator tests."""
 
 import base64
+from datetime import UTC
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import S3AccountConfig
-from src.s3_client.integration import S3Integration
-from src.s3_client.schemas import ObjectInfo
 from src.main import create_app
 from src.models.database import StateStore
+from src.s3_client.integration import S3Integration
+from src.s3_client.schemas import ObjectInfo
 from src.services.account_manager import AccountManager
 
 
@@ -53,13 +53,13 @@ def mock_integration(account_manager: AccountManager) -> S3Integration:
 
 @pytest.fixture
 def sample_object_info() -> ObjectInfo:
-    from datetime import datetime, timezone
+    from datetime import datetime
 
     return ObjectInfo(
         key="data/report.csv",
         bucket="test-bucket",
         size=1024,
-        last_modified=datetime(2026, 1, 15, 10, 30, 0, tzinfo=timezone.utc),
+        last_modified=datetime(2026, 1, 15, 10, 30, 0, tzinfo=UTC),
         etag="d41d8cd98f00b204e9800998ecf8427e",
         storage_class="STANDARD",
     )

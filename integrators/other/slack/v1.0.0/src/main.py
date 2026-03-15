@@ -3,7 +3,7 @@
 import asyncio
 import logging
 import sys
-from contextlib import asynccontextmanager
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
 
 from fastapi import FastAPI
@@ -12,10 +12,10 @@ from prometheus_client import make_asgi_app
 from src.api.dependencies import app_state
 from src.api.routes import router
 from src.config import settings
-from src.slack_client.integration import SlackIntegration
-from src.slack_client.poller import MessagePoller
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
+from src.slack_client.integration import SlackIntegration
+from src.slack_client.poller import MessagePoller
 
 try:
     sdk_path = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -28,9 +28,9 @@ try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
     augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
+from pinquark_common.kafka import KafkaMessageProducer
 from pinquark_common.logging import setup_logging
 from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 MANIFEST_PATH = Path(__file__).resolve().parents[1] / "connector.yaml"
@@ -93,10 +93,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
         await app_state.poller.stop()
     if poller_task:
         poller_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await poller_task
-        except asyncio.CancelledError:
-            pass
     if kafka_producer:
         await kafka_producer.stop()
     await integration.close()

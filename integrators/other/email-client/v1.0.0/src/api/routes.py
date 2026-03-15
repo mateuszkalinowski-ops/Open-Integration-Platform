@@ -70,10 +70,7 @@ class AccountCreateRequest(BaseModel):
 @router.get("/accounts")
 async def list_accounts() -> list[dict[str, str]]:
     accounts = app_state.account_manager.list_accounts()
-    return [
-        {"name": a.name, "environment": a.environment, "email_address": a.email_address}
-        for a in accounts
-    ]
+    return [{"name": a.name, "environment": a.environment, "email_address": a.email_address} for a in accounts]
 
 
 @router.post("/accounts", status_code=201)
@@ -100,7 +97,11 @@ async def list_emails(
 ) -> EmailsPage:
     _require_account(account_name)
     return await app_state.integration.fetch_emails(
-        account_name, folder, since, max_count, unseen_only,
+        account_name,
+        folder,
+        since,
+        max_count,
+        unseen_only,
     )
 
 

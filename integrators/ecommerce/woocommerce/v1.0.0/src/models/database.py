@@ -54,21 +54,25 @@ class StateStore:
             await db.commit()
 
     async def get_last_scraped(self, account_name: str, entity_type: str) -> str | None:
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute(
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute(
                 "SELECT last_scraped FROM scraper_state WHERE account_name = ? AND entity_type = ?",
                 (account_name, entity_type),
-            ) as cursor:
-                row = await cursor.fetchone()
-                return row[0] if row else None
+            ) as cursor,
+        ):
+            row = await cursor.fetchone()
+            return row[0] if row else None
 
     async def get_all_states(self) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, entity_type, last_scraped FROM scraper_state") as cursor:
-                async for row in cursor:
-                    account_name, entity_type, last_scraped = row
-                    if account_name not in result:
-                        result[account_name] = {}
-                    result[account_name][entity_type] = last_scraped
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, entity_type, last_scraped FROM scraper_state") as cursor,
+        ):
+            async for row in cursor:
+                account_name, entity_type, last_scraped = row
+                if account_name not in result:
+                    result[account_name] = {}
+                result[account_name][entity_type] = last_scraped
         return result

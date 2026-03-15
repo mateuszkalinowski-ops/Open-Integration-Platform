@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -13,6 +11,8 @@ from pinquark_common.schemas.ecommerce import (
     Product,
     StockItem,
 )
+from pydantic import BaseModel
+
 from src.api.dependencies import app_state
 from src.config import AmazonAccountConfig
 
@@ -22,6 +22,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health")
 async def health() -> dict[str, Any]:
@@ -46,6 +47,7 @@ async def readiness() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Accounts
 # ---------------------------------------------------------------------------
+
 
 class AccountCreateRequest(BaseModel):
     name: str
@@ -81,6 +83,7 @@ async def remove_account(account_name: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Orders
 # ---------------------------------------------------------------------------
+
 
 @router.get("/orders", response_model=OrdersPage)
 async def list_orders(
@@ -146,8 +149,10 @@ async def confirm_shipment(
 ) -> dict[str, Any]:
     _require_account(account_name)
     result = await app_state.integration.confirm_shipment(
-        account_name, order_id,
-        body.carrier_code, body.tracking_number,
+        account_name,
+        order_id,
+        body.carrier_code,
+        body.tracking_number,
         ship_date=body.ship_date,
         carrier_name=body.carrier_name,
     )
@@ -157,6 +162,7 @@ async def confirm_shipment(
 # ---------------------------------------------------------------------------
 # Stock
 # ---------------------------------------------------------------------------
+
 
 class StockSyncRequest(BaseModel):
     items: list[StockItem]
@@ -175,6 +181,7 @@ async def sync_stock(
 # ---------------------------------------------------------------------------
 # Products / Catalog
 # ---------------------------------------------------------------------------
+
 
 @router.get("/products/{asin}", response_model=Product)
 async def get_product(
@@ -211,6 +218,7 @@ async def search_products(
 # Reports
 # ---------------------------------------------------------------------------
 
+
 class CreateReportRequest(BaseModel):
     report_type: str
     data_start_time: str | None = None
@@ -224,7 +232,8 @@ async def create_report(
 ) -> dict[str, Any]:
     _require_account(account_name)
     result = await app_state.integration.create_report(
-        account_name, body.report_type,
+        account_name,
+        body.report_type,
         data_start_time=body.data_start_time,
         data_end_time=body.data_end_time,
     )
@@ -244,6 +253,7 @@ async def get_report(
 # Feeds
 # ---------------------------------------------------------------------------
 
+
 @router.get("/feeds/{feed_id}")
 async def get_feed_status(
     feed_id: str,
@@ -256,6 +266,7 @@ async def get_feed_status(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _require_account(account_name: str) -> None:
     if not app_state.account_manager.get_account(account_name):

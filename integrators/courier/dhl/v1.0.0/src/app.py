@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -79,8 +80,10 @@ async def get_status(
     sap_number: str = Header("", alias="X-Sap-Number"),
 ):
     credentials = DhlCredentials(
-        username=username, password=password,
-        account_number=account_number, sap_number=sap_number,
+        username=username,
+        password=password,
+        account_number=account_number,
+        sap_number=sap_number,
     )
     try:
         result, status_code = integration.get_order_status(credentials, waybill_number)
@@ -97,7 +100,9 @@ async def get_status(
 async def get_label(request: LabelRequest):
     try:
         label_bytes, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers, {},
+            request.credentials,
+            request.waybill_numbers,
+            {},
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=label_bytes)
@@ -164,35 +169,43 @@ def _calculate_dhl_rates(
         else:
             base = 21.50 + (billable - 31.5) * 0.85
 
-        products.append(RateProduct(
-            name="DHL Parcel Standard",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=2,
-            attributes={"source": "dhl", "service": "standard"},
-        ))
-        products.append(RateProduct(
-            name="DHL Parcel Connect",
-            price=round(base * 0.88, 2),
-            currency="PLN",
-            delivery_days=3,
-            attributes={"source": "dhl", "service": "parcel_connect"},
-        ))
+        products.append(
+            RateProduct(
+                name="DHL Parcel Standard",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "dhl", "service": "standard"},
+            )
+        )
+        products.append(
+            RateProduct(
+                name="DHL Parcel Connect",
+                price=round(base * 0.88, 2),
+                currency="PLN",
+                delivery_days=3,
+                attributes={"source": "dhl", "service": "parcel_connect"},
+            )
+        )
         if billable <= 31.5:
-            products.append(RateProduct(
-                name="DHL Parcel 9:00",
-                price=round(base * 2.1, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "dhl", "service": "guarantee_0900"},
-            ))
-            products.append(RateProduct(
-                name="DHL Parcel 12:00",
-                price=round(base * 1.7, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "dhl", "service": "guarantee_1200"},
-            ))
+            products.append(
+                RateProduct(
+                    name="DHL Parcel 9:00",
+                    price=round(base * 2.1, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "dhl", "service": "guarantee_0900"},
+                )
+            )
+            products.append(
+                RateProduct(
+                    name="DHL Parcel 12:00",
+                    price=round(base * 1.7, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "dhl", "service": "guarantee_1200"},
+                )
+            )
     else:
         if billable <= 5:
             base = 48.00
@@ -203,13 +216,15 @@ def _calculate_dhl_rates(
         else:
             base = 72.00 + (billable - 20) * 2.5
 
-        products.append(RateProduct(
-            name="DHL Parcel International",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=5,
-            attributes={"source": "dhl", "service": "international"},
-        ))
+        products.append(
+            RateProduct(
+                name="DHL Parcel International",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=5,
+                attributes={"source": "dhl", "service": "international"},
+            )
+        )
 
     return products
 
@@ -223,8 +238,10 @@ async def cancel_shipment(
     sap_number: str = Header("", alias="X-Sap-Number"),
 ):
     credentials = DhlCredentials(
-        username=username, password=password,
-        account_number=account_number, sap_number=sap_number,
+        username=username,
+        password=password,
+        account_number=account_number,
+        sap_number=sap_number,
     )
     try:
         result, status_code = integration.delete_order(credentials, waybill_number, {})
@@ -247,12 +264,15 @@ async def get_points(
     postal_code: str = "",
 ):
     credentials = DhlCredentials(
-        username=username, password=password,
-        account_number=account_number, sap_number=sap_number,
+        username=username,
+        password=password,
+        account_number=account_number,
+        sap_number=sap_number,
     )
     try:
         result, status_code = integration.get_points(
-            credentials, {"city": city, "postcode": postal_code},
+            credentials,
+            {"city": city, "postcode": postal_code},
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)

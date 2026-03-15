@@ -3,28 +3,27 @@
 from unittest.mock import AsyncMock, MagicMock
 
 import pytest
-
 from src.api.dependencies import AppState, app_state
 from src.config import IdoSellAccountConfig
 from src.idosell.schemas import (
     IdoSellBillingAddress,
     IdoSellDeliveryAddress,
+    IdoSellDescriptionLangData,
     IdoSellOrder,
+    IdoSellOrderBaseCurrency,
     IdoSellOrderClient,
     IdoSellOrderClientAccount,
     IdoSellOrderDetails,
     IdoSellOrderDispatch,
     IdoSellOrderStatus_,
     IdoSellPayment,
-    IdoSellOrderBaseCurrency,
     IdoSellProduct,
     IdoSellProductResult,
-    IdoSellDescriptionLangData,
-    IdoSellProductUnit,
-    IdoSellSizeAttribute,
+    IdoSellProductSizeData,
     IdoSellProductStocksData,
     IdoSellProductStocksQuantities,
-    IdoSellProductSizeData,
+    IdoSellProductUnit,
+    IdoSellSizeAttribute,
 )
 
 

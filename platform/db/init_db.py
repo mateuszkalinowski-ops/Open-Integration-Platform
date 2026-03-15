@@ -33,13 +33,15 @@ def _alembic_cfg() -> Config:
     cfg = Config(str(ALEMBIC_INI))
     cfg.set_main_option("script_location", str(PLATFORM_DIR / "db" / "migrations"))
 
-    from config import settings  # noqa: WPS433
+    from config import settings
+
     cfg.set_main_option("sqlalchemy.url", settings.database_url)
     return cfg
 
 
 def _sync_url() -> str:
     from config import settings
+
     return settings.database_url.replace("+asyncpg", "+psycopg2").replace("postgresql+psycopg2", "postgresql")
 
 
@@ -102,6 +104,7 @@ def check_current() -> bool:
     engine.dispose()
 
     from alembic.script import ScriptDirectory
+
     script = ScriptDirectory.from_config(cfg)
     head = script.get_current_head()
 

@@ -1,9 +1,8 @@
 """Tests for Apilo OAuth2 authentication."""
 
-import pytest
 import httpx
+import pytest
 import respx
-
 from src.apilo.auth import ApiloAuthError, TokenManager
 from src.config import ApiloAccountConfig
 
@@ -30,12 +29,15 @@ class TestTokenManager:
     @pytest.mark.asyncio
     async def test_exchange_authorization_code(self, account: ApiloAccountConfig) -> None:
         respx.post("https://test.apilo.com/rest/auth/token/").mock(
-            return_value=httpx.Response(201, json={
-                "accessToken": "new-access-token",
-                "accessTokenExpireAt": "2026-03-20T12:00:00Z",
-                "refreshToken": "new-refresh-token",
-                "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
-            })
+            return_value=httpx.Response(
+                201,
+                json={
+                    "accessToken": "new-access-token",
+                    "accessTokenExpireAt": "2026-03-20T12:00:00Z",
+                    "refreshToken": "new-refresh-token",
+                    "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
+                },
+            )
         )
 
         async with httpx.AsyncClient() as client:
@@ -55,12 +57,15 @@ class TestTokenManager:
     @pytest.mark.asyncio
     async def test_refresh_token_flow(self, account: ApiloAccountConfig) -> None:
         respx.post("https://test.apilo.com/rest/auth/token/").mock(
-            return_value=httpx.Response(201, json={
-                "accessToken": "refreshed-access-token",
-                "accessTokenExpireAt": "2026-03-20T12:00:00Z",
-                "refreshToken": "new-refresh-token",
-                "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
-            })
+            return_value=httpx.Response(
+                201,
+                json={
+                    "accessToken": "refreshed-access-token",
+                    "accessTokenExpireAt": "2026-03-20T12:00:00Z",
+                    "refreshToken": "new-refresh-token",
+                    "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
+                },
+            )
         )
 
         async with httpx.AsyncClient() as client:
@@ -77,12 +82,15 @@ class TestTokenManager:
         def handler(request: httpx.Request) -> httpx.Response:
             nonlocal call_count
             call_count += 1
-            return httpx.Response(201, json={
-                "accessToken": f"token-{call_count}",
-                "accessTokenExpireAt": "2026-03-20T12:00:00Z",
-                "refreshToken": "refresh-token",
-                "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
-            })
+            return httpx.Response(
+                201,
+                json={
+                    "accessToken": f"token-{call_count}",
+                    "accessTokenExpireAt": "2026-03-20T12:00:00Z",
+                    "refreshToken": "refresh-token",
+                    "refreshTokenExpireAt": "2026-05-20T12:00:00Z",
+                },
+            )
 
         respx.post("https://test.apilo.com/rest/auth/token/").mock(side_effect=handler)
 

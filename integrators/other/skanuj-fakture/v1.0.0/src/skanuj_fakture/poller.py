@@ -2,17 +2,17 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 from src.config import settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.skanuj_fakture.client import SkanujFaktureClient
 from src.skanuj_fakture.schemas import Document
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -42,7 +42,10 @@ class DocumentPoller:
 
     async def start(self) -> None:
         self._running = True
-        logger.info("Document poller started (interval=%ds), waiting 30s for account provisioning...", settings.polling_interval_seconds)
+        logger.info(
+            "Document poller started (interval=%ds), waiting 30s for account provisioning...",
+            settings.polling_interval_seconds,
+        )
         await asyncio.sleep(30)
         while self._running:
             try:
@@ -125,7 +128,7 @@ class DocumentPoller:
     async def _publish_document_event(self, account_name: str, document: dict[str, Any]) -> bool:
         event = self._normalize_document(document)
         event["account_name"] = account_name
-        event["polled_at"] = datetime.now(timezone.utc).isoformat()
+        event["polled_at"] = datetime.now(UTC).isoformat()
 
         if self._kafka_producer:
             envelope = wrap_event(
@@ -167,12 +170,14 @@ class DocumentPoller:
                 if resp.status_code >= 400:
                     logger.error(
                         "Platform event notify FAILED: status=%s doc_id=%s",
-                        resp.status_code, event.get("document_id"),
+                        resp.status_code,
+                        event.get("document_id"),
                     )
                     return False
                 logger.info(
                     "Platform event notify OK: status=%s doc_id=%s",
-                    resp.status_code, event.get("document_id"),
+                    resp.status_code,
+                    event.get("document_id"),
                 )
                 return True
         except Exception:

@@ -44,7 +44,9 @@ async def check_health(client: httpx.AsyncClient, target: VerificationTarget) ->
     except httpx.ConnectError:
         ms = int((time.monotonic() - start) * 1000)
         return _check_result(
-            "health", "FAIL", ms,
+            "health",
+            "FAIL",
+            ms,
             error="Connection refused — container not running",
             suggestion=f"Check if {target.manifest.name} container is deployed and healthy",
         )

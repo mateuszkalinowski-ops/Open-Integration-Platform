@@ -2,14 +2,14 @@
 
 import asyncio
 import logging
-from typing import Any
 
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+
+from src.baselinker.client import BaseLinkerClient
+from src.baselinker.mapper import map_bl_order_to_order
 from src.config import BaseLinkerAccountConfig, settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from src.baselinker.client import BaseLinkerClient
-from src.baselinker.mapper import map_bl_order_to_order, map_bl_product_to_product
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 

@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -80,9 +81,7 @@ async def create_shipment(request: CreateOrderRequest):
 @app.post("/shipments/status")
 async def get_status(request: StatusRequest):
     try:
-        result, status_code = integration.get_order_status(
-            request.credentials, request.waybill_number
-        )
+        result, status_code = integration.get_order_status(request.credentials, request.waybill_number)
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=str(result))
         return {"status": result}
@@ -95,9 +94,7 @@ async def get_status(request: StatusRequest):
 @app.post("/shipments/detail")
 async def get_order_detail(request: OrderDetailRequest):
     try:
-        result, status_code = integration.get_order(
-            request.credentials, request.waybill_number
-        )
+        result, status_code = integration.get_order(request.credentials, request.waybill_number)
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=str(result))
         return result
@@ -110,9 +107,7 @@ async def get_order_detail(request: OrderDetailRequest):
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     try:
-        label_data, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers
-        )
+        label_data, status_code = integration.get_waybill_label_bytes(request.credentials, request.waybill_numbers)
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=str(label_data))
         return Response(content=label_data, media_type="application/pdf")
@@ -126,9 +121,7 @@ async def get_label(request: LabelRequest):
 @app.post("/shipments/delete")
 async def delete_shipment(request: DeleteRequest):
     try:
-        result, status_code = integration.delete_order(
-            request.credentials, request.waybill_number
-        )
+        result, status_code = integration.delete_order(request.credentials, request.waybill_number)
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=str(result))
         return JSONResponse(content={"deleted": True}, status_code=status_code)

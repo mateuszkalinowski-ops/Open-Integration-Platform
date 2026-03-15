@@ -1,16 +1,15 @@
 """Tests for SkanujFakture integrator API routes."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import SkanujFaktureAccountConfig
-from src.skanuj_fakture.integration import SkanujFaktureIntegration
-from src.skanuj_fakture.schemas import AuthStatusResponse, ConnectionStatus
 from src.main import create_app
 from src.services.account_manager import AccountManager
+from src.skanuj_fakture.integration import SkanujFaktureIntegration
+from src.skanuj_fakture.schemas import AuthStatusResponse, ConnectionStatus
 
 
 @pytest.fixture
@@ -18,16 +17,19 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(SkanujFaktureAccountConfig(
-        name="test",
-        login="test@example.com",
-        password="pass",
-    ))
+    account_manager.add_account(
+        SkanujFaktureAccountConfig(
+            name="test",
+            login="test@example.com",
+            password="pass",
+        )
+    )
     app_state.account_manager = account_manager
 
     integration = MagicMock(spec=SkanujFaktureIntegration)
     integration.get_auth_status.return_value = AuthStatusResponse(
-        account_name="test", authenticated=True,
+        account_name="test",
+        authenticated=True,
     )
     app_state.integration = integration
 
@@ -59,20 +61,26 @@ class TestAccountEndpoints:
         assert data[0]["name"] == "test"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-account",
-            "login": "new@example.com",
-            "password": "secret",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-account",
+                "login": "new@example.com",
+                "password": "secret",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-account"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "login": "remove@example.com",
-            "password": "secret",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "login": "remove@example.com",
+                "password": "secret",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 
@@ -104,7 +112,9 @@ class TestConnectionEndpoint:
     def test_connection_status(self, client: TestClient) -> None:
         app_state.integration.get_connection_status = AsyncMock(
             return_value=ConnectionStatus(
-                account_name="test", connected=True, companies_count=2,
+                account_name="test",
+                connected=True,
+                companies_count=2,
             ),
         )
         response = client.get("/connection/test/status")
@@ -120,9 +130,11 @@ class TestConnectionEndpoint:
 
 class TestCompanyEndpoints:
     def test_list_companies(self, client: TestClient) -> None:
-        app_state.integration.get_companies = AsyncMock(return_value=[
-            {"company": {"id": 1, "contractor": {"name": "Firma A"}}},
-        ])
+        app_state.integration.get_companies = AsyncMock(
+            return_value=[
+                {"company": {"id": 1, "contractor": {"name": "Firma A"}}},
+            ]
+        )
         response = client.get("/companies?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -133,9 +145,11 @@ class TestCompanyEndpoints:
         assert response.status_code == 404
 
     def test_list_company_entities(self, client: TestClient) -> None:
-        app_state.integration.get_company_entities = AsyncMock(return_value=[
-            {"id": 100, "contractorDTO": {"name": "Podmiot A"}},
-        ])
+        app_state.integration.get_company_entities = AsyncMock(
+            return_value=[
+                {"id": 100, "contractorDTO": {"name": "Podmiot A"}},
+            ]
+        )
         response = client.get("/companies/1/entities?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -144,9 +158,13 @@ class TestCompanyEndpoints:
 
 class TestDocumentEndpoints:
     def test_upload_document(self, client: TestClient) -> None:
-        app_state.integration.upload_document = AsyncMock(return_value={
-            "documents": 1, "uploadedDocuments": 1, "documentsIdList": [123],
-        })
+        app_state.integration.upload_document = AsyncMock(
+            return_value={
+                "documents": 1,
+                "uploadedDocuments": 1,
+                "documentsIdList": [123],
+            }
+        )
         response = client.post(
             "/companies/1/documents?account_name=test",
             files={"file": ("invoice.pdf", b"fake-pdf-content", "application/pdf")},
@@ -163,9 +181,11 @@ class TestDocumentEndpoints:
         assert response.status_code == 404
 
     def test_list_documents(self, client: TestClient) -> None:
-        app_state.integration.get_documents = AsyncMock(return_value=[
-            {"id": 1, "number": "FV-001", "netto": 100.0},
-        ])
+        app_state.integration.get_documents = AsyncMock(
+            return_value=[
+                {"id": 1, "number": "FV-001", "netto": 100.0},
+            ]
+        )
         response = client.get("/companies/1/documents?account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -180,16 +200,21 @@ class TestDocumentEndpoints:
         assert response.status_code == 200
 
     def test_list_documents_simple(self, client: TestClient) -> None:
-        app_state.integration.get_documents_simple = AsyncMock(return_value=[
-            {"id": 1, "number": "FV-001", "date": "2026-01-01"},
-        ])
+        app_state.integration.get_documents_simple = AsyncMock(
+            return_value=[
+                {"id": 1, "number": "FV-001", "date": "2026-01-01"},
+            ]
+        )
         response = client.get("/companies/1/documents/simple?account_name=test")
         assert response.status_code == 200
 
     def test_update_document(self, client: TestClient) -> None:
-        app_state.integration.update_document = AsyncMock(return_value={
-            "id": 1, "number": "FV-001-UPDATED",
-        })
+        app_state.integration.update_document = AsyncMock(
+            return_value={
+                "id": 1,
+                "number": "FV-001-UPDATED",
+            }
+        )
         response = client.put(
             "/companies/1/documents/1?account_name=test",
             json={"data": {"number": "FV-001-UPDATED"}},
@@ -248,9 +273,11 @@ class TestAttributeEndpoints:
 
 class TestDictionaryEndpoints:
     def test_list_dictionaries(self, client: TestClient) -> None:
-        app_state.integration.get_dictionaries = AsyncMock(return_value=[
-            {"id": 1, "symbol": "KS01", "description": "Koszt biurowy"},
-        ])
+        app_state.integration.get_dictionaries = AsyncMock(
+            return_value=[
+                {"id": 1, "symbol": "KS01", "description": "Koszt biurowy"},
+            ]
+        )
         response = client.get("/companies/1/dictionaries?type=COST_TYPE&account_name=test")
         assert response.status_code == 200
         data = response.json()
@@ -284,10 +311,12 @@ class TestKsefEndpoints:
         assert "content_base64" in data
 
     def test_send_ksef_invoice(self, client: TestClient) -> None:
-        app_state.integration.send_ksef_invoice = AsyncMock(return_value={
-            "documentId": 15376,
-            "ksefNumber": "3409269364-20251212-0100C0255A62-EA",
-        })
+        app_state.integration.send_ksef_invoice = AsyncMock(
+            return_value={
+                "documentId": 15376,
+                "ksefNumber": "3409269364-20251212-0100C0255A62-EA",
+            }
+        )
         response = client.put(
             "/companies/1/ksef/invoice?account_name=test",
             json={"invoice_data": {"fa": {"kodWaluty": "PLN"}}},

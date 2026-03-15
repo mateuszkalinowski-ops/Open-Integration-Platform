@@ -10,10 +10,10 @@ from typing import Literal
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class InpostCredentials(BaseModel):
     organization_id: str = Field(description="InPost client_id (login)")
@@ -25,6 +25,7 @@ class InpostCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # Shared DTOs
 # ---------------------------------------------------------------------------
+
 
 class PhoneNumberDto(BaseModel):
     prefix: str = Field(..., examples=["+48"])
@@ -67,6 +68,7 @@ class AddressDto(BaseModel):
 # ---------------------------------------------------------------------------
 # Shipment creation request DTOs
 # ---------------------------------------------------------------------------
+
 
 class ShipmentTypeEnum(str, Enum):
     POINT_TO_POINT = "/shipments/point-to-point"
@@ -167,6 +169,7 @@ class CreateShipmentDTO(BaseModel):
 # Shipment creation response DTOs
 # ---------------------------------------------------------------------------
 
+
 class ParcelNumberDto(BaseModel):
     in_post_parcel_number: str = Field(..., alias="inPostParcelNumber")
     mondial_relay_parcel_number: str = Field("", alias="mondialRelayParcelNumber")
@@ -208,6 +211,7 @@ class CreateShipmentResponseDto(BaseModel):
 # ---------------------------------------------------------------------------
 # Pickup DTOs
 # ---------------------------------------------------------------------------
+
 
 class PickupPhoneNumber(BaseModel):
     prefix: str = Field(..., examples=["+48"])
@@ -268,6 +272,7 @@ class PickupsCreatePickupOrderDto(BaseModel):
 # ---------------------------------------------------------------------------
 # Points / locations response DTOs
 # ---------------------------------------------------------------------------
+
 
 class PointCoordinatesDto(BaseModel):
     latitude: float = Field(...)
@@ -343,6 +348,7 @@ class GetPointsResponse(BaseModel):
 # Tracking
 # ---------------------------------------------------------------------------
 
+
 class Tracking(BaseModel):
     tracking_number: str | None = None
     tracking_url: str | None = None
@@ -351,6 +357,7 @@ class Tracking(BaseModel):
 # ---------------------------------------------------------------------------
 # FastAPI request schemas
 # ---------------------------------------------------------------------------
+
 
 class ShipmentParty(BaseModel):
     first_name: str

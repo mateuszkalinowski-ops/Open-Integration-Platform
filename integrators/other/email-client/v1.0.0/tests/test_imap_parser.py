@@ -1,6 +1,6 @@
 """Tests for IMAP email parsing functions."""
 
-import pytest
+import email
 
 from src.email_client.imap_client import (
     _decode_header_value,
@@ -12,8 +12,6 @@ from src.email_client.imap_client import (
     _parse_priority,
 )
 from src.email_client.schemas import EmailPriority
-
-import email
 
 
 class TestDecodeHeaderValue:

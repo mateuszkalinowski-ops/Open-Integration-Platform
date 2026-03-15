@@ -9,9 +9,9 @@ import logging
 
 import httpx
 
-from src.config import settings, ShopifyAccountConfig
-from src.shopify.schemas import AuthStatusResponse
+from src.config import ShopifyAccountConfig, settings
 from src.models.database import TokenStore
+from src.shopify.schemas import AuthStatusResponse
 
 logger = logging.getLogger(__name__)
 
@@ -47,15 +47,14 @@ class ShopifyAuthManager:
                 )
                 if response.status_code == 200:
                     self._validated_accounts.add(account.name)
-                    await self._token_store.save_token(
-                        account.name, {"validated": True, "shop_url": account.shop_url}
-                    )
+                    await self._token_store.save_token(account.name, {"validated": True, "shop_url": account.shop_url})
                     logger.info("Credentials validated for account=%s", account.name)
                     return True
 
                 logger.warning(
                     "Credential validation failed for account=%s, status=%d",
-                    account.name, response.status_code,
+                    account.name,
+                    response.status_code,
                 )
                 return False
         except httpx.HTTPError:

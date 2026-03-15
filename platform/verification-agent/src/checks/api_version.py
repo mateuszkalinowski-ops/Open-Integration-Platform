@@ -49,7 +49,8 @@ def _is_newer(remote: str, current: str) -> bool:
 
 
 async def _check_openapi(
-    client: httpx.AsyncClient, avc: ApiVersionCheck,
+    client: httpx.AsyncClient,
+    avc: ApiVersionCheck,
 ) -> tuple[str | None, str | None]:
     r = await client.get(avc.check_url, follow_redirects=True)
     if r.status_code != 200:
@@ -63,7 +64,8 @@ async def _check_openapi(
 
 
 async def _check_json(
-    client: httpx.AsyncClient, avc: ApiVersionCheck,
+    client: httpx.AsyncClient,
+    avc: ApiVersionCheck,
 ) -> tuple[str | None, str | None]:
     r = await client.get(avc.check_url, follow_redirects=True)
     if r.status_code != 200:
@@ -77,7 +79,8 @@ async def _check_json(
 
 
 async def _check_html(
-    client: httpx.AsyncClient, avc: ApiVersionCheck,
+    client: httpx.AsyncClient,
+    avc: ApiVersionCheck,
 ) -> tuple[str | None, str | None]:
     r = await client.get(avc.check_url, follow_redirects=True)
     if r.status_code != 200:
@@ -122,13 +125,17 @@ async def check_api_version(
 
         if error:
             return result(
-                "api_version_check", "SKIP", ms,
+                "api_version_check",
+                "SKIP",
+                ms,
                 error=f"Could not fetch remote version: {error}",
             )
 
         if remote_version is None:
             return result(
-                "api_version_check", "SKIP", ms,
+                "api_version_check",
+                "SKIP",
+                ms,
                 error="Remote version not found",
             )
 
@@ -156,6 +163,8 @@ async def check_api_version(
     except Exception as exc:
         ms = int((time.monotonic() - start) * 1000)
         return result(
-            "api_version_check", "SKIP", ms,
+            "api_version_check",
+            "SKIP",
+            ms,
             error=f"Version check failed: {exc}",
         )

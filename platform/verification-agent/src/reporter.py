@@ -1,10 +1,10 @@
 """Reporter — writes verification results to the database."""
 
 import uuid
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select, update
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.db import VerificationReport, VerificationSettings, async_session_factory
@@ -62,19 +62,21 @@ async def update_last_run(db: AsyncSession, next_run_at: datetime | None = None)
     result = await db.execute(select(VerificationSettings))
     row = result.scalar_one_or_none()
 
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     if row:
         row.last_run_at = now
         if next_run_at:
             row.next_run_at = next_run_at
         row.updated_at = now
     else:
-        db.add(VerificationSettings(
-            enabled=True,
-            interval_days=7,
-            last_run_at=now,
-            next_run_at=next_run_at,
-        ))
+        db.add(
+            VerificationSettings(
+                enabled=True,
+                interval_days=7,
+                last_run_at=now,
+                next_run_at=next_run_at,
+            )
+        )
     await db.flush()
 
 

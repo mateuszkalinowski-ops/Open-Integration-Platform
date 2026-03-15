@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # UPS service / parcel-type constants (ported from legacy create_order_commands)
 # ---------------------------------------------------------------------------
@@ -15,24 +14,69 @@ UPS_LIMIT_NAME = 35
 UPS_LIMIT_CITY = 30
 
 UPS_AVAILABLE_SERVICES = [
-    "01", "02", "03", "07", "08", "11", "12", "13", "14", "17",
-    "54", "59", "65",
-    "M2", "M3", "M4", "M5", "M6", "M7",
-    "70", "71", "72", "74", "75",
-    "82", "83", "84", "85", "86", "96",
+    "01",
+    "02",
+    "03",
+    "07",
+    "08",
+    "11",
+    "12",
+    "13",
+    "14",
+    "17",
+    "54",
+    "59",
+    "65",
+    "M2",
+    "M3",
+    "M4",
+    "M5",
+    "M6",
+    "M7",
+    "70",
+    "71",
+    "72",
+    "74",
+    "75",
+    "82",
+    "83",
+    "84",
+    "85",
+    "86",
+    "96",
 ]
 
 UPS_AVAILABLE_PARCEL_TYPES = [
-    "01", "02", "03", "04",
-    "21", "24", "25", "30",
-    "2a", "2b", "2c",
-    "56", "57", "58", "59", "60", "61", "62", "63", "64", "65", "66", "67",
+    "01",
+    "02",
+    "03",
+    "04",
+    "21",
+    "24",
+    "25",
+    "30",
+    "2a",
+    "2b",
+    "2c",
+    "56",
+    "57",
+    "58",
+    "59",
+    "60",
+    "61",
+    "62",
+    "63",
+    "64",
+    "65",
+    "66",
+    "67",
 ]
 
 
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class UpsCredentials(BaseModel):
     """Credentials sent with every UPS API request.
@@ -41,6 +85,7 @@ class UpsCredentials(BaseModel):
     * ``shipper_number`` — 6-character UPS account/shipper number
     * ``access_token`` — current Bearer token (populated after login)
     """
+
     login: str
     password: str
     shipper_number: str = ""
@@ -50,6 +95,7 @@ class UpsCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # UPS extras (per-shipment options)
 # ---------------------------------------------------------------------------
+
 
 class UpsExtras(BaseModel):
     delivery12: bool = False
@@ -62,6 +108,7 @@ class UpsExtras(BaseModel):
 # ---------------------------------------------------------------------------
 # Parcel / shipment-party models
 # ---------------------------------------------------------------------------
+
 
 class Parcel(BaseModel):
     height: float
@@ -104,6 +151,7 @@ class PaymentDetails(BaseModel):
 # ---------------------------------------------------------------------------
 # API request / response models
 # ---------------------------------------------------------------------------
+
 
 class CreateShipmentRequest(BaseModel):
     credentials: UpsCredentials
@@ -150,6 +198,7 @@ class LoginRequest(BaseModel):
 # Normalised response schemas
 # ---------------------------------------------------------------------------
 
+
 class AddressResponse(BaseModel):
     building_number: str = ""
     city: str = ""
@@ -182,6 +231,7 @@ class CreateOrderResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Rate request / standardized response (for shipping price comparison)
 # ---------------------------------------------------------------------------
+
 
 class RateRequest(BaseModel):
     credentials: UpsCredentials | None = None

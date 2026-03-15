@@ -11,8 +11,17 @@ of truth and are imported by schemas.py for inline field_validators.
 from pydantic import BaseModel, Field, field_validator
 
 DOCUMENT_TYPES = {
-    "PZ", "WZ", "PW", "RW", "MM", "ZK", "ZW",
-    "PZ_K", "WZ_K", "INW", "PRZEM",
+    "PZ",
+    "WZ",
+    "PW",
+    "RW",
+    "MM",
+    "ZK",
+    "ZW",
+    "PZ_K",
+    "WZ_K",
+    "INW",
+    "PRZEM",
 }
 
 SOURCES = {"ERP", "WMS"}
@@ -57,9 +66,7 @@ class DocumentCreatePayload(BaseModel):
     @classmethod
     def validate_document_type(cls, v: str) -> str:
         if v not in DOCUMENT_TYPES:
-            raise ValueError(
-                f"Invalid documentType '{v}', must be one of: {', '.join(sorted(DOCUMENT_TYPES))}"
-            )
+            raise ValueError(f"Invalid documentType '{v}', must be one of: {', '.join(sorted(DOCUMENT_TYPES))}")
         return v
 
     @field_validator("source")

@@ -1,9 +1,9 @@
 """Async S3 client wrapping aiobotocore for S3 and S3-compatible storage."""
 
 import logging
+from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
-from datetime import datetime, timezone
-from typing import Any, AsyncIterator
+from typing import Any
 
 from aiobotocore.session import get_session
 from botocore.config import Config as BotoConfig
@@ -190,6 +190,4 @@ class S3Client:
             }
         except ClientError as exc:
             error_code = exc.response.get("Error", {}).get("Code", "Unknown")
-            raise ConnectionError(
-                f"S3 connection failed: {error_code} — {exc}"
-            ) from exc
+            raise ConnectionError(f"S3 connection failed: {error_code} — {exc}") from exc

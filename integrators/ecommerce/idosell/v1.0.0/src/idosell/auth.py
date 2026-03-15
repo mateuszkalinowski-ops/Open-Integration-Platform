@@ -15,7 +15,7 @@ Legacy (legacy mode):
 
 import hashlib
 import logging
-from datetime import date, datetime, timezone
+from datetime import date
 
 import httpx
 
@@ -124,7 +124,8 @@ class IdoSellAuthManager:
 
             logger.warning(
                 "Auth validation failed for account=%s, status=%d",
-                account.name, response.status_code,
+                account.name,
+                response.status_code,
             )
             self._validated[account.name] = False
             return False

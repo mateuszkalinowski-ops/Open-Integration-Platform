@@ -9,15 +9,16 @@ This ensures both new orders and status changes on existing orders are captured.
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from src.shopify.client import ShopifyClient
-from src.shopify.mapper import map_shopify_order_to_order
-from src.shopify.schemas import ShopifyOrder, ShopifyOrdersResponse
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+
 from src.config import ShopifyAccountConfig, settings
 from src.models.database import TokenStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+from src.shopify.client import ShopifyClient
+from src.shopify.mapper import map_shopify_order_to_order
+from src.shopify.schemas import ShopifyOrder, ShopifyOrdersResponse
 
 logger = logging.getLogger(__name__)
 
@@ -87,7 +88,7 @@ class OrderScraper:
             new_count = await self._fetch_new_orders(account, None, seen_ids)
             total_published += new_count
 
-        self._last_scrape_times[account.name] = datetime.now(timezone.utc)
+        self._last_scrape_times[account.name] = datetime.now(UTC)
 
         if total_published > 0:
             logger.info("Scraped account=%s: %d orders published", account.name, total_published)
@@ -172,10 +173,13 @@ class OrderScraper:
             )
             logger.info(
                 "Published order=%s to Kafka for account=%s",
-                order.external_id, account.name,
+                order.external_id,
+                account.name,
             )
         else:
             logger.info(
                 "Order scraped (no Kafka): id=%s account=%s status=%s",
-                order.external_id, account.name, order.status,
+                order.external_id,
+                account.name,
+                order.status,
             )

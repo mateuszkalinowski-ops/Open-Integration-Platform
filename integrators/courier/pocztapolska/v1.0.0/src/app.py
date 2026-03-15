@@ -11,8 +11,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -107,9 +108,7 @@ async def get_label(request: LabelRequest):
 @app.post("/points")
 async def get_points(request: PointsRequest):
     try:
-        result, status_code = integration.get_points(
-            request.credentials, request.voivodeship_id
-        )
+        result, status_code = integration.get_points(request.credentials, request.voivodeship_id)
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc

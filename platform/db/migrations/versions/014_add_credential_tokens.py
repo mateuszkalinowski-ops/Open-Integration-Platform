@@ -7,16 +7,17 @@ Create Date: 2026-03-15
 Maps each credential set (tenant + connector + credential_name) to an opaque
 token so that GET responses never expose actual credential values.
 """
-from typing import Sequence, Union
 
-from alembic import op
+from collections.abc import Sequence
+
 import sqlalchemy as sa
+from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
 revision: str = "014"
-down_revision: Union[str, None] = "013"
-branch_labels: Union[str, Sequence[str], None] = None
-depends_on: Union[str, Sequence[str], None] = None
+down_revision: str | None = "013"
+branch_labels: str | Sequence[str] | None = None
+depends_on: str | Sequence[str] | None = None
 
 
 def upgrade() -> None:
@@ -30,7 +31,9 @@ def upgrade() -> None:
         sa.Column("is_active", sa.Boolean, nullable=False, server_default="true"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("updated_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
-        sa.UniqueConstraint("tenant_id", "connector_name", "credential_name", name="uq_credential_tokens_tenant_connector_cred"),
+        sa.UniqueConstraint(
+            "tenant_id", "connector_name", "credential_name", name="uq_credential_tokens_tenant_connector_cred"
+        ),
     )
     op.create_index("ix_credential_tokens_token", "credential_tokens", ["token"])
     op.create_index("ix_credential_tokens_tenant_connector", "credential_tokens", ["tenant_id", "connector_name"])

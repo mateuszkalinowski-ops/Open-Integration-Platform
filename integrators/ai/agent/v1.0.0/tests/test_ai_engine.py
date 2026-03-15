@@ -4,10 +4,8 @@ import json
 from unittest.mock import MagicMock, patch
 
 import pytest
-
 from src.ai_engine import _parse_json_response
 from src.schemas import AiCredentials
-
 
 MOCK_CREDS = AiCredentials(gemini_api_key="test-key", model_name="gemini-2.5-flash")
 
@@ -112,14 +110,16 @@ class TestAnalyzeRisk:
     async def test_risk_analysis_builds_correct_prompt(self, mock_build):
         mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "risk_score": 30,
-            "risk_level": "low",
-            "recommendation": "approve",
-            "risk_factors": [],
-            "reasoning": "Normal order",
-            "confidence": 0.9,
-        })
+        mock_response.text = json.dumps(
+            {
+                "risk_score": 30,
+                "risk_level": "low",
+                "recommendation": "approve",
+                "risk_factors": [],
+                "reasoning": "Normal order",
+                "confidence": 0.9,
+            }
+        )
         mock_client.models.generate_content.return_value = mock_response
         mock_build.return_value = mock_client
 
@@ -148,23 +148,25 @@ class TestRecommendCourier:
     async def test_courier_recommendation(self, mock_build):
         mock_client = MagicMock()
         mock_response = MagicMock()
-        mock_response.text = json.dumps({
-            "recommended_courier": "inpost",
-            "score": 0.92,
-            "reasoning": "Best for small parcels in PL",
-            "alternatives": [
-                {
-                    "courier": "dhl",
-                    "score": 0.80,
-                    "reasoning": "Good alternative",
-                    "estimated_cost_pln": 18.0,
-                    "estimated_delivery_days": 2,
-                }
-            ],
-            "estimated_cost_pln": 12.99,
-            "estimated_delivery_days": 1,
-            "confidence": 0.88,
-        })
+        mock_response.text = json.dumps(
+            {
+                "recommended_courier": "inpost",
+                "score": 0.92,
+                "reasoning": "Best for small parcels in PL",
+                "alternatives": [
+                    {
+                        "courier": "dhl",
+                        "score": 0.80,
+                        "reasoning": "Good alternative",
+                        "estimated_cost_pln": 18.0,
+                        "estimated_delivery_days": 2,
+                    }
+                ],
+                "estimated_cost_pln": 12.99,
+                "estimated_delivery_days": 1,
+                "confidence": 0.88,
+            }
+        )
         mock_client.models.generate_content.return_value = mock_response
         mock_build.return_value = mock_client
 

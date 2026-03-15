@@ -9,6 +9,7 @@ class ShopifyAccountConfig(BaseSettings):
 
     Populated at runtime from YAML config or environment variables.
     """
+
     name: str
     shop_url: str
     access_token: str

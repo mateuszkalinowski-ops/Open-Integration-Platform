@@ -7,23 +7,23 @@ and triggers matching flows/workflows.
 
 from __future__ import annotations
 
-import asyncio
 import hashlib
 import hmac
 import json
 import time
 import uuid
-from datetime import datetime, timezone
-from typing import Any, Callable, Awaitable
+from collections.abc import Awaitable, Callable
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
+from db.models import WebhookEvent
 from prometheus_client import Counter, Histogram
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
 from core.credential_vault import CredentialVault
-from db.models import WebhookEvent, ConnectorInstance
 
 logger = structlog.get_logger(__name__)
 
@@ -76,7 +76,7 @@ def verify_signature(
     clean_sig = signature
     for prefix in ("sha256=", "sha1=", "sha512="):
         if clean_sig.startswith(prefix):
-            clean_sig = clean_sig[len(prefix):]
+            clean_sig = clean_sig[len(prefix) :]
             break
 
     return hmac.compare_digest(expected, clean_sig)
@@ -124,7 +124,12 @@ class WebhookIngestionService:
         sig_valid: bool | None = None
         if webhook_config:
             sig_valid = await self._verify(
-                db, webhook_config, body, headers, tenant_id, connector_name,
+                db,
+                webhook_config,
+                body,
+                headers,
+                tenant_id,
+                connector_name,
             )
             if sig_valid is False:
                 WEBHOOK_FAILED.labels(connector=connector_name, event=event_type, reason="bad_signature").inc()
@@ -168,6 +173,7 @@ class WebhookIngestionService:
         start = time.monotonic()
         async with self._session_factory() as db:
             from db.base import set_rls_bypass
+
             await set_rls_bypass(db)
 
             result = await db.execute(select(WebhookEvent).where(WebhookEvent.id == webhook_id))
@@ -185,7 +191,7 @@ class WebhookIngestionService:
                     tenant_id=event.tenant_id,
                 )
                 event.processing_status = "processed"
-                event.processed_at = datetime.now(timezone.utc)
+                event.processed_at = datetime.now(UTC)
                 event.error = None
 
                 duration = time.monotonic() - start
@@ -208,7 +214,9 @@ class WebhookIngestionService:
                 if event.retry_count >= _MAX_RETRIES_BEFORE_DLQ:
                     event.processing_status = "dead_letter"
                     WEBHOOK_FAILED.labels(
-                        connector=event.connector_name, event=event.event_type, reason="dead_letter",
+                        connector=event.connector_name,
+                        event=event.event_type,
+                        reason="dead_letter",
                     ).inc()
                     logger.error(
                         "webhook.dead_letter",
@@ -220,7 +228,9 @@ class WebhookIngestionService:
                 else:
                     event.processing_status = "failed"
                     WEBHOOK_FAILED.labels(
-                        connector=event.connector_name, event=event.event_type, reason="processing",
+                        connector=event.connector_name,
+                        event=event.event_type,
+                        reason="processing",
                     ).inc()
                     logger.warning(
                         "webhook.processing_failed",
@@ -254,7 +264,7 @@ class WebhookIngestionService:
                 tenant_id=event.tenant_id,
             )
             event.processing_status = "processed"
-            event.processed_at = datetime.now(timezone.utc)
+            event.processed_at = datetime.now(UTC)
             event.error = None
             event.retry_count += 1
             await db.flush()
@@ -271,7 +281,9 @@ class WebhookIngestionService:
         return manifests[0] if manifests else None
 
     def _get_webhook_config(
-        self, manifest: ConnectorManifest, event_type: str,
+        self,
+        manifest: ConnectorManifest,
+        event_type: str,
     ) -> dict[str, Any] | None:
         webhooks: dict[str, Any] = getattr(manifest, "webhooks", {}) or {}
         return webhooks.get(event_type)

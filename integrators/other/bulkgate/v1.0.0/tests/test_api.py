@@ -1,9 +1,9 @@
 """Tests for BulkGate SMS Gateway — API client (mocked external calls)."""
 
-import pytest
-import httpx
 from unittest.mock import AsyncMock, patch
 
+import httpx
+import pytest
 from src.api import BulkGateApiClient
 from src.schemas import (
     BulkGateCredentials,
@@ -82,7 +82,9 @@ class TestSendTransactionalSms:
         with patch.object(api_client._client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = _mock_response(TRANSACTIONAL_SUCCESS)
             result, status = await api_client.send_transactional_sms(
-                credentials, "420777777777", "Test message",
+                credentials,
+                "420777777777",
+                "Test message",
             )
             assert status == 200
             assert result["data"]["status"] == "accepted"
@@ -91,7 +93,7 @@ class TestSendTransactionalSms:
     async def test_with_all_options(self, api_client, credentials):
         with patch.object(api_client._client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = _mock_response(TRANSACTIONAL_SUCCESS)
-            result, status = await api_client.send_transactional_sms(
+            _result, status = await api_client.send_transactional_sms(
                 credentials,
                 "420777777777",
                 "Unicode: ěščřž",
@@ -116,12 +118,15 @@ class TestSendTransactionalSms:
             mock_post.return_value = _mock_response(AUTH_ERROR, status_code=401)
             mock_post.return_value.raise_for_status = lambda: (_ for _ in ()).throw(
                 httpx.HTTPStatusError(
-                    "401", request=httpx.Request("POST", "https://test.com"),
+                    "401",
+                    request=httpx.Request("POST", "https://test.com"),
                     response=mock_post.return_value,
                 )
             )
-            result, status = await api_client.send_transactional_sms(
-                credentials, "420777777777", "Test",
+            _result, status = await api_client.send_transactional_sms(
+                credentials,
+                "420777777777",
+                "Test",
             )
             assert status == 401
 
@@ -129,7 +134,9 @@ class TestSendTransactionalSms:
         with patch.object(api_client._client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.side_effect = httpx.TimeoutException("Connection timed out")
             result, status = await api_client.send_transactional_sms(
-                credentials, "420777777777", "Test",
+                credentials,
+                "420777777777",
+                "Test",
             )
             assert status == 504
             assert result["error"]["code"] == "TIMEOUT"
@@ -141,7 +148,9 @@ class TestSendPromotionalSms:
         with patch.object(api_client._client, "post", new_callable=AsyncMock) as mock_post:
             mock_post.return_value = _mock_response(PROMOTIONAL_SUCCESS)
             result, status = await api_client.send_promotional_sms(
-                credentials, "420777777777;420888888888", "Bulk promo!",
+                credentials,
+                "420777777777;420888888888",
+                "Bulk promo!",
             )
             assert status == 200
             assert result["data"]["total"]["status"]["scheduled"] == 2
@@ -156,7 +165,7 @@ class TestSendAdvancedTransactional:
                 sms=SmsChannelObject(sender_id=SenderIdType.TEXT, sender_id_value="Shop"),
                 viber=ViberChannelObject(sender="Shop", expiration=100),
             )
-            result, status = await api_client.send_advanced_transactional(
+            _result, status = await api_client.send_advanced_transactional(
                 credentials,
                 ["420777777777"],
                 "Hello <first_name>",

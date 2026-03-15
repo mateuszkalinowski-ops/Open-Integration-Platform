@@ -19,6 +19,7 @@ import uuid
 from datetime import date, datetime
 from enum import Enum
 from http import HTTPStatus
+from typing import ClassVar
 
 from requests import Session
 from requests.auth import HTTPBasicAuth
@@ -83,7 +84,7 @@ class PocztaPolskaIntegration:
 
     TRACKING_URL = "https://emonitoring.poczta-polska.pl/?numer={tracking_number}"
 
-    PAYER_TYPES = {
+    PAYER_TYPES: ClassVar[dict[str, str]] = {
         "SHIPPER": "NADAWCA",
         "RECIPIENT": "ADRESAT",
     }
@@ -533,9 +534,7 @@ class PocztaPolskaIntegration:
             "oczekiwanaDataOdbioru": command.shipment_date,
             "oczekiwanaGodzinaOdbioru": pocztapolska_extras.get("pickup_time_from"),
             "szacowanaIloscPrzeslek": str(sum(parcel.quantity for parcel in command.parcels)),
-            "szacowanaLacznaMasaPrzesylek": str(
-                sum(parcel.quantity * parcel.weight for parcel in command.parcels)
-            ),
+            "szacowanaLacznaMasaPrzesylek": str(sum(parcel.quantity * parcel.weight for parcel in command.parcels)),
             "potwierdzenieZamowieniaEmail": command.shipper.email,
         }
 

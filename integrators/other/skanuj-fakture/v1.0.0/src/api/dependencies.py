@@ -1,11 +1,12 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
-from src.skanuj_fakture.integration import SkanujFaktureIntegration
-from src.skanuj_fakture.poller import DocumentPoller
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
+from src.skanuj_fakture.integration import SkanujFaktureIntegration
+from src.skanuj_fakture.poller import DocumentPoller
 
 
 class AppState:

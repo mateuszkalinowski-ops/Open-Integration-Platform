@@ -1,14 +1,12 @@
 """Tests for BaseLinker data mappers."""
 
-import pytest
-
+from pinquark_common.schemas.ecommerce import OrderStatus
 from src.baselinker.mapper import (
     find_bl_status_id,
     map_bl_order_to_order,
     map_bl_product_to_product,
     map_bl_status_to_order_status,
 )
-from pinquark_common.schemas.ecommerce import OrderStatus
 
 
 class TestStatusMapping:
@@ -50,7 +48,9 @@ class TestStatusMapping:
 
 class TestOrderMapper:
     def test_maps_order_basic_fields(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
 
@@ -62,14 +62,18 @@ class TestOrderMapper:
         assert order.delivery_method == "InPost Paczkomaty"
 
     def test_maps_total_includes_delivery(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
         expected = 89.99 * 2 + 29.99 * 1 + 12.99
         assert abs(order.total_amount - expected) < 0.01
 
     def test_maps_delivery_address(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
 
@@ -81,7 +85,9 @@ class TestOrderMapper:
         assert order.delivery_address.country_code == "PL"
 
     def test_maps_invoice_address(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
 
@@ -90,7 +96,9 @@ class TestOrderMapper:
         assert order.invoice_address.city == "Warszawa"
 
     def test_maps_buyer(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
 
@@ -101,7 +109,9 @@ class TestOrderMapper:
         assert not order.buyer.is_guest
 
     def test_maps_order_lines(
-        self, sample_bl_order: dict, sample_bl_status_defs: dict[int, str],
+        self,
+        sample_bl_order: dict,
+        sample_bl_status_defs: dict[int, str],
     ) -> None:
         order = map_bl_order_to_order(sample_bl_order, "test", sample_bl_status_defs)
 

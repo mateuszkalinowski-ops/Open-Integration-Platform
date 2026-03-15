@@ -34,6 +34,7 @@ logger = logging.getLogger("courier-raben")
 # Auth helpers
 # ---------------------------------------------------------------------------
 
+
 class ApiAuth:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
         self._client = client
@@ -57,7 +58,8 @@ async def refresh_credentials(
 ) -> str:
     """Refresh Raben JWT token and update credentials object."""
     token = await ApiAuth(client, base_url).get_access_token(
-        credentials.username, credentials.password,
+        credentials.username,
+        credentials.password,
     )
     credentials.access_token = token
     return token
@@ -69,6 +71,7 @@ def _build_auth_header(token: str) -> dict[str, str]:
 
 def retry_on_unauthorized(func):
     """Decorator: retry on 401 after refreshing the access token."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -84,17 +87,20 @@ def retry_on_unauthorized(func):
                     await refresh_credentials(credentials, self_._client, self_._base_url)
                     return await func(*args, **kwargs)
             raise
+
     return wrapper
 
 
 def handle_errors(func):
     """Decorator: convert httpx.HTTPStatusError to formatted error tuple."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as exc:
             return _format_error_response(exc.response)
+
     return wrapper
 
 
@@ -108,7 +114,8 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "Raben API error — url=%s status=%s",
-        response.url.path, response.status_code,
+        response.url.path,
+        response.status_code,
     )
     return msg, response.status_code
 
@@ -116,6 +123,7 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
 # ---------------------------------------------------------------------------
 # Orders API (myOrder)
 # ---------------------------------------------------------------------------
+
 
 class ApiOrders:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -176,6 +184,7 @@ class ApiOrders:
 # Tracking API (Track & Trace)
 # ---------------------------------------------------------------------------
 
+
 class ApiTracking:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
         self._client = client
@@ -234,6 +243,7 @@ class ApiTracking:
 # Labels API
 # ---------------------------------------------------------------------------
 
+
 class ApiLabels:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
         self._client = client
@@ -261,6 +271,7 @@ class ApiLabels:
 # ---------------------------------------------------------------------------
 # Claims API (myClaim)
 # ---------------------------------------------------------------------------
+
 
 class ApiClaims:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -304,6 +315,7 @@ class ApiClaims:
 # ---------------------------------------------------------------------------
 # PCD API (Photo Confirming Delivery)
 # ---------------------------------------------------------------------------
+
 
 class ApiPcd:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:

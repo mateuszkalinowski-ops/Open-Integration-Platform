@@ -12,7 +12,9 @@ class Settings(BaseSettings):
     soap_operation_timeout: int = 600
 
     dpd_wsdl_path: str = "https://dpdservices.dpd.com.pl/DPDPackageObjServicesService/DPDPackageObjServices?WSDL"
-    dpd_info_wsdl_path: str = "https://dpdservices.dpd.com.pl/DPDInfoServicesObjEventsService/DPDInfoServicesObjEvents?WSDL"
+    dpd_info_wsdl_path: str = (
+        "https://dpdservices.dpd.com.pl/DPDInfoServicesObjEventsService/DPDInfoServicesObjEvents?WSDL"
+    )
 
     @property
     def is_production(self) -> bool:

@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 from pydantic import BaseModel, Field, field_validator
-from src.validators import SOURCES, DOCUMENT_TYPES
 
+from src.validators import DOCUMENT_TYPES, SOURCES
 
 # --- Auth ---
+
 
 class AuthRequest(BaseModel):
     username: str
@@ -24,6 +25,7 @@ class RefreshTokenRequest(BaseModel):
 
 
 # --- Shared / Generic ---
+
 
 class Attribute(BaseModel):
     createdDate: str | None = None
@@ -111,6 +113,7 @@ class Contact(BaseModel):
 
 # --- Articles ---
 
+
 class Article(BaseModel):
     attributes: list[Attribute] = Field(default_factory=list)
     ean: str | None = None
@@ -137,6 +140,7 @@ class Article(BaseModel):
 
 # --- Article Batches ---
 
+
 class ArticleBatch(BaseModel):
     attributes: list[Attribute] = Field(default_factory=list)
     batchNumber: str | None = None
@@ -148,6 +152,7 @@ class ArticleBatch(BaseModel):
 
 
 # --- Contractors ---
+
 
 class Contractor(BaseModel):
     address: Address | None = None
@@ -175,6 +180,7 @@ class Contractor(BaseModel):
 
 # --- Document Positions ---
 
+
 class Position(BaseModel):
     article: Article | None = None
     articleBatch: ArticleBatch | None = None
@@ -199,6 +205,7 @@ class PositionDeleteCommand(BaseModel):
 
 
 # --- Documents ---
+
 
 class ContractorRef(BaseModel):
     erpId: int | None = None
@@ -261,6 +268,7 @@ class DocumentWrapper(BaseModel):
 
 # --- Feedback ---
 
+
 class Feedback(BaseModel):
     action: str | None = None
     entity: str | None = None
@@ -272,6 +280,7 @@ class Feedback(BaseModel):
 
 # --- JSON Errors ---
 
+
 class JsonError(BaseModel):
     body: str | None = None
     createdDate: str | None = None
@@ -279,6 +288,7 @@ class JsonError(BaseModel):
 
 
 # --- Credentials (used by integrator routes) ---
+
 
 class WmsCredentials(BaseModel):
     api_url: str

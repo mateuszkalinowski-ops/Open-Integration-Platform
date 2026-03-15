@@ -4,8 +4,6 @@ from datetime import datetime
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
-from pydantic import BaseModel
-
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
@@ -14,6 +12,8 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+from pydantic import BaseModel
+
 from src.api.dependencies import app_state
 from src.config import ApiloAccountConfig
 
@@ -23,6 +23,7 @@ router = APIRouter()
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 @router.get("/health")
 async def health() -> dict[str, Any]:
@@ -47,6 +48,7 @@ async def readiness() -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Accounts
 # ---------------------------------------------------------------------------
+
 
 class AccountCreateRequest(BaseModel):
     name: str
@@ -81,6 +83,7 @@ async def remove_account(account_name: str) -> dict[str, str]:
 # ---------------------------------------------------------------------------
 # Orders
 # ---------------------------------------------------------------------------
+
 
 @router.get("/orders", response_model=OrdersPage)
 async def list_orders(
@@ -232,6 +235,7 @@ async def remove_order_tag(
 # Stock
 # ---------------------------------------------------------------------------
 
+
 class StockSyncRequest(BaseModel):
     items: list[StockItem]
 
@@ -249,6 +253,7 @@ async def sync_stock(
 # ---------------------------------------------------------------------------
 # Products / Catalog
 # ---------------------------------------------------------------------------
+
 
 @router.get("/products", response_model=ProductsPage)
 async def list_products(
@@ -274,6 +279,7 @@ async def get_product(
 # Shipments
 # ---------------------------------------------------------------------------
 
+
 @router.post("/shipments", status_code=201)
 async def create_shipment(
     body: dict[str, Any],
@@ -297,6 +303,7 @@ async def get_shipment(
 # Reference Maps
 # ---------------------------------------------------------------------------
 
+
 @router.get("/maps")
 async def get_maps(
     account_name: str = Query(..., description="Apilo account name"),
@@ -308,6 +315,7 @@ async def get_maps(
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def _require_account(account_name: str) -> None:
     if not app_state.account_manager.get_account(account_name):

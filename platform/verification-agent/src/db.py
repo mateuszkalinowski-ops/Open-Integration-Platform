@@ -1,10 +1,9 @@
 """Database session management for the verification agent."""
 
 import uuid
-from datetime import datetime, timezone
-from typing import Any
+from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, Integer, String, Text, ForeignKey, func, select, desc
+from sqlalchemy import Boolean, DateTime, Integer, String, Text, func
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -77,4 +76,5 @@ async def get_db() -> AsyncSession:  # type: ignore[misc]
 async def set_rls_bypass(session: AsyncSession) -> None:
     """Enable admin bypass for RLS policies on the current transaction."""
     from sqlalchemy import text
+
     await session.execute(text("SELECT set_config('app.rls_bypass', 'on', true)"))

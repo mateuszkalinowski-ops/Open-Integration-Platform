@@ -10,10 +10,9 @@ import uuid
 from typing import Any
 
 import structlog
-from sqlalchemy import select, func
-from sqlalchemy.ext.asyncio import AsyncSession
-
 from db.models import AuditLog, Workflow, WorkflowVersion
+from sqlalchemy import func, select
+from sqlalchemy.ext.asyncio import AsyncSession
 
 logger = structlog.get_logger(__name__)
 
@@ -53,14 +52,9 @@ async def snapshot_workflow_version(
     created_by: str | None = None,
 ) -> WorkflowVersion:
     """Create a versioned snapshot of the current workflow state."""
-    await db.execute(
-        select(Workflow.id)
-        .where(Workflow.id == workflow.id)
-        .with_for_update()
-    )
+    await db.execute(select(Workflow.id).where(Workflow.id == workflow.id).with_for_update())
     result = await db.execute(
-        select(func.coalesce(func.max(WorkflowVersion.version), 0))
-        .where(WorkflowVersion.workflow_id == workflow.id)
+        select(func.coalesce(func.max(WorkflowVersion.version), 0)).where(WorkflowVersion.workflow_id == workflow.id)
     )
     max_version = result.scalar() or 0
 

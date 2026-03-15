@@ -7,10 +7,10 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.config import settings
 from src.shoper.auth import ShoperAuthManager
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -70,22 +70,31 @@ class ShoperClient:
 
             start = time.monotonic()
             response = await http_client.request(
-                method, path, headers=headers, params=params, json=json_data,
+                method,
+                path,
+                headers=headers,
+                params=params,
+                json=json_data,
             )
             duration = time.monotonic() - start
 
             operation = path.split("/")[0] if path else "unknown"
             metrics["external_api_calls_total"].labels(
-                system="shoper", operation=operation, status=response.status_code,
+                system="shoper",
+                operation=operation,
+                status=response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="shoper", operation=operation,
+                system="shoper",
+                operation=operation,
             ).observe(duration)
 
             if response.status_code == 401:
                 logger.warning(
                     "Shoper 401 on attempt %d for account=%s path=%s",
-                    attempt + 1, account_name, path,
+                    attempt + 1,
+                    account_name,
+                    path,
                 )
                 self._auth.invalidate(account_name)
                 if attempt == settings.max_retries - 1:
@@ -102,16 +111,19 @@ class ShoperClient:
 
         raise ShoperApiError(401, f"Failed after {settings.max_retries} auth retries")
 
-    async def get(self, path: str, account_name: str, shop_url: str, login: str, password: str,
-                  **kwargs: Any) -> httpx.Response:
+    async def get(
+        self, path: str, account_name: str, shop_url: str, login: str, password: str, **kwargs: Any
+    ) -> httpx.Response:
         return await self.request("GET", path, account_name, shop_url, login, password, **kwargs)
 
-    async def post(self, path: str, account_name: str, shop_url: str, login: str, password: str,
-                   **kwargs: Any) -> httpx.Response:
+    async def post(
+        self, path: str, account_name: str, shop_url: str, login: str, password: str, **kwargs: Any
+    ) -> httpx.Response:
         return await self.request("POST", path, account_name, shop_url, login, password, **kwargs)
 
-    async def put(self, path: str, account_name: str, shop_url: str, login: str, password: str,
-                  **kwargs: Any) -> httpx.Response:
+    async def put(
+        self, path: str, account_name: str, shop_url: str, login: str, password: str, **kwargs: Any
+    ) -> httpx.Response:
         return await self.request("PUT", path, account_name, shop_url, login, password, **kwargs)
 
     async def get_paged(
@@ -173,7 +185,12 @@ class ShoperClient:
         password: str,
     ) -> httpx.Response:
         return await self.put(
-            f"{entity}/{entity_id}", account_name, shop_url, login, password, json_data=data,
+            f"{entity}/{entity_id}",
+            account_name,
+            shop_url,
+            login,
+            password,
+            json_data=data,
         )
 
     async def create_entity(
@@ -209,12 +226,14 @@ class ShoperClient:
             if order:
                 params["order"] = order
 
-            bulk_request = [{
-                "id": request_id,
-                "path": f"/webapi/rest/{entity}",
-                "method": "GET",
-                "params": params,
-            }]
+            bulk_request = [
+                {
+                    "id": request_id,
+                    "path": f"/webapi/rest/{entity}",
+                    "method": "GET",
+                    "params": params,
+                }
+            ]
 
             resp = await self.post("bulk", account_name, shop_url, login, password, json_data=bulk_request)
             resp.raise_for_status()

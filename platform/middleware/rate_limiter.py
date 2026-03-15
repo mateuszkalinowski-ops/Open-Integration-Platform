@@ -6,12 +6,11 @@ import hashlib
 import logging
 import time
 
+from config import settings
+from core.redis_client import get_redis
 from fastapi import Request, Response
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
 from starlette.responses import JSONResponse
-
-from config import settings
-from core.redis_client import get_redis
 
 logger = logging.getLogger(__name__)
 
@@ -49,8 +48,7 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
             current_count: int = results[2]
 
             if current_count > max_requests:
-                retry_after = int(window - (now - float(await redis.zrange(key, 0, 0)
-                                                         or [str(now)])[0])) or 1
+                retry_after = int(window - (now - float(await redis.zrange(key, 0, 0) or [str(now)])[0])) or 1
                 return JSONResponse(
                     status_code=429,
                     content={

@@ -140,10 +140,18 @@ def test_create_order_api_request():
         company_id=1,
         service_code="STANDARD",
         sender=FxAddress(
-            name="A", city="W", postal_code="00-001", street="S", house_number="1",
+            name="A",
+            city="W",
+            postal_code="00-001",
+            street="S",
+            house_number="1",
         ),
         recipient=FxAddress(
-            name="B", city="K", postal_code="30-001", street="F", house_number="2",
+            name="B",
+            city="K",
+            postal_code="30-001",
+            street="F",
+            house_number="2",
         ),
         items=[FxItem(weight=5)],
     )

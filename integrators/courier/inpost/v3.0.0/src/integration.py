@@ -34,31 +34,30 @@ from src.api import (
 )
 from src.config import settings
 from src.schemas import (
-    CurrencyValueAdded,
     CreateShipmentRequest,
+    CurrencyValueAdded,
     InpostCredentials,
     PickupAddress,
     PickupContactInfo,
     PickupCustomReferences,
     PickupPhoneNumber,
-    PickupTime,
     PickupsCreatePickupOrderDto,
+    PickupTime,
     PickupTotalVolume,
     PickupVolume,
+    ReturnsAddress,
     ReturnsContactInfo,
     ReturnsCreateShipmentDto,
-    ReturnsOrigin,
-    ReturnsAddress,
-    ReturnsReferences,
-    ReturnsParcel,
     ReturnsDimensions,
-    ReturnsWeight,
+    ReturnsOrigin,
+    ReturnsParcel,
+    ReturnsReferences,
     ReturnsShipmentRequest,
+    ReturnsWeight,
     ShipmentParty,
     ShippingAddress,
     ShippingContactInfo,
     ShippingCreateShipmentDto,
-    ShippingCustomReferences,
     ShippingDimensions,
     ShippingWeight,
     StandardParcel,
@@ -186,13 +185,15 @@ class InpostIntegration:
         response_extras: dict = {}
 
         tracking_number = await self._create_shipment(
-            inpost_create_command, credentials,
+            inpost_create_command,
+            credentials,
         )
 
         if book_courier:
             pickup_dto = self._build_pickup_order_dto(command, tracking_number)
             response_extras["pickup"] = await self._create_pickup_order(
-                pickup_dto, credentials,
+                pickup_dto,
+                credentials,
             )
 
         tracking, _ = await self.get_tracking_info(tracking_number)
@@ -421,21 +422,27 @@ class InpostIntegration:
         value_added_services: list = []
 
         if extras.get("insurance") is True:
-            value_added_services.append(CurrencyValueAdded(
-                id_="additionalCover",
-                value=str(extras.get("insurance_value")),
-                currency=extras.get("insurance_curr", settings.default_currency),
-            ))
+            value_added_services.append(
+                CurrencyValueAdded(
+                    id_="additionalCover",
+                    value=str(extras.get("insurance_value")),
+                    currency=extras.get("insurance_curr", settings.default_currency),
+                )
+            )
         if priority_value := extras.get("priority"):
-            value_added_services.append(StandardValueAdded(
-                id_="priority",
-                value=priority_value,
-            ))
+            value_added_services.append(
+                StandardValueAdded(
+                    id_="priority",
+                    value=priority_value,
+                )
+            )
         elif extras.get("express"):
-            value_added_services.append(StandardValueAdded(
-                id_="priority",
-                value="EXPRESS",
-            ))
+            value_added_services.append(
+                StandardValueAdded(
+                    id_="priority",
+                    value="EXPRESS",
+                )
+            )
 
         return ShippingCreateShipmentDto(
             enable_drop_off_code=None,
@@ -569,11 +576,15 @@ class InpostIntegration:
                         width=p.get("width", 0),
                         height=p.get("height", 0),
                         unit=p.get("unit", "CM"),
-                    ) if p.get("length") else None,
+                    )
+                    if p.get("length")
+                    else None,
                     weight=ReturnsWeight(
                         amount=str(p.get("weight", "0")),
                         unit=p.get("weightUnit", "KG"),
-                    ) if p.get("weight") else None,
+                    )
+                    if p.get("weight")
+                    else None,
                 )
                 for p in request.parcels
             ]

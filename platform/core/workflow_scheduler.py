@@ -5,15 +5,15 @@ registers APScheduler ``CronTrigger`` jobs, and re-schedules whenever
 a workflow is toggled or updated.
 """
 
-from datetime import datetime, timezone
-from typing import Any, Callable
+from collections.abc import Callable
+from datetime import UTC, datetime
+from typing import Any
 
 import structlog
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
-from sqlalchemy import select
-
 from db.models import Workflow
+from sqlalchemy import select
 
 logger = structlog.get_logger()
 
@@ -35,10 +35,9 @@ class WorkflowScheduler:
         """Load all scheduled workflows and start the APScheduler."""
         async with self._session_factory() as db:
             from db.base import set_rls_bypass
+
             await set_rls_bypass(db)
-            result = await db.execute(
-                select(Workflow).where(Workflow.is_enabled.is_(True))
-            )
+            result = await db.execute(select(Workflow).where(Workflow.is_enabled.is_(True)))
             workflows = list(result.scalars().all())
 
         for wf in workflows:
@@ -75,12 +74,14 @@ class WorkflowScheduler:
             job = self._scheduler.get_job(job_id)
             if tenant_id and (not job or len(job.args) < 2 or str(job.args[1]) != tenant_id):
                 continue
-            out.append({
-                "workflow_id": wf_id,
-                "job_id": job_id,
-                "tenant_id": str(job.args[1]) if job and len(job.args) >= 2 else None,
-                "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
-            })
+            out.append(
+                {
+                    "workflow_id": wf_id,
+                    "job_id": job_id,
+                    "tenant_id": str(job.args[1]) if job and len(job.args) >= 2 else None,
+                    "next_run": job.next_run_time.isoformat() if job and job.next_run_time else None,
+                }
+            )
         return out
 
     # ── internal ──
@@ -138,11 +139,14 @@ class WorkflowScheduler:
         return None
 
     async def _run_scheduled_workflow(
-        self, workflow_id: str, tenant_id: str,
+        self,
+        workflow_id: str,
+        tenant_id: str,
     ) -> None:
         try:
             async with self._session_factory() as db:
                 from db.base import set_rls_bypass
+
                 await set_rls_bypass(db)
 
                 result = await db.execute(
@@ -162,7 +166,7 @@ class WorkflowScheduler:
 
                 trigger_data = {
                     "trigger_type": "schedule",
-                    "scheduled_at": datetime.now(timezone.utc).isoformat(),
+                    "scheduled_at": datetime.now(UTC).isoformat(),
                     "cron_expression": self._get_schedule_config(workflow).get("cron", ""),
                     "workflow_id": workflow_id,
                 }

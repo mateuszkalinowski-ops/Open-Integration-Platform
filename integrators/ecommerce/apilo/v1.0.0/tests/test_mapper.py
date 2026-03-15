@@ -1,7 +1,5 @@
 """Tests for Apilo mapper functions."""
 
-import pytest
-
 from pinquark_common.schemas.ecommerce import OrderStatus
 from src.apilo.mapper import (
     map_apilo_order_to_order,
@@ -157,7 +155,14 @@ class TestProductMapping:
         assert product.attributes["tax"] == "23.00"
 
     def test_maps_product_no_name_uses_group_name(self) -> None:
-        data = {"id": 999, "name": "", "groupName": "Group Product Name", "sku": "SKU1", "quantity": 0, "priceWithTax": 0}
+        data = {
+            "id": 999,
+            "name": "",
+            "groupName": "Group Product Name",
+            "sku": "SKU1",
+            "quantity": 0,
+            "priceWithTax": 0,
+        }
         product = map_apilo_product_to_product(data)
         assert product.name == "Group Product Name"
 

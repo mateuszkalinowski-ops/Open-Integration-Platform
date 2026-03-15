@@ -3,12 +3,13 @@
 import asyncio
 import logging
 
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
+
 from src.config import settings
+from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.slack_client.client import SlackClient
 from src.slack_client.schemas import SlackMessage
-from src.models.database import StateStore
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,10 @@ class MessagePoller:
 
     async def _poll_account(self, account_name: str, client: SlackClient) -> None:
         channels_data = await client.conversations_list(
-            types="public_channel,private_channel", limit=100,
+            types="public_channel,private_channel",
+            limit=100,
         )
-        member_channels = [
-            ch for ch in channels_data.get("channels", [])
-            if ch.get("is_member", False)
-        ]
+        member_channels = [ch for ch in channels_data.get("channels", []) if ch.get("is_member", False)]
 
         for ch in member_channels:
             channel_id = ch["id"]
@@ -74,7 +73,9 @@ class MessagePoller:
             last_ts = await self._state_store.get_timestamp(account_name, f"channel:{channel_id}")
 
             history = await client.conversations_history(
-                channel_id, limit=20, oldest=last_ts or "",
+                channel_id,
+                limit=20,
+                oldest=last_ts or "",
             )
             raw_messages = history.get("messages", [])
             if not raw_messages:
@@ -113,7 +114,9 @@ class MessagePoller:
                 else:
                     logger.info(
                         "Message polled (no Kafka): channel=%s user=%s ts=%s",
-                        channel_name, message.user_id, ts,
+                        channel_name,
+                        message.user_id,
+                        ts,
                     )
 
                 if ts > newest_ts:

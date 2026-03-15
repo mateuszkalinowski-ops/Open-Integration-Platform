@@ -14,6 +14,7 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
+
 from src.config import IdoSellAccountConfig, settings
 from src.idosell.client import IdoSellClient
 from src.idosell.mapper import (
@@ -105,7 +106,10 @@ class IdoSellIntegration(EcommerceIntegration):
         await self._client.update_order_status(account, serial_number, idosell_status)
         logger.info(
             "Updated order=%s to status=%s (idosell=%s) for account=%s",
-            order_id, status.value, idosell_status, account_name,
+            order_id,
+            status.value,
+            idosell_status,
+            account_name,
         )
 
     async def sync_stock(
@@ -202,10 +206,12 @@ class IdoSellIntegration(EcommerceIntegration):
             try:
                 body = {
                     "settings": {"settingModificationType": "edit"},
-                    "products": [{
-                        "productId": int(product.external_id) if product.external_id else None,
-                        "productDisplayedCode": product.sku,
-                    }],
+                    "products": [
+                        {
+                            "productId": int(product.external_id) if product.external_id else None,
+                            "productDisplayedCode": product.sku,
+                        }
+                    ],
                 }
                 resp = await self._client.put("products/products", account, json_data=body)
                 resp.raise_for_status()
@@ -234,5 +240,8 @@ class IdoSellIntegration(EcommerceIntegration):
         """Create shipping packages for an order."""
         account = self._get_account(account_name)
         return await self._client.create_package(
-            account, order_serial_number, courier_id, tracking_numbers,
+            account,
+            order_serial_number,
+            courier_id,
+            tracking_numbers,
         )

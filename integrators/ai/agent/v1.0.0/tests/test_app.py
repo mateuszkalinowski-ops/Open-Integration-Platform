@@ -4,7 +4,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.app import app
 from src.schemas import (
     AnalyzeResponse,
@@ -44,6 +43,7 @@ def test_readiness():
 
 
 # ── Fixtures ─────────────────────────────────────────────────────
+
 
 @pytest.fixture
 def mock_analyze_response():
@@ -117,6 +117,7 @@ def mock_extraction_response():
 
 # ── Main action: /analyze ───────────────────────────────────────
 
+
 class TestAnalyze:
     @patch("src.app.ai_engine.analyze", new_callable=AsyncMock)
     def test_analyze_success(self, mock_fn, mock_analyze_response):
@@ -179,6 +180,7 @@ class TestAnalyze:
 
 # ── Template: Risk ───────────────────────────────────────────────
 
+
 class TestRiskAnalysis:
     @patch("src.app.ai_engine.analyze_risk", new_callable=AsyncMock)
     def test_analyze_risk_success(self, mock_fn, mock_risk_response):
@@ -228,6 +230,7 @@ class TestRiskAnalysis:
 
 # ── Template: Courier ────────────────────────────────────────────
 
+
 class TestCourierRecommendation:
     @patch("src.app.ai_engine.recommend_courier", new_callable=AsyncMock)
     def test_recommend_courier_success(self, mock_fn, mock_courier_response):
@@ -250,6 +253,7 @@ class TestCourierRecommendation:
 
 # ── Template: Priority ──────────────────────────────────────────
 
+
 class TestPriorityClassification:
     @patch("src.app.ai_engine.classify_priority", new_callable=AsyncMock)
     def test_classify_priority_success(self, mock_fn, mock_priority_response):
@@ -271,6 +275,7 @@ class TestPriorityClassification:
 
 
 # ── Template: Extraction ────────────────────────────────────────
+
 
 class TestDataExtraction:
     @patch("src.app.ai_engine.extract_data", new_callable=AsyncMock)
@@ -299,6 +304,7 @@ class TestDataExtraction:
 
 
 # ── Generic action routing ──────────────────────────────────────
+
 
 class TestGenericAction:
     @patch("src.app.ai_engine.analyze", new_callable=AsyncMock)

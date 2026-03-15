@@ -55,7 +55,7 @@ class SellAsistIntegration:
             Tuple of (pdf_bytes, http_status) on success,
             or (error_message, http_status) on failure.
         """
-        waybill_number = waybill_numbers[0]
+        _waybill_number = waybill_numbers[0]
         base_url = self._build_base_url(credentials.login)
         headers = self._build_headers(credentials.api_key)
 

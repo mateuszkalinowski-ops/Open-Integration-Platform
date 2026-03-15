@@ -1,11 +1,12 @@
 """FastAPI dependency injection — provides shared services to route handlers."""
 
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.ftp_client.integration import FtpSftpIntegration
 from src.ftp_client.poller import FilePoller
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
 
 
 class AppState:

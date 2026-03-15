@@ -5,7 +5,6 @@ from __future__ import annotations
 import logging
 import sys
 from pathlib import Path
-from typing import Optional
 
 try:
     SDK_PYTHON_PATH = Path(__file__).resolve().parents[5] / "sdk/python"
@@ -16,6 +15,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -49,6 +49,7 @@ integration = RabenIntegration()
 # Health
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": "1.0.0", "system": "raben"}
@@ -65,11 +66,13 @@ async def readiness():
 # Transport orders (myOrder)
 # ---------------------------------------------------------------------------
 
+
 @app.post("/shipments", status_code=201)
 async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = await integration.create_order(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -86,7 +89,7 @@ async def get_shipment(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -111,7 +114,7 @@ async def cancel_shipment(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -135,12 +138,13 @@ async def cancel_shipment(
 # Tracking (Track & Trace)
 # ---------------------------------------------------------------------------
 
+
 @app.get("/tracking/{waybill_number}")
 async def get_tracking(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -165,7 +169,7 @@ async def get_shipment_status(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -176,7 +180,8 @@ async def get_shipment_status(
     )
     try:
         result, status_code = await integration.get_shipment_status(
-            credentials, waybill_number,
+            credentials,
+            waybill_number,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -192,7 +197,7 @@ async def get_eta(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -216,11 +221,14 @@ async def get_eta(
 # Labels
 # ---------------------------------------------------------------------------
 
+
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     try:
         label_data, status_code = await integration.get_label(
-            request.credentials, request.waybill_number, request.format,
+            request.credentials,
+            request.waybill_number,
+            request.format,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=label_data)
@@ -236,6 +244,7 @@ async def get_label(request: LabelRequest):
 # ---------------------------------------------------------------------------
 # Claims (myClaim)
 # ---------------------------------------------------------------------------
+
 
 @app.post("/claims", status_code=201)
 async def create_claim(request: ClaimSubmitRequest):
@@ -262,12 +271,13 @@ async def create_claim(request: ClaimSubmitRequest):
 # Delivery confirmation (PCD)
 # ---------------------------------------------------------------------------
 
+
 @app.get("/deliveries/{waybill_number}/confirmation")
 async def get_delivery_confirmation(
     waybill_number: str,
     username: str = Header(..., alias="X-Username"),
     password: str = Header(..., alias="X-Password"),
-    customer_number: Optional[str] = Header(default=None, alias="X-Customer-Number"),
+    customer_number: str | None = Header(default=None, alias="X-Customer-Number"),
     sandbox_mode: bool = Header(default=False, alias="X-Sandbox-Mode"),
 ):
     credentials = RabenCredentials(
@@ -278,7 +288,8 @@ async def get_delivery_confirmation(
     )
     try:
         result, status_code = await integration.get_delivery_confirmation(
-            credentials, waybill_number,
+            credentials,
+            waybill_number,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)

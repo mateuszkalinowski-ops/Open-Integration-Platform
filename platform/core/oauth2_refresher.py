@@ -7,7 +7,8 @@ and proactively refreshes them to avoid interruptions.
 from __future__ import annotations
 
 import asyncio
-from datetime import datetime, timedelta, timezone
+import contextlib
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import structlog
@@ -55,10 +56,8 @@ class OAuth2Refresher:
         if self._task is None:
             return
         self._task.cancel()
-        try:
+        with contextlib.suppress(asyncio.CancelledError):
             await self._task
-        except asyncio.CancelledError:
-            pass
         self._task = None
         logger.info("oauth2_refresher.stopped")
 
@@ -88,6 +87,7 @@ class OAuth2Refresher:
     async def _refresh_expiring_tokens(self) -> None:
         async with self._session_factory() as db:
             from db.base import set_rls_bypass
+
             await set_rls_bypass(db)
 
             max_window = self._refresh_before
@@ -102,10 +102,10 @@ class OAuth2Refresher:
                 return
 
             tokens = [
-                t for t in tokens
+                t
+                for t in tokens
                 if t.expires_at is not None
-                and t.expires_at
-                <= datetime.now(timezone.utc) + timedelta(seconds=self._get_refresh_window(t.connector_name))
+                and t.expires_at <= datetime.now(UTC) + timedelta(seconds=self._get_refresh_window(t.connector_name))
             ]
             if not tokens:
                 return
@@ -125,7 +125,9 @@ class OAuth2Refresher:
                 if self._vault:
                     try:
                         creds = await self._vault.retrieve_all(
-                            db, token.tenant_id, token.connector_name,
+                            db,
+                            token.tenant_id,
+                            token.connector_name,
                             credential_name=token.credential_name,
                         )
                         if "client_id" in creds:

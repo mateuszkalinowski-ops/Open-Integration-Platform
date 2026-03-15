@@ -1,14 +1,14 @@
 """Tests for FastAPI route handlers."""
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import AsyncMock
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import S3AccountConfig
+from src.main import create_app
 from src.s3_client.schemas import (
     BucketCreateResponse,
     BucketInfo,
@@ -19,7 +19,6 @@ from src.s3_client.schemas import (
     ObjectUploadResponse,
     PresignResponse,
 )
-from src.main import create_app
 from src.services.account_manager import AccountManager
 
 
@@ -28,13 +27,15 @@ def client() -> TestClient:
     application = create_app()
 
     manager = AccountManager()
-    manager.add_account(S3AccountConfig(
-        name="test-s3",
-        aws_access_key_id="AKIAEXAMPLE",
-        aws_secret_access_key="secretkey",
-        region="eu-central-1",
-        default_bucket="test-bucket",
-    ))
+    manager.add_account(
+        S3AccountConfig(
+            name="test-s3",
+            aws_access_key_id="AKIAEXAMPLE",
+            aws_secret_access_key="secretkey",
+            region="eu-central-1",
+            default_bucket="test-bucket",
+        )
+    )
     app_state.account_manager = manager
 
     mock_integration = AsyncMock()
@@ -64,12 +65,15 @@ def test_list_accounts(client: TestClient):
 
 
 def test_add_account(client: TestClient):
-    response = client.post("/accounts", json={
-        "name": "new-s3",
-        "aws_access_key_id": "AKIANEWKEY",
-        "aws_secret_access_key": "newsecret",
-        "region": "us-west-2",
-    })
+    response = client.post(
+        "/accounts",
+        json={
+            "name": "new-s3",
+            "aws_access_key_id": "AKIANEWKEY",
+            "aws_secret_access_key": "newsecret",
+            "region": "us-west-2",
+        },
+    )
     assert response.status_code == 201
     assert response.json()["name"] == "new-s3"
 
@@ -91,7 +95,7 @@ def test_list_objects(client: TestClient):
             key="data/report.csv",
             bucket="test-bucket",
             size=1024,
-            last_modified=datetime(2026, 1, 15, tzinfo=timezone.utc),
+            last_modified=datetime(2026, 1, 15, tzinfo=UTC),
             etag="abc123",
         ),
     ]
@@ -145,7 +149,9 @@ def test_download_object(client: TestClient):
 
 def test_delete_object(client: TestClient):
     app_state.integration.delete_object.return_value = {
-        "status": "deleted", "bucket": "test-bucket", "key": "old.txt",
+        "status": "deleted",
+        "bucket": "test-bucket",
+        "key": "old.txt",
     }
     response = client.request(
         "DELETE",
@@ -204,7 +210,8 @@ def test_list_buckets(client: TestClient):
 
 def test_create_bucket(client: TestClient):
     app_state.integration.create_bucket.return_value = BucketCreateResponse(
-        bucket="new-bucket", region="eu-central-1",
+        bucket="new-bucket",
+        region="eu-central-1",
     )
     response = client.post(
         "/buckets?account_name=test-s3",
@@ -216,7 +223,8 @@ def test_create_bucket(client: TestClient):
 
 def test_delete_bucket(client: TestClient):
     app_state.integration.delete_bucket.return_value = {
-        "status": "deleted", "bucket": "old-bucket",
+        "status": "deleted",
+        "bucket": "old-bucket",
     }
     response = client.delete("/buckets/old-bucket?account_name=test-s3")
     assert response.status_code == 200

@@ -7,9 +7,9 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.config import settings
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -61,10 +61,13 @@ class SlackClient:
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="slack", operation=method, status=response.status_code,
+                system="slack",
+                operation=method,
+                status=response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="slack", operation=method,
+                system="slack",
+                operation=method,
             ).observe(duration)
 
             if response.status_code == 429:
@@ -78,7 +81,7 @@ class SlackClient:
             if not data.get("ok", False):
                 error = data.get("error", "unknown_error")
                 if error == "ratelimited":
-                    backoff = settings.retry_backoff_factor * (2 ** attempt)
+                    backoff = settings.retry_backoff_factor * (2**attempt)
                     await asyncio.sleep(backoff)
                     continue
                 raise SlackApiError(method, error, data)
@@ -148,11 +151,14 @@ class SlackClient:
     # --- Reactions ---
 
     async def reactions_add(self, channel: str, timestamp: str, name: str) -> dict[str, Any]:
-        return await self._call("reactions.add", json={
-            "channel": channel,
-            "timestamp": timestamp,
-            "name": name,
-        })
+        return await self._call(
+            "reactions.add",
+            json={
+                "channel": channel,
+                "timestamp": timestamp,
+                "name": name,
+            },
+        )
 
     # --- Files ---
 

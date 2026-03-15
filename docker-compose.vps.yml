@@ -262,16 +262,13 @@ services:
       APP_PORT: 8000
       EMAIL_POLLING_ENABLED: "true"
       EMAIL_POLLING_INTERVAL_SECONDS: "60"
-      KAFKA_ENABLED: "true"
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_API_KEY: ${PINQUARK_CONNECTOR_API_KEY:-}
       PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
-      - kafka
     restart: unless-stopped
 
   connector-skanuj-fakture:
@@ -279,16 +276,13 @@ services:
     environment:
       APP_ENV: production
       APP_PORT: 8000
-      KAFKA_ENABLED: "true"
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_ENABLED: "false"
       POLLING_INTERVAL_SECONDS: "60"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
-      - kafka
     restart: unless-stopped
 
   connector-ftp-sftp:
@@ -297,15 +291,12 @@ services:
       APP_ENV: production
       APP_PORT: 8000
       FTP_POLLING_ENABLED: "false"
-      KAFKA_ENABLED: "true"
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
-      - kafka
     restart: unless-stopped
 
   connector-slack:

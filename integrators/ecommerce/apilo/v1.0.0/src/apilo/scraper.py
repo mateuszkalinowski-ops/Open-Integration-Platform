@@ -2,14 +2,15 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
+from pinquark_common.kafka import KafkaMessageProducer
+
+from src.apilo.client import ApiloClient
+from src.apilo.mapper import map_apilo_order_to_order
 from src.config import ApiloAccountConfig, settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from src.apilo.client import ApiloClient
-from src.apilo.mapper import map_apilo_order_to_order
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,15 @@ class ApiloScraper:
     async def _scrape_orders(self, account: ApiloAccountConfig) -> None:
         last_updated = self._get_last_timestamp(account.name, "orders_last_updated")
         if not last_updated:
-            default_lookback = datetime.now(timezone.utc) - timedelta(hours=24)
+            default_lookback = datetime.now(UTC) - timedelta(hours=24)
             last_updated = default_lookback.strftime("%Y-%m-%dT%H:%M:%S+0000")
 
         try:
             resp = await self._client.get_orders(
-                account, updated_after=last_updated, sort="updatedAtAsc", limit=200,
+                account,
+                updated_after=last_updated,
+                sort="updatedAtAsc",
+                limit=200,
             )
         except Exception as exc:
             logger.warning("getOrders failed for account=%s: %s", account.name, exc)

@@ -14,7 +14,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from src.config import settings
-from src.db import ConnectorInstance, Credential
+from src.db import ConnectorInstance
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +22,7 @@ logger = logging.getLogger(__name__)
 @dataclass
 class ApiVersionCheck:
     """Describes how to check the external API for newer versions."""
+
     current_api_version: str
     check_url: str
     check_type: str = "openapi"
@@ -55,6 +56,7 @@ class ConnectorManifest:
 @dataclass
 class VerificationTarget:
     """A connector to verify — combines manifest + DB instance + resolved URL."""
+
     manifest: ConnectorManifest
     base_url: str
     tenant_id: str | None = None
@@ -79,10 +81,7 @@ def resolve_service_url(
     if version_count > 1 and manifest.version:
         major = manifest.version.split(".")[0]
         suffix = f"-v{major}"
-        if not base.endswith(suffix):
-            service = f"{base}{suffix}"
-        else:
-            service = base
+        service = f"{base}{suffix}" if not base.endswith(suffix) else base
     else:
         service = base
     return f"http://{service}:{settings.default_connector_port}"
@@ -112,23 +111,25 @@ def discover_manifests() -> list[ConnectorManifest]:
                     docs_url=avc_data.get("docs_url", ""),
                 )
 
-            manifests.append(ConnectorManifest(
-                name=data["name"],
-                category=data["category"],
-                version=str(data["version"]),
-                display_name=data.get("display_name", data["name"]),
-                description=data.get("description", ""),
-                interface=data.get("interface", "generic"),
-                capabilities=data.get("capabilities", []),
-                actions=data.get("actions", []),
-                events=data.get("events", []),
-                health_endpoint=data.get("health_endpoint", "/health"),
-                docs_url=data.get("docs_url", "/docs"),
-                config_schema=data.get("config_schema", {}),
-                service_name=data.get("service_name", ""),
-                credential_provisioning=data.get("credential_provisioning", {}),
-                api_version_check=avc,
-            ))
+            manifests.append(
+                ConnectorManifest(
+                    name=data["name"],
+                    category=data["category"],
+                    version=str(data["version"]),
+                    display_name=data.get("display_name", data["name"]),
+                    description=data.get("description", ""),
+                    interface=data.get("interface", "generic"),
+                    capabilities=data.get("capabilities", []),
+                    actions=data.get("actions", []),
+                    events=data.get("events", []),
+                    health_endpoint=data.get("health_endpoint", "/health"),
+                    docs_url=data.get("docs_url", "/docs"),
+                    config_schema=data.get("config_schema", {}),
+                    service_name=data.get("service_name", ""),
+                    credential_provisioning=data.get("credential_provisioning", {}),
+                    api_version_check=avc,
+                )
+            )
         except Exception as exc:
             logger.warning("Failed to load manifest %s: %s", manifest_path, exc)
 
@@ -144,9 +145,7 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
     manifests = discover_manifests()
     targets: list[VerificationTarget] = []
 
-    result = await db.execute(
-        select(ConnectorInstance).where(ConnectorInstance.is_enabled.is_(True))
-    )
+    result = await db.execute(select(ConnectorInstance).where(ConnectorInstance.is_enabled.is_(True)))
     all_instances = list(result.scalars().all())
 
     instance_index: dict[tuple[str, str], list[Any]] = {}
@@ -165,17 +164,20 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
 
         for manifest in versions:
             base_url = resolve_service_url(
-                manifest, version_count=len(versions),
+                manifest,
+                version_count=len(versions),
             )
             matched_instances = instance_index.get((name, manifest.version), [])
             if matched_instances:
                 any_matched = True
                 for inst in matched_instances:
-                    targets.append(VerificationTarget(
-                        manifest=manifest,
-                        base_url=base_url,
-                        tenant_id=str(inst.tenant_id),
-                    ))
+                    targets.append(
+                        VerificationTarget(
+                            manifest=manifest,
+                            base_url=base_url,
+                            tenant_id=str(inst.tenant_id),
+                        )
+                    )
 
         if not any_matched:
             name_instances = instances_by_name.get(name, [])
@@ -185,31 +187,38 @@ async def discover_targets(db: AsyncSession) -> list[VerificationTarget]:
                     matched_manifest = version_map.get(inst.connector_version)
                     if matched_manifest:
                         base_url = resolve_service_url(matched_manifest, version_count=len(versions))
-                        targets.append(VerificationTarget(
-                            manifest=matched_manifest,
-                            base_url=base_url,
-                            tenant_id=str(inst.tenant_id),
-                        ))
+                        targets.append(
+                            VerificationTarget(
+                                manifest=matched_manifest,
+                                base_url=base_url,
+                                tenant_id=str(inst.tenant_id),
+                            )
+                        )
                     else:
                         logger.warning(
-                            "Skipping %s instance (tenant=%s): instance version %s "
-                            "not found in available manifests %s",
-                            name, inst.tenant_id, inst.connector_version,
+                            "Skipping %s instance (tenant=%s): instance version %s not found in available manifests %s",
+                            name,
+                            inst.tenant_id,
+                            inst.connector_version,
                             [m.version for m in versions],
                         )
             else:
                 for manifest in versions:
                     base_url = resolve_service_url(
-                        manifest, version_count=len(versions),
+                        manifest,
+                        version_count=len(versions),
                     )
-                    targets.append(VerificationTarget(
-                        manifest=manifest,
-                        base_url=base_url,
-                        tenant_id=None,
-                    ))
+                    targets.append(
+                        VerificationTarget(
+                            manifest=manifest,
+                            base_url=base_url,
+                            tenant_id=None,
+                        )
+                    )
                     logger.info(
                         "Including %s v%s for Tier 1 checks (no DB instances)",
-                        name, manifest.version,
+                        name,
+                        manifest.version,
                     )
 
     return targets

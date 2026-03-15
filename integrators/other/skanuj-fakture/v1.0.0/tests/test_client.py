@@ -1,10 +1,8 @@
 """Tests for SkanujFakture HTTP client."""
 
+from unittest.mock import AsyncMock, MagicMock
+
 import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-
-import httpx
-
 from src.config import SkanujFaktureAccountConfig
 from src.skanuj_fakture.client import SkanujFaktureClient
 
@@ -67,7 +65,9 @@ class TestDocumentMethods:
     async def test_upload_document(self, client: SkanujFaktureClient) -> None:
         mock_response = MagicMock()
         mock_response.json.return_value = {
-            "documents": 1, "uploadedDocuments": 1, "documentsIdList": [42],
+            "documents": 1,
+            "uploadedDocuments": 1,
+            "documentsIdList": [42],
         }
         mock_response.raise_for_status = MagicMock()
 
@@ -153,7 +153,10 @@ class TestAttributeMethods:
 
         client._client.put = AsyncMock(return_value=mock_response)
         result = await client.edit_attributes(
-            1, 42, [{"name": "attr1", "value": "val1"}], status_id=3,
+            1,
+            42,
+            [{"name": "attr1", "value": "val1"}],
+            status_id=3,
         )
 
         assert result["status"] == "ok"
@@ -190,7 +193,9 @@ class TestDictionaryMethods:
 
         client._client.post = AsyncMock(return_value=mock_response)
         result = await client.add_dictionary_items(
-            1, "COST_TYPE", [{"symbol": "KS02", "description": "Test"}],
+            1,
+            "COST_TYPE",
+            [{"symbol": "KS02", "description": "Test"}],
         )
 
         assert result["status"] == "ok"
@@ -203,7 +208,9 @@ class TestDictionaryMethods:
 
         client._client.put = AsyncMock(return_value=mock_response)
         result = await client.update_dictionary_items(
-            1, "COST_TYPE", [{"id": 1, "symbol": "KS01", "description": "Updated"}],
+            1,
+            "COST_TYPE",
+            [{"id": 1, "symbol": "KS01", "description": "Updated"}],
         )
 
         assert result["status"] == "ok"

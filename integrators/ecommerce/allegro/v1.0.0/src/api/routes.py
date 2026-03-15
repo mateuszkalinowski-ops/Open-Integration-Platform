@@ -4,15 +4,15 @@ import base64
 from datetime import datetime
 from typing import Any
 
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, UploadFile, File
-from pydantic import BaseModel
-
+from fastapi import APIRouter, BackgroundTasks, File, HTTPException, Query, UploadFile
 from pinquark_common.schemas.ecommerce import (
     Order,
     OrdersPage,
     OrderStatus,
     StockItem,
 )
+from pydantic import BaseModel
+
 from src.allegro.schemas import AuthStatusResponse
 from src.api.dependencies import app_state
 from src.config import AllegroAccountConfig
@@ -21,6 +21,7 @@ router = APIRouter()
 
 
 # ── Health ──────────────────────────────────────────────────────────
+
 
 @router.get("/health")
 async def health():
@@ -41,6 +42,7 @@ async def readiness():
 
 # ── Auth ────────────────────────────────────────────────────────────
 
+
 @router.post("/auth/{account_name}/device-code", response_model=dict)
 async def start_device_flow(account_name: str):
     """Start OAuth2 device flow for a specific account."""
@@ -49,7 +51,9 @@ async def start_device_flow(account_name: str):
         raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found")
 
     device_code = await app_state.auth_manager.start_device_flow(
-        account.name, account.client_id, account.auth_url,
+        account.name,
+        account.client_id,
+        account.auth_url,
     )
     return {
         "user_code": device_code.user_code,
@@ -69,13 +73,16 @@ async def poll_for_token(account_name: str, background_tasks: BackgroundTasks):
 
     try:
         token = await app_state.auth_manager.poll_for_token(
-            account.name, account.client_id, account.client_secret, account.auth_url,
+            account.name,
+            account.client_id,
+            account.client_secret,
+            account.auth_url,
         )
         return {"status": "authenticated", "expires_in": token.expires_in}
-    except TimeoutError:
-        raise HTTPException(status_code=408, detail="Device flow timed out. Start again.")
+    except TimeoutError as exc:
+        raise HTTPException(status_code=408, detail="Device flow timed out. Start again.") from exc
     except PermissionError as exc:
-        raise HTTPException(status_code=403, detail=str(exc))
+        raise HTTPException(status_code=403, detail=str(exc)) from exc
 
 
 @router.get("/auth/{account_name}/status", response_model=AuthStatusResponse)
@@ -90,6 +97,7 @@ async def all_auth_statuses():
 
 
 # ── Accounts ────────────────────────────────────────────────────────
+
 
 class AccountCreateRequest(BaseModel):
     name: str
@@ -121,6 +129,7 @@ async def remove_account(account_name: str):
 
 
 # ── Orders ──────────────────────────────────────────────────────────
+
 
 @router.get("/orders", response_model=OrdersPage)
 async def list_orders(
@@ -159,11 +168,14 @@ async def update_order_status(
 
 # ── Order Events ────────────────────────────────────────────────────
 
+
 @router.get("/orders/events")
 async def get_order_events(
     account_name: str = Query(..., description="Allegro account name"),
     from_event_id: str | None = Query(None, alias="from", description="Last seen event ID"),
-    type: list[str] | None = Query(None, description="Event types: BOUGHT, FILLED_IN, READY_FOR_PROCESSING, BUYER_CANCELLED, AUTO_CANCELLED"),
+    type: list[str] | None = Query(
+        None, description="Event types: BOUGHT, FILLED_IN, READY_FOR_PROCESSING, BUYER_CANCELLED, AUTO_CANCELLED"
+    ),
     limit: int = Query(100, ge=1, le=1000),
 ):
     """Get order events (GET /order/events)."""
@@ -186,6 +198,7 @@ async def get_order_event_stats(
 
 
 # ── Order Tracking ──────────────────────────────────────────────────
+
 
 class TrackingRequest(BaseModel):
     carrier_id: str
@@ -247,6 +260,7 @@ async def get_tracking_history(
 
 # ── Order Billing ───────────────────────────────────────────────────
 
+
 class BillingUploadRequest(BaseModel):
     url: str
 
@@ -268,6 +282,7 @@ async def upload_billing_document(
 
 # ── Invoices ────────────────────────────────────────────────────────
 
+
 class InvoiceUploadJsonRequest(BaseModel):
     invoice_base64: str
     filename: str = "invoice.pdf"
@@ -287,8 +302,11 @@ async def upload_invoice_multipart(
     if len(contents) > 8 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 8 MB limit")
     result = await app_state.integration.upload_invoice(
-        account_name, order_id, contents,
-        file.filename or "invoice.pdf", invoice_number,
+        account_name,
+        order_id,
+        contents,
+        file.filename or "invoice.pdf",
+        invoice_number,
     )
     return {"status": "uploaded", "order_id": order_id, **result}
 
@@ -308,7 +326,11 @@ async def upload_invoice_json(
     if len(contents) > 8 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 8 MB limit")
     result = await app_state.integration.upload_invoice(
-        account_name, order_id, contents, body.filename, body.invoice_number,
+        account_name,
+        order_id,
+        contents,
+        body.filename,
+        body.invoice_number,
     )
     return {"status": "uploaded", "order_id": order_id, **result}
 
@@ -325,11 +347,14 @@ async def get_order_invoices(
 
 # ── Offers ──────────────────────────────────────────────────────────
 
+
 @router.get("/offers")
 async def list_offers(
     account_name: str = Query(..., description="Allegro account name"),
     publication_status: str | None = Query(None, alias="publication.status", description="ACTIVE, INACTIVE, ENDED"),
-    selling_mode_format: str | None = Query(None, alias="selling_mode.format", description="BUY_NOW, AUCTION, ADVERTISEMENT"),
+    selling_mode_format: str | None = Query(
+        None, alias="selling_mode.format", description="BUY_NOW, AUCTION, ADVERTISEMENT"
+    ),
     name: str | None = Query(None, description="Offer name fragment"),
     category_id: str | None = Query(None, alias="category.id"),
     external_id: str | None = Query(None, alias="external.id"),
@@ -437,6 +462,7 @@ async def delete_draft_offer(
 
 # ── Offer Events ────────────────────────────────────────────────────
 
+
 @router.get("/offers/events")
 async def get_offer_events(
     account_name: str = Query(..., description="Allegro account name"),
@@ -456,6 +482,7 @@ async def get_offer_events(
 
 # ── Offer Publish / Batch ───────────────────────────────────────────
 
+
 class OfferPublishRequest(BaseModel):
     offer_criteria: list[dict[str, Any]]
     publication: dict[str, Any]
@@ -469,6 +496,7 @@ async def batch_publish_offers(
     """Batch offer publish/unpublish (PUT /sale/offer-publication-commands/{commandId})."""
     _require_auth(account_name)
     import uuid
+
     cmd_id = str(uuid.uuid4())
     payload = {"offerCriteria": body.offer_criteria, "publication": body.publication}
     return await _proxy_request("PUT", f"sale/offer-publication-commands/{cmd_id}", account_name, json_data=payload)
@@ -487,6 +515,7 @@ async def batch_price_change(
     """Batch offer price modification (PUT /sale/offer-price-change-commands/{commandId})."""
     _require_auth(account_name)
     import uuid
+
     cmd_id = str(uuid.uuid4())
     payload = {"offerCriteria": body.offer_criteria, "modification": body.modification}
     return await _proxy_request("PUT", f"sale/offer-price-change-commands/{cmd_id}", account_name, json_data=payload)
@@ -505,6 +534,7 @@ async def batch_quantity_change(
     """Batch offer quantity modification (PUT /sale/offer-quantity-change-commands/{commandId})."""
     _require_auth(account_name)
     import uuid
+
     cmd_id = str(uuid.uuid4())
     payload = {"offerCriteria": body.offer_criteria, "modification": body.modification}
     return await _proxy_request("PUT", f"sale/offer-quantity-change-commands/{cmd_id}", account_name, json_data=payload)
@@ -523,12 +553,14 @@ async def batch_modify_offers(
     """Batch offer modification (PUT /sale/offer-modification-commands/{commandId})."""
     _require_auth(account_name)
     import uuid
+
     cmd_id = str(uuid.uuid4())
     payload = {"offerCriteria": body.offer_criteria, "modification": body.modification}
     return await _proxy_request("PUT", f"sale/offer-modification-commands/{cmd_id}", account_name, json_data=payload)
 
 
 # ── Offer Promotions ────────────────────────────────────────────────
+
 
 @router.get("/offers/{offer_id}/promo")
 async def get_offer_promo(
@@ -552,6 +584,7 @@ async def get_offer_rating(
 
 # ── Stock ───────────────────────────────────────────────────────────
 
+
 class StockSyncRequest(BaseModel):
     items: list[StockItem]
 
@@ -567,6 +600,7 @@ async def sync_stock(
 
 
 # ── Products ────────────────────────────────────────────────────────
+
 
 @router.get("/products/search")
 async def search_products(
@@ -628,6 +662,7 @@ async def propose_product(
 
 # ── Categories ──────────────────────────────────────────────────────
 
+
 @router.get("/categories")
 async def list_categories(
     account_name: str = Query(..., description="Allegro account name"),
@@ -675,7 +710,9 @@ async def get_category_suggestions(
 async def get_category_events(
     account_name: str = Query(..., description="Allegro account name"),
     from_event_id: str | None = Query(None, alias="from"),
-    type: list[str] | None = Query(None, description="CATEGORY_CREATED, CATEGORY_RENAMED, CATEGORY_MOVED, CATEGORY_DELETED"),
+    type: list[str] | None = Query(
+        None, description="CATEGORY_CREATED, CATEGORY_RENAMED, CATEGORY_MOVED, CATEGORY_DELETED"
+    ),
     limit: int = Query(100, ge=1, le=1000),
 ):
     """Get changes in categories (GET /sale/category-events)."""
@@ -689,6 +726,7 @@ async def get_category_events(
 
 
 # ── Images & Attachments ────────────────────────────────────────────
+
 
 class ImageUploadRequest(BaseModel):
     url: str
@@ -716,13 +754,18 @@ async def create_attachment(
 ):
     """Create an offer attachment (POST /sale/offer-attachments)."""
     _require_auth(account_name)
-    return await _proxy_post("sale/offer-attachments", account_name, {
-        "type": body.type,
-        "file": {"name": body.filename},
-    })
+    return await _proxy_post(
+        "sale/offer-attachments",
+        account_name,
+        {
+            "type": body.type,
+            "file": {"name": body.filename},
+        },
+    )
 
 
 # ── Offer Variants ──────────────────────────────────────────────────
+
 
 @router.get("/variants")
 async def list_variant_sets(
@@ -778,6 +821,7 @@ async def delete_variant_set(
 
 # ── Offer Tags ──────────────────────────────────────────────────────
 
+
 @router.get("/tags")
 async def list_tags(
     account_name: str = Query(..., description="Allegro account name"),
@@ -810,8 +854,9 @@ async def update_tag(
 ):
     """Modify a tag (PUT /sale/offer-tags/{tagId})."""
     _require_auth(account_name)
-    return await _proxy_request("PUT", f"sale/offer-tags/{tag_id}", account_name,
-                                json_data={"name": body.name, "hidden": body.hidden})
+    return await _proxy_request(
+        "PUT", f"sale/offer-tags/{tag_id}", account_name, json_data={"name": body.name, "hidden": body.hidden}
+    )
 
 
 @router.delete("/tags/{tag_id}")
@@ -836,11 +881,11 @@ async def assign_tags(
 ):
     """Assign tags to an offer (POST /sale/offers/{offerId}/tags)."""
     _require_auth(account_name)
-    return await _proxy_post(f"sale/offers/{offer_id}/tags", account_name,
-                             {"tags": [{"id": t} for t in body.tag_ids]})
+    return await _proxy_post(f"sale/offers/{offer_id}/tags", account_name, {"tags": [{"id": t} for t in body.tag_ids]})
 
 
 # ── Promotions ──────────────────────────────────────────────────────
+
 
 @router.get("/promotions")
 async def list_promotions(
@@ -896,6 +941,7 @@ async def delete_promotion(
 
 # ── Turnover Discounts ──────────────────────────────────────────────
 
+
 @router.get("/turnover-discounts")
 async def list_turnover_discounts(
     account_name: str = Query(..., description="Allegro account name"),
@@ -927,6 +973,7 @@ async def deactivate_turnover_discount(
 
 
 # ── Bundles ─────────────────────────────────────────────────────────
+
 
 @router.get("/bundles")
 async def list_bundles(
@@ -970,6 +1017,7 @@ async def delete_bundle(
 
 
 # ── Payments ────────────────────────────────────────────────────────
+
 
 @router.get("/payments/history")
 async def payment_history(
@@ -1042,6 +1090,7 @@ async def initiate_refund(
 
 # ── Shipments ───────────────────────────────────────────────────────
 
+
 @router.post("/shipments", status_code=201)
 async def create_shipment(
     body: dict[str, Any],
@@ -1069,8 +1118,7 @@ async def cancel_shipment(
 ):
     """Cancel shipment (POST /shipment-management/shipments/cancel-commands)."""
     _require_auth(account_name)
-    return await _proxy_post("shipment-management/shipments/cancel-commands", account_name,
-                             {"shipmentId": shipment_id})
+    return await _proxy_post("shipment-management/shipments/cancel-commands", account_name, {"shipmentId": shipment_id})
 
 
 @router.post("/shipments/labels")
@@ -1133,6 +1181,7 @@ async def get_pickup_points(
 
 # ── Returns ─────────────────────────────────────────────────────────
 
+
 @router.get("/returns")
 async def list_returns(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1179,11 +1228,13 @@ async def reject_return(
 ):
     """Reject customer return refund (POST /order/customer-returns/{customerReturnId}/rejection)."""
     _require_auth(account_name)
-    return await _proxy_post(f"order/customer-returns/{return_id}/rejection", account_name,
-                             {"rejectionReason": body.rejection_reason})
+    return await _proxy_post(
+        f"order/customer-returns/{return_id}/rejection", account_name, {"rejectionReason": body.rejection_reason}
+    )
 
 
 # ── Delivery ────────────────────────────────────────────────────────
+
 
 @router.get("/delivery/methods")
 async def list_delivery_methods(
@@ -1255,6 +1306,7 @@ async def update_shipping_rates(
 
 # ── After Sale Services ────────────────────────────────────────────
 
+
 @router.get("/warranties")
 async def list_warranties(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1292,8 +1344,9 @@ async def update_warranty(
 ):
     """Change the user's warranty (PUT /after-sales-service-conditions/warranties/{warrantyId})."""
     _require_auth(account_name)
-    return await _proxy_request("PUT", f"after-sales-service-conditions/warranties/{warranty_id}",
-                                account_name, json_data=body)
+    return await _proxy_request(
+        "PUT", f"after-sales-service-conditions/warranties/{warranty_id}", account_name, json_data=body
+    )
 
 
 @router.get("/return-policies")
@@ -1333,8 +1386,9 @@ async def update_return_policy(
 ):
     """Change the user's return policy (PUT /after-sales-service-conditions/return-policies/{returnPolicyId})."""
     _require_auth(account_name)
-    return await _proxy_request("PUT", f"after-sales-service-conditions/return-policies/{policy_id}",
-                                account_name, json_data=body)
+    return await _proxy_request(
+        "PUT", f"after-sales-service-conditions/return-policies/{policy_id}", account_name, json_data=body
+    )
 
 
 @router.delete("/return-policies/{policy_id}")
@@ -1348,6 +1402,7 @@ async def delete_return_policy(
 
 
 # ── Messages ────────────────────────────────────────────────────────
+
 
 @router.get("/messages/threads")
 async def list_message_threads(
@@ -1379,8 +1434,9 @@ async def list_thread_messages(
 ):
     """List messages in thread (GET /messaging/threads/{threadId}/messages)."""
     _require_auth(account_name)
-    return await _proxy_get(f"messaging/threads/{thread_id}/messages", account_name,
-                            params={"limit": limit, "offset": offset})
+    return await _proxy_get(
+        f"messaging/threads/{thread_id}/messages", account_name, params={"limit": limit, "offset": offset}
+    )
 
 
 class MessageSendRequest(BaseModel):
@@ -1423,6 +1479,7 @@ async def mark_thread_read(
 
 # ── Billing ─────────────────────────────────────────────────────────
 
+
 @router.get("/billing/types")
 async def list_billing_types(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1455,6 +1512,7 @@ async def list_billing_entries(
 
 # ── User ────────────────────────────────────────────────────────────
 
+
 @router.get("/user/info")
 async def get_user_info(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1485,6 +1543,7 @@ async def get_sales_quality(
 
 
 # ── Commission Refunds ──────────────────────────────────────────────
+
 
 @router.get("/commission-refunds")
 async def list_commission_refunds(
@@ -1529,6 +1588,7 @@ async def cancel_commission_refund(
 
 # ── Additional Services ────────────────────────────────────────────
 
+
 @router.get("/additional-services/groups")
 async def list_additional_service_groups(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1566,8 +1626,9 @@ async def update_additional_service_group(
 ):
     """Modify an additional services group."""
     _require_auth(account_name)
-    return await _proxy_request("PUT", f"sale/offer-additional-services/groups/{group_id}",
-                                account_name, json_data=body)
+    return await _proxy_request(
+        "PUT", f"sale/offer-additional-services/groups/{group_id}", account_name, json_data=body
+    )
 
 
 @router.get("/additional-services/definitions")
@@ -1584,6 +1645,7 @@ async def get_additional_service_definitions(
 
 
 # ── Size Tables ─────────────────────────────────────────────────────
+
 
 @router.get("/size-tables")
 async def list_size_tables(
@@ -1626,6 +1688,7 @@ async def update_size_table(
 
 
 # ── Points of Service ──────────────────────────────────────────────
+
 
 @router.get("/points-of-service")
 async def list_points_of_service(
@@ -1679,6 +1742,7 @@ async def delete_point_of_service(
 
 # ── Contacts ────────────────────────────────────────────────────────
 
+
 @router.get("/contacts")
 async def list_contacts(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1721,6 +1785,7 @@ async def update_contact(
 
 # ── Pricing ─────────────────────────────────────────────────────────
 
+
 @router.get("/pricing/offer-quotes")
 async def get_offer_quotes(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1742,6 +1807,7 @@ async def calculate_fee(
 
 # ── Tax ─────────────────────────────────────────────────────────────
 
+
 @router.get("/tax/settings/{category_id}")
 async def get_tax_settings(
     category_id: str,
@@ -1753,6 +1819,7 @@ async def get_tax_settings(
 
 
 # ── Badge Campaigns ─────────────────────────────────────────────────
+
 
 @router.get("/badges/campaigns")
 async def list_badge_campaigns(
@@ -1790,6 +1857,7 @@ async def apply_badge(
 
 
 # ── Compatibility List ──────────────────────────────────────────────
+
 
 @router.get("/compatibility/products/{offer_id}")
 async def get_compatible_products(
@@ -1831,6 +1899,7 @@ async def get_compatibility_categories(
 
 
 # ── Fulfillment (One Fulfillment) ──────────────────────────────────
+
 
 @router.get("/fulfillment/stock")
 async def get_fulfillment_stock(
@@ -1890,6 +1959,7 @@ async def create_advance_ship_notice(
 
 # ── Post Purchase Issues (Disputes/Claims) ─────────────────────────
 
+
 @router.get("/disputes")
 async def list_disputes(
     account_name: str = Query(..., description="Allegro account name"),
@@ -1922,6 +1992,7 @@ async def get_dispute_messages(
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
+
 
 def _require_auth(account_name: str) -> None:
     if not app_state.auth_manager.is_authenticated(account_name):

@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -53,7 +54,8 @@ async def readiness():
 async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = integration.create_order(
-            request.credentials, request.command,
+            request.credentials,
+            request.command,
         )
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
@@ -65,7 +67,8 @@ async def create_shipment(request: CreateShipmentRequest):
 async def get_status(waybill_number: str, credentials: FedexPlCredentials):
     try:
         result, status_code = integration.get_order_status(
-            credentials, waybill_number,
+            credentials,
+            waybill_number,
         )
         return JSONResponse(content={"status": result}, status_code=status_code)
     except Exception as exc:
@@ -76,7 +79,9 @@ async def get_status(waybill_number: str, credentials: FedexPlCredentials):
 async def get_label(request: LabelRequest):
     try:
         label_bytes, status_code = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers, {},
+            request.credentials,
+            request.waybill_numbers,
+            {},
         )
         if status_code != 200:
             return JSONResponse(content={"error": str(label_bytes)}, status_code=status_code)

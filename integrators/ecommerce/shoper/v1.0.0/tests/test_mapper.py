@@ -1,20 +1,21 @@
 """Tests for Shoper data mappers."""
 
 import pytest
-
+from pinquark_common.schemas.ecommerce import OrderStatus
 from src.shoper.mapper import (
+    ORDER_STATUS_TO_SHOPER,
+    SHOPER_STATUS_TO_ORDER,
     map_shoper_order_to_order,
     map_shoper_product_to_product,
     order_status_to_shoper,
-    SHOPER_STATUS_TO_ORDER,
-    ORDER_STATUS_TO_SHOPER,
 )
-from pinquark_common.schemas.ecommerce import OrderStatus
 
 
 class TestOrderMapper:
     def test_maps_order_basic_fields(
-        self, sample_shoper_order: dict, sample_order_products: list[dict],
+        self,
+        sample_shoper_order: dict,
+        sample_order_products: list[dict],
     ) -> None:
         order = map_shoper_order_to_order(sample_shoper_order, sample_order_products, "test")
 
@@ -25,7 +26,9 @@ class TestOrderMapper:
         assert order.notes == "Prosze o szybka wysylke"
 
     def test_maps_delivery_address(
-        self, sample_shoper_order: dict, sample_order_products: list[dict],
+        self,
+        sample_shoper_order: dict,
+        sample_order_products: list[dict],
     ) -> None:
         order = map_shoper_order_to_order(sample_shoper_order, sample_order_products, "test")
 
@@ -37,7 +40,9 @@ class TestOrderMapper:
         assert order.delivery_address.country_code == "PL"
 
     def test_maps_buyer(
-        self, sample_shoper_order: dict, sample_order_products: list[dict],
+        self,
+        sample_shoper_order: dict,
+        sample_order_products: list[dict],
     ) -> None:
         order = map_shoper_order_to_order(sample_shoper_order, sample_order_products, "test")
 
@@ -47,7 +52,9 @@ class TestOrderMapper:
         assert order.buyer.first_name == "Jan"
 
     def test_maps_order_lines(
-        self, sample_shoper_order: dict, sample_order_products: list[dict],
+        self,
+        sample_shoper_order: dict,
+        sample_order_products: list[dict],
     ) -> None:
         order = map_shoper_order_to_order(sample_shoper_order, sample_order_products, "test")
 

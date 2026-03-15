@@ -1,7 +1,5 @@
 """Tests for Amazon SP-API mapper functions."""
 
-import pytest
-
 from pinquark_common.schemas.ecommerce import OrderStatus
 from src.amazon.mapper import (
     map_amazon_order_to_order,

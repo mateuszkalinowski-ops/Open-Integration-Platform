@@ -2,7 +2,7 @@
 
 import base64
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from src.config import settings
@@ -143,7 +143,10 @@ class S3Integration:
         objects = await client.list_objects(bucket, prefix=prefix, max_keys=max_keys)
         logger.info(
             "Listed %d objects in s3://%s/%s (account=%s)",
-            len(objects), bucket, prefix, account_name,
+            len(objects),
+            bucket,
+            prefix,
+            account_name,
         )
         return objects
 
@@ -159,11 +162,17 @@ class S3Integration:
         client = self._get_client(account_name)
         data = base64.b64decode(request.content_base64)
         etag = await client.upload_object(
-            bucket, request.key, data, content_type=request.content_type,
+            bucket,
+            request.key,
+            data,
+            content_type=request.content_type,
         )
         logger.info(
             "Uploaded s3://%s/%s (%d bytes, account=%s)",
-            bucket, request.key, len(data), account_name,
+            bucket,
+            request.key,
+            len(data),
+            account_name,
         )
 
         await self._emit_event(
@@ -176,7 +185,7 @@ class S3Integration:
                 "content_type": request.content_type,
                 "etag": etag,
                 "account_name": account_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             account_name,
         )
@@ -202,7 +211,10 @@ class S3Integration:
         data, content_type = await client.download_object(bucket, key)
         logger.info(
             "Downloaded s3://%s/%s (%d bytes, account=%s)",
-            bucket, key, len(data), account_name,
+            bucket,
+            key,
+            len(data),
+            account_name,
         )
         return ObjectDownloadResponse(
             key=key,
@@ -232,7 +244,7 @@ class S3Integration:
                 "key": request.key,
                 "bucket": bucket,
                 "account_name": account_name,
-                "timestamp": datetime.now(timezone.utc).isoformat(),
+                "timestamp": datetime.now(UTC).isoformat(),
             },
             account_name,
         )
@@ -258,8 +270,10 @@ class S3Integration:
         )
         logger.info(
             "Copied s3://%s/%s -> s3://%s/%s (account=%s)",
-            request.source_bucket, request.source_key,
-            request.destination_bucket, request.destination_key,
+            request.source_bucket,
+            request.source_key,
+            request.destination_bucket,
+            request.destination_key,
             account_name,
         )
         return ObjectCopyResponse(
@@ -280,11 +294,18 @@ class S3Integration:
 
         client = self._get_client(account_name)
         url = await client.generate_presigned_url(
-            bucket, request.key, expires_in=request.expires_in, method=request.method,
+            bucket,
+            request.key,
+            expires_in=request.expires_in,
+            method=request.method,
         )
         logger.info(
             "Generated presigned %s URL for s3://%s/%s (account=%s, expires=%ds)",
-            request.method, bucket, request.key, account_name, request.expires_in,
+            request.method,
+            bucket,
+            request.key,
+            account_name,
+            request.expires_in,
         )
         return PresignResponse(
             url=url,

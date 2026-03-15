@@ -9,7 +9,7 @@ Shoper uses a simplified OAuth2 flow:
 
 import base64
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -33,7 +33,7 @@ class ShoperAuthManager:
         expiry = self._expiry.get(account_name)
         if not expiry:
             return True
-        return datetime.now(timezone.utc) >= expiry
+        return datetime.now(UTC) >= expiry
 
     async def get_access_token(
         self,
@@ -67,7 +67,7 @@ class ShoperAuthManager:
 
         auth_data = ShoperAuthResponse.model_validate(response.json())
         bearer_token = f"Bearer {auth_data.access_token}"
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=auth_data.expires_in - 60)
+        expires_at = datetime.now(UTC) + timedelta(seconds=auth_data.expires_in - 60)
 
         self._tokens[account_name] = bearer_token
         self._expiry[account_name] = expires_at

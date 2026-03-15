@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -103,7 +104,9 @@ async def get_label(request: LabelRequest):
         if request.external_id:
             args["external_id"] = request.external_id
         label_bytes = integration.get_waybill_label_bytes(
-            request.credentials, request.waybill_numbers, args,
+            request.credentials,
+            request.waybill_numbers,
+            args,
         )
         if isinstance(label_bytes, tuple):
             data, code = label_bytes
@@ -173,35 +176,43 @@ def _calculate_dpd_rates(
         else:
             base = 22.00 + (billable - 31.5) * 0.8
 
-        products.append(RateProduct(
-            name="DPD Classic",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=2,
-            attributes={"source": "dpd", "service": "classic"},
-        ))
-        products.append(RateProduct(
-            name="DPD Pickup",
-            price=round(base * 0.85, 2),
-            currency="PLN",
-            delivery_days=3,
-            attributes={"source": "dpd", "service": "pickup"},
-        ))
+        products.append(
+            RateProduct(
+                name="DPD Classic",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=2,
+                attributes={"source": "dpd", "service": "classic"},
+            )
+        )
+        products.append(
+            RateProduct(
+                name="DPD Pickup",
+                price=round(base * 0.85, 2),
+                currency="PLN",
+                delivery_days=3,
+                attributes={"source": "dpd", "service": "pickup"},
+            )
+        )
         if billable <= 31.5:
-            products.append(RateProduct(
-                name="DPD 9:30",
-                price=round(base * 2.2, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "dpd", "service": "guarantee_0930"},
-            ))
-            products.append(RateProduct(
-                name="DPD 12:00",
-                price=round(base * 1.8, 2),
-                currency="PLN",
-                delivery_days=1,
-                attributes={"source": "dpd", "service": "guarantee_1200"},
-            ))
+            products.append(
+                RateProduct(
+                    name="DPD 9:30",
+                    price=round(base * 2.2, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "dpd", "service": "guarantee_0930"},
+                )
+            )
+            products.append(
+                RateProduct(
+                    name="DPD 12:00",
+                    price=round(base * 1.8, 2),
+                    currency="PLN",
+                    delivery_days=1,
+                    attributes={"source": "dpd", "service": "guarantee_1200"},
+                )
+            )
     else:
         if billable <= 5:
             base = 45.00
@@ -212,13 +223,15 @@ def _calculate_dpd_rates(
         else:
             base = 70.00 + (billable - 20) * 2.5
 
-        products.append(RateProduct(
-            name="DPD Classic International",
-            price=round(base, 2),
-            currency="PLN",
-            delivery_days=5,
-            attributes={"source": "dpd", "service": "classic_international"},
-        ))
+        products.append(
+            RateProduct(
+                name="DPD Classic International",
+                price=round(base, 2),
+                currency="PLN",
+                delivery_days=5,
+                attributes={"source": "dpd", "service": "classic_international"},
+            )
+        )
 
     return products
 

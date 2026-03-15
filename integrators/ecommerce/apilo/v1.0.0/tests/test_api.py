@@ -1,9 +1,7 @@
 """Tests for Apilo integrator API routes."""
 
 import pytest
-
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import ApiloAccountConfig
 from src.main import create_app
@@ -15,13 +13,15 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(ApiloAccountConfig(
-        name="test",
-        client_id="test-client-id",
-        client_secret="test-secret",
-        authorization_code="test-code",
-        base_url="https://test.apilo.com",
-    ))
+    account_manager.add_account(
+        ApiloAccountConfig(
+            name="test",
+            client_id="test-client-id",
+            client_secret="test-secret",
+            authorization_code="test-code",
+            base_url="https://test.apilo.com",
+        )
+    )
     app_state.account_manager = account_manager
 
     return application
@@ -53,22 +53,28 @@ class TestAccountEndpoints:
         assert data[0]["base_url"] == "https://test.apilo.com"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-account",
-            "client_id": "new-client-id",
-            "client_secret": "new-secret",
-            "authorization_code": "new-code",
-            "base_url": "https://new.apilo.com",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-account",
+                "client_id": "new-client-id",
+                "client_secret": "new-secret",
+                "authorization_code": "new-code",
+                "base_url": "https://new.apilo.com",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-account"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "client_id": "temp-id",
-            "client_secret": "temp-secret",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "client_id": "temp-id",
+                "client_secret": "temp-secret",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 

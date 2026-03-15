@@ -14,10 +14,10 @@ from enum import Enum
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Credentials
 # ---------------------------------------------------------------------------
+
 
 class BulkGateCredentials(BaseModel):
     application_id: str = Field(description="BulkGate Application ID")
@@ -27,6 +27,7 @@ class BulkGateCredentials(BaseModel):
 # ---------------------------------------------------------------------------
 # Sender ID
 # ---------------------------------------------------------------------------
+
 
 class SenderIdType(str, Enum):
     SYSTEM = "gSystem"
@@ -41,6 +42,7 @@ class SenderIdType(str, Enum):
 # ---------------------------------------------------------------------------
 # Simple API — Transactional SMS request
 # ---------------------------------------------------------------------------
+
 
 class SendTransactionalSmsRequest(BaseModel):
     credentials: BulkGateCredentials
@@ -59,6 +61,7 @@ class SendTransactionalSmsRequest(BaseModel):
 # Simple API — Promotional (Bulk) SMS request
 # ---------------------------------------------------------------------------
 
+
 class SendPromotionalSmsRequest(BaseModel):
     credentials: BulkGateCredentials
     number: str = Field(description="Recipient numbers separated by semicolon")
@@ -75,6 +78,7 @@ class SendPromotionalSmsRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # Advanced API v2.0 — SMS channel object
 # ---------------------------------------------------------------------------
+
 
 class SmsChannelObject(BaseModel):
     text: str | None = Field(default=None, description="SMS text override")
@@ -98,6 +102,7 @@ class ChannelCascade(BaseModel):
 # Advanced API v2.0 — Transactional SMS request
 # ---------------------------------------------------------------------------
 
+
 class SendAdvancedSmsRequest(BaseModel):
     credentials: BulkGateCredentials
     number: list[str] = Field(description="Recipient number(s)")
@@ -114,6 +119,7 @@ class SendAdvancedSmsRequest(BaseModel):
 # Credit balance request
 # ---------------------------------------------------------------------------
 
+
 class CheckBalanceRequest(BaseModel):
     credentials: BulkGateCredentials
 
@@ -121,6 +127,7 @@ class CheckBalanceRequest(BaseModel):
 # ---------------------------------------------------------------------------
 # BulkGate API responses
 # ---------------------------------------------------------------------------
+
 
 class SmsPartResponse(BaseModel):
     status: str
@@ -174,6 +181,7 @@ class BulkGateErrorResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Webhook payload — delivery reports
 # ---------------------------------------------------------------------------
+
 
 class DeliveryReportPayload(BaseModel):
     sms_id: str | None = Field(default=None)

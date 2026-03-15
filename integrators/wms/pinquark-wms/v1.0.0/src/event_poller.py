@@ -9,18 +9,18 @@ the first cycle snapshots current data without emitting events.
 """
 
 import asyncio
+import contextlib
 import hashlib
 import json
 import logging
-from datetime import datetime, timezone
 from typing import Any
 
 import httpx
+from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 from src.client import PinquarkWmsClient
 from src.config import settings
 from src.schemas import WmsCredentials
-from pinquark_common.kafka import KafkaMessageProducer, wrap_event
 
 logger = logging.getLogger("pinquark-wms-poller")
 
@@ -81,7 +81,8 @@ class EventPoller:
         interval = creds.polling_interval_seconds or settings.event_polling_interval_seconds
         logger.info(
             "Registered polling credentials for account=%s (interval=%ds)",
-            account_name, interval,
+            account_name,
+            interval,
         )
 
     async def start(self) -> None:
@@ -104,10 +105,8 @@ class EventPoller:
         self._running = False
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         if self._http_client:
             await self._http_client.aclose()
         logger.info("Event poller stopped")
@@ -132,9 +131,7 @@ class EventPoller:
         """Shortest account interval (how often the loop wakes up)."""
         if not self._credential_store:
             return settings.event_polling_interval_seconds
-        return min(
-            self._account_interval(c) for c in self._credential_store.values()
-        )
+        return min(self._account_interval(c) for c in self._credential_store.values())
 
     async def _poll_cycle(self) -> None:
         if not self._credential_store:
@@ -199,7 +196,9 @@ class EventPoller:
             logger.warning("Fetch %ss returned HTTP %d for account=%s", entity_type, status, account_name)
             return
         if not isinstance(data, list):
-            logger.warning("Fetch %ss returned non-list (%s) for account=%s", entity_type, type(data).__name__, account_name)
+            logger.warning(
+                "Fetch %ss returned non-list (%s) for account=%s", entity_type, type(data).__name__, account_name
+            )
             return
 
         state_key = f"{account_name}:{entity_type}"
@@ -229,12 +228,16 @@ class EventPoller:
         if is_first_run:
             logger.info(
                 "Baseline snapshot: %d %s(s) for account=%s (events start from next cycle)",
-                len(data), entity_type, account_name,
+                len(data),
+                entity_type,
+                account_name,
             )
         elif events_emitted > 0:
             logger.info(
                 "Emitted %d %s events for account=%s",
-                events_emitted, event_name, account_name,
+                events_emitted,
+                event_name,
+                account_name,
             )
         else:
             logger.info("No changes in %s for account=%s (%d items)", entity_type, account_name, len(data))
@@ -276,7 +279,8 @@ class EventPoller:
         if events_emitted > 0:
             logger.info(
                 "Emitted %d position.synced events for account=%s",
-                events_emitted, account_name,
+                events_emitted,
+                account_name,
             )
 
     async def _poll_feedbacks(self, account_name: str, creds: WmsCredentials) -> None:
@@ -313,7 +317,8 @@ class EventPoller:
         if events_emitted > 0:
             logger.info(
                 "Emitted %d feedback.received events for account=%s",
-                events_emitted, account_name,
+                events_emitted,
+                account_name,
             )
 
     async def _emit_event(self, event_name: str, data: dict[str, Any]) -> None:
@@ -355,7 +360,8 @@ class EventPoller:
                 else:
                     logger.error(
                         "Platform rejected event %s: HTTP %d",
-                        event_name, resp.status_code,
+                        event_name,
+                        resp.status_code,
                     )
             except Exception:
                 logger.error("Failed to send event %s to platform", event_name, exc_info=True)

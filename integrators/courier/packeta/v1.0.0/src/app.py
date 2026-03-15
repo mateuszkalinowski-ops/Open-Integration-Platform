@@ -13,6 +13,7 @@ except (IndexError, OSError):
 
 from fastapi import FastAPI, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -20,7 +21,12 @@ except ImportError:
 
 from src.config import settings
 from src.integration import PacketaIntegration
-from src.schemas import CreateShipmentRequest, DeleteRequest, LabelRequest, StatusRequest
+from src.schemas import (
+    CreateShipmentRequest,
+    DeleteRequest,
+    LabelRequest,
+    StatusRequest,
+)
 
 logging.basicConfig(
     level=settings.log_level,
@@ -52,7 +58,8 @@ async def readiness():
 @app.post("/shipments")
 async def create_shipment(request: CreateShipmentRequest):
     result, status_code = integration.create_order(
-        request.credentials, request.command,
+        request.credentials,
+        request.command,
     )
     if status_code >= 400:
         raise HTTPException(status_code=status_code, detail=result)
@@ -62,7 +69,8 @@ async def create_shipment(request: CreateShipmentRequest):
 @app.post("/shipments/status")
 async def get_status(request: StatusRequest):
     result, status_code = integration.get_order_status(
-        request.credentials, request.waybill_number,
+        request.credentials,
+        request.waybill_number,
     )
     if status_code >= 400:
         raise HTTPException(status_code=status_code, detail=result)
@@ -72,7 +80,9 @@ async def get_status(request: StatusRequest):
 @app.post("/labels")
 async def get_label(request: LabelRequest):
     label_bytes, status_code = integration.get_waybill_label_bytes(
-        request.credentials, request.waybill_numbers, request.external_id,
+        request.credentials,
+        request.waybill_numbers,
+        request.external_id,
     )
     if status_code >= 400:
         raise HTTPException(status_code=status_code, detail=label_bytes)
@@ -82,7 +92,8 @@ async def get_label(request: LabelRequest):
 @app.post("/shipments/delete")
 async def cancel_shipment(request: DeleteRequest):
     result, status_code = integration.delete_order(
-        request.credentials, request.waybill_number,
+        request.credentials,
+        request.waybill_number,
     )
     if status_code >= 400:
         raise HTTPException(status_code=status_code, detail=result)

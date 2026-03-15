@@ -85,10 +85,7 @@ class AccountCreateRequest(BaseModel):
 @router.get("/accounts")
 async def list_accounts() -> list[dict[str, str]]:
     accounts = app_state.account_manager.list_accounts()
-    return [
-        {"name": a.name, "environment": a.environment, "default_channel": a.default_channel}
-        for a in accounts
-    ]
+    return [{"name": a.name, "environment": a.environment, "default_channel": a.default_channel} for a in accounts]
 
 
 @router.post("/accounts", status_code=201)

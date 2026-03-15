@@ -9,6 +9,7 @@ class AllegroAccountConfig(BaseSettings):
 
     Populated at runtime from YAML config or environment variables.
     """
+
     name: str
     client_id: str
     client_secret: str

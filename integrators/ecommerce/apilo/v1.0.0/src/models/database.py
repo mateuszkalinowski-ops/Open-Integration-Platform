@@ -52,9 +52,11 @@ class StateStore:
 
     async def load_all_timestamps(self) -> dict[str, dict[str, str]]:
         result: dict[str, dict[str, str]] = {}
-        async with aiosqlite.connect(self._db_path) as db:
-            async with db.execute("SELECT account_name, entity, last_timestamp FROM scraper_state") as cursor:
-                async for row in cursor:
-                    account_name, entity, timestamp = row
-                    result.setdefault(account_name, {})[entity] = timestamp
+        async with (
+            aiosqlite.connect(self._db_path) as db,
+            db.execute("SELECT account_name, entity, last_timestamp FROM scraper_state") as cursor,
+        ):
+            async for row in cursor:
+                account_name, entity, timestamp = row
+                result.setdefault(account_name, {})[entity] = timestamp
         return result

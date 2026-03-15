@@ -1,7 +1,7 @@
 """Apilo e-commerce integration — implements the EcommerceIntegration interface."""
 
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 from pinquark_common.interfaces.ecommerce import EcommerceIntegration
@@ -14,13 +14,14 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
-from src.config import ApiloAccountConfig
+
 from src.apilo.client import ApiloClient
 from src.apilo.mapper import (
     map_apilo_order_to_order,
     map_apilo_product_to_product,
     map_order_status_to_apilo,
 )
+from src.config import ApiloAccountConfig
 from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
@@ -68,7 +69,7 @@ class ApiloIntegration(EcommerceIntegration):
 
         params: dict[str, Any] = {}
         if since:
-            params["updated_after"] = since.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S+0000")
+            params["updated_after"] = since.astimezone(UTC).strftime("%Y-%m-%dT%H:%M:%S+0000")
 
         offset = (page - 1) * page_size
         resp = await self._client.get_orders(
@@ -248,25 +249,40 @@ class ApiloIntegration(EcommerceIntegration):
         return await self._client.create_order(account, order_data)
 
     async def add_order_payment(
-        self, account_name: str, order_id: str, payment_data: dict[str, Any],
+        self,
+        account_name: str,
+        order_id: str,
+        payment_data: dict[str, Any],
     ) -> Any:
         account = self._get_account(account_name)
         return await self._client.add_order_payment(account, order_id, payment_data)
 
     async def add_order_note(
-        self, account_name: str, order_id: str, comment: str, note_type: int = 2,
+        self,
+        account_name: str,
+        order_id: str,
+        comment: str,
+        note_type: int = 2,
     ) -> Any:
         account = self._get_account(account_name)
         return await self._client.add_order_note(account, order_id, comment, note_type)
 
     async def add_order_shipment(
-        self, account_name: str, order_id: str, shipment_data: dict[str, Any],
+        self,
+        account_name: str,
+        order_id: str,
+        shipment_data: dict[str, Any],
     ) -> dict[str, Any]:
         account = self._get_account(account_name)
         return await self._client.add_order_shipment(account, order_id, shipment_data)
 
     async def manage_order_tag(
-        self, account_name: str, order_id: str, tag_id: int, *, remove: bool = False,
+        self,
+        account_name: str,
+        order_id: str,
+        tag_id: int,
+        *,
+        remove: bool = False,
     ) -> Any:
         account = self._get_account(account_name)
         if remove:

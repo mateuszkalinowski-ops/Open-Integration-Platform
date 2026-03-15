@@ -11,8 +11,9 @@ try:
 except (IndexError, OSError):
     pass
 
-from fastapi import FastAPI, Header, HTTPException, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Response
 from fastapi.responses import JSONResponse
+
 try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
@@ -60,7 +61,8 @@ async def readiness():
 async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = await integration.create_order(
-            request.credentials, request,
+            request.credentials,
+            request,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)
@@ -99,7 +101,8 @@ async def get_status(
 async def get_label(request: LabelRequest):
     try:
         label_bytes, status_code = await integration.get_waybill_label_bytes(
-            request.credentials, request.shipment_uuid,
+            request.credentials,
+            request.shipment_uuid,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=label_bytes)
@@ -194,7 +197,9 @@ async def create_pickup(request: PickupRequest):
 async def get_pickup_hours(request: PickupHoursRequest):
     try:
         result, status_code = await integration.get_pickup_hours(
-            request.credentials, request.postcode, request.country_code,
+            request.credentials,
+            request.postcode,
+            request.country_code,
         )
         if status_code >= 400:
             raise HTTPException(status_code=status_code, detail=result)

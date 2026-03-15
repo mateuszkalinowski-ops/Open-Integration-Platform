@@ -1,10 +1,7 @@
 """Tests for Shoper integrator API routes."""
 
 import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.config import ShoperAccountConfig
 from src.main import create_app
@@ -17,12 +14,14 @@ def test_app():
     application = create_app()
 
     account_manager = AccountManager()
-    account_manager.add_account(ShoperAccountConfig(
-        name="test",
-        shop_url="https://test.shoparena.pl",
-        login="admin",
-        password="pass",
-    ))
+    account_manager.add_account(
+        ShoperAccountConfig(
+            name="test",
+            shop_url="https://test.shoparena.pl",
+            login="admin",
+            password="pass",
+        )
+    )
     app_state.account_manager = account_manager
     app_state.auth_manager = ShoperAuthManager()
 
@@ -54,22 +53,28 @@ class TestAccountEndpoints:
         assert data[0]["name"] == "test"
 
     def test_add_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-shop",
-            "shop_url": "https://new.shoparena.pl",
-            "login": "admin",
-            "password": "secret",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-shop",
+                "shop_url": "https://new.shoparena.pl",
+                "login": "admin",
+                "password": "secret",
+            },
+        )
         assert response.status_code == 201
         assert response.json()["name"] == "new-shop"
 
     def test_remove_account(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "to-remove",
-            "shop_url": "https://remove.shoparena.pl",
-            "login": "admin",
-            "password": "secret",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "to-remove",
+                "shop_url": "https://remove.shoparena.pl",
+                "login": "admin",
+                "password": "secret",
+            },
+        )
         response = client.delete("/accounts/to-remove")
         assert response.status_code == 200
 

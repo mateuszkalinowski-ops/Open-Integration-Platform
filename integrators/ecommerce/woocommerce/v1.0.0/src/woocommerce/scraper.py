@@ -2,15 +2,16 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
-from src.woocommerce.client import WooCommerceClient
-from src.woocommerce.mapper import map_woo_order_to_order
-from src.woocommerce.schemas import WooOrder
+from pinquark_common.kafka import KafkaMessageProducer
+
 from src.config import WooCommerceAccountConfig, settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
+from src.woocommerce.client import WooCommerceClient
+from src.woocommerce.mapper import map_woo_order_to_order
+from src.woocommerce.schemas import WooOrder
 
 logger = logging.getLogger(__name__)
 
@@ -55,7 +56,7 @@ class OrderScraper:
 
     async def _scrape_account(self, account: WooCommerceAccountConfig) -> None:
         last_modified = await self._state_store.get_last_scraped(account.name, "orders")
-        modified_after = last_modified or (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        modified_after = last_modified or (datetime.now(UTC) - timedelta(hours=24)).isoformat()
 
         raw_orders = await self._client.list_orders(
             account_name=account.name,
@@ -84,15 +85,20 @@ class OrderScraper:
             else:
                 logger.info(
                     "Order scraped (no Kafka): id=%s account=%s status=%s",
-                    order.external_id, account.name, order.status,
+                    order.external_id,
+                    account.name,
+                    order.status,
                 )
 
         if newest_modified:
             await self._state_store.save_last_scraped(
-                account.name, "orders", newest_modified.isoformat(),
+                account.name,
+                "orders",
+                newest_modified.isoformat(),
             )
 
         logger.info(
             "Scraped orders account=%s: %d orders fetched",
-            account.name, len(raw_orders),
+            account.name,
+            len(raw_orders),
         )

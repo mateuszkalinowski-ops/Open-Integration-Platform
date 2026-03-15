@@ -8,15 +8,15 @@ import asyncio
 import time
 import uuid
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import structlog
+from db.models import Flow, FlowExecution
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from core.mapping_resolver import MappingResolver
-from db.models import Flow, FlowExecution
 
 logger = structlog.get_logger()
 
@@ -66,7 +66,7 @@ class FlowEngine:
         try:
             if not self._matches_filter(event_data, flow.source_filter):
                 execution.status = "skipped"
-                execution.completed_at = datetime.now(timezone.utc)
+                execution.completed_at = datetime.now(UTC)
                 execution.duration_ms = int((time.monotonic() - start_time) * 1000)
                 await db.flush()
                 return execution
@@ -101,7 +101,7 @@ class FlowEngine:
                     execution.status = "success"
                     execution.retry_count = attempt
                     execution.result = result if isinstance(result, dict) else {"result": str(result)}
-                    execution.completed_at = datetime.now(timezone.utc)
+                    execution.completed_at = datetime.now(UTC)
                     execution.duration_ms = int((time.monotonic() - start_time) * 1000)
 
                     await logger.ainfo(
@@ -118,7 +118,7 @@ class FlowEngine:
                     last_exc = exc
                     execution.retry_count = attempt
                     if attempt < max_attempts - 1:
-                        delay = min(_RETRY_BASE_DELAY * (2 ** attempt), _RETRY_MAX_DELAY)
+                        delay = min(_RETRY_BASE_DELAY * (2**attempt), _RETRY_MAX_DELAY)
                         await logger.awarning(
                             "flow_action_retry",
                             flow_id=str(flow.id),
@@ -135,7 +135,7 @@ class FlowEngine:
         except Exception as exc:
             execution.status = "failed"
             execution.error = str(exc)
-            execution.completed_at = datetime.now(timezone.utc)
+            execution.completed_at = datetime.now(UTC)
             execution.duration_ms = int((time.monotonic() - start_time) * 1000)
 
             await logger.aerror(
@@ -198,6 +198,7 @@ class FlowEngine:
         """Apply a JMESPath transform expression to mapped data."""
         try:
             import jmespath
+
             result = jmespath.search(transform, data)
             if isinstance(result, dict):
                 return result

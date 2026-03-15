@@ -11,9 +11,7 @@ class Settings(BaseSettings):
     soap_timeout: int = 30
     soap_operation_timeout: int = 600
 
-    schenker_transport_api_url: str = (
-        "https://www.dbschenker.com/api/TransportOrders?wsdl"
-    )
+    schenker_transport_api_url: str = "https://www.dbschenker.com/api/TransportOrders?wsdl"
 
     @property
     def is_production(self) -> bool:

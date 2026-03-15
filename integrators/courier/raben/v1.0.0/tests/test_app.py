@@ -6,7 +6,6 @@ from unittest.mock import AsyncMock, patch
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.app import app
 
 
@@ -18,6 +17,7 @@ def client():
 # ---------------------------------------------------------------------------
 # Health
 # ---------------------------------------------------------------------------
+
 
 class TestHealth:
     def test_health_returns_healthy(self, client: TestClient):
@@ -40,11 +40,18 @@ class TestHealth:
 # Shipments
 # ---------------------------------------------------------------------------
 
+
 class TestCreateShipment:
     @patch("src.app.integration.create_order", new_callable=AsyncMock)
     def test_create_shipment_returns_201(self, mock_create, client: TestClient):
         mock_create.return_value = (
-            {"orderId": "ORD-123", "waybillNumber": "RAB-456", "status": "created", "serviceType": "cargo_classic", "createdAt": "2026-02-22T10:00:00Z"},
+            {
+                "orderId": "ORD-123",
+                "waybillNumber": "RAB-456",
+                "status": "created",
+                "serviceType": "cargo_classic",
+                "createdAt": "2026-02-22T10:00:00Z",
+            },
             201,
         )
         payload = {
@@ -68,7 +75,12 @@ class TestCreateShipment:
                 "countryCode": "PL",
             },
             "packages": [
-                {"packageType": "pallet", "quantity": 1, "weight": 500.0, "dimensions": {"length": 120, "width": 80, "height": 100}},
+                {
+                    "packageType": "pallet",
+                    "quantity": 1,
+                    "weight": 500.0,
+                    "dimensions": {"length": 120, "width": 80, "height": 100},
+                },
             ],
             "serviceType": "cargo_classic",
         }
@@ -84,12 +96,22 @@ class TestCreateShipment:
         payload = {
             "credentials": {"username": "bad", "password": "bad"},
             "sender": {
-                "companyName": "S", "contactPerson": "J", "phone": "1",
-                "street": "S", "city": "W", "postalCode": "00-001", "countryCode": "PL",
+                "companyName": "S",
+                "contactPerson": "J",
+                "phone": "1",
+                "street": "S",
+                "city": "W",
+                "postalCode": "00-001",
+                "countryCode": "PL",
             },
             "receiver": {
-                "companyName": "R", "contactPerson": "A", "phone": "2",
-                "street": "R", "city": "K", "postalCode": "30-001", "countryCode": "PL",
+                "companyName": "R",
+                "contactPerson": "A",
+                "phone": "2",
+                "street": "R",
+                "city": "K",
+                "postalCode": "30-001",
+                "countryCode": "PL",
             },
             "packages": [{"weight": 100.0}],
         }
@@ -121,6 +143,7 @@ class TestCancelShipment:
 # Tracking
 # ---------------------------------------------------------------------------
 
+
 class TestTracking:
     @patch("src.app.integration.get_tracking", new_callable=AsyncMock)
     def test_get_tracking_returns_events(self, mock_tracking, client: TestClient):
@@ -130,7 +153,11 @@ class TestTracking:
                 "status": "in_transit",
                 "events": [
                     {"timestamp": "2026-02-22T08:00:00Z", "status": "picked_up", "description": "Shipment picked up"},
-                    {"timestamp": "2026-02-22T10:00:00Z", "status": "in_transit", "description": "In transit to terminal"},
+                    {
+                        "timestamp": "2026-02-22T10:00:00Z",
+                        "status": "in_transit",
+                        "description": "In transit to terminal",
+                    },
                 ],
                 "eta": {"etaFrom": "2026-02-23T08:00:00Z", "etaTo": "2026-02-23T10:00:00Z"},
             },
@@ -171,6 +198,7 @@ class TestTracking:
 # Labels
 # ---------------------------------------------------------------------------
 
+
 class TestLabels:
     @patch("src.app.integration.get_label", new_callable=AsyncMock)
     def test_get_label_returns_pdf(self, mock_label, client: TestClient):
@@ -189,11 +217,18 @@ class TestLabels:
 # Claims
 # ---------------------------------------------------------------------------
 
+
 class TestClaims:
     @patch("src.app.integration.create_claim", new_callable=AsyncMock)
     def test_create_claim_returns_201(self, mock_claim, client: TestClient):
         mock_claim.return_value = (
-            {"claimId": "CLM-789", "waybillNumber": "RAB-456", "claimType": "damage", "status": "submitted", "createdAt": "2026-02-22T10:00:00Z"},
+            {
+                "claimId": "CLM-789",
+                "waybillNumber": "RAB-456",
+                "claimType": "damage",
+                "status": "submitted",
+                "createdAt": "2026-02-22T10:00:00Z",
+            },
             201,
         )
         payload = {
@@ -211,6 +246,7 @@ class TestClaims:
 # ---------------------------------------------------------------------------
 # Delivery confirmation (PCD)
 # ---------------------------------------------------------------------------
+
 
 class TestDeliveryConfirmation:
     @patch("src.app.integration.get_delivery_confirmation", new_callable=AsyncMock)

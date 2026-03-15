@@ -106,7 +106,14 @@ def mask_phone(phone: str) -> str:
 
 
 _PII_SEGMENT_PATTERNS: set[str] = {
-    "email", "phone", "name", "address", "pesel", "password", "secret", "token",
+    "email",
+    "phone",
+    "name",
+    "address",
+    "pesel",
+    "password",
+    "secret",
+    "token",
 }
 
 

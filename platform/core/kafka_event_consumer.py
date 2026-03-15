@@ -6,14 +6,14 @@ platform's event-driven workflow/flow execution.
 """
 
 import asyncio
+import contextlib
 import logging
 from collections.abc import Callable, Coroutine
 from typing import Any
 
+from pinquark_common.kafka import KafkaMessageConsumer
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-
-from pinquark_common.kafka import KafkaMessageConsumer
 
 logger = logging.getLogger(__name__)
 
@@ -61,6 +61,7 @@ class KafkaEventBridge:
         self._stopping = False
 
         from core.credential_vault import CredentialVault
+
         self._vault = CredentialVault()
 
     def _build_sasl_args(self) -> dict[str, Any]:
@@ -91,7 +92,8 @@ class KafkaEventBridge:
         self._task = asyncio.create_task(self._consume_loop())
         logger.info(
             "kafka_event_bridge started, topics=%s, group=%s",
-            self._topics, self._group_id,
+            self._topics,
+            self._group_id,
         )
 
     async def _create_consumer_and_start(self) -> None:
@@ -110,10 +112,8 @@ class KafkaEventBridge:
         self._stopping = True
         if self._task:
             self._task.cancel()
-            try:
+            with contextlib.suppress(asyncio.CancelledError):
                 await self._task
-            except asyncio.CancelledError:
-                pass
         if self._consumer:
             await self._consumer.stop()
         logger.info("kafka_event_bridge stopped")
@@ -129,7 +129,8 @@ class KafkaEventBridge:
                 raise
             except Exception:
                 logger.exception(
-                    "kafka_event_bridge consume loop crashed, reconnecting in %.0fs", delay,
+                    "kafka_event_bridge consume loop crashed, reconnecting in %.0fs",
+                    delay,
                 )
                 if self._stopping:
                     break
@@ -158,7 +159,9 @@ class KafkaEventBridge:
 
         logger.info(
             "kafka_event_bridge processing event: connector=%s event=%s account=%s",
-            connector_name, event, account_name,
+            connector_name,
+            event,
+            account_name,
         )
 
         from db.base import set_rls_bypass
@@ -169,18 +172,15 @@ class KafkaEventBridge:
             target_tenant_id = data.get("_tenant_id")
             if target_tenant_id:
                 import uuid as _uuid
+
                 try:
                     tid = _uuid.UUID(str(target_tenant_id))
                 except (ValueError, AttributeError):
                     logger.warning("kafka_event_bridge: invalid _tenant_id=%s", target_tenant_id)
                     return
-                result = await db.execute(
-                    select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid)
-                )
+                result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid))
             else:
-                result = await db.execute(
-                    select(Tenant).where(Tenant.is_active.is_(True))
-                )
+                result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True)))
             tenants = list(result.scalars().all())
 
             if not tenants:
@@ -194,7 +194,10 @@ class KafkaEventBridge:
                 except Exception:
                     logger.exception(
                         "kafka_event_bridge: tenant processing failed — DLQ event tenant=%s connector=%s event=%s key=%s",
-                        tenant.id, connector_name, event, key,
+                        tenant.id,
+                        connector_name,
+                        event,
+                        key,
                     )
 
             await db.commit()
@@ -224,7 +227,8 @@ class KafkaEventBridge:
             except Exception:
                 logger.warning(
                     "kafka_event_bridge: failed to retrieve credentials for connector=%s tenant=%s",
-                    connector_name, tenant_id,
+                    connector_name,
+                    tenant_id,
                 )
             return await dispatch_action(
                 connector_name=connector_name,
@@ -246,12 +250,17 @@ class KafkaEventBridge:
             if workflow_executions:
                 logger.info(
                     "kafka_event_bridge: triggered %d workflow(s) for tenant=%s connector=%s event=%s",
-                    len(workflow_executions), tenant.id, connector_name, event,
+                    len(workflow_executions),
+                    tenant.id,
+                    connector_name,
+                    event,
                 )
         except Exception:
             logger.exception(
                 "kafka_event_bridge: workflow error tenant=%s connector=%s event=%s",
-                tenant.id, connector_name, event,
+                tenant.id,
+                connector_name,
+                event,
             )
 
         try:
@@ -266,10 +275,15 @@ class KafkaEventBridge:
             if flow_executions:
                 logger.info(
                     "kafka_event_bridge: triggered %d flow(s) for tenant=%s connector=%s event=%s",
-                    len(flow_executions), tenant.id, connector_name, event,
+                    len(flow_executions),
+                    tenant.id,
+                    connector_name,
+                    event,
                 )
         except Exception:
             logger.exception(
                 "kafka_event_bridge: flow error tenant=%s connector=%s event=%s",
-                tenant.id, connector_name, event,
+                tenant.id,
+                connector_name,
+                event,
             )

@@ -11,10 +11,10 @@ from fastapi import HTTPException
 ROOT = pathlib.Path(__file__).resolve().parents[2]
 sys.path.insert(0, str(ROOT / "sdk/python"))
 
-from pinquark_connector_sdk import ConnectorApp, action  # noqa: E402
+from core.action_dispatcher import dispatch_action, set_rate_limiter
+from core.connector_registry import ConnectorManifest
 
-from core.action_dispatcher import dispatch_action, set_rate_limiter  # noqa: E402
-from core.connector_registry import ConnectorManifest  # noqa: E402
+from pinquark_connector_sdk import ConnectorApp, action
 
 
 class DemoSdkConnector(ConnectorApp):

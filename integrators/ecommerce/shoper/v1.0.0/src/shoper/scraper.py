@@ -2,15 +2,16 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
+
+from pinquark_common.kafka import KafkaMessageProducer
 
 from src.config import ShoperAccountConfig, settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
 from src.shoper.client import ShoperClient
 from src.shoper.mapper import map_shoper_order_to_order, map_shoper_product_to_product
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -56,7 +57,7 @@ class ShoperScraper:
                 logger.exception("Error scraping account=%s", account.name)
 
     async def _scrape_account(self, account: ShoperAccountConfig) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_str = now.strftime("%Y-%m-%d %H:%M:%S")
 
         if settings.scrape_orders:
@@ -73,7 +74,11 @@ class ShoperScraper:
             filters["status_date"] = {">=": last, "<": now_str}
 
         orders = await self._client.get_paged(
-            "orders", account.name, account.shop_url, account.login, account.password,
+            "orders",
+            account.name,
+            account.shop_url,
+            account.login,
+            account.password,
             filters=filters,
             order=["status_date"],
         )
@@ -83,7 +88,11 @@ class ShoperScraper:
 
         order_ids = [str(o.get("order_id")) for o in orders]
         order_products = await self._client.get_bulk(
-            "order-products", account.name, account.shop_url, account.login, account.password,
+            "order-products",
+            account.name,
+            account.shop_url,
+            account.login,
+            account.password,
             filters={"order_id": {"IN": order_ids}},
         )
         products_by_order: dict[str, list[dict[str, Any]]] = {}
@@ -113,7 +122,11 @@ class ShoperScraper:
             filters["add_date"] = {">=": last, "<": now_str}
 
         products = await self._client.get_paged(
-            "products", account.name, account.shop_url, account.login, account.password,
+            "products",
+            account.name,
+            account.shop_url,
+            account.login,
+            account.password,
             filters=filters,
             order=["add_date"],
         )
@@ -140,7 +153,11 @@ class ShoperScraper:
             filters["date_add"] = {">=": last, "<": now_str}
 
         users = await self._client.get_paged(
-            "users", account.name, account.shop_url, account.login, account.password,
+            "users",
+            account.name,
+            account.shop_url,
+            account.login,
+            account.password,
             filters=filters,
             order=["date_add"],
         )

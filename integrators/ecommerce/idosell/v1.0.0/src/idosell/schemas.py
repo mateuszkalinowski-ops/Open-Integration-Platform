@@ -9,10 +9,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Authentication
 # ---------------------------------------------------------------------------
+
 
 class IdoSellAuthStatus(BaseModel):
     account_name: str
@@ -24,6 +24,7 @@ class IdoSellAuthStatus(BaseModel):
 # Common response wrappers
 # ---------------------------------------------------------------------------
 
+
 class IdoSellError(BaseModel):
     faultCode: int = 0
     faultString: str = ""
@@ -31,6 +32,7 @@ class IdoSellError(BaseModel):
 
 class IdoSellPagedResponse(BaseModel):
     """Generic paged response wrapper."""
+
     resultsNumberAll: int = 0
     resultsNumberPage: int = 0
     resultsPage: int = 0
@@ -43,8 +45,10 @@ class IdoSellPagedResponse(BaseModel):
 # Order statuses
 # ---------------------------------------------------------------------------
 
+
 class IdoSellOrderStatus(str, Enum):
     """IdoSell order status symbols (from Java IdoOrderStatus enum)."""
+
     FINISHED_EXT = "finished_ext"
     FINISHED = "finished"
     NEW = "new"
@@ -74,6 +78,7 @@ class IdoSellOrderStatus(str, Enum):
 # ---------------------------------------------------------------------------
 # Order models
 # ---------------------------------------------------------------------------
+
 
 class IdoSellOrderClientAccount(BaseModel):
     clientId: int | None = None
@@ -228,6 +233,7 @@ class IdoSellOrdersSearchResponse(BaseModel):
 # Product models
 # ---------------------------------------------------------------------------
 
+
 class IdoSellDescriptionLangData(BaseModel):
     langId: str = ""
     productName: str = ""
@@ -304,6 +310,7 @@ class IdoSellProductsSearchResponse(BaseModel):
 # Order update models
 # ---------------------------------------------------------------------------
 
+
 class IdoSellOrderUpdateSingleResult(BaseModel):
     faultCode: int = 0
     faultString: str = ""
@@ -325,6 +332,7 @@ class IdoSellOrderUpdateResponse(BaseModel):
 # Package models
 # ---------------------------------------------------------------------------
 
+
 class IdoSellPackageResult(BaseModel):
     deliveryPackageId: int | None = None
 
@@ -342,6 +350,7 @@ class IdoSellPackageInsertResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Stock quantity update
 # ---------------------------------------------------------------------------
+
 
 class IdoSellStockQuantityProduct(BaseModel):
     productIndex: str = ""

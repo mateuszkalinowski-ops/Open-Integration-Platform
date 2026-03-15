@@ -30,7 +30,13 @@ class AccountManager:
         for account_data in data.get("accounts", []):
             account = FtpAccountConfig(**account_data)
             self._accounts[account.name] = account
-            logger.info("Loaded account: %s (%s://%s, env=%s)", account.name, account.protocol, account.host, account.environment)
+            logger.info(
+                "Loaded account: %s (%s://%s, env=%s)",
+                account.name,
+                account.protocol,
+                account.host,
+                account.environment,
+            )
 
     def _load_from_env(self) -> None:
         idx = 0

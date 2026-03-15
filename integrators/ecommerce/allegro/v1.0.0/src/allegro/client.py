@@ -5,10 +5,10 @@ import time
 from typing import Any
 
 import httpx
+from pinquark_common.monitoring.metrics import setup_metrics
 
 from src.allegro.auth import AllegroAuthManager
 from src.config import settings
-from pinquark_common.monitoring.metrics import setup_metrics
 
 logger = logging.getLogger(__name__)
 
@@ -68,7 +68,10 @@ class AllegroClient:
 
         for attempt in range(settings.max_retries):
             access_token = await self._auth.get_access_token(
-                account_name, client_id, client_secret, auth_url,
+                account_name,
+                client_id,
+                client_secret,
+                auth_url,
             )
             headers = {
                 "Authorization": f"Bearer {access_token}",
@@ -78,21 +81,30 @@ class AllegroClient:
 
             start = time.monotonic()
             response = await http_client.request(
-                method, path, headers=headers, params=params, json=json_data,
+                method,
+                path,
+                headers=headers,
+                params=params,
+                json=json_data,
             )
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="allegro", operation=path.split("/")[0] if path else "unknown", status=response.status_code,
+                system="allegro",
+                operation=path.split("/")[0] if path else "unknown",
+                status=response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="allegro", operation=path.split("/")[0] if path else "unknown",
+                system="allegro",
+                operation=path.split("/")[0] if path else "unknown",
             ).observe(duration)
 
             if response.status_code == 401:
                 logger.warning(
                     "Allegro 401 on attempt %d for account=%s path=%s",
-                    attempt + 1, account_name, path,
+                    attempt + 1,
+                    account_name,
+                    path,
                 )
                 try:
                     await self._auth.refresh_token(account_name, client_id, client_secret, auth_url)
@@ -105,6 +117,7 @@ class AllegroClient:
                 retry_after = int(response.headers.get("Retry-After", "5"))
                 logger.warning("Allegro rate limited, waiting %ds", retry_after)
                 import asyncio
+
                 await asyncio.sleep(retry_after)
                 continue
 
@@ -112,24 +125,64 @@ class AllegroClient:
 
         raise AllegroApiError(401, f"Failed after {settings.max_retries} auth retries")
 
-    async def get(self, path: str, account_name: str, client_id: str, client_secret: str,
-                  api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+    async def get(
+        self,
+        path: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
         return await self.request("GET", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
-    async def post(self, path: str, account_name: str, client_id: str, client_secret: str,
-                   api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+    async def post(
+        self,
+        path: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
         return await self.request("POST", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
-    async def put(self, path: str, account_name: str, client_id: str, client_secret: str,
-                  api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+    async def put(
+        self,
+        path: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
         return await self.request("PUT", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
-    async def patch(self, path: str, account_name: str, client_id: str, client_secret: str,
-                    api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+    async def patch(
+        self,
+        path: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
         return await self.request("PATCH", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
-    async def delete(self, path: str, account_name: str, client_id: str, client_secret: str,
-                     api_url: str, auth_url: str, **kwargs: Any) -> httpx.Response:
+    async def delete(
+        self,
+        path: str,
+        account_name: str,
+        client_id: str,
+        client_secret: str,
+        api_url: str,
+        auth_url: str,
+        **kwargs: Any,
+    ) -> httpx.Response:
         return await self.request("DELETE", path, account_name, client_id, client_secret, api_url, auth_url, **kwargs)
 
     # --- High-level Allegro API methods ---
@@ -147,7 +200,12 @@ class AllegroClient:
         if from_event_id:
             params["from"] = from_event_id
         resp = await self.get(
-            "order/events", account_name, client_id, client_secret, api_url, auth_url,
+            "order/events",
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
             params=params,
         )
         resp.raise_for_status()
@@ -164,7 +222,11 @@ class AllegroClient:
     ) -> dict:
         resp = await self.get(
             f"order/checkout-forms/{checkout_form_id}",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
         )
         resp.raise_for_status()
         return resp.json()
@@ -181,7 +243,11 @@ class AllegroClient:
     ) -> None:
         resp = await self.put(
             f"order/checkout-forms/{checkout_form_id}/fulfillment",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
             json_data={"status": status},
         )
         resp.raise_for_status()
@@ -197,7 +263,11 @@ class AllegroClient:
     ) -> dict:
         resp = await self.get(
             f"sale/offers/{offer_id}",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
         )
         resp.raise_for_status()
         return resp.json()
@@ -213,7 +283,11 @@ class AllegroClient:
     ) -> dict:
         resp = await self.get(
             f"sale/products/{product_id}",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
         )
         resp.raise_for_status()
         return resp.json()
@@ -241,7 +315,11 @@ class AllegroClient:
             params["category.id"] = category_id
         resp = await self.get(
             "offers/listing",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
             params=params,
         )
         resp.raise_for_status()
@@ -259,7 +337,11 @@ class AllegroClient:
     ) -> None:
         resp = await self.put(
             f"sale/offer-quantity-change-commands/{offer_id}",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
             json_data={
                 "modification": {
                     "changeType": "FIXED",
@@ -288,7 +370,11 @@ class AllegroClient:
         """
         resp = await self.post(
             f"order/checkout-forms/{checkout_form_id}/invoices",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
             json_data={
                 "invoiceNumber": invoice_number,
                 "file": {"name": invoice_filename},
@@ -318,7 +404,10 @@ class AllegroClient:
 
         for attempt in range(settings.max_retries):
             access_token = await self._auth.get_access_token(
-                account_name, client_id, client_secret, auth_url,
+                account_name,
+                client_id,
+                client_secret,
+                auth_url,
             )
 
             start = time.monotonic()
@@ -333,10 +422,13 @@ class AllegroClient:
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="allegro", operation="upload_invoice_file", status=resp.status_code,
+                system="allegro",
+                operation="upload_invoice_file",
+                status=resp.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="allegro", operation="upload_invoice_file",
+                system="allegro",
+                operation="upload_invoice_file",
             ).observe(duration)
 
             if resp.status_code == 401:
@@ -352,6 +444,7 @@ class AllegroClient:
                 retry_after = int(resp.headers.get("Retry-After", "5"))
                 logger.warning("Allegro rate limited on invoice file upload, waiting %ds", retry_after)
                 import asyncio
+
                 await asyncio.sleep(retry_after)
                 continue
 
@@ -375,7 +468,11 @@ class AllegroClient:
         """
         resp = await self.get(
             f"order/checkout-forms/{checkout_form_id}/invoices",
-            account_name, client_id, client_secret, api_url, auth_url,
+            account_name,
+            client_id,
+            client_secret,
+            api_url,
+            auth_url,
         )
         resp.raise_for_status()
         return resp.json()

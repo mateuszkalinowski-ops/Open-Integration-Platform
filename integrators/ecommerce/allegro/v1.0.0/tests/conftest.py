@@ -1,7 +1,7 @@
 import os
+from unittest.mock import AsyncMock
+
 import pytest
-import pytest_asyncio
-from unittest.mock import AsyncMock, MagicMock
 
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///./test_allegro.db")
 os.environ.setdefault("DATABASE_ENCRYPTION_KEY", "")
@@ -13,7 +13,6 @@ from src.allegro.integration import AllegroIntegration
 from src.config import AllegroAccountConfig
 from src.models.database import TokenStore
 from src.services.account_manager import AccountManager
-
 
 SANDBOX_ACCOUNT = AllegroAccountConfig(
     name="test-sandbox",

@@ -1,11 +1,8 @@
 """Tests for IdoSell mapper functions."""
 
 import pytest
-
 from pinquark_common.schemas.ecommerce import OrderStatus
 from src.idosell.mapper import (
-    IDOSELL_STATUS_TO_ORDER,
-    ORDER_STATUS_TO_IDOSELL,
     map_idosell_order_status,
     map_idosell_order_to_order,
     map_idosell_product_to_product,
@@ -44,6 +41,7 @@ class TestOrderStatusMapping:
 
     def test_all_statuses_covered(self) -> None:
         from src.idosell.schemas import IdoSellOrderStatus
+
         for status in IdoSellOrderStatus:
             result = map_idosell_order_status(status.value)
             assert isinstance(result, OrderStatus)
@@ -151,6 +149,7 @@ class TestMapIdoSellProductToProduct:
 
     def test_prefers_polish_name(self, sample_idosell_product: IdoSellProduct) -> None:
         from src.idosell.schemas import IdoSellDescriptionLangData
+
         sample_idosell_product.productDescriptionsLangData = [
             IdoSellDescriptionLangData(langId="eng", productName="Polo Shirt"),
             IdoSellDescriptionLangData(langId="pol", productName="Koszulka Polo"),

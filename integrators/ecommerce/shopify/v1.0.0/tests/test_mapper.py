@@ -1,22 +1,19 @@
 """Tests for Shopify → unified schema mapper."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
-import pytest
-
-from pinquark_common.schemas.ecommerce import OrderStatus
+from pinquark_common.schemas.ecommerce import OrderStatus, Product
 from src.shopify.mapper import (
+    map_product_to_shopify,
     map_shopify_order_status,
     map_shopify_order_to_order,
     map_shopify_product_to_product,
-    map_product_to_shopify,
 )
 from src.shopify.schemas import (
     ShopifyOrder,
     ShopifyOrderFulfillmentStatus,
     ShopifyProduct,
 )
-from pinquark_common.schemas.ecommerce import Product
 
 
 class TestMapShopifyOrderStatus:
@@ -37,7 +34,7 @@ class TestMapShopifyOrderStatus:
         assert map_shopify_order_status(sample_shopify_order) == OrderStatus.PROCESSING
 
     def test_closed_but_not_fulfilled(self, sample_shopify_order: ShopifyOrder):
-        sample_shopify_order.closed_at = datetime(2026, 2, 22, tzinfo=timezone.utc)
+        sample_shopify_order.closed_at = datetime(2026, 2, 22, tzinfo=UTC)
         sample_shopify_order.fulfillment_status = None
         assert map_shopify_order_status(sample_shopify_order) == OrderStatus.SHIPPED
 
@@ -92,8 +89,8 @@ class TestMapShopifyOrderToOrder:
 
     def test_maps_timestamps(self, sample_shopify_order: ShopifyOrder):
         order = map_shopify_order_to_order(sample_shopify_order, "test-store")
-        assert order.created_at == datetime(2026, 2, 20, 12, 0, 0, tzinfo=timezone.utc)
-        assert order.updated_at == datetime(2026, 2, 20, 14, 30, 0, tzinfo=timezone.utc)
+        assert order.created_at == datetime(2026, 2, 20, 12, 0, 0, tzinfo=UTC)
+        assert order.updated_at == datetime(2026, 2, 20, 14, 30, 0, tzinfo=UTC)
 
     def test_preserves_raw_data(self, sample_shopify_order: ShopifyOrder):
         order = map_shopify_order_to_order(sample_shopify_order, "test-store")

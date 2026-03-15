@@ -6,7 +6,6 @@ import uuid
 from types import SimpleNamespace
 
 import pytest
-
 from core.workflow_engine import WorkflowContext, WorkflowEngine, WorkflowError
 from core.workflow_scheduler import WorkflowScheduler
 

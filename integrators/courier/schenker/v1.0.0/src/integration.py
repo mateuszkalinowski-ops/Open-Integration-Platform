@@ -58,6 +58,7 @@ class SchenkerIntegration:
 
         For getOrderStatus only DWB and COR are valid.
         """
+
         DOMESTIC_WAYBILL = "DWB"
         CLIENT_ORDER = "COR"
         PACKAGE_ID = "PKG"
@@ -67,6 +68,7 @@ class SchenkerIntegration:
 
     class OrderStatus(Enum):
         """Realization statuses — pre-pickup actions."""
+
         CANCELLED = -2
         REFUSED = -1
         AWAITING_ACCEPTANCE = 0
@@ -76,6 +78,7 @@ class SchenkerIntegration:
 
     class ParcelEvents(Enum):
         """Tracking events — post-pickup / delivery."""
+
         BOOKED = "ENT"
         COLLECTED = "COL"
         DELIVERED_TO_TERMINAL_BY_SHIPPER = "DET"
@@ -163,19 +166,11 @@ class SchenkerIntegration:
                 deliveryTo=self._get_date_time(schenker_extras.get("delivery_to")),
                 comment=schenker_extras.get("comment"),
                 deliveryInstructions=schenker_extras.get("delivery_instructions"),
-                sender=self._get_shipment_party_info(
-                    shipper, client_id, schenker_extras, credentials.login_ext
-                ),
-                recipient=self._get_shipment_party_info(
-                    receiver, None, schenker_extras, receiver.tax_number
-                ),
-                payer=self._get_shipment_party_info(
-                    shipper, client_id, schenker_extras, credentials.login_ext
-                )
+                sender=self._get_shipment_party_info(shipper, client_id, schenker_extras, credentials.login_ext),
+                recipient=self._get_shipment_party_info(receiver, None, schenker_extras, receiver.tax_number),
+                payer=self._get_shipment_party_info(shipper, client_id, schenker_extras, credentials.login_ext)
                 if command.payment.payer_type == "SHIPPER"
-                else self._get_shipment_party_info(
-                    receiver, receiver.client_id, schenker_extras, receiver.tax_number
-                ),
+                else self._get_shipment_party_info(receiver, receiver.client_id, schenker_extras, receiver.tax_number),
                 packages=[
                     {
                         "colli": {

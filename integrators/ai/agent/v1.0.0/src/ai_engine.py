@@ -25,7 +25,6 @@ from src.schemas import (
     RiskLevel,
 )
 
-
 # ── Prompt templates for built-in analysis types ─────────────────
 
 RISK_ANALYSIS_PROMPT = """\
@@ -171,6 +170,7 @@ If a field cannot be extracted, set it to null and add a warning.
 
 # ── Helpers ──────────────────────────────────────────────────────
 
+
 def _build_client(credentials: AiCredentials) -> genai.Client:
     return genai.Client(api_key=credentials.gemini_api_key)
 
@@ -187,6 +187,7 @@ def _parse_json_response(text: str) -> dict[str, Any]:
 
 # ── Main action: generic prompt-based analysis ──────────────────
 
+
 async def analyze(
     credentials: AiCredentials,
     prompt: str,
@@ -202,15 +203,10 @@ async def analyze(
     schema_instruction = ""
     if output_schema:
         schema_instruction = (
-            f"\n\nRespond with JSON matching this schema:\n"
-            f"{json.dumps(output_schema, ensure_ascii=False, indent=2)}"
+            f"\n\nRespond with JSON matching this schema:\n{json.dumps(output_schema, ensure_ascii=False, indent=2)}"
         )
 
-    data_str = (
-        json.dumps(data, ensure_ascii=False, indent=2)
-        if isinstance(data, dict)
-        else str(data)
-    )
+    data_str = json.dumps(data, ensure_ascii=False, indent=2) if isinstance(data, dict) else str(data)
 
     full_prompt = f"{prompt}{schema_instruction}\n\nDATA:\n{data_str}"
 
@@ -242,6 +238,7 @@ async def analyze(
 
 
 # ── Built-in template: Risk Analysis ────────────────────────────
+
 
 async def analyze_risk(
     credentials: AiCredentials,
@@ -293,6 +290,7 @@ async def analyze_risk(
 
 
 # ── Built-in template: Courier Recommendation ───────────────────
+
 
 async def recommend_courier(
     credentials: AiCredentials,
@@ -355,6 +353,7 @@ async def recommend_courier(
 
 # ── Built-in template: Priority Classification ──────────────────
 
+
 async def classify_priority(
     credentials: AiCredentials,
     order_data: dict[str, Any],
@@ -367,9 +366,7 @@ async def classify_priority(
     prompt = PRIORITY_CLASSIFICATION_PROMPT.format(
         order_data=json.dumps(order_data, ensure_ascii=False, indent=2),
         customer_tier=customer_tier or "standard",
-        sla_rules=json.dumps(sla_rules, ensure_ascii=False, indent=2)
-        if sla_rules
-        else "Default SLA",
+        sla_rules=json.dumps(sla_rules, ensure_ascii=False, indent=2) if sla_rules else "Default SLA",
     )
 
     response = client.models.generate_content(
@@ -394,6 +391,7 @@ async def classify_priority(
 
 
 # ── Built-in template: Data Extraction ──────────────────────────
+
 
 async def extract_data(
     credentials: AiCredentials,

@@ -13,8 +13,9 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from dataclasses import dataclass, field as dc_field
-from datetime import datetime, timezone
+from dataclasses import dataclass
+from dataclasses import field as dc_field
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -119,7 +120,7 @@ class PinquarkWmsClient:
         try:
             dt = datetime.fromisoformat(raw)
             if dt.tzinfo is None:
-                dt = dt.replace(tzinfo=timezone.utc)
+                dt = dt.replace(tzinfo=UTC)
             return dt.timestamp()
         except (ValueError, TypeError):
             return time.time() + 23 * 3600

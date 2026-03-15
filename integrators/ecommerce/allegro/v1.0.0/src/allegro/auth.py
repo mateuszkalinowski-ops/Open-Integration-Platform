@@ -10,7 +10,7 @@ Implements the full OAuth lifecycle:
 import asyncio
 import logging
 import time
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
 import httpx
 
@@ -55,7 +55,7 @@ class AllegroAuthManager:
         expiry = self._expiry.get(account_name)
         if not expiry:
             return True
-        return datetime.now(timezone.utc) >= expiry.replace(tzinfo=timezone.utc)
+        return datetime.now(UTC) >= expiry.replace(tzinfo=UTC)
 
     async def get_access_token(
         self,
@@ -202,7 +202,7 @@ class AllegroAuthManager:
         return token
 
     async def _store_token(self, account_name: str, token: AllegroTokenResponse) -> None:
-        expires_at = datetime.now(timezone.utc) + timedelta(seconds=token.expires_in)
+        expires_at = datetime.now(UTC) + timedelta(seconds=token.expires_in)
         self._tokens[account_name] = token
         self._expiry[account_name] = expires_at
         await self._token_store.save_token(

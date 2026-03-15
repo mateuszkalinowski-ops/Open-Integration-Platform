@@ -75,6 +75,7 @@ async def _handle_result(result: dict[str, Any], status_code: int) -> JSONRespon
 # Health
 # ---------------------------------------------------------------------------
 
+
 @app.get("/health")
 async def health():
     return {"status": "healthy", "version": "1.0.0", "system": "bulkgate-sms-gateway"}
@@ -90,6 +91,7 @@ async def readiness():
 # ---------------------------------------------------------------------------
 # SMS endpoints
 # ---------------------------------------------------------------------------
+
 
 @app.post("/sms/transactional", status_code=200)
 async def send_transactional_sms(request: SendTransactionalSmsRequest):
@@ -163,6 +165,7 @@ async def send_advanced_sms(request: SendAdvancedSmsRequest):
 # Account
 # ---------------------------------------------------------------------------
 
+
 @app.post("/account/balance", status_code=200)
 async def check_balance(request: CheckBalanceRequest):
     try:
@@ -178,6 +181,7 @@ async def check_balance(request: CheckBalanceRequest):
 # ---------------------------------------------------------------------------
 # Webhooks — delivery reports & incoming SMS
 # ---------------------------------------------------------------------------
+
 
 @app.post("/webhooks/delivery-report", status_code=200)
 async def delivery_report_webhook(request: Request):
@@ -203,7 +207,7 @@ async def incoming_sms_webhook(request: Request):
     """Receives incoming SMS (replies) from BulkGate."""
     try:
         body = await request.json()
-        incoming = IncomingSmsPayload(**body) if isinstance(body, dict) else None
+        _incoming = IncomingSmsPayload(**body) if isinstance(body, dict) else None
         logger.info("Incoming SMS received")
         return {"status": "received", "data": body}
     except Exception as exc:

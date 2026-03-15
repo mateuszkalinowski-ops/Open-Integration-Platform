@@ -59,7 +59,10 @@ class WooCommerceAuth:
         if url.startswith("https"):
             return None
         return self._build_oauth_params(
-            method, url, account["consumer_key"], account["consumer_secret"],
+            method,
+            url,
+            account["consumer_key"],
+            account["consumer_secret"],
         )
 
     def get_basic_auth(self, account_name: str) -> tuple[str, str] | None:
@@ -106,9 +109,7 @@ class WooCommerceAuth:
         all_params.update(oauth_params)
 
         sorted_params = sorted(all_params.items())
-        param_string = "&".join(
-            f"{_percent_encode(k)}={_percent_encode(v)}" for k, v in sorted_params
-        )
+        param_string = "&".join(f"{_percent_encode(k)}={_percent_encode(v)}" for k, v in sorted_params)
 
         base_url = f"{parsed.scheme}://{parsed.netloc}{parsed.path}"
         signature_base = f"{method.upper()}&{_percent_encode(base_url)}&{_percent_encode(param_string)}"

@@ -1,18 +1,16 @@
 """Integration tests for the FastAPI endpoints."""
 
-import pytest
-from unittest.mock import AsyncMock, patch, MagicMock
-from httpx import AsyncClient, ASGITransport
+from unittest.mock import AsyncMock, MagicMock
 
-from src.main import create_app
-from src.api.dependencies import app_state
-from src.allegro.auth import AllegroAuthManager
-from src.allegro.schemas import AuthStatusResponse
-from src.services.account_manager import AccountManager
-from src.config import AllegroAccountConfig
+import pytest
+from httpx import ASGITransport, AsyncClient
 from pinquark_common.monitoring.health import HealthChecker
 from pinquark_common.schemas.common import HealthResponse
-from datetime import datetime, timezone
+from src.allegro.auth import AllegroAuthManager
+from src.allegro.schemas import AuthStatusResponse
+from src.api.dependencies import app_state
+from src.config import AllegroAccountConfig
+from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
@@ -103,11 +101,14 @@ async def test_orders_requires_auth(app):
 async def test_add_and_remove_account(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post("/accounts", json={
-            "name": "new-shop",
-            "client_id": "new-cid",
-            "client_secret": "new-cs",
-        })
+        resp = await client.post(
+            "/accounts",
+            json={
+                "name": "new-shop",
+                "client_id": "new-cid",
+                "client_secret": "new-cs",
+            },
+        )
         assert resp.status_code == 201
 
         resp = await client.get("/accounts")

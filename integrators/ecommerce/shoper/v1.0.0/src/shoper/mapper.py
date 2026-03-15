@@ -11,6 +11,7 @@ from pinquark_common.schemas.ecommerce import (
     OrderStatus,
     Product,
 )
+
 from src.config import settings
 
 logger = logging.getLogger(__name__)
@@ -111,18 +112,20 @@ def _map_buyer(order_data: dict[str, Any], delivery_addr: Address | None) -> Buy
 def _map_order_lines(order_products: list[dict[str, Any]]) -> list[OrderLine]:
     lines: list[OrderLine] = []
     for idx, product in enumerate(order_products):
-        lines.append(OrderLine(
-            external_id=str(product.get("id", idx)),
-            offer_id=str(product.get("product_id", "")),
-            product_id=str(product.get("product_id", "")),
-            sku=product.get("code", ""),
-            ean="",
-            name=product.get("name", ""),
-            quantity=float(product.get("quantity", 1) or 1),
-            unit=product.get("unit", settings.default_unit),
-            unit_price=float(product.get("price", 0) or 0),
-            currency="PLN",
-        ))
+        lines.append(
+            OrderLine(
+                external_id=str(product.get("id", idx)),
+                offer_id=str(product.get("product_id", "")),
+                product_id=str(product.get("product_id", "")),
+                sku=product.get("code", ""),
+                ean="",
+                name=product.get("name", ""),
+                quantity=float(product.get("quantity", 1) or 1),
+                unit=product.get("unit", settings.default_unit),
+                unit_price=float(product.get("price", 0) or 0),
+                currency="PLN",
+            )
+        )
     return lines
 
 

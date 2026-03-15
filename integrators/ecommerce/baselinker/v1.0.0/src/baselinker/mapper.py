@@ -51,7 +51,7 @@ def find_bl_status_id(
     status_defs: dict[int, str],
 ) -> int | None:
     """Find the best BaseLinker status ID for a given unified OrderStatus."""
-    for status_id, name in status_defs.items():
+    for status_id, _name in status_defs.items():
         mapped = map_bl_status_to_order_status(status_id, status_defs)
         if mapped == target:
             return status_id
@@ -143,19 +143,21 @@ def _map_buyer(data: dict[str, Any]) -> Buyer:
 def _map_order_lines(products: list[dict[str, Any]]) -> list[OrderLine]:
     lines: list[OrderLine] = []
     for p in products:
-        lines.append(OrderLine(
-            external_id=str(p.get("order_product_id", 0)),
-            offer_id=str(p.get("product_id", "")),
-            product_id=str(p.get("product_id", "")),
-            sku=p.get("sku", ""),
-            ean=p.get("ean", ""),
-            name=p.get("name", ""),
-            quantity=float(p.get("quantity", 1)),
-            unit="szt.",
-            unit_price=float(p.get("price_brutto", 0)),
-            tax_rate=float(p.get("tax_rate", 0)) if p.get("tax_rate") else None,
-            currency="PLN",
-        ))
+        lines.append(
+            OrderLine(
+                external_id=str(p.get("order_product_id", 0)),
+                offer_id=str(p.get("product_id", "")),
+                product_id=str(p.get("product_id", "")),
+                sku=p.get("sku", ""),
+                ean=p.get("ean", ""),
+                name=p.get("name", ""),
+                quantity=float(p.get("quantity", 1)),
+                unit="szt.",
+                unit_price=float(p.get("price_brutto", 0)),
+                tax_rate=float(p.get("tax_rate", 0)) if p.get("tax_rate") else None,
+                currency="PLN",
+            )
+        )
     return lines
 
 

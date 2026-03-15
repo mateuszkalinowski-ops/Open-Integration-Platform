@@ -26,14 +26,14 @@ from src.schemas import (
 logger = logging.getLogger("courier-inpost-int-2024")
 
 AUTH_SCOPES = (
-    "openid api:points:read api:shipments:write "
-    "api:tracking:read api:one-time-pickups:write api:one-time-pickups:read"
+    "openid api:points:read api:shipments:write api:tracking:read api:one-time-pickups:write api:one-time-pickups:read"
 )
 
 
 # ---------------------------------------------------------------------------
 # Auth helpers
 # ---------------------------------------------------------------------------
+
 
 class ApiAuth:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -63,7 +63,8 @@ async def refresh_credentials(
 ) -> str:
     """Refresh InPost access token and update credentials object."""
     token = await ApiAuth(client, base_url).get_access_token(
-        credentials.organization_id, credentials.client_secret,
+        credentials.organization_id,
+        credentials.client_secret,
     )
     credentials.access_token = token
     return token
@@ -71,6 +72,7 @@ async def refresh_credentials(
 
 def retry_on_unauthorized(func):
     """Decorator: retry on 401 after refreshing the access token."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
@@ -86,17 +88,20 @@ def retry_on_unauthorized(func):
                     await refresh_credentials(credentials, self._client)
                     return await func(*args, **kwargs)
             raise
+
     return wrapper
 
 
 def handle_errors(func):
     """Decorator: convert httpx.HTTPStatusError to formatted error tuple."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as exc:
             return _format_rest_error_response(exc.response)
+
     return wrapper
 
 
@@ -110,7 +115,8 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "InPost API error — url=%s status=%s",
-        response.url.path, response.status_code,
+        response.url.path,
+        response.status_code,
     )
     return msg, response.status_code
 
@@ -118,6 +124,7 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
 # ---------------------------------------------------------------------------
 # Shipping API
 # ---------------------------------------------------------------------------
+
 
 class ApiShipping:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -170,6 +177,7 @@ class ApiShipping:
 # Tracking API
 # ---------------------------------------------------------------------------
 
+
 class ApiTracking:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
         self._client = client
@@ -197,6 +205,7 @@ class ApiTracking:
 # ---------------------------------------------------------------------------
 # Pickups API
 # ---------------------------------------------------------------------------
+
 
 class ApiPickups:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:
@@ -266,6 +275,7 @@ class ApiPickups:
 # ---------------------------------------------------------------------------
 # Points API
 # ---------------------------------------------------------------------------
+
 
 class ApiPoints:
     def __init__(self, client: httpx.AsyncClient, base_url: str = "") -> None:

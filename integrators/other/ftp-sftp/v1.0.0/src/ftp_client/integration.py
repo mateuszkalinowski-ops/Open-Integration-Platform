@@ -5,7 +5,7 @@ import fnmatch
 import logging
 from typing import Any
 
-from src.config import FtpAccountConfig, settings
+from src.config import settings
 from src.ftp_client.client import FtpSftpClient
 from src.ftp_client.schemas import (
     ConnectionTestResponse,
@@ -61,7 +61,10 @@ class FtpSftpIntegration:
             files = [f for f in files if fnmatch.fnmatch(f.filename, pattern)]
         logger.info(
             "Listed %d files at %s (account=%s, pattern=%s)",
-            len(files), remote_path, account_name, pattern,
+            len(files),
+            remote_path,
+            account_name,
+            pattern,
         )
         return files
 
@@ -86,7 +89,10 @@ class FtpSftpIntegration:
         size = await client.upload(remote_full, data)
         logger.info(
             "Uploaded %s (%d bytes) to %s (account=%s)",
-            request.filename, size, remote_full, account_name,
+            request.filename,
+            size,
+            remote_full,
+            account_name,
         )
         return FileUploadResponse(
             remote_path=request.remote_path,
@@ -102,10 +108,14 @@ class FtpSftpIntegration:
         client = self._get_client(account_name)
         data = await client.download(remote_path)
         from pathlib import PurePosixPath
+
         filename = PurePosixPath(remote_path).name
         logger.info(
             "Downloaded %s (%d bytes) from %s (account=%s)",
-            filename, len(data), remote_path, account_name,
+            filename,
+            len(data),
+            remote_path,
+            account_name,
         )
         return FileDownloadResponse(
             filename=filename,
@@ -133,7 +143,9 @@ class FtpSftpIntegration:
         await client.move(request.source_path, request.destination_path)
         logger.info(
             "Moved %s -> %s (account=%s)",
-            request.source_path, request.destination_path, account_name,
+            request.source_path,
+            request.destination_path,
+            account_name,
         )
         return {
             "status": "moved",

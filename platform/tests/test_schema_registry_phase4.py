@@ -3,7 +3,6 @@ from __future__ import annotations
 import json
 
 import pytest
-
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
 from core.schema_registry import SchemaRegistry
 
@@ -15,7 +14,7 @@ class _FakeRedis:
     async def get(self, key: str) -> str | None:
         return self.values.get(key)
 
-    async def set(self, key: str, value: str, ex: int | None = None) -> None:  # noqa: ARG002
+    async def set(self, key: str, value: str, ex: int | None = None) -> None:
         self.values[key] = value
 
 
@@ -59,7 +58,9 @@ async def test_schema_registry_merges_dynamic_and_static_fields(monkeypatch: pyt
 
     monkeypatch.setattr(schema_registry, "_fetch_dynamic_schema", _fake_fetch)
 
-    result = await schema_registry.get_action_schema("inpost", "rates.get", connector_version="3.0.0", tenant_id="tenant-1")
+    result = await schema_registry.get_action_schema(
+        "inpost", "rates.get", connector_version="3.0.0", tenant_id="tenant-1"
+    )
 
     assert result["source"] == "merged"
     assert {field["field"] for field in result["input_fields"]} == {"weight", "service"}
@@ -93,7 +94,9 @@ async def test_schema_registry_uses_cached_value_before_fetch(monkeypatch: pytes
 
     monkeypatch.setattr(schema_registry, "_fetch_dynamic_schema", _unexpected_fetch)
 
-    result = await schema_registry.get_action_schema("inpost", "rates.get", connector_version="3.0.0", tenant_id="tenant-1")
+    result = await schema_registry.get_action_schema(
+        "inpost", "rates.get", connector_version="3.0.0", tenant_id="tenant-1"
+    )
 
     assert result["cached"] is True
     assert result["source"] == "dynamic"

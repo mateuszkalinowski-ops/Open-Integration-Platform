@@ -6,8 +6,8 @@ import ipaddress
 import os
 import re
 import secrets
-import time
 import socket
+import time
 import urllib.parse
 import uuid
 import zipfile
@@ -18,22 +18,76 @@ from typing import Any
 
 import httpx
 import structlog
-from fastapi import Depends, FastAPI, HTTPException, Query, Request, Security
+from config import settings
+from core.action_dispatcher import (
+    _ensure_account_generic,
+    _resolve_service_url,
+    dispatch_action,
+)
+from core.action_dispatcher import (
+    set_rate_limiter as set_dispatch_rate_limiter,
+)
+from core.audit_trail import (
+    get_audit_log,
+    get_workflow_version,
+    get_workflow_versions,
+    record_audit,
+    rollback_workflow,
+    snapshot_workflow_version,
+)
+from core.connector_health import ConnectorHealthMonitor
+from core.connector_rate_limiter import ConnectorRateLimiter
+from core.connector_registry import ConnectorManifest, ConnectorRegistry
+from core.credential_vault import CredentialVault
+from core.flow_engine import FlowEngine
+from core.mapping_resolver import MappingResolver
+from core.oauth2_manager import OAuth2Manager
+from core.oauth2_refresher import OAuth2Refresher
+from core.pii_redactor import redact_execution_detail
+from core.redis_client import close_redis, get_redis, redis_health
+from core.schema_registry import SchemaRegistry
+from core.webhook_ingestion import WebhookIngestionService
+from core.workflow_engine import WorkflowEngine
+from core.workflow_scheduler import WorkflowScheduler
+from db.base import async_session_factory, get_db, set_rls_bypass
+from db.models import (
+    ApiKey,
+    ConnectorInstance,
+    Credential,
+    CredentialToken,
+    Flow,
+    FlowExecution,
+    Tenant,
+    WebhookEvent,
+    Workflow,
+    WorkflowExecution,
+)
+from fastapi import Depends, FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
+from middleware.metrics import PrometheusMiddleware, metrics_endpoint
+from middleware.rate_limiter import RateLimiterMiddleware
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm.attributes import flag_modified
 
-from api.auth import api_key_header, generate_api_key, get_current_tenant, get_current_tenant_or_query, hash_api_key
+from api.auth import (
+    generate_api_key,
+    get_current_tenant,
+    get_current_tenant_or_query,
+    hash_api_key,
+)
+from api.credential_validator import (
+    validate_credentials as generic_validate_credentials,
+)
 from api.schemas import (
-    ApiKeyCreate,
-    ApiKeyResponse,
-    ConnectorActionSchemaResponse,
     AiExplainErrorRequest,
     AiExplainErrorResponse,
     AiFieldMappingSuggestRequest,
     AiFieldMappingSuggestResponse,
+    ApiKeyCreate,
+    ApiKeyResponse,
+    ConnectorActionSchemaResponse,
     ConnectorHealthSummary,
     ConnectorInstanceCreate,
     ConnectorInstanceResponse,
@@ -64,57 +118,10 @@ from api.schemas import (
     WorkflowUpdate,
 )
 
-from config import settings
-from api.credential_validator import validate_credentials as generic_validate_credentials
-from core.action_dispatcher import (
-    dispatch_action,
-    set_rate_limiter as set_dispatch_rate_limiter,
-    _ensure_account_generic,
-    _resolve_service_url,
-)
-from core.pii_redactor import redact_execution_detail
-from core.connector_registry import ConnectorManifest, ConnectorRegistry
-from core.audit_trail import (
-    get_audit_log,
-    get_workflow_version,
-    get_workflow_versions,
-    record_audit,
-    rollback_workflow,
-    snapshot_workflow_version,
-)
-from core.connector_health import ConnectorHealthMonitor
-from core.connector_rate_limiter import ConnectorRateLimiter
-from core.credential_vault import CredentialVault
-from core.flow_engine import FlowEngine
-from core.mapping_resolver import MappingResolver
-from core.oauth2_manager import OAuth2Manager
-from core.oauth2_refresher import OAuth2Refresher
-from core.redis_client import close_redis, get_redis, redis_health
-from core.schema_registry import SchemaRegistry
-from core.webhook_ingestion import WebhookIngestionService
-from core.workflow_engine import WorkflowEngine
-from core.workflow_scheduler import WorkflowScheduler
-from db.base import async_session_factory, get_db, set_rls_bypass
-from db.models import (
-    ApiKey,
-    AuditLog,
-    ConnectorInstance,
-    Credential,
-    CredentialToken,
-    Flow,
-    FlowExecution,
-    Tenant,
-    WebhookEvent,
-    Workflow,
-    WorkflowExecution,
-    WorkflowVersion,
-)
-from middleware.rate_limiter import RateLimiterMiddleware
-from middleware.metrics import PrometheusMiddleware, metrics_endpoint
-
 logger = structlog.get_logger()
 
 _start_time = time.time()
+_background_tasks: set[asyncio.Task[None]] = set()
 registry = ConnectorRegistry(settings.connector_discovery_path)
 vault = CredentialVault()
 mapping_resolver = MappingResolver(settings.connector_discovery_path)
@@ -132,6 +139,8 @@ rate_limiter = ConnectorRateLimiter(
     default_rate=settings.connector_rate_limit_default,
     enabled=settings.connector_rate_limit_enabled,
 )
+
+
 async def _handle_schema_change(event: dict[str, object]) -> None:
     await logger.ainfo("schema_registry_change_detected", **event)
 
@@ -174,7 +183,10 @@ async def _enrich_credentials_with_oauth2(
         merged_config["client_secret"] = credentials["client_secret"]
 
     token = await oauth2_manager.get_or_refresh_access_token(
-        db_session, tenant_id, connector_name, credential_name,
+        db_session,
+        tenant_id,
+        connector_name,
+        credential_name,
         oauth2_config=merged_config,
     )
     credentials = dict(credentials)
@@ -191,11 +203,14 @@ async def _resolve_connector_version(db_session: "AsyncSession", tenant_id: Any,
     When multiple versions are active, returns the most recently created one.
     """
     result = await db_session.execute(
-        select(ConnectorInstance.connector_version).where(
+        select(ConnectorInstance.connector_version)
+        .where(
             ConnectorInstance.tenant_id == tenant_id,
             ConnectorInstance.connector_name == connector_name,
             ConnectorInstance.is_enabled.is_(True),
-        ).order_by(ConnectorInstance.created_at.desc()).limit(1)
+        )
+        .order_by(ConnectorInstance.created_at.desc())
+        .limit(1)
     )
     return result.scalar_one_or_none()
 
@@ -299,8 +314,8 @@ workflow_scheduler = WorkflowScheduler(async_session_factory, workflow_engine)
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
-    from db.base import Base, engine
     import db.models  # noqa: F401 — ensure all models are registered
+    from db.base import Base, engine
 
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
@@ -378,7 +393,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 )
                 if credentials:
                     credentials = await _enrich_credentials_with_oauth2(
-                        db_session, credentials, tenant_id, connector_name, credential_name,
+                        db_session,
+                        credentials,
+                        tenant_id,
+                        connector_name,
+                        credential_name,
                     )
                 if not version:
                     version = await _resolve_connector_version(db_session, tenant_id, connector_name)
@@ -415,7 +434,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 )
                 if credentials:
                     credentials = await _enrich_credentials_with_oauth2(
-                        db_session, credentials, tenant_id, connector_name, credential_name,
+                        db_session,
+                        credentials,
+                        tenant_id,
+                        connector_name,
+                        credential_name,
                     )
         except Exception:
             await logger.aexception("credential_resolution_failed", connector=connector_name)
@@ -427,6 +450,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
         if credentials and manifest:
             from core.action_dispatcher import _provision_credentials
+
             dummy: dict[str, Any] = {}
             await _provision_credentials(base_url, connector_name, dummy, credentials, manifest)
 
@@ -478,7 +502,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
                     credential_pairs: set[tuple[Any, str]] = set()
                     for wf in workflows:
-                        for node in (wf.nodes or []):
+                        for node in wf.nodes or []:
                             if (
                                 node.get("type") == "trigger"
                                 and node.get("config", {}).get("connector_name") == connector_name
@@ -498,15 +522,11 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
                     for tid, cred_name in credential_pairs:
                         try:
-                            creds = await vault.retrieve_all(
-                                db_session, tid, connector_name, credential_name=cred_name
-                            )
+                            creds = await vault.retrieve_all(db_session, tid, connector_name, credential_name=cred_name)
                             if creds:
                                 if "account_name" not in creds:
                                     creds["account_name"] = cred_name
-                                account_name = await _ensure_account_generic(
-                                    base_url, creds, provisioning
-                                )
+                                account_name = await _ensure_account_generic(base_url, creds, provisioning)
                                 await logger.ainfo(
                                     "trigger_account_provisioned",
                                     connector=connector_name,
@@ -524,7 +544,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
         except Exception:
             await logger.aexception("trigger_provision_scan_failed")
 
-    asyncio.create_task(_provision_trigger_accounts())
+    task = asyncio.create_task(_provision_trigger_accounts())
+    _background_tasks.add(task)
+    task.add_done_callback(_background_tasks.discard)
 
     # Kafka Event Bridge — consume events from Kafka and trigger workflows/flows
     kafka_bridge = None
@@ -583,7 +605,9 @@ app.add_middleware(PrometheusMiddleware)
 
 app.get("/metrics", tags=["health"])(metrics_endpoint)
 
-_cors_origins = [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()] if settings.cors_allowed_origins else []
+_cors_origins = (
+    [o.strip() for o in settings.cors_allowed_origins.split(",") if o.strip()] if settings.cors_allowed_origins else []
+)
 if _cors_origins:
     _allow_all = "*" in _cors_origins
     app.add_middleware(
@@ -596,9 +620,9 @@ if _cors_origins:
     )
 
 
+from fastapi import Response
 from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware, RequestResponseEndpoint
-from fastapi import Response
 
 
 class SecurityHeadersMiddleware(BaseHTTPMiddleware):
@@ -613,16 +637,15 @@ class SecurityHeadersMiddleware(BaseHTTPMiddleware):
 app.add_middleware(SecurityHeadersMiddleware)
 
 
-
 @app.exception_handler(Exception)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     import traceback
-    tb = traceback.format_exception(type(exc), exc, exc.__traceback__)
+
+    traceback.format_exception(type(exc), exc, exc.__traceback__)
     await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc))
     detail = f"{type(exc).__name__}: {exc}"
     show_detail = settings.app_env != "production" or (
-        settings.admin_secret
-        and request.headers.get("X-Admin-Secret", "") == settings.admin_secret
+        settings.admin_secret and request.headers.get("X-Admin-Secret", "") == settings.admin_secret
     )
     return JSONResponse(
         status_code=500,
@@ -663,7 +686,6 @@ def _require_admin_secret(request: Request) -> None:
     provided = request.headers.get("X-Admin-Secret", "")
     if not secrets.compare_digest(provided, settings.admin_secret):
         raise HTTPException(status_code=403, detail="Invalid admin secret")
-
 
 
 def _require_internal_secret(request: Request) -> None:
@@ -779,10 +801,12 @@ async def get_connector_openapi(name: str, version: str | None = Query(None)):
             resp = await client.get(url)
             resp.raise_for_status()
             spec = resp.json()
-            spec["servers"] = [{"url": manifest.base_url, "description": f"{manifest.display_name} v{manifest.version}"}]
+            spec["servers"] = [
+                {"url": manifest.base_url, "description": f"{manifest.display_name} v{manifest.version}"}
+            ]
             return spec
-        except (httpx.ConnectError, httpx.HTTPStatusError):
-            raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable")
+        except (httpx.ConnectError, httpx.HTTPStatusError) as exc:
+            raise HTTPException(status_code=503, detail=f"Connector '{name}' is not reachable") from exc
 
 
 @app.get(
@@ -841,8 +865,8 @@ async def download_onpremise_agent(
     safe_base = Path(settings.connector_discovery_path).parent.resolve()
     try:
         agent_path.relative_to(safe_base)
-    except ValueError:
-        raise HTTPException(status_code=403, detail="Access denied")
+    except ValueError as exc:
+        raise HTTPException(status_code=403, detail="Access denied") from exc
 
     if not agent_path.exists() or not agent_path.is_dir():
         raise HTTPException(status_code=404, detail="On-premise agent files not found on server")
@@ -892,17 +916,19 @@ async def get_connector_health(name: str) -> list[dict[str, Any]]:
         manifests = registry.get_by_name(name)
         if not manifests:
             raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
-        return [{
-            "connector_name": name,
-            "instance_key": name,
-            "status": "unknown",
-            "latency_ms": 0,
-            "last_check": 0,
-            "consecutive_failures": 0,
-            "last_error": "No health check data yet",
-            "error_rate_5m": 0,
-            "category": manifests[0].category,
-        }]
+        return [
+            {
+                "connector_name": name,
+                "instance_key": name,
+                "status": "unknown",
+                "latency_ms": 0,
+                "last_check": 0,
+                "consecutive_failures": 0,
+                "last_error": "No health check data yet",
+                "error_rate_5m": 0,
+                "category": manifests[0].category,
+            }
+        ]
     return [s.to_dict() for s in statuses]
 
 
@@ -932,7 +958,11 @@ async def oauth2_authorize(
     callback_url = f"{settings.base_url}/api/v1/oauth2/callback"
     try:
         result = await oauth2_manager.generate_authorization_url(
-            merged_config, tenant.id, connector, callback_url, credential_name,
+            merged_config,
+            tenant.id,
+            connector,
+            callback_url,
+            credential_name,
         )
     except ValueError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
@@ -956,8 +986,8 @@ async def oauth2_callback(
 
     try:
         tenant_id = uuid.UUID(tenant_id_str)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid tenant in state")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid tenant in state") from exc
 
     try:
         state_valid = await oauth2_manager.validate_and_consume_state(state)
@@ -984,7 +1014,13 @@ async def oauth2_callback(
     code_verifier = await oauth2_manager.retrieve_code_verifier(state)
     try:
         token = await oauth2_manager.exchange_code(
-            db, merged_config, tenant_id, connector_name, code, callback_url, credential_name,
+            db,
+            merged_config,
+            tenant_id,
+            connector_name,
+            code,
+            callback_url,
+            credential_name,
             code_verifier=code_verifier,
         )
     except ValueError as exc:
@@ -1006,12 +1042,16 @@ async def oauth2_manual_refresh(
         raise HTTPException(status_code=404, detail="No OAuth2 token found for this connector")
 
     from db.models import OAuthToken
+
     result = await db.execute(
-        select(OAuthToken).where(
+        select(OAuthToken)
+        .where(
             OAuthToken.tenant_id == tenant.id,
             OAuthToken.connector_name == connector,
             OAuthToken.credential_name == credential_name,
-        ).order_by(OAuthToken.created_at.desc()).limit(1)
+        )
+        .order_by(OAuthToken.created_at.desc())
+        .limit(1)
     )
     token = result.scalar_one_or_none()
     if token is None:
@@ -1089,7 +1129,12 @@ async def receive_webhook(
         raise HTTPException(status_code=400, detail="Cannot determine tenant for this webhook")
 
     result = await webhook_service.ingest_webhook(
-        db, connector_name, event_type, body, headers, tenant_id,
+        db,
+        connector_name,
+        event_type,
+        body,
+        headers,
+        tenant_id,
     )
     await db.commit()
 
@@ -1097,14 +1142,21 @@ async def receive_webhook(
         webhook_uuid = uuid.UUID(result["webhook_id"])
 
         async def _bg_process_event(
-            connector_name: str, event: str, event_data: dict, tenant_id: uuid.UUID,
+            connector_name: str,
+            event: str,
+            event_data: dict,
+            tenant_id: uuid.UUID,
         ) -> dict[str, Any]:
             async with async_session_factory() as bg_db:
                 await set_rls_bypass(bg_db)
 
                 async def _action_fn(
-                    cn: str, action: str, payload: dict, tid: Any,
-                    credential_name: str = "default", connector_version: str | None = None,
+                    cn: str,
+                    action: str,
+                    payload: dict,
+                    tid: Any,
+                    credential_name: str = "default",
+                    connector_version: str | None = None,
                 ) -> dict:
                     creds: dict[str, str] | None = None
                     ver: str | None = connector_version
@@ -1112,7 +1164,11 @@ async def receive_webhook(
                         creds = await vault.retrieve_all(bg_db, tid, cn, credential_name=credential_name)
                         if creds:
                             creds = await _enrich_credentials_with_oauth2(
-                                bg_db, creds, tid, cn, credential_name,
+                                bg_db,
+                                creds,
+                                tid,
+                                cn,
+                                credential_name,
                             )
                         if not ver:
                             ver = await _resolve_connector_version(bg_db, tid, cn)
@@ -1120,24 +1176,36 @@ async def receive_webhook(
                         await logger.aexception("credential_resolution_failed", connector=cn, tenant_id=str(tid))
                         raise
                     return await dispatch_action(
-                        connector_name=cn, action=action, payload=payload,
-                        tenant_id=tid, credentials=creds, registry=registry, connector_version=ver,
+                        connector_name=cn,
+                        action=action,
+                        payload=payload,
+                        tenant_id=tid,
+                        credentials=creds,
+                        registry=registry,
+                        connector_version=ver,
                     )
 
                 flow_execs = await flow_engine.process_event(
-                    db=bg_db, tenant_id=tenant_id, connector_name=connector_name,
-                    event=event, event_data=event_data, execute_action_fn=_action_fn,
+                    db=bg_db,
+                    tenant_id=tenant_id,
+                    connector_name=connector_name,
+                    event=event,
+                    event_data=event_data,
+                    execute_action_fn=_action_fn,
                 )
                 wf_execs = await workflow_engine.process_event(
-                    db=bg_db, tenant_id=tenant_id, connector_name=connector_name,
-                    event=event, event_data=event_data,
+                    db=bg_db,
+                    tenant_id=tenant_id,
+                    connector_name=connector_name,
+                    event=event,
+                    event_data=event_data,
                 )
                 await bg_db.commit()
                 return {"flows_triggered": len(flow_execs), "workflows_triggered": len(wf_execs)}
 
-        asyncio.create_task(
-            webhook_service.process_webhook_async(webhook_uuid, _bg_process_event)
-        )
+        task = asyncio.create_task(webhook_service.process_webhook_async(webhook_uuid, _bg_process_event))
+        _background_tasks.add(task)
+        task.add_done_callback(_background_tasks.discard)
 
     return result
 
@@ -1149,9 +1217,14 @@ async def replay_webhook(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Replay a previously received webhook event."""
+
     async def _replay_action_fn(
-        cn: str, action: str, payload: dict, tid: Any,
-        credential_name: str = "default", connector_version: str | None = None,
+        cn: str,
+        action: str,
+        payload: dict,
+        tid: Any,
+        credential_name: str = "default",
+        connector_version: str | None = None,
     ) -> dict:
         creds: dict[str, str] | None = None
         ver: str | None = connector_version
@@ -1159,7 +1232,11 @@ async def replay_webhook(
             creds = await vault.retrieve_all(db, tid, cn, credential_name=credential_name)
             if creds:
                 creds = await _enrich_credentials_with_oauth2(
-                    db, creds, tid, cn, credential_name,
+                    db,
+                    creds,
+                    tid,
+                    cn,
+                    credential_name,
                 )
             if not ver:
                 ver = await _resolve_connector_version(db, tid, cn)
@@ -1167,20 +1244,35 @@ async def replay_webhook(
             await logger.aexception("credential_resolution_failed", connector=cn, tenant_id=str(tid))
             raise
         return await dispatch_action(
-            connector_name=cn, action=action, payload=payload,
-            tenant_id=tid, credentials=creds, registry=registry, connector_version=ver,
+            connector_name=cn,
+            action=action,
+            payload=payload,
+            tenant_id=tid,
+            credentials=creds,
+            registry=registry,
+            connector_version=ver,
         )
 
     async def _process_event(
-        connector_name: str, event: str, event_data: dict, tenant_id: uuid.UUID,
+        connector_name: str,
+        event: str,
+        event_data: dict,
+        tenant_id: uuid.UUID,
     ) -> dict[str, Any]:
         flow_execs = await flow_engine.process_event(
-            db=db, tenant_id=tenant_id, connector_name=connector_name,
-            event=event, event_data=event_data, execute_action_fn=_replay_action_fn,
+            db=db,
+            tenant_id=tenant_id,
+            connector_name=connector_name,
+            event=event,
+            event_data=event_data,
+            execute_action_fn=_replay_action_fn,
         )
         wf_execs = await workflow_engine.process_event(
-            db=db, tenant_id=tenant_id, connector_name=connector_name,
-            event=event, event_data=event_data,
+            db=db,
+            tenant_id=tenant_id,
+            connector_name=connector_name,
+            event=event,
+            event_data=event_data,
         )
         return {"flows_triggered": len(flow_execs), "workflows_triggered": len(wf_execs)}
 
@@ -1229,7 +1321,9 @@ async def list_webhook_events(
 
 
 async def _resolve_webhook_tenant(
-    db: AsyncSession, connector_name: str, headers: dict[str, str],
+    db: AsyncSession,
+    connector_name: str,
+    headers: dict[str, str],
 ) -> uuid.UUID | None:
     """Determine which tenant a webhook belongs to.
 
@@ -1277,7 +1371,8 @@ async def list_audit_entries(
 ) -> list[dict[str, Any]]:
     """Query the audit log for the current tenant."""
     entries = await get_audit_log(
-        db, tenant.id,
+        db,
+        tenant.id,
         entity_type=entity_type,
         entity_id=entity_id,
         action=action,
@@ -1364,7 +1459,11 @@ async def rollback_workflow_version(
     user_id = getattr(tenant, "slug", None)
 
     workflow = await rollback_workflow(
-        db, workflow_id, version, user_id=user_id, ip_address=ip,
+        db,
+        workflow_id,
+        version,
+        user_id=user_id,
+        ip_address=ip,
     )
     if workflow is None:
         raise HTTPException(status_code=404, detail="Workflow or version not found")
@@ -1399,27 +1498,27 @@ async def list_tenants(
     tenants = result.scalars().all()
     out: list[dict[str, Any]] = []
     for t in tenants:
-        keys_result = await db.execute(
-            select(ApiKey).where(ApiKey.tenant_id == t.id)
-        )
+        keys_result = await db.execute(select(ApiKey).where(ApiKey.tenant_id == t.id))
         keys = keys_result.scalars().all()
-        out.append({
-            "id": str(t.id),
-            "name": t.name,
-            "slug": t.slug,
-            "plan": t.plan,
-            "is_active": t.is_active,
-            "created_at": t.created_at.isoformat() if t.created_at else None,
-            "api_keys": [
-                {
-                    "id": str(k.id),
-                    "key_prefix": k.key_prefix,
-                    "name": k.name,
-                    "is_active": k.is_active,
-                }
-                for k in keys
-            ],
-        })
+        out.append(
+            {
+                "id": str(t.id),
+                "name": t.name,
+                "slug": t.slug,
+                "plan": t.plan,
+                "is_active": t.is_active,
+                "created_at": t.created_at.isoformat() if t.created_at else None,
+                "api_keys": [
+                    {
+                        "id": str(k.id),
+                        "key_prefix": k.key_prefix,
+                        "name": k.name,
+                        "is_active": k.is_active,
+                    }
+                    for k in keys
+                ],
+            }
+        )
     return out
 
 
@@ -1450,8 +1549,8 @@ async def create_api_key(
     _require_admin_secret(request)
     try:
         tid = uuid.UUID(tenant_id)
-    except ValueError:
-        raise HTTPException(status_code=400, detail="Invalid tenant_id format")
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail="Invalid tenant_id format") from exc
     tenant = await db.execute(select(Tenant).where(Tenant.id == tid))
     if not tenant.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -1538,9 +1637,7 @@ async def list_connector_instances(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> list[ConnectorInstanceResponse]:
-    result = await db.execute(
-        select(ConnectorInstance).where(ConnectorInstance.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(ConnectorInstance).where(ConnectorInstance.tenant_id == tenant.id))
     instances = result.scalars().all()
     return [ConnectorInstanceResponse.model_validate(i) for i in instances]
 
@@ -1600,27 +1697,26 @@ async def list_credentials(
     )
     rows = result.all()
 
-    token_result = await db.execute(
-        select(CredentialToken).where(CredentialToken.tenant_id == tenant.id)
-    )
+    token_result = await db.execute(select(CredentialToken).where(CredentialToken.tenant_id == tenant.id))
     token_map: dict[tuple[str, str], str] = {
-        (t.connector_name, t.credential_name): t.token
-        for t in token_result.scalars().all()
+        (t.connector_name, t.credential_name): t.token for t in token_result.scalars().all()
     }
 
     connector_map = {c.name: c for c in registry.get_all()}
     items = []
     for row in rows:
         connector = connector_map.get(row.connector_name)
-        items.append({
-            "connector_name": row.connector_name,
-            "credential_name": row.credential_name,
-            "display_name": connector.display_name if connector else row.connector_name,
-            "category": connector.category if connector else "",
-            "keys": sorted(row.keys),
-            "updated_at": row.updated_at.isoformat() if row.updated_at else None,
-            "token": token_map.get((row.connector_name, row.credential_name)),
-        })
+        items.append(
+            {
+                "connector_name": row.connector_name,
+                "credential_name": row.credential_name,
+                "display_name": connector.display_name if connector else row.connector_name,
+                "category": connector.category if connector else "",
+                "keys": sorted(row.keys),
+                "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+                "token": token_map.get((row.connector_name, row.credential_name)),
+            }
+        )
     return items
 
 
@@ -1632,9 +1728,7 @@ async def _propagate_credential_rename(
     new_name: str,
 ) -> int:
     """Update all workflow nodes that reference the renamed credential."""
-    result = await db.execute(
-        select(Workflow).where(Workflow.tenant_id == tenant_id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.tenant_id == tenant_id))
     workflows = result.scalars().all()
     updated = 0
     for wf in workflows:
@@ -1665,28 +1759,35 @@ async def store_credentials(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    is_rename = (
-        body.old_credential_name
-        and body.old_credential_name != body.credential_name
-    )
+    is_rename = body.old_credential_name and body.old_credential_name != body.credential_name
 
     if is_rename:
         old_creds = await vault.retrieve_all(
-            db, tenant.id, body.connector_name,
+            db,
+            tenant.id,
+            body.connector_name,
             credential_name=body.old_credential_name,  # type: ignore[arg-type]
         )
         merged = {**old_creds, **{k: v for k, v in body.credentials.items() if v}}
         for key, value in merged.items():
             await vault.store(
-                db, tenant.id, body.connector_name, key, value,
+                db,
+                tenant.id,
+                body.connector_name,
+                key,
+                value,
                 credential_name=body.credential_name,
             )
         await vault.delete(
-            db, tenant.id, body.connector_name,
+            db,
+            tenant.id,
+            body.connector_name,
             credential_name=body.old_credential_name,
         )
         workflows_updated = await _propagate_credential_rename(
-            db, tenant.id, body.connector_name,
+            db,
+            tenant.id,
+            body.connector_name,
             body.old_credential_name,  # type: ignore[arg-type]
             body.credential_name,
         )
@@ -1695,23 +1796,33 @@ async def store_credentials(
         for key, value in body.credentials.items():
             if value:
                 await vault.store(
-                    db, tenant.id, body.connector_name, key, value,
+                    db,
+                    tenant.id,
+                    body.connector_name,
+                    key,
+                    value,
                     credential_name=body.credential_name,
                 )
 
     if is_rename:
         await vault.rename_token(
-            db, tenant.id, body.connector_name,
+            db,
+            tenant.id,
+            body.connector_name,
             body.old_credential_name,  # type: ignore[arg-type]
             body.credential_name,
         )
 
     token_row = await vault.get_or_create_token(
-        db, tenant.id, body.connector_name, credential_name=body.credential_name,
+        db,
+        tenant.id,
+        body.connector_name,
+        credential_name=body.credential_name,
     )
 
     cred_entity_id = uuid.uuid5(
-        uuid.NAMESPACE_URL, f"credential:{tenant.id}:{body.connector_name}:{body.credential_name}",
+        uuid.NAMESPACE_URL,
+        f"credential:{tenant.id}:{body.connector_name}:{body.credential_name}",
     )
     await record_audit(
         db,
@@ -1719,7 +1830,11 @@ async def store_credentials(
         entity_type="credential",
         entity_id=cred_entity_id,
         action="update" if not is_rename else "rename",
-        new_value={"connector": body.connector_name, "credential_name": body.credential_name, "keys": list(body.credentials.keys())},
+        new_value={
+            "connector": body.connector_name,
+            "credential_name": body.credential_name,
+            "keys": list(body.credentials.keys()),
+        },
         user_id=getattr(tenant, "slug", None),
         ip_address=request.client.host if request.client else None,
     )
@@ -1733,7 +1848,9 @@ async def store_credentials(
         if provisioning and provisioning.get("mode") == "account":
             try:
                 creds = await vault.retrieve_all(
-                    db, tenant.id, body.connector_name,
+                    db,
+                    tenant.id,
+                    body.connector_name,
                     credential_name=body.credential_name,
                 )
                 if creds:
@@ -1784,7 +1901,10 @@ async def get_credentials(
     token: str | None = None
     if creds:
         token_row = await vault.get_or_create_token(
-            db, tenant.id, connector_name, credential_name=credential_name,
+            db,
+            tenant.id,
+            connector_name,
+            credential_name=credential_name,
         )
         token = token_row.token
         await db.commit()
@@ -1819,11 +1939,9 @@ async def delete_credentials(
 ) -> dict[str, Any]:
     affected: list[str] = []
     if credential_name:
-        result = await db.execute(
-            select(Workflow).where(Workflow.tenant_id == tenant.id)
-        )
+        result = await db.execute(select(Workflow).where(Workflow.tenant_id == tenant.id))
         for wf in result.scalars().all():
-            for node in (wf.nodes or []):
+            for node in wf.nodes or []:
                 cfg = node.get("config", {})
                 if cfg.get("credential_name") != credential_name:
                     continue
@@ -1835,7 +1953,8 @@ async def delete_credentials(
     deleted = await vault.delete(db, tenant.id, connector_name, credential_name=credential_name)
     await vault.delete_token(db, tenant.id, connector_name, credential_name=credential_name)
     cred_entity_id = uuid.uuid5(
-        uuid.NAMESPACE_URL, f"credential:{tenant.id}:{connector_name}:{credential_name or 'all'}",
+        uuid.NAMESPACE_URL,
+        f"credential:{tenant.id}:{connector_name}:{credential_name or 'all'}",
     )
     await record_audit(
         db,
@@ -1868,21 +1987,20 @@ async def validate_credentials(
     cred_name = body.credential_name if body and body.credential_name else credential_name
     stored = await vault.retrieve_all(db, tenant.id, connector_name, credential_name=cred_name)
 
-    if body and body.credentials:
-        merged = {**stored, **{k: v for k, v in body.credentials.items() if v}}
-    else:
-        merged = stored
+    merged = {**stored, **{k: v for k, v in body.credentials.items() if v}} if body and body.credentials else stored
 
     if not merged:
         raise HTTPException(status_code=404, detail="No credentials found for this connector")
 
     instance_version: str | None = None
     instance_result = await db.execute(
-        select(ConnectorInstance.connector_version).where(
+        select(ConnectorInstance.connector_version)
+        .where(
             ConnectorInstance.tenant_id == tenant.id,
             ConnectorInstance.connector_name == connector_name,
             ConnectorInstance.is_enabled.is_(True),
-        ).limit(1)
+        )
+        .limit(1)
     )
     row = instance_result.scalar_one_or_none()
     if row:
@@ -1935,7 +2053,9 @@ async def resolve_credential_token(
         raise HTTPException(status_code=404, detail="Invalid or inactive token")
 
     creds = await vault.retrieve_all(
-        db, token_row.tenant_id, token_row.connector_name,
+        db,
+        token_row.tenant_id,
+        token_row.connector_name,
         credential_name=token_row.credential_name,
     )
     return {
@@ -2003,9 +2123,7 @@ async def delete_flow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    result = await db.execute(
-        select(Flow).where(Flow.id == flow_id, Flow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Flow).where(Flow.id == flow_id, Flow.tenant_id == tenant.id))
     flow = result.scalar_one_or_none()
     if not flow:
         raise HTTPException(status_code=404, detail="Flow not found")
@@ -2033,9 +2151,7 @@ async def update_flow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> FlowResponse:
-    result = await db.execute(
-        select(Flow).where(Flow.id == flow_id, Flow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Flow).where(Flow.id == flow_id, Flow.tenant_id == tenant.id))
     flow = result.scalar_one_or_none()
     if not flow:
         raise HTTPException(status_code=404, detail="Flow not found")
@@ -2082,12 +2198,14 @@ async def trigger_event(
         credentials: dict[str, str] | None = None
         version: str | None = connector_version
         try:
-            credentials = await vault.retrieve_all(
-                db, tenant_id, connector_name, credential_name=credential_name
-            )
+            credentials = await vault.retrieve_all(db, tenant_id, connector_name, credential_name=credential_name)
             if credentials:
                 credentials = await _enrich_credentials_with_oauth2(
-                    db, credentials, tenant_id, connector_name, credential_name,
+                    db,
+                    credentials,
+                    tenant_id,
+                    connector_name,
+                    credential_name,
                 )
             if not version:
                 version = await _resolve_connector_version(db, tenant_id, connector_name)
@@ -2129,8 +2247,7 @@ async def trigger_event(
         "flows_triggered": len(flow_executions),
         "workflows_triggered": len(workflow_executions),
         "executions": [
-            {"flow_id": str(e.flow_id), "status": e.status, "duration_ms": e.duration_ms}
-            for e in flow_executions
+            {"flow_id": str(e.flow_id), "status": e.status, "duration_ms": e.duration_ms} for e in flow_executions
         ],
         "workflow_executions": [
             {
@@ -2163,20 +2280,17 @@ async def internal_trigger_event(
     target_tenant_id = (body.data or {}).get("_tenant_id")
     if target_tenant_id:
         import uuid as _uuid
+
         try:
             tid = _uuid.UUID(str(target_tenant_id))
-        except (ValueError, AttributeError):
-            raise HTTPException(status_code=400, detail="Invalid _tenant_id format")
-        result = await db.execute(
-            select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid)
-        )
+        except (ValueError, AttributeError) as exc:
+            raise HTTPException(status_code=400, detail="Invalid _tenant_id format") from exc
+        result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid))
     else:
-        result = await db.execute(
-            select(Tenant).where(Tenant.is_active.is_(True))
-        )
+        result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True)))
     tenants = list(result.scalars().all())
     if not tenants:
-        raise HTTPException(status_code=500, detail="No active tenant")
+        raise HTTPException(status_code=404, detail="No active tenant found for the given identifier")
 
     async def execute_action_for_flow(
         connector_name: str,
@@ -2189,12 +2303,14 @@ async def internal_trigger_event(
         credentials: dict[str, str] | None = None
         version: str | None = connector_version
         try:
-            credentials = await vault.retrieve_all(
-                db, tenant_id, connector_name, credential_name=credential_name
-            )
+            credentials = await vault.retrieve_all(db, tenant_id, connector_name, credential_name=credential_name)
             if credentials:
                 credentials = await _enrich_credentials_with_oauth2(
-                    db, credentials, tenant_id, connector_name, credential_name,
+                    db,
+                    credentials,
+                    tenant_id,
+                    connector_name,
+                    credential_name,
                 )
             if not version:
                 version = await _resolve_connector_version(db, tenant_id, connector_name)
@@ -2256,7 +2372,11 @@ async def internal_trigger_event(
 # --- Internal: connector credential distribution ---
 
 
-@app.get("/internal/connector-credentials/{connector_name}", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
+@app.get(
+    "/internal/connector-credentials/{connector_name}",
+    tags=["internal"],
+    dependencies=[Depends(_require_internal_secret)],
+)
 async def internal_get_connector_credentials(
     connector_name: str,
     request: Request,
@@ -2283,31 +2403,33 @@ async def internal_get_connector_credentials(
         )
 
     await set_rls_bypass(db)
-    result = await db.execute(
-        select(Tenant).where(Tenant.is_active.is_(True))
-    )
+    result = await db.execute(select(Tenant).where(Tenant.is_active.is_(True)))
     tenants = list(result.scalars().all())
 
     accounts: list[dict[str, Any]] = []
     for tenant in tenants:
         try:
-            cred_names = await vault.list_credential_names(
-                db, tenant.id, connector_name
-            )
+            cred_names = await vault.list_credential_names(db, tenant.id, connector_name)
             for cred_name in cred_names:
                 try:
                     creds = await vault.retrieve_all(
-                        db, tenant.id, connector_name,
+                        db,
+                        tenant.id,
+                        connector_name,
                         credential_name=cred_name,
                     )
                     if creds:
-                        accounts.append({
-                            "tenant_id": str(tenant.id),
-                            "credential_name": cred_name,
-                            "credentials": creds,
-                        })
+                        accounts.append(
+                            {
+                                "tenant_id": str(tenant.id),
+                                "credential_name": cred_name,
+                                "credentials": creds,
+                            }
+                        )
                 except Exception:
-                    await logger.aexception("credential_retrieval_failed", connector=connector_name, credential=cred_name)
+                    await logger.aexception(
+                        "credential_retrieval_failed", connector=connector_name, credential=cred_name
+                    )
         except Exception:
             await logger.aexception("credential_scan_failed", connector=connector_name)
 
@@ -2317,7 +2439,11 @@ async def internal_get_connector_credentials(
 # --- Internal: connector poller diagnostics ---
 
 
-@app.get("/internal/connector/{connector_name}/poller/status", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
+@app.get(
+    "/internal/connector/{connector_name}/poller/status",
+    tags=["internal"],
+    dependencies=[Depends(_require_internal_secret)],
+)
 async def internal_connector_poller_status(connector_name: str) -> Any:
     """Proxy GET to connector debug/poller endpoint."""
     base = _resolve_service_url(connector_name, registry)
@@ -2332,7 +2458,11 @@ async def internal_connector_poller_status(connector_name: str) -> Any:
         raise HTTPException(status_code=502, detail="Cannot reach connector poller status")
 
 
-@app.post("/internal/connector/{connector_name}/poller/reset", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
+@app.post(
+    "/internal/connector/{connector_name}/poller/reset",
+    tags=["internal"],
+    dependencies=[Depends(_require_internal_secret)],
+)
 async def internal_connector_poller_reset(connector_name: str) -> Any:
     """Proxy POST /poller/reset to a connector."""
     base = _resolve_service_url(connector_name, registry)
@@ -2341,10 +2471,14 @@ async def internal_connector_poller_reset(connector_name: str) -> Any:
             resp = await client.post(f"{base}/poller/reset")
             return resp.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail="Cannot reach connector poller")
+            raise HTTPException(status_code=502, detail="Cannot reach connector poller") from exc
 
 
-@app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
+@app.post(
+    "/internal/connector/{connector_name}/poller/poll-now",
+    tags=["internal"],
+    dependencies=[Depends(_require_internal_secret)],
+)
 async def internal_connector_poller_poll_now(connector_name: str) -> Any:
     """Proxy POST to connector debug/poll-now endpoint."""
     base = _resolve_service_url(connector_name, registry)
@@ -2359,7 +2493,11 @@ async def internal_connector_poller_poll_now(connector_name: str) -> Any:
         raise HTTPException(status_code=502, detail="Cannot reach connector poll-now")
 
 
-@app.get("/internal/connector/{connector_name}/poller/diagnose", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
+@app.get(
+    "/internal/connector/{connector_name}/poller/diagnose",
+    tags=["internal"],
+    dependencies=[Depends(_require_internal_secret)],
+)
 async def internal_connector_poller_diagnose(connector_name: str) -> Any:
     """Proxy GET /poller/diagnose to a connector for WMS API testing."""
     base = _resolve_service_url(connector_name, registry)
@@ -2428,9 +2566,7 @@ async def get_flow_execution_detail(
     if not execution:
         raise HTTPException(status_code=404, detail="Flow execution not found")
 
-    flow_result = await db.execute(
-        select(Flow).where(Flow.id == execution.flow_id)
-    )
+    flow_result = await db.execute(select(Flow).where(Flow.id == execution.flow_id))
     flow = flow_result.scalar_one_or_none()
 
     raw = {
@@ -2710,6 +2846,7 @@ async def ai_generate_workflow(
     current_state = ""
     if body.current_nodes:
         import json
+
         current_state = (
             "\n\n## Current Workflow State\n"
             f"Nodes: {json.dumps(body.current_nodes, indent=2)}\n"
@@ -2730,10 +2867,10 @@ async def ai_generate_workflow(
         raise HTTPException(
             status_code=502,
             detail="AI API error: upstream service returned an error",
-        )
+        ) from exc
     except Exception as exc:
         await logger.aexception("ai_api_error")
-        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable") from exc
 
     parsed = _parse_ai_response(raw_response)
     return WorkflowAiGenerateResponse(
@@ -2768,14 +2905,14 @@ async def ai_suggest_field_mappings(
             system_prompt=_AI_FIELD_MAPPING_SYSTEM_PROMPT,
             user_payload=payload,
         )
-    except httpx.HTTPStatusError:
+    except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
             detail="AI API error: upstream service returned an error",
-        )
-    except Exception:
+        ) from exc
+    except Exception as exc:
         await logger.aexception("ai_api_error_suggest_mapping")
-        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable") from exc
 
     mappings = parsed.get("mappings", [])
     if not isinstance(mappings, list):
@@ -2816,14 +2953,14 @@ async def ai_explain_error(
             system_prompt=_AI_ERROR_EXPLAIN_SYSTEM_PROMPT,
             user_payload=payload,
         )
-    except httpx.HTTPStatusError:
+    except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
             detail="AI API error: upstream service returned an error",
-        )
-    except Exception:
+        ) from exc
+    except Exception as exc:
         await logger.aexception("ai_api_error_explain")
-        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable") from exc
 
     return AiExplainErrorResponse(
         summary=str(parsed.get("summary", "No explanation generated.")),
@@ -2930,9 +3067,7 @@ def _enforce_workflow_request_ip_allowlist(workflow: Workflow, request: Request)
     raise HTTPException(status_code=403, detail="Client IP is not allowed for this workflow")
 
 
-async def _provision_trigger_account(
-    db: AsyncSession, tenant_id: Any, nodes: list[dict]
-) -> None:
+async def _provision_trigger_account(db: AsyncSession, tenant_id: Any, nodes: list[dict]) -> None:
     """Provision account on the connector when a workflow uses a trigger that
     requires account-based credential provisioning."""
     trigger_connector, _ = _extract_trigger_info(nodes)
@@ -3024,9 +3159,7 @@ async def list_workflows(
     db: AsyncSession = Depends(get_db),
 ) -> list[WorkflowResponse]:
     result = await db.execute(
-        select(Workflow)
-        .where(Workflow.tenant_id == tenant.id)
-        .order_by(Workflow.updated_at.desc())
+        select(Workflow).where(Workflow.tenant_id == tenant.id).order_by(Workflow.updated_at.desc())
     )
     return [WorkflowResponse.model_validate(w) for w in result.scalars().all()]
 
@@ -3037,9 +3170,7 @@ async def get_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowResponse:
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3053,9 +3184,7 @@ async def update_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowResponse:
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3063,18 +3192,14 @@ async def update_workflow(
     update_data = body.model_dump(exclude_unset=True)
 
     if "nodes" in update_data:
-        update_data["nodes"] = [
-            n.model_dump() if hasattr(n, "model_dump") else n for n in update_data["nodes"]
-        ]
+        update_data["nodes"] = [n.model_dump() if hasattr(n, "model_dump") else n for n in update_data["nodes"]]
         _validate_trigger_request_access(update_data["nodes"])
         trigger_connector, trigger_event = _extract_trigger_info(update_data["nodes"])
         update_data["trigger_connector"] = trigger_connector
         update_data["trigger_event"] = trigger_event
 
     if "edges" in update_data:
-        update_data["edges"] = [
-            e.model_dump() if hasattr(e, "model_dump") else e for e in update_data["edges"]
-        ]
+        update_data["edges"] = [e.model_dump() if hasattr(e, "model_dump") else e for e in update_data["edges"]]
 
     old_state = {
         "nodes": workflow.nodes,
@@ -3102,10 +3227,7 @@ async def update_workflow(
     await db.commit()
     await db.refresh(workflow)
 
-    needs_provision = (
-        "nodes" in update_data
-        or (update_data.get("is_enabled") is True)
-    )
+    needs_provision = "nodes" in update_data or (update_data.get("is_enabled") is True)
     if needs_provision:
         await _provision_trigger_account(db, tenant.id, workflow.nodes or [])
 
@@ -3121,9 +3243,7 @@ async def delete_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3158,16 +3278,17 @@ async def test_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowExecutionResponse:
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     _enforce_workflow_request_ip_allowlist(workflow, request)
     execution = await workflow_engine.execute_workflow(
-        db, workflow, body.trigger_data, dry_run=body.dry_run,
+        db,
+        workflow,
+        body.trigger_data,
+        dry_run=body.dry_run,
     )
     if not body.dry_run:
         await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
@@ -3194,9 +3315,7 @@ async def execute_workflow(
     The response includes ``node_results`` with each node's output
     and ``context_snapshot`` with the final merged data.
     """
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3206,7 +3325,6 @@ async def execute_workflow(
     await workflow_engine.record_execution_sync(db, workflow, execution, body.trigger_data)
     await db.commit()
     return _serialize_workflow_execution(execution)
-
 
 
 def _is_safe_url(url: str) -> bool:
@@ -3254,9 +3372,7 @@ async def call_workflow_get(
     Example: /api/v1/workflows/{id}/call?key=report.pdf&bucket=my-bucket
     """
     trigger_data = {k: v for k, v in request.query_params.items() if k != "api_key"}
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3274,6 +3390,7 @@ async def call_workflow_get(
         is_xhr = request.headers.get("origin") or request.headers.get("x-requested-with")
         if is_xhr:
             import mimetypes
+
             filename = _sanitize_filename(trigger_data.get("key", "file"))
             content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
             async with httpx.AsyncClient(follow_redirects=False, timeout=60.0) as client:
@@ -3285,6 +3402,7 @@ async def call_workflow_get(
                     s3_resp = await client.get(redirect_url)
                 s3_resp.raise_for_status()
             from fastapi.responses import Response
+
             return Response(
                 content=s3_resp.content,
                 media_type=content_type,
@@ -3294,6 +3412,7 @@ async def call_workflow_get(
                 },
             )
         from starlette.responses import RedirectResponse
+
         return RedirectResponse(url=url, status_code=302)
 
     return ctx_data
@@ -3305,9 +3424,7 @@ async def toggle_workflow(
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3333,14 +3450,13 @@ async def get_sync_stats(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Get sync ledger statistics for a workflow."""
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     from core.sync_state import SyncStateManager
+
     mgr = SyncStateManager()
     stats = await mgr.get_stats(db, workflow.id, tenant_id=tenant.id)
     return {
@@ -3359,13 +3475,12 @@ async def get_sync_failed(
     db: AsyncSession = Depends(get_db),
 ) -> list[dict[str, Any]]:
     """List failed sync entries for a workflow."""
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     from core.sync_state import SyncStateManager
+
     mgr = SyncStateManager()
     return await mgr.get_failed_entries(db, workflow_id, limit=limit, tenant_id=tenant.id)
 
@@ -3377,13 +3492,12 @@ async def retry_failed_syncs(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Reset all failed sync entries to pending for retry."""
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     from core.sync_state import SyncStateManager
+
     mgr = SyncStateManager()
     reset_count = await mgr.reset_failed(db, workflow_id, tenant_id=tenant.id)
     await db.commit()
@@ -3397,13 +3511,12 @@ async def clear_sync_ledger(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     """Delete all sync ledger entries for a workflow (force full re-sync)."""
-    result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="Workflow not found")
 
     from core.sync_state import SyncStateManager
+
     mgr = SyncStateManager()
     deleted = await mgr.clear_ledger(db, workflow_id, tenant_id=tenant.id)
     await db.commit()
@@ -3459,9 +3572,7 @@ async def get_workflow_execution_detail(
     if not execution:
         raise HTTPException(status_code=404, detail="Workflow execution not found")
 
-    wf_result = await db.execute(
-        select(Workflow).where(Workflow.id == execution.workflow_id)
-    )
+    wf_result = await db.execute(select(Workflow).where(Workflow.id == execution.workflow_id))
     workflow = wf_result.scalar_one_or_none()
 
     raw = {
@@ -3528,9 +3639,7 @@ async def rerun_workflow_execution(
     Restores context from the original execution up to ``from_node_id``,
     optionally merges ``override_data``, then continues execution from there.
     """
-    wf_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    wf_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = wf_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3548,7 +3657,9 @@ async def rerun_workflow_execution(
         raise HTTPException(status_code=400, detail="Execution does not belong to the requested workflow")
 
     execution = await workflow_engine.rerun_from_node(
-        db, workflow, original_execution,
+        db,
+        workflow,
+        original_execution,
         from_node_id=body.from_node_id,
         override_data=body.override_data or None,
     )
@@ -3571,9 +3682,7 @@ async def diff_workflow_executions(
 
     Returns per-node comparison: status, duration, input/output changes.
     """
-    wf_result = await db.execute(
-        select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id)
-    )
+    wf_result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = wf_result.scalar_one_or_none()
     if not workflow:
         raise HTTPException(status_code=404, detail="Workflow not found")
@@ -3627,10 +3736,10 @@ async def _proxy_verification(method: str, path: str, body: Any = None, params: 
             resp = await client.request(method, url, json=body, params=params)
             resp.raise_for_status()
             return resp.json()
-        except httpx.ConnectError:
-            raise HTTPException(status_code=503, detail="Verification agent is not reachable")
+        except httpx.ConnectError as exc:
+            raise HTTPException(status_code=503, detail="Verification agent is not reachable") from exc
         except httpx.HTTPStatusError as exc:
-            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500])
+            raise HTTPException(status_code=exc.response.status_code, detail=exc.response.text[:500]) from exc
 
 
 @app.post("/api/verification/run", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
@@ -3638,7 +3747,9 @@ async def verification_run_all() -> Any:
     return await _proxy_verification("POST", "/run")
 
 
-@app.post("/api/verification/run/{connector_name}", tags=["verification"], dependencies=[Depends(_require_admin_secret)])
+@app.post(
+    "/api/verification/run/{connector_name}", tags=["verification"], dependencies=[Depends(_require_admin_secret)]
+)
 async def verification_run_single(connector_name: str, version: str | None = Query(None)) -> Any:
     params = {"version": version} if version else None
     return await _proxy_verification("POST", f"/run/{connector_name}", params=params)
@@ -3719,9 +3830,9 @@ async def _demo_rate_check(client_ip: str) -> None:
             raise HTTPException(status_code=429, detail="Too many demo registrations. Try again later.")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         await logger.aexception("demo_rate_check_failed")
-        raise HTTPException(status_code=503, detail="Rate limiting service unavailable")
+        raise HTTPException(status_code=503, detail="Rate limiting service unavailable") from exc
 
 
 @app.post("/api/v1/demo/register", tags=["demo"], response_model=DemoRegisterResponse)
@@ -3773,9 +3884,7 @@ async def demo_validate_key(
         raise HTTPException(status_code=404, detail="Not found")
 
     key_hash = hash_api_key(body.api_key)
-    result = await db.execute(
-        select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True))
-    )
+    result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True)))
     api_key_record = result.scalar_one_or_none()
     if not api_key_record:
         return DemoValidateKeyResponse(valid=False)

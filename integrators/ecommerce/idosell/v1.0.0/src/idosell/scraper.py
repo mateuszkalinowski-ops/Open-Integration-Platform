@@ -2,8 +2,9 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
-from typing import Any
+from datetime import UTC, datetime
+
+from pinquark_common.kafka import KafkaMessageProducer
 
 from src.config import IdoSellAccountConfig, settings
 from src.idosell.client import IdoSellClient
@@ -11,7 +12,6 @@ from src.idosell.mapper import map_idosell_order_to_order, map_idosell_product_t
 from src.idosell.schemas import IdoSellOrder, IdoSellProduct
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -57,7 +57,7 @@ class OrderScraper:
                 logger.exception("Error scraping account=%s", account.name)
 
     async def _scrape_account(self, account: IdoSellAccountConfig) -> None:
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         now_str = now.strftime(settings.idosell_date_format)
 
         if settings.scrape_orders:

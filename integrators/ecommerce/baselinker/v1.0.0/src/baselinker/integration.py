@@ -14,13 +14,14 @@ from pinquark_common.schemas.ecommerce import (
     ProductsPage,
     StockItem,
 )
-from src.config import BaseLinkerAccountConfig
+
 from src.baselinker.client import BaseLinkerClient
 from src.baselinker.mapper import (
     find_bl_status_id,
     map_bl_order_to_order,
     map_bl_product_to_product,
 )
+from src.config import BaseLinkerAccountConfig
 from src.services.account_manager import AccountManager
 
 logger = logging.getLogger(__name__)
@@ -69,7 +70,7 @@ class BaseLinkerIntegration(EcommerceIntegration):
             orders.append(map_bl_order_to_order(od, account_name, status_defs))
 
         start = (page - 1) * page_size
-        page_slice = orders[start:start + page_size]
+        page_slice = orders[start : start + page_size]
         has_next = len(bl_orders) == 100
 
         return OrdersPage(
@@ -102,10 +103,7 @@ class BaseLinkerIntegration(EcommerceIntegration):
         bl_status_id = find_bl_status_id(status, status_defs)
 
         if bl_status_id is None:
-            raise ValueError(
-                f"Cannot map {status.value} to any BaseLinker status. "
-                f"Available: {status_defs}"
-            )
+            raise ValueError(f"Cannot map {status.value} to any BaseLinker status. Available: {status_defs}")
 
         await self._client.set_order_status(account, int(order_id), bl_status_id)
         logger.info("Updated order=%s to status=%s (bl_id=%d)", order_id, status, bl_status_id)
@@ -138,7 +136,7 @@ class BaseLinkerIntegration(EcommerceIntegration):
         errors: list[dict[str, Any]] = []
 
         for i in range(0, len(batch), 1000):
-            chunk = dict(list(batch.items())[i:i + 1000])
+            chunk = dict(list(batch.items())[i : i + 1000])
             try:
                 await self._client.update_inventory_products_stock(account, inv_id, chunk)
                 succeeded += len(chunk)
@@ -183,7 +181,9 @@ class BaseLinkerIntegration(EcommerceIntegration):
         if not product_ids:
             return ProductsPage(products=[], page=page, total=0, has_next=False, source="baselinker")
 
-        data_resp = await self._client.get_inventory_products_data(account, inv_id, [int(pid) for pid in product_ids[:page_size]])
+        data_resp = await self._client.get_inventory_products_data(
+            account, inv_id, [int(pid) for pid in product_ids[:page_size]]
+        )
         products_data = data_resp.get("products", {})
 
         products: list[Product] = []
@@ -211,5 +211,7 @@ class BaseLinkerIntegration(EcommerceIntegration):
     ) -> dict[str, Any]:
         account = self._get_account(account_name)
         resp = await self._client.create_package_manual(account, order_id, courier_code, package_number)
-        logger.info("Created manual package for order=%d, courier=%s, number=%s", order_id, courier_code, package_number)
+        logger.info(
+            "Created manual package for order=%d, courier=%s, number=%s", order_id, courier_code, package_number
+        )
         return resp

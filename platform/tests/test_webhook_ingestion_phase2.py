@@ -4,7 +4,6 @@ import json
 import uuid
 
 import pytest
-
 from core.webhook_ingestion import WebhookIngestionService
 
 
@@ -26,7 +25,7 @@ class _DummyRegistry:
 
 
 class _DummyVault:
-    async def retrieve(self, db, tenant_id, connector_name, secret_field):  # noqa: ANN001
+    async def retrieve(self, db, tenant_id, connector_name, secret_field):
         return None
 
 
@@ -37,7 +36,7 @@ async def test_ingest_webhook_persists_received_status() -> None:
             async def exists(self, _key):
                 return 0
 
-            async def set(self, _key, _value, ex=None):  # noqa: ANN001
+            async def set(self, _key, _value, ex=None):
                 return True
 
         return _Redis()

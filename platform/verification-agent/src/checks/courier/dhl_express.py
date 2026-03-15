@@ -16,7 +16,7 @@ Tests all read-only endpoints:
 
 from __future__ import annotations
 
-from datetime import datetime, timedelta, timezone
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -28,7 +28,7 @@ DUMMY_TRACKING = "1234567890"
 
 
 def _future_date() -> str:
-    dt = datetime.now(timezone.utc) + timedelta(days=3)
+    dt = datetime.now(UTC) + timedelta(days=3)
     return dt.strftime("%Y-%m-%dT14:00:00GMT+01:00")
 
 
@@ -41,7 +41,8 @@ async def run(
 
     # --- Address validation (read-only, lightweight) ---
     addr_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/address-validate",
         "address_validate",
         params={
@@ -56,7 +57,8 @@ async def run(
 
     # --- Service points / locations ---
     points_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/points",
         "service_points",
         params={
@@ -71,7 +73,8 @@ async def run(
 
     # --- Tracking (dummy number — expect 404 or 401 with invalid creds) ---
     track_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/shipments/{DUMMY_TRACKING}/status",
         "get_tracking_status",
         accept_statuses=(200, 400, 401, 404),
@@ -94,8 +97,9 @@ async def run(
         "width": 20,
         "height": 15,
     }
-    rate_check, rate_resp = await req_check(
-        client, "POST",
+    rate_check, _rate_resp = await req_check(
+        client,
+        "POST",
         f"{base}/rates",
         "get_rates",
         json_body=rate_payload,
@@ -105,7 +109,8 @@ async def run(
 
     # --- Standardised rates ---
     std_rate_check, _ = await req_check(
-        client, "POST",
+        client,
+        "POST",
         f"{base}/rates/standardized",
         "get_rates_standardized",
         json_body=rate_payload,
@@ -115,7 +120,8 @@ async def run(
 
     # --- Products ---
     products_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/products",
         "get_products",
         params={
@@ -134,7 +140,8 @@ async def run(
 
     # --- Label retrieval (dummy tracking — expect 400/401/404) ---
     label_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/shipments/{DUMMY_TRACKING}/label",
         "get_label",
         accept_statuses=(200, 400, 401, 404),
@@ -143,7 +150,8 @@ async def run(
 
     # --- Documents (dummy tracking — expect 400/401/404) ---
     doc_check, _ = await req_check(
-        client, "GET",
+        client,
+        "GET",
         f"{base}/shipments/{DUMMY_TRACKING}/documents",
         "get_documents",
         params={"typeCode": "label"},
@@ -161,19 +169,23 @@ async def run(
         "isDTPRequested": False,
         "isInsuranceRequested": False,
         "shipmentPurpose": "commercial",
-        "packages": [{
-            "weight": 1.0,
-            "dimensions": {"length": 30, "width": 20, "height": 15},
-        }],
-        "items": [{
-            "number": 1,
-            "name": "Test Item",
-            "quantity": 1,
-            "quantityType": "pcs",
-            "unitPrice": 50.0,
-            "unitPriceCurrencyCode": "EUR",
-            "weight": {"netValue": 1.0, "grossValue": 1.0},
-        }],
+        "packages": [
+            {
+                "weight": 1.0,
+                "dimensions": {"length": 30, "width": 20, "height": 15},
+            }
+        ],
+        "items": [
+            {
+                "number": 1,
+                "name": "Test Item",
+                "quantity": 1,
+                "quantityType": "pcs",
+                "unitPrice": 50.0,
+                "unitPriceCurrencyCode": "EUR",
+                "weight": {"netValue": 1.0, "grossValue": 1.0},
+            }
+        ],
         "shipperAddress": {
             "postalCode": "00-001",
             "cityName": "Warszawa",
@@ -186,7 +198,8 @@ async def run(
         },
     }
     landed_check, _ = await req_check(
-        client, "POST",
+        client,
+        "POST",
         f"{base}/landed-cost",
         "get_landed_cost",
         json_body=landed_payload,
@@ -235,10 +248,12 @@ async def run(
             },
         },
         "content": {
-            "packages": [{
-                "weight": 1.5,
-                "dimensions": {"length": 30, "width": 20, "height": 15},
-            }],
+            "packages": [
+                {
+                    "weight": 1.5,
+                    "dimensions": {"length": 30, "width": 20, "height": 15},
+                }
+            ],
             "is_customs_declarable": False,
             "description": "Verification test",
             "incoterm_code": "DAP",
@@ -246,7 +261,8 @@ async def run(
         },
     }
     ship_check, _ = await req_check(
-        client, "POST",
+        client,
+        "POST",
         f"{base}/shipments",
         "create_shipment",
         json_body=shipment_payload,
@@ -280,7 +296,8 @@ async def run(
         },
     }
     pickup_check, _ = await req_check(
-        client, "POST",
+        client,
+        "POST",
         f"{base}/pickups",
         "create_pickup",
         json_body=pickup_payload,

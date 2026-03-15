@@ -27,12 +27,16 @@ async def check_connection_status(
                 return {"name": "connection_status", "status": "PASS", "response_time_ms": ms}
             error = data.get("error", "Not connected")
             return {
-                "name": "connection_status", "status": "FAIL", "response_time_ms": ms,
+                "name": "connection_status",
+                "status": "FAIL",
+                "response_time_ms": ms,
                 "error": error,
                 "suggestion": f"Check credentials for {target.manifest.name}",
             }
         return {
-            "name": "connection_status", "status": "FAIL", "response_time_ms": ms,
+            "name": "connection_status",
+            "status": "FAIL",
+            "response_time_ms": ms,
             "error": f"HTTP {r.status_code}",
         }
     except Exception as exc:
@@ -55,11 +59,15 @@ async def check_auth_status(
             if data.get("authenticated", False):
                 return {"name": "auth_status", "status": "PASS", "response_time_ms": ms}
             return {
-                "name": "auth_status", "status": "FAIL", "response_time_ms": ms,
+                "name": "auth_status",
+                "status": "FAIL",
+                "response_time_ms": ms,
                 "error": "Not authenticated",
             }
         return {
-            "name": "auth_status", "status": "FAIL", "response_time_ms": ms,
+            "name": "auth_status",
+            "status": "FAIL",
+            "response_time_ms": ms,
             "error": f"HTTP {r.status_code}",
         }
     except Exception as exc:
@@ -101,8 +109,12 @@ async def check_manifest_validate_endpoint(
     validation = getattr(target.manifest, "credential_validation", None) or {}
     endpoint_template = validation.get("validate_endpoint", "")
     if not endpoint_template:
-        return {"name": "manifest_validation", "status": "SKIP", "response_time_ms": 0,
-                "error": "No validate_endpoint in manifest"}
+        return {
+            "name": "manifest_validation",
+            "status": "SKIP",
+            "response_time_ms": 0,
+            "error": "No validate_endpoint in manifest",
+        }
 
     endpoint = endpoint_template.replace("{account_name}", account_name)
     url = f"{target.base_url}{endpoint}"
@@ -112,8 +124,12 @@ async def check_manifest_validate_endpoint(
         ms = int((time.monotonic() - start) * 1000)
         if r.status_code == 200:
             return {"name": "manifest_validation", "status": "PASS", "response_time_ms": ms}
-        return {"name": "manifest_validation", "status": "FAIL", "response_time_ms": ms,
-                "error": f"HTTP {r.status_code}"}
+        return {
+            "name": "manifest_validation",
+            "status": "FAIL",
+            "response_time_ms": ms,
+            "error": f"HTTP {r.status_code}",
+        }
     except Exception as exc:
         ms = int((time.monotonic() - start) * 1000)
         return {"name": "manifest_validation", "status": "FAIL", "response_time_ms": ms, "error": str(exc)}
@@ -131,8 +147,9 @@ async def run_tier2(
     connector does not use account-based provisioning.
     """
     if not target.credentials or not target.tenant_id:
-        return [{"name": "auth_validation", "status": "SKIP", "response_time_ms": 0,
-                 "error": "No credentials configured"}]
+        return [
+            {"name": "auth_validation", "status": "SKIP", "response_time_ms": 0, "error": "No credentials configured"}
+        ]
 
     results: list[dict[str, Any]] = []
     account_name = target.credentials.get("account_name", "verification-agent")
@@ -146,10 +163,14 @@ async def run_tier2(
     if has_account_provisioning:
         ok = await ensure_account(client, target, account_name)
         if not ok:
-            results.append({
-                "name": "account_provisioning", "status": "FAIL", "response_time_ms": 0,
-                "error": "Failed to provision account on connector",
-            })
+            results.append(
+                {
+                    "name": "account_provisioning",
+                    "status": "FAIL",
+                    "response_time_ms": 0,
+                    "error": "Failed to provision account on connector",
+                }
+            )
             return results
 
     if has_validate_endpoint:

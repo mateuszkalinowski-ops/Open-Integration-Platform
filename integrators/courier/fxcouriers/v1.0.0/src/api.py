@@ -30,18 +30,21 @@ logger = logging.getLogger("courier-fxcouriers")
 # Auth helpers
 # ---------------------------------------------------------------------------
 
+
 def _build_auth_header(token: str) -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
 def handle_errors(func):
     """Decorator: convert httpx.HTTPStatusError to formatted error tuple."""
+
     @functools.wraps(func)
     async def wrapper(*args, **kwargs):
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as exc:
             return _format_error_response(exc.response)
+
     return wrapper
 
 
@@ -55,7 +58,8 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "FX Couriers API error — url=%s status=%s",
-        response.url.path, response.status_code,
+        response.url.path,
+        response.status_code,
     )
     return msg, response.status_code
 
@@ -64,13 +68,15 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
 # Services API
 # ---------------------------------------------------------------------------
 
+
 class ApiServices:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def get_services(
-        self, credentials: FxCouriersCredentials,
+        self,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """GET /services — available services and package configuration."""
         response = await self._client.get(
@@ -85,13 +91,16 @@ class ApiServices:
 # Company API
 # ---------------------------------------------------------------------------
 
+
 class ApiCompany:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def get_company(
-        self, company_id: int, credentials: FxCouriersCredentials,
+        self,
+        company_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """GET /company/{company_id} — company registration and address data."""
         response = await self._client.get(
@@ -106,13 +115,16 @@ class ApiCompany:
 # Orders API
 # ---------------------------------------------------------------------------
 
+
 class ApiOrders:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def create_order(
-        self, order_data: dict, credentials: FxCouriersCredentials,
+        self,
+        order_data: dict,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """POST /order — create a new transport order."""
         response = await self._client.post(
@@ -153,7 +165,9 @@ class ApiOrders:
 
     @handle_errors
     async def get_order(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """GET /order/{order_id} — single order details."""
         response = await self._client.get(
@@ -165,7 +179,9 @@ class ApiOrders:
 
     @handle_errors
     async def delete_order(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict | str, int]:
         """DELETE /order/{order_id} — delete an unshipped order."""
         response = await self._client.delete(
@@ -183,13 +199,16 @@ class ApiOrders:
 # Tracking API
 # ---------------------------------------------------------------------------
 
+
 class ApiTracking:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def get_tracking(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """GET /order-tracking/{order_id} — tracking events."""
         response = await self._client.get(
@@ -204,13 +223,16 @@ class ApiTracking:
 # Labels API
 # ---------------------------------------------------------------------------
 
+
 class ApiLabels:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def get_label(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[bytes | str, int]:
         """GET /label/{order_id} — shipping label as PDF."""
         response = await self._client.get(
@@ -225,13 +247,16 @@ class ApiLabels:
 # Shipments API (pickup scheduling)
 # ---------------------------------------------------------------------------
 
+
 class ApiShipments:
     def __init__(self, client: httpx.AsyncClient) -> None:
         self._client = client
 
     @handle_errors
     async def create_shipment(
-        self, shipment_data: dict, credentials: FxCouriersCredentials,
+        self,
+        shipment_data: dict,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """POST /shipments — schedule pickup for given orders."""
         response = await self._client.post(
@@ -247,7 +272,9 @@ class ApiShipments:
 
     @handle_errors
     async def get_shipment(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict, int]:
         """GET /shipment/{order_id} — get shipment/pickup details."""
         response = await self._client.get(
@@ -259,7 +286,9 @@ class ApiShipments:
 
     @handle_errors
     async def delete_shipment(
-        self, order_id: int, credentials: FxCouriersCredentials,
+        self,
+        order_id: int,
+        credentials: FxCouriersCredentials,
     ) -> tuple[dict | str, int]:
         """DELETE /shipment/{order_id} — cancel scheduled pickup."""
         response = await self._client.delete(

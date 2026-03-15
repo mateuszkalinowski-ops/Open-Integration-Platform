@@ -5,16 +5,17 @@ for Orders, Catalog, Feeds, and Reports APIs.
 """
 
 import asyncio
+import contextlib
 import json
 import logging
 import time
 from typing import Any
 
 import httpx
-
-from src.config import AmazonAccountConfig, settings
-from src.amazon.auth import TokenManager
 from pinquark_common.monitoring.metrics import setup_metrics
+
+from src.amazon.auth import TokenManager
+from src.config import AmazonAccountConfig, settings
 
 logger = logging.getLogger(__name__)
 
@@ -78,22 +79,29 @@ class AmazonClient:
         headers = {
             "x-amz-access-token": access_token,
             "Content-Type": "application/json",
-            "User-Agent": f"PinquarkIntegrations/1.0 (Language=Python; Platform=Linux)",
+            "User-Agent": "PinquarkIntegrations/1.0 (Language=Python; Platform=Linux)",
         }
 
         last_response: httpx.Response | None = None
         for attempt in range(settings.max_retries):
             start = time.monotonic()
             last_response = await http.request(
-                method, url, headers=headers, params=params, json=json_body,
+                method,
+                url,
+                headers=headers,
+                params=params,
+                json=json_body,
             )
             duration = time.monotonic() - start
 
             metrics["external_api_calls_total"].labels(
-                system="amazon", operation=operation_name, status=last_response.status_code,
+                system="amazon",
+                operation=operation_name,
+                status=last_response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="amazon", operation=operation_name,
+                system="amazon",
+                operation=operation_name,
             ).observe(duration)
 
             if last_response.status_code == 429:
@@ -101,16 +109,22 @@ class AmazonClient:
                 rate_limit = last_response.headers.get("x-amzn-RateLimit-Limit", "?")
                 logger.warning(
                     "Amazon rate limited (limit=%s), waiting %.1fs (attempt %d/%d)",
-                    rate_limit, retry_after, attempt + 1, settings.max_retries,
+                    rate_limit,
+                    retry_after,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(retry_after)
                 continue
 
             if last_response.status_code >= 500:
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
+                backoff = settings.retry_backoff_factor * (2**attempt)
                 logger.warning(
                     "Amazon %d, retrying in %.1fs (attempt %d/%d)",
-                    last_response.status_code, backoff, attempt + 1, settings.max_retries,
+                    last_response.status_code,
+                    backoff,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(backoff)
                 continue
@@ -122,10 +136,8 @@ class AmazonClient:
 
         if last_response.status_code >= 400:
             error_body = {}
-            try:
+            with contextlib.suppress(Exception):
                 error_body = last_response.json()
-            except Exception:
-                pass
             errors = error_body.get("errors", [{}])
             first_error = errors[0] if errors else {}
             raise AmazonApiError(
@@ -244,12 +256,16 @@ class AmazonClient:
     # Feeds API (2021-06-30)
     # -----------------------------------------------------------------------
 
-    async def create_feed_document(self, account: AmazonAccountConfig, content_type: str = "application/json") -> dict[str, Any]:
+    async def create_feed_document(
+        self, account: AmazonAccountConfig, content_type: str = "application/json"
+    ) -> dict[str, Any]:
         url = f"{account.base_url}/feeds/2021-06-30/documents"
         body = {"contentType": content_type}
         return await self._request("POST", url, account, json_body=body, operation_name="createFeedDocument")
 
-    async def upload_feed_data(self, upload_url: str, data: str | bytes, content_type: str = "application/json") -> None:
+    async def upload_feed_data(
+        self, upload_url: str, data: str | bytes, content_type: str = "application/json"
+    ) -> None:
         """Upload feed content to the pre-signed S3 URL."""
         http = self._get_http_client()
         body = data.encode("utf-8") if isinstance(data, str) else data

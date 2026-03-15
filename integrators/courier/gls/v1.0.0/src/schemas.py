@@ -46,6 +46,7 @@ class LabelRequest(BaseModel):
 # Rate request / standardized response (for shipping price comparison)
 # ---------------------------------------------------------------------------
 
+
 class RateRequest(BaseModel):
     credentials: GlsCredentials | None = None
     sender_postal_code: str = ""

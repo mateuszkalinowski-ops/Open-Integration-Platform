@@ -1,16 +1,15 @@
 """Integration tests for the FastAPI endpoints."""
 
-import pytest
 from unittest.mock import AsyncMock, MagicMock
-from httpx import AsyncClient, ASGITransport
 
-from src.api.dependencies import app_state
-from src.woocommerce.auth import WooCommerceAuth
-from src.woocommerce.schemas import AuthStatusResponse
-from src.services.account_manager import AccountManager
-from src.config import WooCommerceAccountConfig
+import pytest
+from httpx import ASGITransport, AsyncClient
 from pinquark_common.monitoring.health import HealthChecker
 from pinquark_common.schemas.common import HealthResponse
+from src.api.dependencies import app_state
+from src.config import WooCommerceAccountConfig
+from src.services.account_manager import AccountManager
+from src.woocommerce.auth import WooCommerceAuth
 
 
 @pytest.fixture
@@ -32,8 +31,11 @@ def mock_app_state():
 
     auth = WooCommerceAuth()
     auth.register_account(
-        account.name, account.store_url, account.consumer_key,
-        account.consumer_secret, account.api_version,
+        account.name,
+        account.store_url,
+        account.consumer_key,
+        account.consumer_secret,
+        account.api_version,
     )
     app_state.auth = auth
 
@@ -105,12 +107,15 @@ async def test_orders_requires_auth_for_unknown_account(app):
 async def test_add_and_remove_account(app):
     transport = ASGITransport(app=app)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        resp = await client.post("/accounts", json={
-            "name": "new-store",
-            "store_url": "https://new-store.example.com",
-            "consumer_key": "ck_new",
-            "consumer_secret": "cs_new",
-        })
+        resp = await client.post(
+            "/accounts",
+            json={
+                "name": "new-store",
+                "store_url": "https://new-store.example.com",
+                "consumer_key": "ck_new",
+                "consumer_secret": "cs_new",
+            },
+        )
         assert resp.status_code == 201
 
         resp = await client.get("/accounts")

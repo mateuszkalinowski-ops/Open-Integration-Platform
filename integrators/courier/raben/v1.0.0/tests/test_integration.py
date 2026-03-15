@@ -5,16 +5,14 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
-
 from src.integration import RabenIntegration, _map_status
 from src.schemas import (
     ClaimType,
+    CreateShipmentRequest,
     Package,
     RabenCredentials,
-    ServiceType,
     ShipmentParty,
     ShipmentStatus,
-    CreateShipmentRequest,
 )
 
 
@@ -82,12 +80,20 @@ class TestRabenIntegration:
         request = CreateShipmentRequest(
             credentials=credentials,
             sender=ShipmentParty(
-                companyName="Sender", contactPerson="Jan", phone="1",
-                street="S", city="W", postalCode="00-001",
+                companyName="Sender",
+                contactPerson="Jan",
+                phone="1",
+                street="S",
+                city="W",
+                postalCode="00-001",
             ),
             receiver=ShipmentParty(
-                companyName="Receiver", contactPerson="Anna", phone="2",
-                street="R", city="K", postalCode="30-001",
+                companyName="Receiver",
+                contactPerson="Anna",
+                phone="2",
+                street="R",
+                city="K",
+                postalCode="30-001",
             ),
             packages=[Package(weight=500.0)],
         )
@@ -146,7 +152,7 @@ class TestRabenIntegration:
     @patch("src.integration.RabenIntegration._ensure_token", new_callable=AsyncMock)
     async def test_cancel_order_returns_result(self, mock_token, credentials, integration):
         integration._orders.cancel_order = AsyncMock(return_value=({"status": "cancelled"}, 200))
-        result, status = await integration.cancel_order(credentials, "RAB-456")
+        _result, status = await integration.cancel_order(credentials, "RAB-456")
         assert status == 200
 
     @pytest.mark.asyncio
@@ -162,7 +168,11 @@ class TestRabenIntegration:
         integration._claims.create_claim = AsyncMock(return_value=(mock_result, 201))
 
         result, status = await integration.create_claim(
-            credentials, "RAB-456", ClaimType.DAMAGE, "Package damaged", "user@example.com",
+            credentials,
+            "RAB-456",
+            ClaimType.DAMAGE,
+            "Package damaged",
+            "user@example.com",
         )
         assert status == 201
         assert result["claimId"] == "CLM-789"

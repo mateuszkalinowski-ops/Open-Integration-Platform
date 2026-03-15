@@ -2,14 +2,15 @@
 
 import asyncio
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import UTC, datetime, timedelta
 
+from pinquark_common.kafka import KafkaMessageProducer
+
+from src.amazon.client import AmazonClient
+from src.amazon.mapper import map_amazon_order_to_order
 from src.config import AmazonAccountConfig, settings
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from src.amazon.client import AmazonClient
-from src.amazon.mapper import map_amazon_order_to_order
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -61,12 +62,13 @@ class AmazonScraper:
     async def _scrape_orders(self, account: AmazonAccountConfig) -> None:
         last_updated = self._get_last_timestamp(account.name, "orders_last_updated")
         if not last_updated:
-            default_lookback = datetime.now(timezone.utc) - timedelta(hours=24)
+            default_lookback = datetime.now(UTC) - timedelta(hours=24)
             last_updated = default_lookback.strftime("%Y-%m-%dT%H:%M:%SZ")
 
         try:
             resp = await self._client.get_orders(
-                account, last_updated_after=last_updated,
+                account,
+                last_updated_after=last_updated,
             )
         except Exception as exc:
             logger.warning("getOrders failed for account=%s: %s", account.name, exc)

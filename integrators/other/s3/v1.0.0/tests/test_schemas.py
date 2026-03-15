@@ -1,7 +1,7 @@
 """Tests for Pydantic schema validation."""
 
 import base64
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.s3_client.schemas import (
     BucketCreateRequest,
@@ -23,7 +23,7 @@ def test_object_info_creation():
         key="data/test.txt",
         bucket="my-bucket",
         size=256,
-        last_modified=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        last_modified=datetime(2026, 1, 1, tzinfo=UTC),
         etag="abc123",
         storage_class="STANDARD",
     )
@@ -42,7 +42,7 @@ def test_object_info_defaults():
 def test_bucket_info():
     info = BucketInfo(
         name="my-bucket",
-        creation_date=datetime(2026, 1, 1, tzinfo=timezone.utc),
+        creation_date=datetime(2026, 1, 1, tzinfo=UTC),
     )
     assert info.name == "my-bucket"
 
@@ -61,7 +61,10 @@ def test_object_upload_request_validation():
 
 def test_object_upload_response():
     resp = ObjectUploadResponse(
-        bucket="my-bucket", key="data/file.csv", size=100, etag="abc",
+        bucket="my-bucket",
+        key="data/file.csv",
+        size=100,
+        etag="abc",
     )
     assert resp.status == "uploaded"
 
@@ -110,7 +113,7 @@ def test_presign_request_invalid_method_raises():
 
     try:
         PresignRequest(bucket="my-bucket", key="file.txt", method="DELETE")
-        assert False, "Should have raised ValidationError"
+        raise AssertionError("Should have raised ValidationError")
     except ValidationError:
         pass
 

@@ -10,6 +10,7 @@ from pinquark_common.schemas.ecommerce import (
     OrderLine,
     OrderStatus,
 )
+
 from src.allegro.schemas import (
     AllegroCheckoutForm,
     CheckoutFormStatus,
@@ -75,18 +76,20 @@ def map_checkout_to_order(
     lines: list[OrderLine] = []
     for item in checkout.line_items:
         details = product_details.get(item.offer.id, {})
-        lines.append(OrderLine(
-            external_id=item.id,
-            offer_id=item.offer.id,
-            product_id=details.get("product_id", ""),
-            sku=details.get("sku", item.offer.id),
-            ean=details.get("ean", ""),
-            name=item.offer.name or details.get("name", ""),
-            quantity=float(item.quantity),
-            unit="szt.",
-            unit_price=float(item.price.amount) if item.price else 0.0,
-            currency=item.price.currency if item.price else "PLN",
-        ))
+        lines.append(
+            OrderLine(
+                external_id=item.id,
+                offer_id=item.offer.id,
+                product_id=details.get("product_id", ""),
+                sku=details.get("sku", item.offer.id),
+                ean=details.get("ean", ""),
+                name=item.offer.name or details.get("name", ""),
+                quantity=float(item.quantity),
+                unit="szt.",
+                unit_price=float(item.price.amount) if item.price else 0.0,
+                currency=item.price.currency if item.price else "PLN",
+            )
+        )
 
     total = 0.0
     currency = "PLN"

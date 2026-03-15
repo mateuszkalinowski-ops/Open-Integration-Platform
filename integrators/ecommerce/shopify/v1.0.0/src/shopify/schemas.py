@@ -10,8 +10,8 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # --- Enums ---
+
 
 class ShopifyOrderFinancialStatus(str, Enum):
     PENDING = "pending"
@@ -29,6 +29,7 @@ class ShopifyOrderFulfillmentStatus(str, Enum):
     Note: Shopify returns null (not "unfulfilled") for orders with no fulfillments.
     The ShopifyOrder model uses `ShopifyOrderFulfillmentStatus | None` to handle this.
     """
+
     FULFILLED = "fulfilled"
     PARTIAL = "partial"
     RESTOCKED = "restocked"
@@ -53,12 +54,14 @@ class ShopifyOrderCancelReason(str, Enum):
 
 # --- Price / Money ---
 
+
 class ShopifyPriceSet(BaseModel):
     shop_money: dict[str, str] | None = None
     presentment_money: dict[str, str] | None = None
 
 
 # --- Address ---
+
 
 class ShopifyAddress(BaseModel):
     first_name: str = ""
@@ -80,6 +83,7 @@ class ShopifyAddress(BaseModel):
 
 # --- Customer ---
 
+
 class ShopifyCustomer(BaseModel):
     id: int
     email: str = ""
@@ -97,6 +101,7 @@ class ShopifyCustomer(BaseModel):
 
 
 # --- Line Items ---
+
 
 class ShopifyLineItem(BaseModel):
     id: int
@@ -119,6 +124,7 @@ class ShopifyLineItem(BaseModel):
 
 
 # --- Fulfillment ---
+
 
 class ShopifyFulfillmentLineItem(BaseModel):
     id: int
@@ -150,6 +156,7 @@ class ShopifyFulfillmentOrder(BaseModel):
 
 # --- Shipping Lines ---
 
+
 class ShopifyShippingLine(BaseModel):
     id: int | None = None
     title: str = ""
@@ -160,12 +167,14 @@ class ShopifyShippingLine(BaseModel):
 
 # --- Note Attributes ---
 
+
 class ShopifyNoteAttribute(BaseModel):
     name: str
     value: str
 
 
 # --- Order ---
+
 
 class ShopifyOrder(BaseModel):
     id: int
@@ -207,6 +216,7 @@ class ShopifyOrderResponse(BaseModel):
 
 
 # --- Product ---
+
 
 class ShopifyProductImage(BaseModel):
     id: int | None = None
@@ -263,6 +273,7 @@ class ShopifyProductResponse(BaseModel):
 
 # --- Inventory ---
 
+
 class ShopifyInventoryLevel(BaseModel):
     inventory_item_id: int
     location_id: int
@@ -276,11 +287,13 @@ class ShopifyInventoryLevelsResponse(BaseModel):
 
 # --- Fulfillment Orders (for fulfillment creation) ---
 
+
 class ShopifyFulfillmentOrdersResponse(BaseModel):
     fulfillment_orders: list[ShopifyFulfillmentOrder] = Field(default_factory=list)
 
 
 # --- Auth Status ---
+
 
 class AuthStatusResponse(BaseModel):
     account_name: str

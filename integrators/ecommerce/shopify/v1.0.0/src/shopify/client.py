@@ -6,9 +6,9 @@ import time
 from typing import Any
 
 import httpx
-
-from src.config import settings, ShopifyAccountConfig
 from pinquark_common.monitoring.metrics import setup_metrics
+
+from src.config import ShopifyAccountConfig, settings
 
 logger = logging.getLogger(__name__)
 
@@ -77,16 +77,23 @@ class ShopifyClient:
         for attempt in range(settings.max_retries):
             start = time.monotonic()
             response = await http_client.request(
-                method, path, headers=headers, params=params, json=json_data,
+                method,
+                path,
+                headers=headers,
+                params=params,
+                json=json_data,
             )
             duration = time.monotonic() - start
 
             operation = path.split("/")[0] if path else "unknown"
             metrics["external_api_calls_total"].labels(
-                system="shopify", operation=operation, status=response.status_code,
+                system="shopify",
+                operation=operation,
+                status=response.status_code,
             ).inc()
             metrics["external_api_duration"].labels(
-                system="shopify", operation=operation,
+                system="shopify",
+                operation=operation,
             ).observe(duration)
 
             self._log_rate_limit(response, account.name)
@@ -94,29 +101,38 @@ class ShopifyClient:
             if response.status_code == 401:
                 logger.error(
                     "Shopify 401 Unauthorized for account=%s path=%s — access token is invalid or revoked",
-                    account.name, path,
+                    account.name,
+                    path,
                 )
                 raise ShopifyApiError(
                     401,
                     f"Access token invalid for account '{account.name}'. "
                     f"Verify the token in account config or POST /auth/{account.name}/validate.",
-                    raw=response.json() if response.headers.get("content-type", "").startswith("application/json") else {},
+                    raw=response.json()
+                    if response.headers.get("content-type", "").startswith("application/json")
+                    else {},
                 )
 
             if response.status_code == 429:
                 retry_after = float(response.headers.get(RETRY_AFTER_HEADER, "2.0"))
                 logger.warning(
                     "Shopify rate limited for account=%s, waiting %.1fs (attempt %d/%d)",
-                    account.name, retry_after, attempt + 1, settings.max_retries,
+                    account.name,
+                    retry_after,
+                    attempt + 1,
+                    settings.max_retries,
                 )
                 await asyncio.sleep(retry_after)
                 continue
 
             if response.status_code >= 500:
-                backoff = settings.retry_backoff_factor * (2 ** attempt)
+                backoff = settings.retry_backoff_factor * (2**attempt)
                 logger.warning(
                     "Shopify server error %d for account=%s path=%s, retrying in %.1fs",
-                    response.status_code, account.name, path, backoff,
+                    response.status_code,
+                    account.name,
+                    path,
+                    backoff,
                 )
                 await asyncio.sleep(backoff)
                 continue
@@ -137,7 +153,9 @@ class ShopifyClient:
                 if usage_pct > 80:
                     logger.warning(
                         "Shopify API rate limit at %.0f%% (%s) for account=%s",
-                        usage_pct, limit_header, account_name,
+                        usage_pct,
+                        limit_header,
+                        account_name,
                     )
             except (ValueError, ZeroDivisionError):
                 pass
@@ -195,7 +213,8 @@ class ShopifyClient:
         reason: str = "other",
     ) -> dict:
         resp = await self.post(
-            f"orders/{order_id}/cancel.json", account,
+            f"orders/{order_id}/cancel.json",
+            account,
             json_data={"reason": reason},
         )
         resp.raise_for_status()
@@ -215,9 +234,7 @@ class ShopifyClient:
         notify_customer: bool = True,
     ) -> dict:
         """Create a fulfillment using the Fulfillment Orders API (2023-01+)."""
-        line_items_by_fulfillment_order = [
-            {"fulfillment_order_id": fo_id} for fo_id in fulfillment_order_ids
-        ]
+        line_items_by_fulfillment_order = [{"fulfillment_order_id": fo_id} for fo_id in fulfillment_order_ids]
         payload: dict[str, Any] = {
             "fulfillment": {
                 "line_items_by_fulfillment_order": line_items_by_fulfillment_order,
@@ -255,7 +272,8 @@ class ShopifyClient:
             payload["fulfillment"]["tracking_info"]["company"] = tracking_company
 
         resp = await self.post(
-            f"fulfillments/{fulfillment_id}/update_tracking.json", account,
+            f"fulfillments/{fulfillment_id}/update_tracking.json",
+            account,
             json_data=payload,
         )
         resp.raise_for_status()
@@ -293,10 +311,15 @@ class ShopifyClient:
         return resp.json()
 
     async def update_product(
-        self, product_id: str, account: ShopifyAccountConfig, product_data: dict,
+        self,
+        product_id: str,
+        account: ShopifyAccountConfig,
+        product_data: dict,
     ) -> dict:
         resp = await self.put(
-            f"products/{product_id}.json", account, json_data={"product": product_data},
+            f"products/{product_id}.json",
+            account,
+            json_data={"product": product_data},
         )
         resp.raise_for_status()
         return resp.json()

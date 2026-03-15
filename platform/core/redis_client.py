@@ -7,7 +7,6 @@ import logging
 from typing import Any
 
 import redis.asyncio as aioredis
-
 from config import settings
 
 logger = logging.getLogger(__name__)

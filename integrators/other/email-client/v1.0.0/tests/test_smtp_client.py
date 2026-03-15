@@ -1,10 +1,7 @@
 """Tests for SMTP client email sending."""
 
-import pytest
-from unittest.mock import AsyncMock, MagicMock, patch
-
 from src.email_client.schemas import Attachment, EmailPriority, SendEmailRequest
-from src.email_client.smtp_client import SmtpClient, PRIORITY_HEADERS
+from src.email_client.smtp_client import PRIORITY_HEADERS, SmtpClient
 
 
 class TestSmtpBuildMessage:
@@ -85,17 +82,20 @@ class TestSmtpBuildMessage:
 
     def test_build_message_with_attachment(self) -> None:
         import base64
+
         content = base64.b64encode(b"test content").decode()
         request = SendEmailRequest(
             to=["to@example.com"],
             subject="Attachment Test",
             body_text="See attached",
-            attachments=[Attachment(
-                filename="test.txt",
-                content_type="text/plain",
-                content_base64=content,
-                size_bytes=12,
-            )],
+            attachments=[
+                Attachment(
+                    filename="test.txt",
+                    content_type="text/plain",
+                    content_base64=content,
+                    size_bytes=12,
+                )
+            ],
         )
         msg = self.smtp._build_message(request)
         parts = list(msg.walk())

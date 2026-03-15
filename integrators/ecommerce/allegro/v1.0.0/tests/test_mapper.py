@@ -1,23 +1,22 @@
 """Tests for Allegro order mapping logic."""
 
 import pytest
-
 from pinquark_common.schemas.ecommerce import OrderStatus
 from src.allegro.mapper import (
+    extract_ean_from_parameters,
     map_checkout_to_order,
     order_status_to_fulfillment,
-    extract_ean_from_parameters,
 )
 from src.allegro.schemas import (
-    AllegroCheckoutForm,
     AllegroBuyer,
+    AllegroCheckoutForm,
     AllegroDelivery,
     AllegroDeliveryAddress,
     AllegroLineItem,
     AllegroOfferRef,
+    AllegroPayment,
     AllegroPrice,
     AllegroSummary,
-    AllegroPayment,
     CheckoutFormStatus,
     FulfillmentStatus,
 )
@@ -120,7 +119,9 @@ class TestMapCheckoutToOrder:
 
     def test_maps_with_product_details(self):
         checkout = _make_checkout()
-        details = {"offer-1": {"ean": "5901234123457", "sku": "SKU-001", "name": "Detailed Name", "product_id": "prod-1"}}
+        details = {
+            "offer-1": {"ean": "5901234123457", "sku": "SKU-001", "name": "Detailed Name", "product_id": "prod-1"}
+        }
         order = map_checkout_to_order(checkout, "acc", details)
 
         line = order.lines[0]

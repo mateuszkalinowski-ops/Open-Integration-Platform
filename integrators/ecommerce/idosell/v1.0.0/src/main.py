@@ -3,8 +3,8 @@
 import asyncio
 import logging
 import sys
+from contextlib import asynccontextmanager, suppress
 from pathlib import Path
-from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from prometheus_client import make_asgi_app
@@ -20,6 +20,10 @@ try:
     from pinquark_connector_sdk.legacy import augment_legacy_fastapi_app
 except ImportError:
     augment_legacy_fastapi_app = None  # type: ignore[assignment,misc]
+from pinquark_common.kafka import KafkaMessageProducer
+from pinquark_common.logging import setup_logging
+from pinquark_common.monitoring.health import HealthChecker
+
 from src.api.dependencies import app_state
 from src.api.routes import router
 from src.config import settings
@@ -29,9 +33,6 @@ from src.idosell.integration import IdoSellIntegration
 from src.idosell.scraper import OrderScraper
 from src.models.database import StateStore
 from src.services.account_manager import AccountManager
-from pinquark_common.logging import setup_logging
-from pinquark_common.monitoring.health import HealthChecker
-from pinquark_common.kafka import KafkaMessageProducer
 
 logger = logging.getLogger(__name__)
 
@@ -98,10 +99,8 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
         await app_state.scraper.stop()
     if scraper_task:
         scraper_task.cancel()
-        try:
+        with suppress(asyncio.CancelledError):
             await scraper_task
-        except asyncio.CancelledError:
-            pass
     if kafka_producer:
         await kafka_producer.stop()
     await client.close()

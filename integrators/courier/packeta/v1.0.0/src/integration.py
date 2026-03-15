@@ -24,12 +24,48 @@ from src.schemas import CreateOrderCommand, PacketaCredentials
 logger = logging.getLogger("courier-packeta")
 
 PP_COURIER_IDS: set[str] = {
-    "3060", "3616", "4017", "4307", "4539", "4635", "4654", "4656",
-    "4826", "4828", "4994", "5061", "5062", "5064", "5066", "6828",
-    "7455", "7910", "8001", "9104", "10619", "12889", "14052", "17467",
-    "18809", "19470", "19471", "19516", "19517", "20409", "25005",
-    "25985", "25987", "25988", "25989", "25990", "25992", "26067",
-    "26986", "26987", "27955", "29760",
+    "3060",
+    "3616",
+    "4017",
+    "4307",
+    "4539",
+    "4635",
+    "4654",
+    "4656",
+    "4826",
+    "4828",
+    "4994",
+    "5061",
+    "5062",
+    "5064",
+    "5066",
+    "6828",
+    "7455",
+    "7910",
+    "8001",
+    "9104",
+    "10619",
+    "12889",
+    "14052",
+    "17467",
+    "18809",
+    "19470",
+    "19471",
+    "19516",
+    "19517",
+    "20409",
+    "25005",
+    "25985",
+    "25987",
+    "25988",
+    "25989",
+    "25990",
+    "25992",
+    "26067",
+    "26986",
+    "26987",
+    "27955",
+    "29760",
 }
 
 
@@ -128,7 +164,10 @@ class PacketaIntegration:
         """
         is_pp_courier = self._is_pp_courier(command.service_name)
         create_command = self._prepare_packeta_command(
-            command, credentials.api_password, credentials.eshop, is_pp_courier,
+            command,
+            credentials.api_password,
+            credentials.eshop,
+            is_pp_courier,
         )
 
         try:
@@ -140,8 +179,7 @@ class PacketaIntegration:
             try:
                 logger.info("Packeta validation errors:")
                 for f in (
-                    self.client.wsdl.types
-                    .deserialize(exc.detail[0])
+                    self.client.wsdl.types.deserialize(exc.detail[0])
                     .__getattribute__("attributes")
                     .__getattribute__("fault")
                 ):

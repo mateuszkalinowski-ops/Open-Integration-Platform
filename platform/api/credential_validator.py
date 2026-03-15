@@ -7,21 +7,16 @@ that configuration and executes the appropriate checks.
 """
 
 import asyncio
-import base64
 import time
-from functools import partial
 from typing import Any
 
 import httpx
-
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
 
 _TIMEOUT = httpx.Timeout(connect=10, read=15, write=10, pool=10)
 
 
-def _missing_fields(
-    creds: dict[str, str], fields: list[str], service_name: str
-) -> dict[str, Any] | None:
+def _missing_fields(creds: dict[str, str], fields: list[str], service_name: str) -> dict[str, Any] | None:
     missing = [f for f in fields if not creds.get(f)]
     if missing:
         return {
@@ -56,8 +51,13 @@ async def _http_credential_check(
     try:
         async with httpx.AsyncClient(timeout=_TIMEOUT) as client:
             resp = await client.request(
-                method, url, headers=headers, data=data, json=json_body,
-                auth=auth, params=params,
+                method,
+                url,
+                headers=headers,
+                data=data,
+                json=json_body,
+                auth=auth,
+                params=params,
             )
         elapsed_ms = int((time.monotonic() - start) * 1000)
 
@@ -71,16 +71,28 @@ async def _http_credential_check(
             }
 
         if resp.status_code in (401, 403):
-            return {"status": "failed", "message": f"Invalid {service_name} credentials", "response_time_ms": elapsed_ms}
+            return {
+                "status": "failed",
+                "message": f"Invalid {service_name} credentials",
+                "response_time_ms": elapsed_ms,
+            }
         if resp.status_code >= 400:
-            return {"status": "failed", "message": f"{service_name} API error: HTTP {resp.status_code}", "response_time_ms": elapsed_ms}
+            return {
+                "status": "failed",
+                "message": f"{service_name} API error: HTTP {resp.status_code}",
+                "response_time_ms": elapsed_ms,
+            }
         return {"status": "success", "message": success_msg, "response_time_ms": elapsed_ms}
     except httpx.ConnectError:
         elapsed_ms = int((time.monotonic() - start) * 1000)
         return {"status": "failed", "message": f"Cannot connect to {service_name} API", "response_time_ms": elapsed_ms}
     except httpx.TimeoutException:
         elapsed_ms = int((time.monotonic() - start) * 1000)
-        return {"status": "failed", "message": f"{service_name} API connection timed out", "response_time_ms": elapsed_ms}
+        return {
+            "status": "failed",
+            "message": f"{service_name} API connection timed out",
+            "response_time_ms": elapsed_ms,
+        }
     except Exception as exc:
         elapsed_ms = int((time.monotonic() - start) * 1000)
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
@@ -104,8 +116,8 @@ def _deduplicate_url_path(url: str) -> str:
     segments = path.split("/")
     n = len(segments)
     for length in range(1, n // 2 + 1):
-        tail = segments[n - length:]
-        preceding = segments[n - 2 * length: n - length]
+        tail = segments[n - length :]
+        preceding = segments[n - 2 * length : n - length]
         if tail == preceding:
             deduped = "/".join(segments[: n - length])
             return urlunparse(parsed._replace(path=deduped))
@@ -122,7 +134,9 @@ def _resolve_template(template: str, creds: dict[str, str], defaults: dict[str, 
     return result
 
 
-def _resolve_dict_template(template: dict, creds: dict[str, str], defaults: dict[str, str] | None = None) -> dict[str, Any]:
+def _resolve_dict_template(
+    template: dict, creds: dict[str, str], defaults: dict[str, str] | None = None
+) -> dict[str, Any]:
     out: dict[str, Any] = {}
     for k, v in template.items():
         if isinstance(v, str):
@@ -175,6 +189,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
     start = time.monotonic()
 
     try:
+
         def _test_imap() -> str:
             if use_ssl:
                 conn = imaplib.IMAP4_SSL(imap_host, imap_port, timeout=10)
@@ -183,6 +198,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
             conn.login(login, password)
             conn.logout()
             return "ok"
+
         await loop.run_in_executor(None, _test_imap)
         results["imap"] = "ok"
     except imaplib.IMAP4.error as exc:
@@ -193,6 +209,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
         results["imap"] = f"error: {exc}"
 
     try:
+
         def _test_smtp() -> str:
             if use_ssl and smtp_port == 465:
                 server = smtplib.SMTP_SSL(smtp_host, smtp_port, timeout=10)
@@ -205,6 +222,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
             server.login(login, password)
             server.quit()
             return "ok"
+
         await loop.run_in_executor(None, _test_smtp)
         results["smtp"] = "ok"
     except Exception as exc:
@@ -227,9 +245,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
     }
 
 
-async def _execute_test_request(
-    test_cfg: dict, creds: dict[str, str], display_name: str
-) -> dict[str, Any]:
+async def _execute_test_request(test_cfg: dict, creds: dict[str, str], display_name: str) -> dict[str, Any]:
     """Build and execute an HTTP test request from credential_validation.test_request config."""
     defaults = dict(test_cfg.get("defaults", {}))
     defaults = _resolve_sandbox_url(test_cfg, creds, defaults)
@@ -265,7 +281,8 @@ async def _execute_test_request(
     expected_status = test_cfg.get("success_status")
 
     return await _http_credential_check(
-        method, url,
+        method,
+        url,
         headers=headers,
         data=form_data,
         json_body=json_body,
@@ -287,7 +304,8 @@ async def _call_connector_validation(
     endpoint = endpoint_template.replace("{account_name}", account_name)
     base_url = manifest.base_url
     return await _http_credential_check(
-        "GET", f"{base_url}{endpoint}",
+        "GET",
+        f"{base_url}{endpoint}",
         service_name=manifest.display_name,
         success_msg=f"{manifest.display_name} connection verified",
     )

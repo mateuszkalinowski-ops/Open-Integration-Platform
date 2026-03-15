@@ -7,10 +7,10 @@ from typing import Any
 
 from pydantic import BaseModel, Field
 
-
 # ---------------------------------------------------------------------------
 # Common
 # ---------------------------------------------------------------------------
+
 
 class ApiloListMeta(BaseModel):
     totalCount: int = 0
@@ -29,6 +29,7 @@ class ApiloErrorResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Orders API
 # ---------------------------------------------------------------------------
+
 
 class ApiloOrderAddress(BaseModel):
     id: int | None = None
@@ -123,6 +124,7 @@ class ApiloOrdersResponse(BaseModel):
 # Warehouse / Product API
 # ---------------------------------------------------------------------------
 
+
 class ApiloProduct(BaseModel):
     id: int | None = None
     name: str = ""
@@ -165,6 +167,7 @@ class ApiloCategoriesResponse(BaseModel):
 # Shipment API
 # ---------------------------------------------------------------------------
 
+
 class ApiloShipment(BaseModel):
     id: str = ""
     carrierAccountId: str = ""
@@ -203,6 +206,7 @@ class ApiloOrderShipment(BaseModel):
 # ---------------------------------------------------------------------------
 # Finance Document API
 # ---------------------------------------------------------------------------
+
 
 class ApiloFinanceDocumentItem(BaseModel):
     id: int | None = None
@@ -264,6 +268,7 @@ class ApiloFinanceDocumentsResponse(BaseModel):
 # Media API
 # ---------------------------------------------------------------------------
 
+
 class ApiloMedia(BaseModel):
     uuid: str = ""
     name: str = ""
@@ -274,6 +279,7 @@ class ApiloMedia(BaseModel):
 # ---------------------------------------------------------------------------
 # Order Document
 # ---------------------------------------------------------------------------
+
 
 class ApiloOrderDocument(BaseModel):
     id: int | None = None
@@ -298,6 +304,7 @@ class ApiloOrderDocumentsResponse(BaseModel):
 # ---------------------------------------------------------------------------
 # Map / Enum objects
 # ---------------------------------------------------------------------------
+
 
 class ApiloStatusType(BaseModel):
     id: int = 0
