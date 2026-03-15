@@ -1,6 +1,8 @@
-import { Component, ViewChild } from '@angular/core';
+import { Component, OnDestroy, ViewChild } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { ActivatedRoute, Router } from '@angular/router';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   ConnectorListComponent,
   ConnectorDetailComponent,
@@ -62,7 +64,7 @@ import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
     }
   `],
 })
-export class ConnectorsPage {
+export class ConnectorsPage implements OnDestroy {
   @ViewChild(ConnectorListComponent) connectorList!: ConnectorListComponent;
 
   selectedGroup: ConnectorGroup | null = null;
@@ -73,13 +75,15 @@ export class ConnectorsPage {
   contextTitle = '';
   contextDescription = '';
 
+  private readonly destroy$ = new Subject<void>();
+
   constructor(
     private readonly snackBar: MatSnackBar,
     private readonly api: PinquarkApiService,
     private readonly route: ActivatedRoute,
     private readonly router: Router,
   ) {
-    this.route.queryParamMap.subscribe(params => {
+    this.route.queryParamMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
       this.catalogCategory = params.get('category') || '';
       this.catalogSearch = params.get('q') || '';
       this.catalogEvent = params.get('event') || '';
@@ -87,7 +91,7 @@ export class ConnectorsPage {
       this.contextTitle = params.get('title') || '';
       this.contextDescription = params.get('description') || '';
     });
-    this.route.paramMap.subscribe(params => {
+    this.route.paramMap.pipe(takeUntil(this.destroy$)).subscribe(params => {
       const category = params.get('category');
       const name = params.get('name');
       if (category && name) {
@@ -96,6 +100,11 @@ export class ConnectorsPage {
         this.selectedGroup = null;
       }
     });
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   onGroupSelect(group: ConnectorGroup): void {

@@ -24,7 +24,7 @@ class AccountManager:
             self._load_from_env()
             return
 
-        with open(config_path) as f:
+        with open(config_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
 
         for account_data in data.get("accounts", []):

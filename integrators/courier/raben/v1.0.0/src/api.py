@@ -108,7 +108,7 @@ def _format_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "Raben API error — url=%s status=%s",
-        response.url, response.status_code,
+        response.url.path, response.status_code,
     )
     return msg, response.status_code
 

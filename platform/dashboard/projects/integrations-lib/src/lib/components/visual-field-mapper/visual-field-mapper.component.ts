@@ -822,7 +822,7 @@ export class VisualFieldMapperComponent {
 
   private loadAiSettings(): AiSettings | null {
     try {
-      const stored = localStorage.getItem('pinquark_ai_settings');
+      const stored = sessionStorage.getItem('pinquark_ai_settings');
       if (!stored) {
         return null;
       }

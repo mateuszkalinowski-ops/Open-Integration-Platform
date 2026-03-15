@@ -66,7 +66,7 @@ class WorkflowScheduler:
             try:
                 self._scheduler.remove_job(job_id)
             except Exception:
-                pass
+                logger.warning("Failed to remove scheduled job %s for workflow %s", job_id, workflow_id)
 
     def list_scheduled(self, tenant_id: str | None = None) -> list[dict[str, Any]]:
         """Return metadata about all active scheduled jobs."""

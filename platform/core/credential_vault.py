@@ -8,6 +8,7 @@ Storage format: base64(nonce_12bytes || ciphertext || tag_16bytes)
 
 import base64
 import os
+import secrets
 import uuid
 
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
@@ -15,9 +16,14 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from config import settings
-from db.models import Credential
+from db.models import Credential, CredentialToken
 
 _NONCE_SIZE = 12
+_TOKEN_PREFIX = "ctok_"
+
+
+def _generate_credential_token() -> str:
+    return f"{_TOKEN_PREFIX}{secrets.token_urlsafe(32)}"
 
 
 class CredentialVault:
@@ -157,3 +163,128 @@ class CredentialVault:
             await db.delete(c)
         await db.flush()
         return len(creds)
+
+    async def get_or_create_token(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        credential_name: str = "default",
+    ) -> CredentialToken:
+        result = await db.execute(
+            select(CredentialToken).where(
+                CredentialToken.tenant_id == tenant_id,
+                CredentialToken.connector_name == connector_name,
+                CredentialToken.credential_name == credential_name,
+            )
+        )
+        token_row = result.scalar_one_or_none()
+        if token_row:
+            return token_row
+
+        token_row = CredentialToken(
+            tenant_id=tenant_id,
+            connector_name=connector_name,
+            credential_name=credential_name,
+            token=_generate_credential_token(),
+        )
+        db.add(token_row)
+        await db.flush()
+        return token_row
+
+    async def regenerate_token(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        credential_name: str = "default",
+    ) -> CredentialToken:
+        result = await db.execute(
+            select(CredentialToken).where(
+                CredentialToken.tenant_id == tenant_id,
+                CredentialToken.connector_name == connector_name,
+                CredentialToken.credential_name == credential_name,
+            )
+        )
+        token_row = result.scalar_one_or_none()
+        if token_row:
+            token_row.token = _generate_credential_token()
+            await db.flush()
+            return token_row
+        return await self.get_or_create_token(db, tenant_id, connector_name, credential_name)
+
+    async def resolve_token(
+        self,
+        db: AsyncSession,
+        token: str,
+    ) -> dict[str, str] | None:
+        """Resolve an opaque credential token to the actual credentials."""
+        result = await db.execute(
+            select(CredentialToken).where(
+                CredentialToken.token == token,
+                CredentialToken.is_active.is_(True),
+            )
+        )
+        token_row = result.scalar_one_or_none()
+        if not token_row:
+            return None
+        return await self.retrieve_all(
+            db, token_row.tenant_id, token_row.connector_name,
+            credential_name=token_row.credential_name,
+        )
+
+    async def get_token(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        credential_name: str = "default",
+    ) -> str | None:
+        result = await db.execute(
+            select(CredentialToken.token).where(
+                CredentialToken.tenant_id == tenant_id,
+                CredentialToken.connector_name == connector_name,
+                CredentialToken.credential_name == credential_name,
+            )
+        )
+        return result.scalar_one_or_none()
+
+    async def delete_token(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        credential_name: str | None = None,
+    ) -> int:
+        query = select(CredentialToken).where(
+            CredentialToken.tenant_id == tenant_id,
+            CredentialToken.connector_name == connector_name,
+        )
+        if credential_name:
+            query = query.where(CredentialToken.credential_name == credential_name)
+        result = await db.execute(query)
+        tokens = result.scalars().all()
+        for t in tokens:
+            await db.delete(t)
+        await db.flush()
+        return len(tokens)
+
+    async def rename_token(
+        self,
+        db: AsyncSession,
+        tenant_id: uuid.UUID,
+        connector_name: str,
+        old_credential_name: str,
+        new_credential_name: str,
+    ) -> None:
+        result = await db.execute(
+            select(CredentialToken).where(
+                CredentialToken.tenant_id == tenant_id,
+                CredentialToken.connector_name == connector_name,
+                CredentialToken.credential_name == old_credential_name,
+            )
+        )
+        token_row = result.scalar_one_or_none()
+        if token_row:
+            token_row.credential_name = new_credential_name
+            await db.flush()

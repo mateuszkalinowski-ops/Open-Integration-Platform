@@ -11,6 +11,7 @@ class EmailAccountConfig(BaseSettings):
     """
 
     name: str
+    tenant_id: str = ""
     email_address: str
     username: str = ""
     password: str

@@ -288,6 +288,7 @@ export interface CredentialInfo {
   category: string;
   keys: string[];
   updated_at: string | null;
+  token?: string | null;
 }
 
 export interface CredentialDetail {
@@ -296,6 +297,23 @@ export interface CredentialDetail {
   keys: string[];
   values: Record<string, string>;
   has_credentials: boolean;
+  token?: string | null;
+}
+
+export interface CredentialStoreResponse {
+  status: string;
+  connector: string;
+  credential_name: string;
+  keys: string[];
+  token: string;
+  workflows_updated: number;
+  account_provisioned: boolean;
+}
+
+export interface CredentialTokenRegenerateResponse {
+  connector: string;
+  credential_name: string;
+  token: string;
 }
 
 export interface CredentialValidationResult {

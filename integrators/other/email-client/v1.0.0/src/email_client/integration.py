@@ -51,6 +51,16 @@ class EmailIntegration:
             )
         return self._smtp_clients[account.name]
 
+    async def invalidate_clients(self, account_name: str) -> None:
+        """Drop cached IMAP/SMTP clients so next call reconnects with fresh credentials."""
+        imap = self._imap_clients.pop(account_name, None)
+        if imap:
+            try:
+                await imap.disconnect()
+            except Exception:
+                pass
+        self._smtp_clients.pop(account_name, None)
+
     def _require_account(self, account_name: str) -> EmailAccountConfig:
         account = self._accounts.get_account(account_name)
         if not account:

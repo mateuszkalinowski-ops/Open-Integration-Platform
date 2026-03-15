@@ -498,12 +498,12 @@ Every integrator MUST include a `docker-compose.yml` for local development with:
 ### 4.3 Image naming and tagging
 
 ```
-registry.Pinquark.com/integrations/{category}/{system}:{version}
+ghcr.io/{your-org}/oip/{category}/{system}:{version}
 
 Examples:
-  registry.Pinquark.com/integrations/courier/dhl:1.0.0
-  registry.Pinquark.com/integrations/ecommerce/allegro:2.1.3
-  registry.Pinquark.com/integrations/erp/wapro:1.0.0-onpremise
+  ghcr.io/your-org/oip/courier/dhl:1.0.0
+  ghcr.io/your-org/oip/ecommerce/allegro:2.1.3
+  ghcr.io/your-org/oip/erp/wapro:1.0.0-onpremise
 ```
 
 - Every push to `main`/`master` → build and tag with git SHA + `latest`

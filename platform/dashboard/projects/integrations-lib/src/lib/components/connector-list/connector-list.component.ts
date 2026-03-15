@@ -15,8 +15,8 @@ import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { FormsModule } from '@angular/forms';
-import { forkJoin, of } from 'rxjs';
-import { catchError } from 'rxjs/operators';
+import { forkJoin, of, Subject } from 'rxjs';
+import { catchError, takeUntil } from 'rxjs/operators';
 
 import {
   Connector, ConnectorGroup, ConnectorInstance,
@@ -555,6 +555,7 @@ export class ConnectorListComponent implements OnInit, OnChanges, AfterViewInit,
 
   private observer: IntersectionObserver | null = null;
   private observedElement: HTMLElement | null = null;
+  private destroy$ = new Subject<void>();
 
   constructor(private readonly api: PinquarkApiService) {}
 
@@ -581,6 +582,8 @@ export class ConnectorListComponent implements OnInit, OnChanges, AfterViewInit,
 
   ngOnDestroy(): void {
     this.observer?.disconnect();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   loadAll(): void {
@@ -596,26 +599,32 @@ export class ConnectorListComponent implements OnInit, OnChanges, AfterViewInit,
       connectors: this.api.listConnectors(params),
       instances: this.api.listConnectorInstances().pipe(catchError(() => of([] as ConnectorInstance[]))),
       credentials: this.api.listCredentials().pipe(catchError(() => of([] as CredentialInfo[]))),
-    }).subscribe(({ connectors, instances, credentials }: {
-      connectors: Connector[];
-      instances: ConnectorInstance[];
-      credentials: CredentialInfo[];
-    }) => {
-      this.connectors = connectors;
-      this.activeInstances = instances.filter((i: ConnectorInstance) => i.is_enabled);
-      this.credentialMap = {};
-      for (const cred of credentials) {
-        if (!this.credentialMap[cred.connector_name]) {
-          this.credentialMap[cred.connector_name] = [];
+    }).pipe(takeUntil(this.destroy$)).subscribe({
+      next: ({ connectors, instances, credentials }: {
+        connectors: Connector[];
+        instances: ConnectorInstance[];
+        credentials: CredentialInfo[];
+      }) => {
+        this.connectors = connectors;
+        this.activeInstances = instances.filter((i: ConnectorInstance) => i.is_enabled);
+        this.credentialMap = {};
+        for (const cred of credentials) {
+          if (!this.credentialMap[cred.connector_name]) {
+            this.credentialMap[cred.connector_name] = [];
+          }
+          this.credentialMap[cred.connector_name].push(cred);
         }
-        this.credentialMap[cred.connector_name].push(cred);
-      }
-      this.connectorGroups = this.buildGroups();
-      this.buildAvailableCountries();
-      this.visibleCount = BATCH_SIZE;
-      this.applyFilters();
-      this.validateAllCredentials();
-      this.loading = false;
+        this.connectorGroups = this.buildGroups();
+        this.buildAvailableCountries();
+        this.visibleCount = BATCH_SIZE;
+        this.applyFilters();
+        this.validateAllCredentials();
+        this.loading = false;
+      },
+      error: () => {
+        this.loading = false;
+        console.error('Failed to load connectors');
+      },
     });
   }
 
@@ -778,7 +787,7 @@ export class ConnectorListComponent implements OnInit, OnChanges, AfterViewInit,
     for (const [connectorName, creds] of Object.entries(this.credentialMap)) {
       const firstCred = creds[0];
       this.validatingConnectors.add(connectorName);
-      this.api.validateCredentials(connectorName, firstCred.credential_name).subscribe({
+      this.api.validateCredentials(connectorName, firstCred.credential_name).pipe(takeUntil(this.destroy$)).subscribe({
         next: (result: CredentialValidationResult) => {
           this.validatingConnectors.delete(connectorName);
           this.connectionStatus[connectorName] = result;

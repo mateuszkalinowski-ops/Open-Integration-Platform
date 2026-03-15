@@ -100,7 +100,7 @@ async def _format_rest_error_response(response: httpx.Response) -> tuple[Any, in
             msg = str(body)
     except (ValueError, KeyError, AttributeError):
         msg = response.text
-    logger.error("UPS API error %s: %s", response.url, msg)
+    logger.error("UPS API error %s: %s", response.url.path, msg)
     return msg, response.status_code
 
 

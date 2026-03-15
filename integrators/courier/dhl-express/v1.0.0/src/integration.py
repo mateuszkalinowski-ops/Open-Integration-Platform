@@ -378,7 +378,7 @@ class DhlExpressIntegration:
         params: dict | None = None,
     ) -> dict | Any:
         """Execute HTTP request against MyDHL Express API (Basic Auth)."""
-        logger.debug("DHL Express API %s %s params=%s", method, path, params)
+        logger.debug("DHL Express API %s %s", method, path)
         response = await self._express_client.request(
             method, path, json=json, params=params,
         )
@@ -398,7 +398,7 @@ class DhlExpressIntegration:
         params: dict | None = None,
     ) -> dict | Any:
         """Execute HTTP request against DHL Unified APIs (DHL-API-Key header)."""
-        logger.debug("DHL Unified API %s %s params=%s", method, url, params)
+        logger.debug("DHL Unified API %s %s", method, url)
         response = await self._unified_client.request(
             method, url, params=params,
         )

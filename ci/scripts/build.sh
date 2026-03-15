@@ -36,7 +36,7 @@ docker build \
 
 echo "==> Scanning image for vulnerabilities..."
 if command -v trivy &>/dev/null; then
-  trivy image --severity HIGH,CRITICAL --exit-code 0 "${TAG_VERSION}"
+  trivy image --severity HIGH,CRITICAL --exit-code 1 "${TAG_VERSION}"
 else
   echo "trivy not found, skipping vulnerability scan"
 fi

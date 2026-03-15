@@ -7,6 +7,8 @@ import os
 import re
 import secrets
 import time
+import socket
+import urllib.parse
 import uuid
 import zipfile
 from contextlib import asynccontextmanager
@@ -37,6 +39,7 @@ from api.schemas import (
     ConnectorInstanceResponse,
     ConnectorResponse,
     CredentialStore,
+    CredentialTokenResolve,
     DemoRegisterRequest,
     DemoRegisterResponse,
     DemoValidateKeyRequest,
@@ -97,6 +100,7 @@ from db.models import (
     AuditLog,
     ConnectorInstance,
     Credential,
+    CredentialToken,
     Flow,
     FlowExecution,
     Tenant,
@@ -379,7 +383,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 if not version:
                     version = await _resolve_connector_version(db_session, tenant_id, connector_name)
         except Exception:
-            pass
+            await logger.aexception("credential_resolution_failed", connector=connector_name, tenant_id=str(tenant_id))
+            raise
 
         if credentials and "account_name" not in credentials:
             credentials["account_name"] = credential_name
@@ -413,7 +418,8 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                         db_session, credentials, tenant_id, connector_name, credential_name,
                     )
         except Exception:
-            pass
+            await logger.aexception("credential_resolution_failed", connector=connector_name)
+            raise
 
         manifests = registry.get_by_name(connector_name)
         manifest = manifests[0] if manifests else None
@@ -582,9 +588,9 @@ if _cors_origins:
     _allow_all = "*" in _cors_origins
     app.add_middleware(
         CORSMiddleware,
-        allow_origins=_cors_origins if not _allow_all else [],
-        allow_origin_regex=r".*" if _allow_all else None,
-        allow_credentials=True,
+        allow_origins=_cors_origins if not _allow_all else ["*"],
+        allow_origin_regex=None,
+        allow_credentials=not _allow_all,
         allow_methods=["GET", "POST", "PUT", "PATCH", "DELETE", "OPTIONS"],
         allow_headers=["*"],
     )
@@ -805,6 +811,7 @@ async def get_connector_action_schema(
 @app.get("/api/v1/connectors/{name}/onpremise-agent", tags=["connectors"])
 async def download_onpremise_agent(
     name: str,
+    version: str | None = Query(None),
     tenant: Tenant = Depends(get_current_tenant),
 ) -> StreamingResponse:
     """Download the on-premise agent package as a ZIP file."""
@@ -812,7 +819,12 @@ async def download_onpremise_agent(
     if not connectors:
         raise HTTPException(status_code=404, detail=f"Connector '{name}' not found")
 
-    manifest = connectors[0]
+    if version:
+        manifest = next((c for c in connectors if c.version == version), None)
+        if not manifest:
+            raise HTTPException(status_code=404, detail=f"Connector '{name}' version '{version}' not found")
+    else:
+        manifest = connectors[0]
     if not manifest.requires_onpremise_agent:
         raise HTTPException(status_code=404, detail=f"Connector '{name}' does not have an on-premise agent")
 
@@ -1105,7 +1117,8 @@ async def receive_webhook(
                         if not ver:
                             ver = await _resolve_connector_version(bg_db, tid, cn)
                     except Exception:
-                        pass
+                        await logger.aexception("credential_resolution_failed", connector=cn, tenant_id=str(tid))
+                        raise
                     return await dispatch_action(
                         connector_name=cn, action=action, payload=payload,
                         tenant_id=tid, credentials=creds, registry=registry, connector_version=ver,
@@ -1151,7 +1164,8 @@ async def replay_webhook(
             if not ver:
                 ver = await _resolve_connector_version(db, tid, cn)
         except Exception:
-            pass
+            await logger.aexception("credential_resolution_failed", connector=cn, tenant_id=str(tid))
+            raise
         return await dispatch_action(
             connector_name=cn, action=action, payload=payload,
             tenant_id=tid, credentials=creds, registry=registry, connector_version=ver,
@@ -1565,6 +1579,15 @@ async def list_credentials(
         .group_by(Credential.connector_name, Credential.credential_name)
     )
     rows = result.all()
+
+    token_result = await db.execute(
+        select(CredentialToken).where(CredentialToken.tenant_id == tenant.id)
+    )
+    token_map: dict[tuple[str, str], str] = {
+        (t.connector_name, t.credential_name): t.token
+        for t in token_result.scalars().all()
+    }
+
     connector_map = {c.name: c for c in registry.get_all()}
     items = []
     for row in rows:
@@ -1576,6 +1599,7 @@ async def list_credentials(
             "category": connector.category if connector else "",
             "keys": sorted(row.keys),
             "updated_at": row.updated_at.isoformat() if row.updated_at else None,
+            "token": token_map.get((row.connector_name, row.credential_name)),
         })
     return items
 
@@ -1655,6 +1679,17 @@ async def store_credentials(
                     credential_name=body.credential_name,
                 )
 
+    if is_rename:
+        await vault.rename_token(
+            db, tenant.id, body.connector_name,
+            body.old_credential_name,  # type: ignore[arg-type]
+            body.credential_name,
+        )
+
+    token_row = await vault.get_or_create_token(
+        db, tenant.id, body.connector_name, credential_name=body.credential_name,
+    )
+
     cred_entity_id = uuid.uuid5(
         uuid.NAMESPACE_URL, f"credential:{tenant.id}:{body.connector_name}:{body.credential_name}",
     )
@@ -1704,6 +1739,7 @@ async def store_credentials(
         "connector": body.connector_name,
         "credential_name": body.credential_name,
         "keys": list(body.credentials.keys()),
+        "token": token_row.token,
         "workflows_updated": workflows_updated,
         "account_provisioned": account_provisioned,
     }
@@ -1725,15 +1761,22 @@ async def get_credentials(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     creds = await vault.retrieve_all(db, tenant.id, connector_name, credential_name=credential_name)
-    values: dict[str, str] = {}
-    for k, v in creds.items():
-        values[k] = "" if _is_secret_key(k) else v
+    token: str | None = None
+    if creds:
+        token_row = await vault.get_or_create_token(
+            db, tenant.id, connector_name, credential_name=credential_name,
+        )
+        token = token_row.token
+        await db.commit()
+
+    values: dict[str, str] = {k: "••••••••" for k in creds}
     return {
         "connector": connector_name,
         "credential_name": credential_name,
         "keys": list(creds.keys()),
         "values": values,
         "has_credentials": len(creds) > 0,
+        "token": token,
     }
 
 
@@ -1770,6 +1813,7 @@ async def delete_credentials(
                     affected.append(wf.name)
                     break
     deleted = await vault.delete(db, tenant.id, connector_name, credential_name=credential_name)
+    await vault.delete_token(db, tenant.id, connector_name, credential_name=credential_name)
     cred_entity_id = uuid.uuid5(
         uuid.NAMESPACE_URL, f"credential:{tenant.id}:{connector_name}:{credential_name or 'all'}",
     )
@@ -1825,6 +1869,60 @@ async def validate_credentials(
         instance_version = row
 
     return await generic_validate_credentials(connector_name, merged, registry, connector_version=instance_version)
+
+
+@app.post("/api/v1/credentials/{connector_name}/token/regenerate", tags=["credentials"])
+async def regenerate_credential_token(
+    connector_name: str,
+    credential_name: str = Query("default"),
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    creds = await vault.retrieve_all(db, tenant.id, connector_name, credential_name=credential_name)
+    if not creds:
+        raise HTTPException(status_code=404, detail="No credentials found for this connector")
+    token_row = await vault.regenerate_token(db, tenant.id, connector_name, credential_name=credential_name)
+    await db.commit()
+    return {
+        "connector": connector_name,
+        "credential_name": credential_name,
+        "token": token_row.token,
+    }
+
+
+@app.post("/api/v1/credentials/resolve-token", tags=["credentials"])
+async def resolve_credential_token(
+    body: CredentialTokenResolve,
+    tenant: Tenant = Depends(get_current_tenant),
+    db: AsyncSession = Depends(get_db),
+) -> dict[str, Any]:
+    """Resolve a credential token to the actual credential values.
+
+    Intended for internal/trusted callers that need to use the credentials.
+    The token must belong to the requesting tenant.
+    """
+    token = body.token
+
+    result = await db.execute(
+        select(CredentialToken).where(
+            CredentialToken.token == token,
+            CredentialToken.tenant_id == tenant.id,
+            CredentialToken.is_active.is_(True),
+        )
+    )
+    token_row = result.scalar_one_or_none()
+    if not token_row:
+        raise HTTPException(status_code=404, detail="Invalid or inactive token")
+
+    creds = await vault.retrieve_all(
+        db, token_row.tenant_id, token_row.connector_name,
+        credential_name=token_row.credential_name,
+    )
+    return {
+        "connector": token_row.connector_name,
+        "credential_name": token_row.credential_name,
+        "credentials": creds,
+    }
 
 
 # --- Flows ---
@@ -1974,7 +2072,8 @@ async def trigger_event(
             if not version:
                 version = await _resolve_connector_version(db, tenant_id, connector_name)
         except Exception:
-            pass
+            await logger.aexception("credential_resolution_failed", connector=connector_name, tenant_id=str(tenant_id))
+            raise
         return await dispatch_action(
             connector_name=connector_name,
             action=action,
@@ -2036,13 +2135,25 @@ async def internal_trigger_event(
     """Internal event endpoint for connector-to-platform communication.
 
     No API key required — trusted within the Docker network.
-    Processes the event for ALL active tenants so every tenant's
-    matching flows/workflows are triggered regardless of DB row order.
+    When the event payload contains ``_tenant_id``, only that tenant is
+    processed; otherwise all active tenants are checked.
     """
     await set_rls_bypass(db)
-    result = await db.execute(
-        select(Tenant).where(Tenant.is_active.is_(True))
-    )
+
+    target_tenant_id = (body.data or {}).get("_tenant_id")
+    if target_tenant_id:
+        import uuid as _uuid
+        try:
+            tid = _uuid.UUID(str(target_tenant_id))
+        except (ValueError, AttributeError):
+            raise HTTPException(status_code=400, detail="Invalid _tenant_id format")
+        result = await db.execute(
+            select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid)
+        )
+    else:
+        result = await db.execute(
+            select(Tenant).where(Tenant.is_active.is_(True))
+        )
     tenants = list(result.scalars().all())
     if not tenants:
         raise HTTPException(status_code=500, detail="No active tenant")
@@ -2068,7 +2179,8 @@ async def internal_trigger_event(
             if not version:
                 version = await _resolve_connector_version(db, tenant_id, connector_name)
         except Exception:
-            pass
+            await logger.aexception("credential_resolution_failed", connector=connector_name, tenant_id=str(tenant_id))
+            raise
         return await dispatch_action(
             connector_name=connector_name,
             action=action,
@@ -2175,9 +2287,9 @@ async def internal_get_connector_credentials(
                             "credentials": creds,
                         })
                 except Exception:
-                    pass
+                    await logger.aexception("credential_retrieval_failed", connector=connector_name, credential=cred_name)
         except Exception:
-            pass
+            await logger.aexception("credential_scan_failed", connector=connector_name)
 
     return accounts
 
@@ -2209,7 +2321,7 @@ async def internal_connector_poller_reset(connector_name: str) -> Any:
             resp = await client.post(f"{base}/poller/reset")
             return resp.json()
         except Exception as exc:
-            raise HTTPException(status_code=502, detail=f"Cannot reach connector poller: {exc}")
+            raise HTTPException(status_code=502, detail="Cannot reach connector poller")
 
 
 @app.post("/internal/connector/{connector_name}/poller/poll-now", tags=["internal"], dependencies=[Depends(_require_internal_secret)])
@@ -2597,10 +2709,11 @@ async def ai_generate_workflow(
     except httpx.HTTPStatusError as exc:
         raise HTTPException(
             status_code=502,
-            detail=f"AI API error: HTTP {exc.response.status_code} — {exc.response.text[:200]}",
+            detail="AI API error: upstream service returned an error",
         )
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"AI API error: {exc}")
+        await logger.aexception("ai_api_error")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
 
     parsed = _parse_ai_response(raw_response)
     return WorkflowAiGenerateResponse(
@@ -2635,13 +2748,14 @@ async def ai_suggest_field_mappings(
             system_prompt=_AI_FIELD_MAPPING_SYSTEM_PROMPT,
             user_payload=payload,
         )
-    except httpx.HTTPStatusError as exc:
+    except httpx.HTTPStatusError:
         raise HTTPException(
             status_code=502,
-            detail=f"AI API error: HTTP {exc.response.status_code} — {exc.response.text[:200]}",
+            detail="AI API error: upstream service returned an error",
         )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"AI API error: {exc}")
+    except Exception:
+        await logger.aexception("ai_api_error_suggest_mapping")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
 
     mappings = parsed.get("mappings", [])
     if not isinstance(mappings, list):
@@ -2682,13 +2796,14 @@ async def ai_explain_error(
             system_prompt=_AI_ERROR_EXPLAIN_SYSTEM_PROMPT,
             user_payload=payload,
         )
-    except httpx.HTTPStatusError as exc:
+    except httpx.HTTPStatusError:
         raise HTTPException(
             status_code=502,
-            detail=f"AI API error: HTTP {exc.response.status_code} — {exc.response.text[:200]}",
+            detail="AI API error: upstream service returned an error",
         )
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"AI API error: {exc}")
+    except Exception:
+        await logger.aexception("ai_api_error_explain")
+        raise HTTPException(status_code=502, detail="AI API error: upstream service unavailable")
 
     return AiExplainErrorResponse(
         summary=str(parsed.get("summary", "No explanation generated.")),
@@ -2898,7 +3013,7 @@ async def list_workflows(
 
 @app.get("/api/v1/workflows/{workflow_id}", response_model=WorkflowResponse, tags=["workflows"])
 async def get_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> WorkflowResponse:
@@ -2913,7 +3028,7 @@ async def get_workflow(
 
 @app.patch("/api/v1/workflows/{workflow_id}", response_model=WorkflowResponse, tags=["workflows"])
 async def update_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     body: WorkflowUpdate,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
@@ -2982,7 +3097,7 @@ async def update_workflow(
 
 @app.delete("/api/v1/workflows/{workflow_id}", tags=["workflows"])
 async def delete_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, str]:
@@ -3017,7 +3132,7 @@ async def delete_workflow(
     tags=["workflows"],
 )
 async def test_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     body: WorkflowTestRequest,
     request: Request,
     tenant: Tenant = Depends(get_current_tenant),
@@ -3046,7 +3161,7 @@ async def test_workflow(
     tags=["workflows"],
 )
 async def execute_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     body: WorkflowTestRequest,
     request: Request,
     tenant: Tenant = Depends(get_current_tenant),
@@ -3074,12 +3189,39 @@ async def execute_workflow(
 
 
 
+def _is_safe_url(url: str) -> bool:
+    """Block URLs targeting private/loopback/link-local/metadata addresses."""
+    try:
+        parsed = urllib.parse.urlparse(url)
+        if parsed.scheme not in ("http", "https"):
+            return False
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        try:
+            resolved = socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM)
+        except socket.gaierror:
+            return False
+        for _family, _type, _proto, _canonname, sockaddr in resolved:
+            addr = ipaddress.ip_address(sockaddr[0])
+            if addr.is_private or addr.is_loopback or addr.is_link_local or addr.is_reserved:
+                return False
+        return True
+    except Exception:
+        return False
+
+
+def _sanitize_filename(name: str) -> str:
+    """Strip characters that could break Content-Disposition or inject headers."""
+    return re.sub(r'[\r\n"\\]', "_", name.strip())[:255]
+
+
 @app.get(
     "/api/v1/workflows/{workflow_id}/call",
     tags=["workflows"],
 )
 async def call_workflow_get(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     request: Request,
     tenant: Tenant = Depends(get_current_tenant_or_query),
     db: AsyncSession = Depends(get_db),
@@ -3107,13 +3249,20 @@ async def call_workflow_get(
     ctx_data = execution.context_snapshot.get("data", {}) if execution.context_snapshot else {}
     url = ctx_data.get("url")
     if url and isinstance(url, str) and url.startswith("http"):
+        if not _is_safe_url(url):
+            raise HTTPException(status_code=400, detail="URL targets a blocked address range")
         is_xhr = request.headers.get("origin") or request.headers.get("x-requested-with")
         if is_xhr:
             import mimetypes
-            filename = trigger_data.get("key", "file")
+            filename = _sanitize_filename(trigger_data.get("key", "file"))
             content_type = mimetypes.guess_type(filename)[0] or "application/octet-stream"
-            async with httpx.AsyncClient(follow_redirects=True, timeout=60.0) as client:
+            async with httpx.AsyncClient(follow_redirects=False, timeout=60.0) as client:
                 s3_resp = await client.get(url)
+                if s3_resp.is_redirect:
+                    redirect_url = str(s3_resp.headers.get("location", ""))
+                    if not _is_safe_url(redirect_url):
+                        raise HTTPException(status_code=400, detail="Redirect targets a blocked address range")
+                    s3_resp = await client.get(redirect_url)
                 s3_resp.raise_for_status()
             from fastapi.responses import Response
             return Response(
@@ -3132,7 +3281,7 @@ async def call_workflow_get(
 
 @app.post("/api/v1/workflows/{workflow_id}/toggle", tags=["workflows"])
 async def toggle_workflow(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -3159,7 +3308,7 @@ async def toggle_workflow(
 
 @app.get("/api/v1/workflows/{workflow_id}/sync-stats", tags=["sync"])
 async def get_sync_stats(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -3173,7 +3322,7 @@ async def get_sync_stats(
 
     from core.sync_state import SyncStateManager
     mgr = SyncStateManager()
-    stats = await mgr.get_stats(db, workflow.id)
+    stats = await mgr.get_stats(db, workflow.id, tenant_id=tenant.id)
     return {
         "workflow_id": str(workflow.id),
         "workflow_name": workflow.name,
@@ -3184,7 +3333,7 @@ async def get_sync_stats(
 
 @app.get("/api/v1/workflows/{workflow_id}/sync-failed", tags=["sync"])
 async def get_sync_failed(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     limit: int = Query(50, le=200),
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
@@ -3198,12 +3347,12 @@ async def get_sync_failed(
 
     from core.sync_state import SyncStateManager
     mgr = SyncStateManager()
-    return await mgr.get_failed_entries(db, uuid.UUID(workflow_id), limit=limit)
+    return await mgr.get_failed_entries(db, workflow_id, limit=limit, tenant_id=tenant.id)
 
 
 @app.post("/api/v1/workflows/{workflow_id}/sync-retry", tags=["sync"])
 async def retry_failed_syncs(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -3216,14 +3365,14 @@ async def retry_failed_syncs(
 
     from core.sync_state import SyncStateManager
     mgr = SyncStateManager()
-    reset_count = await mgr.reset_failed(db, uuid.UUID(workflow_id))
+    reset_count = await mgr.reset_failed(db, workflow_id, tenant_id=tenant.id)
     await db.commit()
     return {"reset_count": reset_count}
 
 
 @app.post("/api/v1/workflows/{workflow_id}/sync-clear", tags=["sync"])
 async def clear_sync_ledger(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     tenant: Tenant = Depends(get_current_tenant),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
@@ -3236,7 +3385,7 @@ async def clear_sync_ledger(
 
     from core.sync_state import SyncStateManager
     mgr = SyncStateManager()
-    deleted = await mgr.clear_ledger(db, uuid.UUID(workflow_id))
+    deleted = await mgr.clear_ledger(db, workflow_id, tenant_id=tenant.id)
     await db.commit()
     return {"deleted_count": deleted}
 
@@ -3247,7 +3396,7 @@ async def clear_sync_ledger(
     tags=["workflow-executions"],
 )
 async def list_workflow_executions(
-    workflow_id: str | None = Query(None),
+    workflow_id: uuid.UUID | None = Query(None),
     status: str | None = Query(None),
     limit: int = Query(50, le=200),
     offset: int = Query(0, ge=0),
@@ -3348,7 +3497,7 @@ async def get_workflow_execution_detail(
     tags=["workflow-executions"],
 )
 async def rerun_workflow_execution(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     execution_id: str,
     body: WorkflowRerunRequest,
     tenant: Tenant = Depends(get_current_tenant),
@@ -3392,7 +3541,7 @@ async def rerun_workflow_execution(
     tags=["workflow-executions"],
 )
 async def diff_workflow_executions(
-    workflow_id: str,
+    workflow_id: uuid.UUID,
     exec_a: str = Query(..., description="ID of first execution"),
     exec_b: str = Query(..., description="ID of second execution"),
     tenant: Tenant = Depends(get_current_tenant),
@@ -3551,7 +3700,8 @@ async def _demo_rate_check(client_ip: str) -> None:
     except HTTPException:
         raise
     except Exception:
-        pass
+        await logger.aexception("demo_rate_check_failed")
+        raise HTTPException(status_code=503, detail="Rate limiting service unavailable")
 
 
 @app.post("/api/v1/demo/register", tags=["demo"], response_model=DemoRegisterResponse)

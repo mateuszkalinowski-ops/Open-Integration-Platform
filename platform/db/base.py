@@ -31,4 +31,4 @@ async def set_rls_bypass(session: AsyncSession) -> None:
     Use this for cross-tenant operations: background jobs, verification
     agent, Kafka consumer, startup provisioning, etc.
     """
-    await session.execute(text("SET LOCAL app.rls_bypass = 'on'"))
+    await session.execute(text("SELECT set_config('app.rls_bypass', 'on', true)"))

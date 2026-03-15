@@ -1,6 +1,7 @@
 """Background poller — periodically checks for new emails via IMAP."""
 
 import asyncio
+import hashlib
 import logging
 from datetime import datetime, timezone
 
@@ -31,6 +32,8 @@ class EmailPoller:
         self._last_timestamps: dict[str, dict[str, str]] = {}
         self._imap_clients: dict[str, ImapClient] = {}
         self._http_client: httpx.AsyncClient | None = None
+        self._seen_cache: dict[str, set[str]] = {}
+        self._seen_cache_limit = 1000
 
     def _get_imap_client(self, account: EmailAccountConfig) -> ImapClient:
         if account.name not in self._imap_clients:
@@ -43,9 +46,26 @@ class EmailPoller:
             )
         return self._imap_clients[account.name]
 
+    @staticmethod
+    def _derive_message_key(email_msg: object) -> str:
+        """Derive a stable dedup key for an email; falls back to a hash when Message-ID is absent."""
+        mid = getattr(email_msg, "message_id", None)
+        if mid:
+            return mid
+        parts = "|".join([
+            getattr(email_msg, "subject", "") or "",
+            getattr(email_msg, "sender", "") or "",
+            getattr(email_msg, "date", "") or "",
+        ])
+        return "sha256:" + hashlib.sha256(parts.encode()).hexdigest()
+
     async def start(self) -> None:
         self._running = True
         self._last_timestamps = await self._state.load_all_timestamps()
+        for account in self._accounts.list_accounts():
+            self._seen_cache[account.name] = await self._state.load_seen_ids(
+                account.name, self._seen_cache_limit
+            )
         if settings.platform_event_notify:
             self._http_client = httpx.AsyncClient(timeout=15.0)
         logger.info(
@@ -108,30 +128,58 @@ class EmailPoller:
             await self._save_timestamp(account.name, "emails", now_str)
             return
 
-        all_notified = True
-        for email_msg in page.emails:
-            email_data = email_msg.model_dump(mode="json")
-            email_data["account_name"] = account.name
+        seen = self._seen_cache.setdefault(account.name, set())
+        new_emails = [
+            m for m in page.emails
+            if self._derive_message_key(m) not in seen
+        ]
+        if not new_emails:
+            await self._save_timestamp(account.name, "emails", now_str)
+            return
 
+        cred_name = account.name.split(":", 1)[1] if ":" in account.name else account.name
+
+        all_notified = True
+        for email_msg in new_emails:
+            msg_key = self._derive_message_key(email_msg)
+            email_data = email_msg.model_dump(mode="json")
+            email_data["account_name"] = cred_name
+            if account.tenant_id:
+                email_data["_tenant_id"] = account.tenant_id
+
+            kafka_ok = True
             if self._kafka:
                 envelope = wrap_event(
                     connector_name="email-client",
                     event="email.received",
                     data=email_data,
-                    account_name=account.name,
+                    account_name=cred_name,
                 )
-                await self._kafka.send(
-                    settings.kafka_topic_emails_received,
-                    envelope,
-                    key=email_msg.message_id or "",
-                )
+                try:
+                    await self._kafka.send(
+                        settings.kafka_topic_emails_received,
+                        envelope,
+                        key=msg_key,
+                    )
+                except Exception:
+                    logger.exception("Kafka send failed for msg_key=%s", msg_key)
+                    kafka_ok = False
 
-            if not await self._notify_platform("email.received", email_data):
+            if not kafka_ok:
+                all_notified = False
+                continue
+
+            platform_ok = await self._notify_platform("email.received", email_data)
+
+            if platform_ok:
+                seen.add(msg_key)
+                await self._state.mark_seen(account.name, msg_key)
+            else:
                 all_notified = False
 
         logger.info(
-            "Polled %d new emails for account=%s folder=%s notified=%s",
-            len(page.emails), account.name, folder, all_notified,
+            "Polled %d emails (%d new) for account=%s folder=%s notified=%s",
+            len(page.emails), len(new_emails), account.name, folder, all_notified,
         )
         if all_notified:
             await self._save_timestamp(account.name, "emails", now_str)

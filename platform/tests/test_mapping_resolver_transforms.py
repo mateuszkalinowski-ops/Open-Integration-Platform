@@ -215,7 +215,7 @@ class TestResolverApplyTransform:
         assert resolver._apply_transform(["abc"], {"type": "math", "operation": "add", "operand": 1}) == "abc"
 
     def test_template(self, resolver: MappingResolver) -> None:
-        t = {"type": "template", "template": "{{0}} {{1}}"}
+        t = {"type": "template", "template": "{0} {1}"}
         assert resolver._apply_transform(["Anna", "Nowak"], t) == "Anna Nowak"
 
     def test_join(self, resolver: MappingResolver) -> None:

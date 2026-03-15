@@ -65,9 +65,9 @@ lint:security:
   extends: .python_integrator
   stage: lint
   script:
-    - pip-audit -r integrators/ecommerce/allegro/v1.0.0/requirements.txt || true
+    - pip-audit -r integrators/ecommerce/allegro/v1.0.0/requirements.txt
     - pip install semgrep
-    - semgrep --config auto integrators/ shared/python/ --json --output semgrep-results.json || true
+    - semgrep --config auto integrators/ shared/python/ --json --output semgrep-results.json
   artifacts:
     paths:
       - semgrep-results.json
@@ -82,7 +82,7 @@ lint:secrets:
   image: zricethezav/gitleaks:latest
   script:
     - gitleaks detect --source . --verbose
-  allow_failure: true
+  allow_failure: false
 
 # ---------------------------------------------------------------------------
 # Stage 2: Build Docker Images (AGENTS.md 5.2, 4.1, 4.3)
@@ -109,7 +109,7 @@ lint:secrets:
         -v /var/run/docker.sock:/var/run/docker.sock \
         aquasec/trivy:${TRIVY_VERSION} image \
         --severity HIGH,CRITICAL \
-        --exit-code 0 \
+        --exit-code 1 \
         "${IMAGE}"
 
       echo "Pushing images..."
@@ -326,7 +326,7 @@ test:shared-library:
     - cd shared/python
     - pip install -e .
     - pip install pytest pytest-asyncio
-    - python -m pytest tests/ -v --tb=short || echo "No tests found in shared library"
+    - python -m pytest tests/ -v --tb=short
   rules:
     - changes:
         - shared/python/**/*
@@ -375,7 +375,6 @@ deploy:secrets:
     - bash ci/scripts/setup-secrets.sh
   rules:
     - when: manual
-      allow_failure: true
 
 deploy:infra:
   extends: .kubectl
@@ -393,7 +392,6 @@ deploy:infra:
     - changes:
         - k8s/base/**/*
     - when: manual
-      allow_failure: true
 
 deploy:kafka:
   extends: .kubectl
@@ -407,12 +405,11 @@ deploy:kafka:
       kubectl wait kafka/pinquark-kafka \
         --namespace kafka \
         --for=condition=Ready \
-        --timeout=300s || echo "Kafka not ready yet (may take a few minutes on first deploy)"
+        --timeout=300s
   rules:
     - changes:
         - k8s/base/kafka/**/*
     - when: manual
-      allow_failure: true
 
 deploy:monitoring:
   extends: .kubectl
@@ -425,7 +422,6 @@ deploy:monitoring:
     - changes:
         - k8s/base/monitoring/**/*
     - when: manual
-      allow_failure: true
 
 deploy:allegro:
   extends: .deploy_integrator
@@ -721,7 +717,7 @@ deploy:all:
       echo "==> Waiting for all deployments..."
       kubectl get deployments -n "$NAMESPACE" -o name | while read dep; do
         echo "Waiting for $dep..."
-        kubectl rollout status "$dep" -n "$NAMESPACE" --timeout=120s || true
+        kubectl rollout status "$dep" -n "$NAMESPACE" --timeout=120s
       done
 
       echo "==> Full platform deployment complete."

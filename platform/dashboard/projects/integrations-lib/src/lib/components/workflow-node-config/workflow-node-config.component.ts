@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -11,6 +11,8 @@ import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatDividerModule } from '@angular/material/divider';
 import { MatDialog } from '@angular/material/dialog';
 import { MatChipsModule } from '@angular/material/chips';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import {
   Connector,
   ConnectorFieldDef,
@@ -70,11 +72,11 @@ import {
           @if (node.type === 'trigger') {
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Source Connector</mat-label>
-              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onTriggerConnectorChange()" (openedChange)="onSelectOpen('trigConn', $event)">
+              <mat-select [ngModel]="getConnectorSelectionValue()" (ngModelChange)="onTriggerConnectorChange($event)" (openedChange)="onSelectOpen('trigConn', $event)">
                 <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['trigConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['trigConn'] = $any($event.target).value" placeholder="Search..." /></div>
-                @for (c of connectors; track c.name) {
-                  @if (matchesFilter('trigConn', c.display_name + ' ' + c.name)) {
-                  <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                @for (c of connectors; track c.name + ':' + c.version) {
+                  @if (matchesFilter('trigConn', c.display_name + ' ' + c.name + ' ' + c.version)) {
+                  <mat-option [value]="getConnectorOptionValue(c)">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }} <span class="wnc__version-tag">v{{ c.version }}</span></mat-option>
                   }
                 }
               </mat-select>
@@ -256,11 +258,11 @@ import {
           @if (node.type === 'action') {
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Destination Connector</mat-label>
-              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onActionConnectorChange(); emitChange()" (openedChange)="onSelectOpen('actConn', $event)">
+              <mat-select [ngModel]="getConnectorSelectionValue()" (ngModelChange)="onActionConnectorChange($event)" (openedChange)="onSelectOpen('actConn', $event)">
                 <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['actConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['actConn'] = $any($event.target).value" placeholder="Search..." /></div>
-                @for (c of connectors; track c.name) {
-                  @if (matchesFilter('actConn', c.display_name + ' ' + c.name)) {
-                  <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                @for (c of connectors; track c.name + ':' + c.version) {
+                  @if (matchesFilter('actConn', c.display_name + ' ' + c.name + ' ' + c.version)) {
+                  <mat-option [value]="getConnectorOptionValue(c)">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }} <span class="wnc__version-tag">v{{ c.version }}</span></mat-option>
                   }
                 }
               </mat-select>
@@ -502,11 +504,11 @@ import {
           @if (node.type === 'http_request') {
             <mat-form-field appearance="outline" class="wnc__field">
               <mat-label>Connector</mat-label>
-              <mat-select [(ngModel)]="cfg['connector_name']" (ngModelChange)="onHttpConnectorChange()" (openedChange)="onSelectOpen('httpConn', $event)">
+              <mat-select [ngModel]="getConnectorSelectionValue()" (ngModelChange)="onHttpConnectorChange($event)" (openedChange)="onSelectOpen('httpConn', $event)">
                 <div class="wnc__search-wrap"><mat-icon>search</mat-icon><input [value]="selectFilter['httpConn'] || ''" (keydown)="$event.stopPropagation()" (input)="selectFilter['httpConn'] = $any($event.target).value" placeholder="Search..." /></div>
-                @for (c of connectors; track c.name) {
-                  @if (matchesFilter('httpConn', c.display_name + ' ' + c.name)) {
-                  <mat-option [value]="c.name">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }}</mat-option>
+                @for (c of connectors; track c.name + ':' + c.version) {
+                  @if (matchesFilter('httpConn', c.display_name + ' ' + c.name + ' ' + c.version)) {
+                  <mat-option [value]="getConnectorOptionValue(c)">@if (c.country) {{{ getFlag(c.country) }} }{{ c.display_name }} <span class="wnc__version-tag">v{{ c.version }}</span></mat-option>
                   }
                 }
               </mat-select>
@@ -951,6 +953,7 @@ import {
     ::ng-deep .wnc__search-wrap { display: flex; align-items: center; padding: 8px 16px; border-bottom: 1px solid #e0e0e0; position: sticky; top: 0; z-index: 1; background: #fff; }
     ::ng-deep .wnc__search-wrap mat-icon { color: #999; font-size: 18px; height: 18px; width: 18px; margin-right: 8px; flex-shrink: 0; }
     ::ng-deep .wnc__search-wrap input { flex: 1; border: none; outline: none; font-size: 13px; padding: 4px 0; background: transparent; }
+    .wnc__version-tag { font-size: 11px; color: #999; margin-left: 4px; }
 
     /* Trigger filter row */
     .wnc__filter-row { display: flex; gap: 4px; align-items: flex-start; margin-bottom: 4px; flex-wrap: wrap; }
@@ -967,7 +970,7 @@ import {
     .wnc__sync-toggle { margin: 8px 0 16px; }
   `],
 })
-export class WorkflowNodeConfigComponent implements OnChanges {
+export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
   @Input() node: WorkflowNode | null = null;
   @Input() connectors: Connector[] = [];
   @Input() allNodes: WorkflowNode[] = [];
@@ -994,6 +997,8 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   subWorkflowInputJson = '';
   private _lastNodeId = '';
   private _selfEmit = false;
+  private readonly destroy$ = new Subject<void>();
+  private schemaRequestId = 0;
 
   readonly conditionOperators = CONDITION_OPERATORS;
   readonly transformTypes = TRANSFORM_TYPES;
@@ -1002,6 +1007,11 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     private readonly api: PinquarkApiService,
     private readonly dialog: MatDialog,
   ) {}
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   ngOnChanges(changes: SimpleChanges): void {
     if (changes['node'] && this.node) {
@@ -1216,9 +1226,74 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     return NODE_TYPE_DEFINITIONS.find(d => d.type === this.node?.type)?.description || '';
   }
 
-  private getSelectedConnector(): Connector | undefined {
+  private compareConnectorVersions(left: string, right: string): number {
+    const leftParts = left.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const rightParts = right.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const maxLength = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < maxLength; index++) {
+      const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return left.localeCompare(right);
+  }
+
+  private resolveConnector(connectorName: string, connectorVersion?: string | null): Connector | undefined {
+    const matches = this.connectors.filter(c => c.name === connectorName);
+    if (matches.length === 0) return undefined;
+    if (connectorVersion) {
+      return matches.find(c => c.version === connectorVersion)
+        ?? [...matches].sort((left, right) => this.compareConnectorVersions(right.version, left.version))[0];
+    }
+    return [...matches].sort((left, right) => this.compareConnectorVersions(right.version, left.version))[0];
+  }
+
+  getConnectorOptionValue(connector: Connector): string {
+    return `${connector.name}@@${connector.version}`;
+  }
+
+  getConnectorSelectionValue(): string {
     const connectorName = String(this.cfg['connector_name'] ?? '');
-    return this.connectors.find(c => c.name === connectorName);
+    if (!connectorName) return '';
+    const connector = this.resolveConnector(
+      connectorName,
+      String(this.cfg['connector_version'] ?? ''),
+    );
+    return connector ? this.getConnectorOptionValue(connector) : connectorName;
+  }
+
+  private applyConnectorSelection(selection: string | null | undefined): Connector | undefined {
+    const raw = String(selection ?? '').trim();
+    if (!raw) {
+      delete this.cfg['connector_name'];
+      delete this.cfg['connector_version'];
+      return undefined;
+    }
+
+    const [connectorName, connectorVersion] = raw.split('@@', 2);
+    this.cfg['connector_name'] = connectorName;
+    if (connectorVersion) {
+      this.cfg['connector_version'] = connectorVersion;
+    } else {
+      delete this.cfg['connector_version'];
+    }
+    return this.resolveConnector(connectorName, connectorVersion);
+  }
+
+  private chooseCredentialName(names: string[], preferredCredential?: string | null): string | undefined {
+    if (preferredCredential && names.includes(preferredCredential)) {
+      return preferredCredential;
+    }
+    if (names.includes('default')) {
+      return 'default';
+    }
+    return names[0];
+  }
+
+  private getSelectedConnector(): Connector | undefined {
+    return this.resolveConnector(
+      String(this.cfg['connector_name'] ?? ''),
+      String(this.cfg['connector_version'] ?? ''),
+    );
   }
 
   getActionDisplayLabel(action: string): string {
@@ -1261,16 +1336,16 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   // ── Trigger ──
 
-  onTriggerConnectorChange(): void {
-    const c = this.connectors.find(cn => cn.name === this.cfg['connector_name']);
+  onTriggerConnectorChange(selection?: string): void {
+    const c = this.applyConnectorSelection(selection);
     this.triggerEvents = c?.events ?? [];
     this.cfg['event'] = '';
-    this.cfg['credential_name'] = 'default';
     this.sourceFieldDefs = [];
-    if (this.cfg['connector_name']) {
-      this.loadCredentialNames(this.cfg['connector_name'] as string);
+    if (c) {
+      this.loadCredentialNames(c.name);
     } else {
       this.credentialNames = [];
+      delete this.cfg['credential_name'];
     }
     this.emitChange();
   }
@@ -1282,26 +1357,27 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
   // ── Action ──
 
-  onActionConnectorChange(): void {
-    const c = this.connectors.find(cn => cn.name === this.cfg['connector_name']);
+  onActionConnectorChange(selection?: string): void {
+    const c = this.applyConnectorSelection(selection);
     this.actionActions = c?.actions ?? [];
     this.cfg['action'] = '';
-    this.cfg['credential_name'] = 'default';
     this.destFieldDefs = [];
-    if (this.cfg['connector_name']) {
-      this.loadCredentialNames(this.cfg['connector_name'] as string);
+    if (c) {
+      this.loadCredentialNames(c.name);
     } else {
       this.credentialNames = [];
+      delete this.cfg['credential_name'];
     }
     this.emitChange();
   }
 
-  onHttpConnectorChange(): void {
-    this.cfg['credential_name'] = 'default';
-    if (this.cfg['connector_name']) {
-      this.loadCredentialNames(this.cfg['connector_name'] as string);
+  onHttpConnectorChange(selection?: string): void {
+    const c = this.applyConnectorSelection(selection);
+    if (c) {
+      this.loadCredentialNames(c.name);
     } else {
       this.credentialNames = [];
+      delete this.cfg['credential_name'];
     }
     this.emitChange();
   }
@@ -1558,11 +1634,17 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   private updateConnectorLists(): void {
     if (!this.node) return;
     if (this.node.type === 'trigger') {
-      const c = this.connectors.find(cn => cn.name === this.cfg['connector_name']);
+      const c = this.resolveConnector(
+        String(this.cfg['connector_name'] ?? ''),
+        String(this.cfg['connector_version'] ?? ''),
+      );
       this.triggerEvents = c?.events ?? [];
     }
     if (this.node.type === 'action') {
-      const c = this.connectors.find(cn => cn.name === this.cfg['connector_name']);
+      const c = this.resolveConnector(
+        String(this.cfg['connector_name'] ?? ''),
+        String(this.cfg['connector_version'] ?? ''),
+      );
       this.actionActions = c?.actions ?? [];
     }
   }
@@ -1574,15 +1656,21 @@ export class WorkflowNodeConfigComponent implements OnChanges {
 
     if (this.node.type === 'action') {
       const connectorName = this.cfg['connector_name'] as string;
+      const connectorVersion = this.cfg['connector_version'] as string | undefined;
       const actionName = this.cfg['action'] as string;
-      const c = this.connectors.find(cn => cn.name === connectorName);
+      const c = this.resolveConnector(connectorName, connectorVersion);
       this.destFieldDefs = c?.action_fields?.[actionName] ?? [];
       if (connectorName && actionName) {
-        this.api.getConnectorActionSchema(connectorName, actionName, c?.version).subscribe({
+        const requestId = ++this.schemaRequestId;
+        this.api.getConnectorActionSchema(connectorName, actionName, connectorVersion ?? c?.version).pipe(
+          takeUntil(this.destroy$),
+        ).subscribe({
           next: schema => {
+            if (requestId !== this.schemaRequestId) return;
             this.destFieldDefs = schema.input_fields.length > 0 ? schema.input_fields : this.destFieldDefs;
           },
           error: () => {
+            if (requestId !== this.schemaRequestId) return;
             this.destFieldDefs = c?.action_fields?.[actionName] ?? [];
           },
         });
@@ -1590,7 +1678,10 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     } else if (this.node.type === 'trigger') {
       const connectorName = this.cfg['connector_name'] as string;
       const eventName = this.cfg['event'] as string;
-      const c = this.connectors.find(cn => cn.name === connectorName);
+      const c = this.resolveConnector(
+        connectorName,
+        this.cfg['connector_version'] as string | undefined,
+      );
       this.sourceFieldDefs = c?.event_fields?.[eventName] ?? [];
       this.destFieldDefs = [];
     } else {
@@ -1624,10 +1715,11 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     const triggerNodes = this.allNodes.filter(n => n.type === 'trigger');
     for (const tn of triggerNodes) {
       const connectorName = tn.config['connector_name'] as string;
+      const connectorVersion = tn.config['connector_version'] as string | undefined;
       const eventName = tn.config['event'] as string;
       if (!connectorName || !eventName) continue;
 
-      const c = this.connectors.find(cn => cn.name === connectorName);
+      const c = this.resolveConnector(connectorName, connectorVersion);
       const eventFields = c?.event_fields?.[eventName] ?? [];
       for (const f of eventFields) {
         if (!seen.has(f.field)) {
@@ -1642,10 +1734,11 @@ export class WorkflowNodeConfigComponent implements OnChanges {
     );
     for (const an of actionNodes) {
       const connectorName = an.config['connector_name'] as string;
+      const connectorVersion = an.config['connector_version'] as string | undefined;
       const actionName = an.config['action'] as string;
       if (!connectorName || !actionName) continue;
 
-      const c = this.connectors.find(cn => cn.name === connectorName);
+      const c = this.resolveConnector(connectorName, connectorVersion);
       const outFields = c?.output_fields?.[actionName] ?? [];
       if (outFields.length === 0) continue;
 
@@ -1774,12 +1867,20 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   private loadCredentialNames(connectorName: string): void {
     this.loadingCredentialNames = true;
     this.credentialNames = [];
-    this.api.listCredentialNames(connectorName).subscribe({
+    const currentCredential = typeof this.cfg['credential_name'] === 'string'
+      ? String(this.cfg['credential_name'])
+      : '';
+    this.api.listCredentialNames(connectorName).pipe(takeUntil(this.destroy$)).subscribe({
       next: (names: string[]) => {
         this.credentialNames = names;
         this.loadingCredentialNames = false;
-        if (names.length > 0 && !this.cfg['credential_name']) {
-          this.cfg['credential_name'] = 'default';
+        const nextCredential = this.chooseCredentialName(names, currentCredential);
+        if (nextCredential && nextCredential !== currentCredential) {
+          this.cfg['credential_name'] = nextCredential;
+          this.emitChange();
+        } else if (!nextCredential && currentCredential) {
+          delete this.cfg['credential_name'];
+          this.emitChange();
         }
       },
       error: () => {
@@ -1869,7 +1970,7 @@ export class WorkflowNodeConfigComponent implements OnChanges {
   // ── Sub-Workflow ──
 
   private loadAvailableWorkflows(): void {
-    this.api.listWorkflows().subscribe({
+    this.api.listWorkflows().pipe(takeUntil(this.destroy$)).subscribe({
       next: (workflows) => { this.availableWorkflows = workflows; },
       error: () => { this.availableWorkflows = []; },
     });

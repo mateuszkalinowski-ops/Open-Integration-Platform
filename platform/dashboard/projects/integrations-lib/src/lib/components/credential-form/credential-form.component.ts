@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnInit, Output } from '@angular/core';
+import { Component, EventEmitter, Input, OnDestroy, OnInit, Output } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormBuilder, FormGroup, FormsModule, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,6 +8,8 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { Connector, ConfigFieldType, CredentialStoreRequest, CredentialValidationResult } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
@@ -167,7 +169,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .credential-form__validation-time { opacity: 0.7; font-size: 12px; }
   `],
 })
-export class CredentialFormComponent implements OnInit {
+export class CredentialFormComponent implements OnInit, OnDestroy {
   @Input() connector!: Connector;
   @Input() connectorName = '';
   @Input() credentialName = 'default';
@@ -185,12 +187,18 @@ export class CredentialFormComponent implements OnInit {
   requiredFieldRows: string[][] = [];
   optionalFieldRows: string[][] = [];
   private originalCredentialName = '';
+  private destroy$ = new Subject<void>();
 
   constructor(
     private readonly fb: FormBuilder,
     private readonly api: PinquarkApiService,
     private readonly snackBar: MatSnackBar
   ) {}
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
 
   ngOnInit(): void {
     this.originalCredentialName = this.credentialName;
@@ -296,7 +304,7 @@ export class CredentialFormComponent implements OnInit {
     }
 
     const name = this.connectorName || this.connector.name;
-    this.api.validateCredentials(name, this.credentialName, Object.keys(credentials).length > 0 ? credentials : undefined).subscribe({
+    this.api.validateCredentials(name, this.credentialName, Object.keys(credentials).length > 0 ? credentials : undefined).pipe(takeUntil(this.destroy$)).subscribe({
       next: (result) => {
         this.validating = false;
         this.validationResult = result;
@@ -339,7 +347,7 @@ export class CredentialFormComponent implements OnInit {
       request.old_credential_name = this.originalCredentialName;
     }
 
-    this.api.storeCredentials(request).subscribe({
+    this.api.storeCredentials(request).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.saving = false;
         this.originalCredentialName = this.credentialName;

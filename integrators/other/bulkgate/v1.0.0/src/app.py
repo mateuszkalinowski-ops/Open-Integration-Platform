@@ -204,10 +204,7 @@ async def incoming_sms_webhook(request: Request):
     try:
         body = await request.json()
         incoming = IncomingSmsPayload(**body) if isinstance(body, dict) else None
-        logger.info(
-            "Incoming SMS received: sender=%s",
-            incoming.sender if incoming else "unknown",
-        )
+        logger.info("Incoming SMS received")
         return {"status": "received", "data": body}
     except Exception as exc:
         logger.exception("Failed to process incoming SMS webhook")

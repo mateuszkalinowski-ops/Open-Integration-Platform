@@ -116,8 +116,8 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
     except Exception:
         msg = response.text
     logger.error(
-        "InPost API error — url=%s status=%s",
-        response.url, response.status_code,
+        "InPost API error — path=%s status=%s",
+        response.url.path, response.status_code,
     )
     return msg, response.status_code
 

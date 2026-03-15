@@ -135,7 +135,6 @@ class OrlenPaczkaIntegration:
 
     def __init__(self) -> None:
         transport = Transport(timeout=settings.soap_timeout)
-        transport.session.verify = False
         self.client: Client | None = None
 
         try:

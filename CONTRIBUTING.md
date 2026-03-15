@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This guide covers everything you ne
 ### Clone and install
 
 ```bash
-git clone https://github.com/pinquark/integrations.git
-cd integrations
+git clone https://github.com/your-org/Open-Integration-Platform.git
+cd Open-Integration-Platform
 
 # Install shared library
 cd shared/python
@@ -32,7 +32,7 @@ cd ../../../..
 
 ```bash
 # Start full platform (API + database + dashboard)
-docker compose up -d
+docker compose -f docker-compose.prod.yml up -d
 
 # Or run a single connector in development mode
 cd integrators/courier/inpost/v3.0.0

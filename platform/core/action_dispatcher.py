@@ -8,6 +8,7 @@ ConnectorRegistry.  No per-connector logic lives here.
 import asyncio
 import base64
 import json
+import re
 import uuid
 from typing import Any
 
@@ -31,11 +32,16 @@ def set_rate_limiter(rate_limiter: Any | None) -> None:
     _rate_limiter = rate_limiter
 
 
+_CONNECTOR_NAME_RE = re.compile(r"^[a-z0-9][a-z0-9\-]{0,62}$")
+
+
 def _resolve_service_url(
     connector_name: str,
     registry: ConnectorRegistry | None = None,
     connector_version: str | None = None,
 ) -> str:
+    if not _CONNECTOR_NAME_RE.match(connector_name):
+        raise ValueError(f"Invalid connector_name: {connector_name!r}")
     if registry:
         manifest = registry.get_by_name_version(connector_name, connector_version)
         if manifest:

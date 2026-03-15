@@ -1,4 +1,6 @@
 import { Component, OnInit, OnDestroy, AfterViewInit, NgZone } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { MatCardModule } from '@angular/material/card';
 import { MatSelectModule } from '@angular/material/select';
@@ -119,6 +121,19 @@ const PAGE_SIZE = 20;
                   </div>
 
                   <div class="cred-card__body">
+                    @if (cred.token) {
+                      <div class="cred-card__token-row">
+                        <mat-icon class="cred-card__token-icon">token</mat-icon>
+                        <code class="cred-card__token-value">{{ cred.token }}</code>
+                        <button mat-icon-button class="cred-card__token-btn" (click)="copyToken(cred.token)" matTooltip="Copy token">
+                          <mat-icon>content_copy</mat-icon>
+                        </button>
+                        <button mat-icon-button class="cred-card__token-btn" (click)="regenerateToken(cred)" matTooltip="Regenerate token"
+                                [disabled]="regeneratingTokens.has(credKey(cred))">
+                          <mat-icon [class.spin]="regeneratingTokens.has(credKey(cred))">autorenew</mat-icon>
+                        </button>
+                      </div>
+                    }
                     <div class="cred-card__keys">
                       @for (key of cred.keys; track key) {
                         <mat-chip-set>
@@ -297,6 +312,19 @@ const PAGE_SIZE = 20;
     .cred-card__keys { display: flex; flex-wrap: wrap; gap: 4px; }
     .cred-card__date { font-size: 12px; color: rgba(0,0,0,0.4); margin-top: 6px; }
 
+    .cred-card__token-row {
+      display: flex; align-items: center; gap: 6px;
+      background: #f5f5f5; border-radius: 6px;
+      padding: 4px 8px; margin-bottom: 8px;
+    }
+    .cred-card__token-icon { font-size: 16px; width: 16px; height: 16px; color: rgba(0,0,0,0.4); flex-shrink: 0; }
+    .cred-card__token-value {
+      font-size: 12px; color: #333; font-family: 'Roboto Mono', monospace;
+      overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0;
+    }
+    .cred-card__token-btn { width: 28px; height: 28px; flex-shrink: 0; }
+    .cred-card__token-btn mat-icon { font-size: 16px; width: 16px; height: 16px; }
+
     .cred-card__status-dot {
       width: 10px; height: 10px; border-radius: 50%;
       background: #bdbdbd; flex-shrink: 0;
@@ -341,11 +369,13 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
   deleting = false;
 
   validatingConnectors = new Set<string>();
+  regeneratingTokens = new Set<string>();
   validationResults: Record<string, CredentialValidationResult> = {};
 
   private connectorMap = new Map<string, Connector>();
   private displayCount = PAGE_SIZE;
   private scrollHandler?: () => void;
+  private destroy$ = new Subject<void>();
 
   get visibleCredentials(): CredentialInfo[] {
     return this.savedCredentials.slice(0, this.displayCount);
@@ -379,6 +409,8 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
 
   ngOnDestroy(): void {
     this.detachScrollListener();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private attachScrollListener(): void {
@@ -453,7 +485,7 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
       connectors: this.api.listConnectors(),
       instances: this.api.listConnectorInstances(),
       credentials: this.api.listCredentials(),
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: ({ connectors, instances, credentials }) => {
         this.connectors = connectors;
         this.connectorMap.clear();
@@ -496,7 +528,7 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
   private validateOne(cred: CredentialInfo): void {
     const key = this.credKey(cred);
     this.validatingConnectors.add(key);
-    this.api.validateCredentials(cred.connector_name, cred.credential_name).subscribe({
+    this.api.validateCredentials(cred.connector_name, cred.credential_name).pipe(takeUntil(this.destroy$)).subscribe({
       next: (result) => {
         this.validatingConnectors.delete(key);
         this.validationResults[key] = result;
@@ -527,7 +559,7 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
     this.loadingEdit = true;
     this.mode = 'edit';
 
-    this.api.getCredentials(cred.connector_name, cred.credential_name).subscribe({
+    this.api.getCredentials(cred.connector_name, cred.credential_name).pipe(takeUntil(this.destroy$)).subscribe({
       next: (detail) => {
         this.editExistingValues = detail.values ?? {};
         this.loadingEdit = false;
@@ -562,7 +594,7 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
   doDelete(): void {
     if (!this.deleteTarget) return;
     this.deleting = true;
-    this.api.deleteCredentials(this.deleteTarget.connector_name, this.deleteTarget.credential_name).subscribe({
+    this.api.deleteCredentials(this.deleteTarget.connector_name, this.deleteTarget.credential_name).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.deleting = false;
         this.snackBar.open('Credentials deleted', 'OK', { duration: 3000 });
@@ -580,5 +612,27 @@ export class CredentialsPage implements OnInit, OnDestroy, AfterViewInit {
     const key = this.credKey(cred);
     delete this.validationResults[key];
     this.validateOne(cred);
+  }
+
+  copyToken(token: string): void {
+    navigator.clipboard.writeText(token).then(() => {
+      this.snackBar.open('Token copied to clipboard', 'OK', { duration: 2000 });
+    });
+  }
+
+  regenerateToken(cred: CredentialInfo): void {
+    const key = this.credKey(cred);
+    this.regeneratingTokens.add(key);
+    this.api.regenerateCredentialToken(cred.connector_name, cred.credential_name).subscribe({
+      next: (result) => {
+        this.regeneratingTokens.delete(key);
+        cred.token = result.token;
+        this.snackBar.open('Token regenerated', 'OK', { duration: 3000 });
+      },
+      error: () => {
+        this.regeneratingTokens.delete(key);
+        this.snackBar.open('Failed to regenerate token', 'Retry', { duration: 5000 });
+      },
+    });
   }
 }

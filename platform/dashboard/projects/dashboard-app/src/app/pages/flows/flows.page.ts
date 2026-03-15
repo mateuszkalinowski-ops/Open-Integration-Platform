@@ -254,11 +254,17 @@ export class FlowsPage implements OnInit {
   }
 
   loadFlows(): void {
-    this.api.listFlows().subscribe(data => (this.flows = data));
+    this.api.listFlows().subscribe({
+      next: data => (this.flows = data),
+      error: () => this.snackBar.open('Failed to load flows', 'OK', { duration: 4000 }),
+    });
   }
 
   loadWorkflows(): void {
-    this.api.listWorkflows().subscribe(data => (this.workflows = data));
+    this.api.listWorkflows().subscribe({
+      next: data => (this.workflows = data),
+      error: () => this.snackBar.open('Failed to load workflows', 'OK', { duration: 4000 }),
+    });
   }
 
   createWorkflow(): void {
@@ -271,7 +277,10 @@ export class FlowsPage implements OnInit {
 
   deleteWorkflow(id: string, event: MouseEvent): void {
     event.stopPropagation();
-    this.api.deleteWorkflow(id).subscribe(() => this.loadWorkflows());
+    this.api.deleteWorkflow(id).subscribe({
+      next: () => this.loadWorkflows(),
+      error: () => this.snackBar.open('Failed to delete workflow', 'OK', { duration: 4000 }),
+    });
   }
 
   toggleSimpleDesigner(): void {
@@ -301,7 +310,10 @@ export class FlowsPage implements OnInit {
   }
 
   deleteFlow(flowId: string): void {
-    this.api.deleteFlow(flowId).subscribe(() => this.loadFlows());
+    this.api.deleteFlow(flowId).subscribe({
+      next: () => this.loadFlows(),
+      error: () => this.snackBar.open('Failed to delete flow', 'OK', { duration: 4000 }),
+    });
   }
 
   exportWorkflow(wf: Workflow, event: MouseEvent): void {

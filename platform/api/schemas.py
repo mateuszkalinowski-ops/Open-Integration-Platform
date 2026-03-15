@@ -127,6 +127,10 @@ class CredentialStore(BaseModel):
     credentials: dict[str, str]
 
 
+class CredentialTokenResolve(BaseModel):
+    token: str
+
+
 class FlowCreate(BaseModel):
     name: str = Field(..., max_length=200)
     source_connector: str = Field(..., max_length=100)

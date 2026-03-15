@@ -42,6 +42,7 @@ _CREDENTIAL_REFRESH_INTERVAL = 300
 async def _fetch_credentials_once(
     account_manager: AccountManager,
     poller: EmailPoller | None,
+    integration: EmailIntegration | None = None,
 ) -> int:
     """Fetch email credentials from the platform vault and register them."""
     if not settings.platform_api_url:
@@ -67,7 +68,9 @@ async def _fetch_credentials_once(
             if not isinstance(accounts, list):
                 return 0
             for acct in accounts:
-                name = acct.get("credential_name", "default")
+                cred_name = acct.get("credential_name", "default")
+                tenant_id = acct.get("tenant_id", "")
+                account_key = f"{tenant_id}:{cred_name}" if tenant_id else cred_name
                 creds = acct.get("credentials", {})
                 email_address = creds.get("email_address", "")
                 imap_host = creds.get("imap_host", "")
@@ -75,7 +78,8 @@ async def _fetch_credentials_once(
                     continue
                 raw_interval = creds.get("polling_interval_seconds")
                 account = EmailAccountConfig(
-                    name=name,
+                    name=account_key,
+                    tenant_id=tenant_id,
                     email_address=email_address,
                     username=creds.get("username", ""),
                     password=creds.get("password", ""),
@@ -88,17 +92,23 @@ async def _fetch_credentials_once(
                     polling_folder=creds.get("polling_folder", "INBOX"),
                     polling_interval_seconds=int(raw_interval) if raw_interval else None,
                 )
-                old = account_manager.get_account(name)
+                old = account_manager.get_account(account_key)
                 account_manager.add_account(account)
-                if poller and old and (
+                creds_changed = old and (
                     old.login != account.login
                     or old.password != account.password
                     or old.imap_host != account.imap_host
                     or old.imap_port != account.imap_port
+                    or old.smtp_host != account.smtp_host
+                    or old.smtp_port != account.smtp_port
                     or old.use_ssl != account.use_ssl
-                ):
-                    await poller.reset_imap_client(name)
-                    logger.info("Credentials changed for account=%s, IMAP client reset", name)
+                )
+                if creds_changed:
+                    if poller:
+                        await poller.reset_imap_client(account_key)
+                    if integration:
+                        await integration.invalidate_clients(account_key)
+                    logger.info("Credentials changed for account=%s, clients reset", account_key)
                 registered += 1
             logger.info(
                 "Credential refresh: %d account(s) registered from platform",
@@ -112,6 +122,7 @@ async def _fetch_credentials_once(
 async def _credential_refresh_loop(
     account_manager: AccountManager,
     poller: EmailPoller | None,
+    integration: EmailIntegration | None = None,
     initial_delay: int = 15,
 ) -> None:
     """Periodically refresh credentials from the platform vault.
@@ -123,7 +134,7 @@ async def _credential_refresh_loop(
     while True:
         await asyncio.sleep(delay)
         try:
-            count = await _fetch_credentials_once(account_manager, poller)
+            count = await _fetch_credentials_once(account_manager, poller, integration)
             delay = _CREDENTIAL_REFRESH_INTERVAL
             if count == 0 and delay == _CREDENTIAL_REFRESH_INTERVAL:
                 delay = 30
@@ -174,14 +185,14 @@ async def lifespan(application: FastAPI):  # type: ignore[no-untyped-def]
         poller = EmailPoller(account_manager, state_store, kafka_producer)
         app_state.poller = poller
 
-    await _fetch_credentials_once(account_manager, poller)
+    await _fetch_credentials_once(account_manager, poller, integration)
 
     if poller:
         poller_task = asyncio.create_task(poller.start())
         logger.info("Email poller scheduled every %ds", settings.polling_interval_seconds)
 
     cred_refresh_task = asyncio.create_task(
-        _credential_refresh_loop(account_manager, poller)
+        _credential_refresh_loop(account_manager, poller, integration)
     )
 
     logger.info(

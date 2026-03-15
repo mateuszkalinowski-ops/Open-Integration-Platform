@@ -127,7 +127,7 @@ class AccountCreateRequest(BaseModel):
     name: str
     login: str
     password: str
-    api_url: str = "https://skanujfakture.pl:8443/SFApi"
+    api_url: str = ""
     company_id: int | None = None
     environment: str = "production"
     polling_interval_seconds: int | None = None

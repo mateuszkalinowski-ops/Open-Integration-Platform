@@ -24,11 +24,16 @@ class SkanujFaktureClient:
     """Async HTTP client wrapping the SkanujFakture REST API.
 
     All endpoints require Basic Authentication.
-    Base URL: {api_url}/ (default: https://skanujfakture.pl:8443/SFApi)
+    Base URL: {api_url}/ (configured per account via credentials or environment)
     """
 
     def __init__(self, account: SkanujFaktureAccountConfig) -> None:
         self._account = account
+        if not account.api_url or not account.api_url.strip():
+            raise ValueError(
+                f"api_url is required for SkanujFakture account '{account.name}'. "
+                "Set it via credentials or SKANUJ_FAKTURE_API_URL environment variable."
+            )
         self._base_url = account.api_url.rstrip("/")
         credentials = base64.b64encode(f"{account.login}:{account.password}".encode()).decode()
         self._client = httpx.AsyncClient(

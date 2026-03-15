@@ -7,6 +7,7 @@ import email.header
 import email.utils
 import imaplib
 import logging
+import ssl
 import time
 from datetime import datetime, timezone
 from email.message import Message
@@ -199,9 +200,10 @@ class ImapClient:
         start = time.monotonic()
         try:
             if self._use_ssl:
+                ssl_ctx = ssl.create_default_context()
                 self._connection = await loop.run_in_executor(
                     None,
-                    partial(imaplib.IMAP4_SSL, self._host, self._port, timeout=self._timeout),
+                    partial(imaplib.IMAP4_SSL, self._host, self._port, timeout=self._timeout, ssl_context=ssl_ctx),
                 )
             else:
                 self._connection = await loop.run_in_executor(

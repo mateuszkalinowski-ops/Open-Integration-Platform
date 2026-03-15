@@ -303,20 +303,13 @@ export class GatePage {
   }
 
   copyKey(key: string): void {
-    if (navigator.clipboard && window.isSecureContext) {
-      navigator.clipboard.writeText(key).then(() => {
-        this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 });
-      });
-    } else {
-      const textarea = document.createElement('textarea');
-      textarea.value = key;
-      textarea.style.position = 'fixed';
-      textarea.style.opacity = '0';
-      document.body.appendChild(textarea);
-      textarea.select();
-      document.execCommand('copy');
-      document.body.removeChild(textarea);
-      this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 });
+    if (!navigator.clipboard?.writeText) {
+      this.snackBar.open('Clipboard not available — use HTTPS', 'OK', { duration: 3000 });
+      return;
     }
+    navigator.clipboard.writeText(key).then(
+      () => this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 }),
+      () => this.snackBar.open('Failed to copy to clipboard', 'OK', { duration: 2000 }),
+    );
   }
 }

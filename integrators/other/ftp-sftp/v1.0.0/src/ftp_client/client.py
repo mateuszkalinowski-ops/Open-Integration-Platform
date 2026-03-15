@@ -7,6 +7,7 @@ protocols, with retry logic and structured logging.
 import asyncio
 import io
 import logging
+import os
 import stat as stat_module
 from datetime import datetime, timezone
 from pathlib import PurePosixPath
@@ -51,10 +52,13 @@ class FtpSftpClient:
 
     def _resolve_path(self, remote_path: str) -> str:
         base = PurePosixPath(self._account.base_path)
-        target = PurePosixPath(remote_path)
-        if target.is_absolute():
-            return str(target)
-        return str(base / target)
+        combined = base / PurePosixPath(remote_path)
+        resolved = PurePosixPath(os.path.normpath(str(combined)))
+        try:
+            resolved.relative_to(base)
+        except ValueError:
+            raise ValueError(f"Path escapes base directory: {remote_path}")
+        return str(resolved)
 
     # ------------------------------------------------------------------
     # FTP operations
@@ -154,10 +158,20 @@ class FtpSftpClient:
     # ------------------------------------------------------------------
 
     async def _sftp_connect(self) -> asyncssh.SSHClientConnection:
+        known_hosts_env = os.environ.get("SFTP_KNOWN_HOSTS", "")
+        if known_hosts_env:
+            known_hosts: Any = known_hosts_env
+        elif os.path.isfile(os.path.expanduser("~/.ssh/known_hosts")):
+            known_hosts = os.path.expanduser("~/.ssh/known_hosts")
+        else:
+            raise ConnectionError(
+                "SFTP connection refused: no known_hosts file found. "
+                "Set SFTP_KNOWN_HOSTS env var or populate ~/.ssh/known_hosts."
+            )
         kwargs: dict[str, Any] = {
             "host": self._account.host,
             "port": self._account.effective_port,
-            "known_hosts": None,
+            "known_hosts": known_hosts,
         }
         if self._account.username:
             kwargs["username"] = self._account.username

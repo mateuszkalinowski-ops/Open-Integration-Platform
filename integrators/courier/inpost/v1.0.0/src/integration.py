@@ -650,7 +650,7 @@ class InpostIntegration:
             msg = response.text
         logger.error(
             "InPost API error — url=%s status=%s",
-            response.url,
+            response.url.path,
             response.status_code,
         )
         return msg, response.status_code

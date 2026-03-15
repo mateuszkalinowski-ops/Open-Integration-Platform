@@ -110,7 +110,7 @@ def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
         msg = response.text
     logger.error(
         "InPost API error — url=%s status=%s",
-        response.url, response.status_code,
+        response.url.path, response.status_code,
     )
     return msg, response.status_code
 

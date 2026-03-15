@@ -30,6 +30,7 @@ else
     INTERNAL_SECRET=$(gen_key 32)
     ADMIN_SECRET=$(gen_key 32)
     DASHBOARD_API_KEY="pk_live_$(gen_key 24)"
+    CONNECTOR_API_KEY="pk_conn_$(gen_key 24)"
 
     cat > "$ENV_FILE" << EOF
 # Open Integration Platform — Configuration
@@ -52,6 +53,9 @@ ADMIN_SECRET=${ADMIN_SECRET}
 
 # Dashboard API key (auto-created tenant key)
 PINQUARK_DASHBOARD_API_KEY=${DASHBOARD_API_KEY}
+
+# API key used by connectors to authenticate against the platform
+PINQUARK_CONNECTOR_API_KEY=${CONNECTOR_API_KEY}
 EOF
 
     echo "Created .env with generated secrets."

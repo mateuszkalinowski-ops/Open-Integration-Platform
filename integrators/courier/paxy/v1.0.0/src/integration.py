@@ -345,7 +345,7 @@ class PaxyIntegration:
             message = body.get("message", str(body))
         except Exception:
             message = response.text
-        logger.error("Paxy REST error %s: %s", response.url, message)
+        logger.error("Paxy REST error %s: %s", response.url.path, message)
         return message, HTTPStatus.BAD_REQUEST
 
     @staticmethod
@@ -355,5 +355,5 @@ class PaxyIntegration:
             message = body.get("message", str(body))
         except Exception:
             message = response.text
-        logger.error("Paxy REST error %s [%s]: %s", response.url, response.status_code, message)
+        logger.error("Paxy REST error %s [%s]: %s", response.url.path, response.status_code, message)
         return message, HTTPStatus.BAD_REQUEST

@@ -436,7 +436,7 @@ export class WorkflowAiChatComponent {
 
   private loadSettings(): void {
     try {
-      const stored = localStorage.getItem('pinquark_ai_settings');
+      const stored = sessionStorage.getItem('pinquark_ai_settings');
       if (stored) {
         const parsed = JSON.parse(stored);
         this.aiModel = parsed.model || 'gemini';

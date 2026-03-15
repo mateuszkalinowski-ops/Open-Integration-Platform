@@ -101,6 +101,30 @@ class Credential(Base):
     tenant: Mapped["Tenant"] = relationship(back_populates="credentials")
 
 
+class CredentialToken(Base):
+    """Opaque token reference for a credential set.
+
+    Maps (tenant_id, connector_name, credential_name) to a unique token
+    so that GET responses never expose actual credential values.
+    """
+
+    __tablename__ = "credential_tokens"
+    __table_args__ = (UniqueConstraint("tenant_id", "connector_name", "credential_name"),)
+
+    id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    tenant_id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    connector_name: Mapped[str] = mapped_column(String(100), nullable=False)
+    credential_name: Mapped[str] = mapped_column(String(100), nullable=False, default="default")
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False, index=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), server_default=func.now())
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
+    )
+
+    tenant: Mapped["Tenant"] = relationship("Tenant")
+
+
 class Flow(Base):
     """A flow rule: source connector event -> destination connector action."""
 

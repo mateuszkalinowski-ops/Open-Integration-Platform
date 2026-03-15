@@ -20,22 +20,8 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Build deploy bundle
-        run: |
-          mkdir -p _bundle/deploy _bundle/integrators
-          cp docker-compose.vps.yml _bundle/
-          cp deploy/nginx.conf _bundle/deploy/
-          find integrators -name "connector.yaml" | while read f; do
-            dir="_bundle/integrators/$(dirname "$f" | sed 's|^integrators/||')"
-            mkdir -p "$dir"
-            cp "$f" "$dir/"
-          done
-          tar czf /tmp/pinquark-deploy.tar.gz -C _bundle .
-
       - name: Deploy, configure and verify
         uses: appleboy/ssh-action@v1.2.0
-        env:
-          DEPLOY_BUNDLE: ${{ github.workspace }}/pinquark-deploy.tar.gz
         with:
           host: ${{ secrets.VPS_HOST }}
           username: ${{ secrets.VPS_USER }}
@@ -89,13 +75,15 @@ jobs:
               "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" \
               "DEFAULT_API_KEY=${DEFAULT_KEY}" \
               "ADMIN_SECRET=${{ secrets.ADMIN_SECRET }}" \
+              "INTERNAL_SECRET=${{ secrets.INTERNAL_SECRET }}" \
               "DOMAIN=${DOMAIN}" \
               "GITHUB_ORG=${{ github.repository_owner }}" \
               "DEMO_MODE=true" \
               > .env
 
             # ── Template nginx.conf with actual domain ──
-            sed "s/\${DOMAIN}/${DOMAIN}/g" /opt/pinquark/deploy/nginx.conf.template \
+            ESCAPED_DOMAIN=$(printf '%s\n' "${DOMAIN}" | sed 's/[&/\]/\\&/g')
+            sed "s/\${DOMAIN}/${ESCAPED_DOMAIN}/g" /opt/pinquark/deploy/nginx.conf.template \
               > /opt/pinquark/deploy/nginx.conf
 
             # ── SSL certificate (Let's Encrypt) ──
@@ -133,7 +121,7 @@ jobs:
                 --email ${{ secrets.CERTBOT_EMAIL }} \
                 --agree-tos --no-eff-email \
                 -d ${DOMAIN} \
-                || echo "WARNING: certbot failed, will use self-signed fallback"
+                || echo "WARNING: certbot failed — self-signed fallback will be created"
               sudo chmod -R 755 "$CONF_BASE"/live "$CONF_BASE"/archive 2>/dev/null || true
             fi
 

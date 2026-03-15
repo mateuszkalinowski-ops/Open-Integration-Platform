@@ -77,4 +77,4 @@ async def get_db() -> AsyncSession:  # type: ignore[misc]
 async def set_rls_bypass(session: AsyncSession) -> None:
     """Enable admin bypass for RLS policies on the current transaction."""
     from sqlalchemy import text
-    await session.execute(text("SET LOCAL app.rls_bypass = 'on'"))
+    await session.execute(text("SELECT set_config('app.rls_bypass', 'on', true)"))

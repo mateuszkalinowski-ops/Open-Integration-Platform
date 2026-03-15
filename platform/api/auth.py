@@ -46,9 +46,10 @@ async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")
 
-    tid_str = str(tenant.id)
-    safe_tid = tid_str.replace("'", "''")
-    await db.execute(text(f"SET LOCAL app.current_tenant_id = '{safe_tid}'"))
+    await db.execute(
+        text("SELECT set_config('app.current_tenant_id', :tid, true)"),
+        {"tid": str(tenant.id)},
+    )
 
     return tenant
 

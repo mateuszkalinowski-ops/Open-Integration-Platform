@@ -1,6 +1,6 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Inject, Injectable, InjectionToken } from '@angular/core';
-import { Observable } from 'rxjs';
+import { Observable, tap, catchError, throwError } from 'rxjs';
 
 import {
   Connector,
@@ -9,6 +9,8 @@ import {
   CredentialDetail,
   CredentialInfo,
   CredentialStoreRequest,
+  CredentialStoreResponse,
+  CredentialTokenRegenerateResponse,
   CredentialValidationResult,
   Flow,
   FlowCreateRequest,
@@ -140,9 +142,12 @@ export class PinquarkApiService {
     });
   }
 
-  getConnectorOpenApiSpec(connectorName: string): Observable<object> {
+  getConnectorOpenApiSpec(connectorName: string, version?: string): Observable<object> {
+    let params = new HttpParams();
+    if (version) params = params.set('version', version);
     return this.http.get<object>(`${this.apiUrl}/api/v1/connectors/${connectorName}/openapi`, {
       headers: this.headers,
+      params,
     });
   }
 
@@ -156,14 +161,17 @@ export class PinquarkApiService {
     );
   }
 
-  downloadOnPremiseAgent(connectorName: string): void {
-    const url = `${this.apiUrl}/api/v1/connectors/${connectorName}/onpremise-agent`;
-    this.http.get(url, {
+  downloadOnPremiseAgent(connectorName: string, connectorVersion?: string): Observable<void> {
+    let url = `${this.apiUrl}/api/v1/connectors/${connectorName}/onpremise-agent`;
+    if (connectorVersion) {
+      url += `?version=${encodeURIComponent(connectorVersion)}`;
+    }
+    return this.http.get(url, {
       headers: this.headers,
       responseType: 'blob',
       observe: 'response',
-    }).subscribe({
-      next: response => {
+    }).pipe(
+      tap(response => {
         const disposition = response.headers.get('Content-Disposition') || '';
         const filenameMatch = disposition.match(/filename="?([^"]+)"?/);
         const filename = filenameMatch?.[1] ?? `${connectorName}-onpremise-agent.zip`;
@@ -174,17 +182,17 @@ export class PinquarkApiService {
         a.download = filename;
         a.click();
         URL.revokeObjectURL(a.href);
-      },
-      error: (err) => {
+      }),
+      catchError(err => {
         const status = err?.status ?? 0;
         const message = status === 401
           ? 'Authentication required to download the agent.'
           : status === 404
             ? 'On-premise agent not found for this connector.'
             : `Failed to download agent (HTTP ${status}).`;
-        /* download error is surfaced to the caller via the observable */
-      },
-    });
+        return throwError(() => new Error(message));
+      }),
+    ) as unknown as Observable<void>;
   }
 
   // --- Connector Instances ---
@@ -235,10 +243,22 @@ export class PinquarkApiService {
     });
   }
 
-  storeCredentials(body: CredentialStoreRequest): Observable<Record<string, string>> {
-    return this.http.post<Record<string, string>>(`${this.apiUrl}/api/v1/credentials`, body, {
+  storeCredentials(body: CredentialStoreRequest): Observable<CredentialStoreResponse> {
+    return this.http.post<CredentialStoreResponse>(`${this.apiUrl}/api/v1/credentials`, body, {
       headers: this.headers,
     });
+  }
+
+  regenerateCredentialToken(
+    connectorName: string,
+    credentialName = 'default',
+  ): Observable<CredentialTokenRegenerateResponse> {
+    const params = new HttpParams().set('credential_name', credentialName);
+    return this.http.post<CredentialTokenRegenerateResponse>(
+      `${this.apiUrl}/api/v1/credentials/${connectorName}/token/regenerate`,
+      null,
+      { headers: this.headers, params },
+    );
   }
 
   deleteCredentials(connectorName: string, credentialName?: string): Observable<Record<string, string>> {

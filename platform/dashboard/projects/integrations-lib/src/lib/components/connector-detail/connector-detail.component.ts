@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, inject, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -12,6 +12,9 @@ import { MatExpansionModule } from '@angular/material/expansion';
 import { MatTableModule } from '@angular/material/table';
 import { MatFormFieldModule } from '@angular/material/form-field';
 import { MatSelectModule } from '@angular/material/select';
+import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import {
   Connector,
@@ -38,6 +41,7 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
     MatTabsModule,
     MatListModule,
     MatExpansionModule,
+    MatSnackBarModule,
     MatTableModule,
     MatFormFieldModule,
     MatSelectModule,
@@ -646,7 +650,7 @@ import { SwaggerUiComponent } from '../swagger-ui/swagger-ui.component';
     }
   `],
 })
-export class ConnectorDetailComponent implements OnInit, OnChanges {
+export class ConnectorDetailComponent implements OnInit, OnChanges, OnDestroy {
   @Input() group: ConnectorGroup | null = null;
   @Output() goBack = new EventEmitter<void>();
   @Output() activate = new EventEmitter<Connector>();
@@ -663,10 +667,18 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
   swaggerLoading = false;
   swaggerError = '';
 
+  private readonly snackBar = inject(MatSnackBar);
+  private destroy$ = new Subject<void>();
+
   constructor(private readonly api: PinquarkApiService) {}
 
   ngOnInit(): void {
     this.initFromGroup();
+  }
+
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   ngOnChanges(changes: SimpleChanges): void {
@@ -718,7 +730,7 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
     this.swaggerError = '';
     this.openApiSpec = null;
 
-    this.api.getConnectorOpenApiSpec(this.connector.name).subscribe({
+    this.api.getConnectorOpenApiSpec(this.connector.name, this.connector.version).pipe(takeUntil(this.destroy$)).subscribe({
       next: (spec) => {
         this.openApiSpec = spec;
         this.swaggerLoading = false;
@@ -752,9 +764,14 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
   }
 
   private loadActiveState(): void {
-    this.api.listConnectorInstances().subscribe(instances => {
-      this.allInstances = instances.filter(i => i.is_enabled);
-      this.loadActiveInstance();
+    this.api.listConnectorInstances().pipe(takeUntil(this.destroy$)).subscribe({
+      next: instances => {
+        this.allInstances = instances.filter(i => i.is_enabled);
+        this.loadActiveInstance();
+      },
+      error: () => {
+        this.snackBar.open('Failed to load connector state', 'OK', { duration: 5000 });
+      },
     });
   }
 
@@ -825,15 +842,24 @@ export class ConnectorDetailComponent implements OnInit, OnChanges {
 
   onDownloadAgent(): void {
     if (this.connector) {
-      this.api.downloadOnPremiseAgent(this.connector.name);
+      this.api.downloadOnPremiseAgent(this.connector.name, this.connector.version).pipe(takeUntil(this.destroy$)).subscribe({
+        error: (err: Error) => {
+          this.snackBar.open(err.message || 'Failed to download agent', 'OK', { duration: 5000 });
+        },
+      });
     }
   }
 
   onDeactivate(): void {
     if (!this.activeInstance) return;
-    this.api.deactivateConnector(this.activeInstance.id).subscribe(() => {
-      this.activeInstance = null;
-      this.deactivated.emit();
+    this.api.deactivateConnector(this.activeInstance.id).pipe(takeUntil(this.destroy$)).subscribe({
+      next: () => {
+        this.activeInstance = null;
+        this.deactivated.emit();
+      },
+      error: () => {
+        this.snackBar.open('Failed to deactivate connector', 'OK', { duration: 5000 });
+      },
     });
   }
 }

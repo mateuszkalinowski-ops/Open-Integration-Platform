@@ -1,3 +1,10 @@
+x-connector-healthcheck: &connector-healthcheck
+  healthcheck:
+    test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+    interval: 30s
+    timeout: 5s
+    retries: 3
+
 services:
   # --- Reverse Proxy ---
   nginx:
@@ -13,6 +20,11 @@ services:
       - platform
       - dashboard
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/health || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   certbot:
     image: certbot/certbot
@@ -34,6 +46,7 @@ services:
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DEFAULT_API_KEY: ${DEFAULT_API_KEY}
       ADMIN_SECRET: ${ADMIN_SECRET:-}
+      INTERNAL_SECRET: ${INTERNAL_SECRET}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO
@@ -69,6 +82,11 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "wget --no-verbose --tries=1 --spider http://127.0.0.1:80/ || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # --- Infrastructure ---
   kafka:
@@ -155,6 +173,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-dhl:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl:latest
@@ -164,6 +183,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-allegro:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-allegro:latest
@@ -215,6 +235,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-pinquark-wms:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pinquark-wms:latest
@@ -225,6 +246,7 @@ services:
       PINQUARK_WMS_EVENT_POLLING_INTERVAL_SECONDS: "120"
       PINQUARK_WMS_PLATFORM_API_URL: http://platform:8080
       PINQUARK_WMS_PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: PLAINTEXT
@@ -245,6 +267,7 @@ services:
       KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       PLATFORM_API_URL: http://platform:8080
       PLATFORM_API_KEY: ${PINQUARK_CONNECTOR_API_KEY:-}
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
@@ -261,6 +284,7 @@ services:
       KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       POLLING_INTERVAL_SECONDS: "60"
       PLATFORM_API_URL: http://platform:8080
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
@@ -277,6 +301,7 @@ services:
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
       KAFKA_SECURITY_PROTOCOL: PLAINTEXT
       PLATFORM_API_URL: http://platform:8080
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
@@ -305,6 +330,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-ai-agent:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ai-agent:latest
@@ -314,6 +340,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-s3:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-s3:latest
@@ -323,6 +350,7 @@ services:
       S3_POLLING_ENABLED: "false"
       KAFKA_ENABLED: "false"
       PLATFORM_API_URL: http://platform:8080
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       PLATFORM_EVENT_NOTIFY: "true"
     depends_on:
       - platform
@@ -337,6 +365,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-inpost-v2:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v2:latest
@@ -346,6 +375,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-dhl-express:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl-express:latest
@@ -355,6 +385,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-dpd:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dpd:latest
@@ -364,6 +395,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-fedex:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedex:latest
@@ -373,6 +405,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-fedexpl:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedexpl:latest
@@ -382,6 +415,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-geis:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-geis:latest
@@ -391,6 +425,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-gls:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-gls:latest
@@ -400,6 +435,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-orlenpaczka:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-orlenpaczka:latest
@@ -409,6 +445,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-packeta:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-packeta:latest
@@ -418,6 +455,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-paxy:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-paxy:latest
@@ -427,6 +465,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-pocztapolska:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pocztapolska:latest
@@ -436,6 +475,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-schenker:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-schenker:latest
@@ -445,6 +485,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-sellasist:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-sellasist:latest
@@ -454,6 +495,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-suus:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-suus:latest
@@ -463,6 +505,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-ups:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ups:latest
@@ -472,6 +515,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   connector-raben:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-raben:latest
@@ -481,6 +525,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
   # --- E-commerce Connectors ---
   connector-shoper:
@@ -563,6 +608,7 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
+    <<: *connector-healthcheck
 
 volumes:
   pgdata:

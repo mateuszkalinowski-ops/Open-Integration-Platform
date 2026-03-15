@@ -1,4 +1,6 @@
 import { Component, OnInit, OnDestroy } from '@angular/core';
+import { Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatCardModule } from '@angular/material/card';
@@ -348,6 +350,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   checkingConnector: string | null = null;
   canEditScheduler = false;
   private pollIntervalId: ReturnType<typeof setInterval> | null = null;
+  private destroy$ = new Subject<void>();
 
   latest: VerificationLatestResponse | null = null;
   latestConnectors: VerificationConnectorResult[] = [];
@@ -375,7 +378,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   }
 
   loadScheduler(): void {
-    this.api.verificationSchedulerStatus().subscribe({
+    this.api.verificationSchedulerStatus().pipe(takeUntil(this.destroy$)).subscribe({
       next: (s: SchedulerStatus) => {
         this.scheduler = s;
         this.isRunning = s.currently_running;
@@ -385,7 +388,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   }
 
   loadLatest(): void {
-    this.api.verificationLatest().subscribe({
+    this.api.verificationLatest().pipe(takeUntil(this.destroy$)).subscribe({
       next: (data: VerificationLatestResponse) => {
         this.latest = data;
         this.latestConnectors = data.connectors || [];
@@ -403,7 +406,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   }
 
   toggleScheduler(enabled: boolean): void {
-    this.api.verificationSchedulerUpdate({ enabled }).subscribe({
+    this.api.verificationSchedulerUpdate({ enabled }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.scheduler.enabled = enabled;
         this.snackBar.open(`Scheduler ${enabled ? 'enabled' : 'disabled'}`, 'OK', { duration: 3000 });
@@ -421,7 +424,7 @@ export class VerificationPage implements OnInit, OnDestroy {
 
   updateInterval(): void {
     if (this.scheduler.interval_days < 1) return;
-    this.api.verificationSchedulerUpdate({ interval_days: this.scheduler.interval_days }).subscribe({
+    this.api.verificationSchedulerUpdate({ interval_days: this.scheduler.interval_days }).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => this.snackBar.open('Interval updated', 'OK', { duration: 2000 }),
       error: (err: { status?: number }) => {
         if (err.status === 403) {
@@ -436,7 +439,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   runAll(): void {
     this.isRunning = true;
     this.checkingConnector = null;
-    this.api.verificationRunAll().subscribe({
+    this.api.verificationRunAll().pipe(takeUntil(this.destroy$)).subscribe({
       next: (res: VerificationRunResponse) => {
         this.snackBar.open(`Verification started (${res.run_id.slice(0, 8)}...)`, 'OK', { duration: 5000 });
         this.pollUntilDone();
@@ -451,7 +454,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   runSingle(connectorName: string, version?: string): void {
     this.isRunning = true;
     this.checkingConnector = version ? `${connectorName}@${version}` : connectorName;
-    this.api.verificationRunSingle(connectorName, version).subscribe({
+    this.api.verificationRunSingle(connectorName, version).pipe(takeUntil(this.destroy$)).subscribe({
       next: (_res: VerificationRunResponse) => {
         const label = version ? `${connectorName} v${version}` : connectorName;
         this.snackBar.open(`Verifying ${label}...`, 'OK', { duration: 3000 });
@@ -473,6 +476,8 @@ export class VerificationPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.clearPollInterval();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   private clearPollInterval(): void {
@@ -485,7 +490,7 @@ export class VerificationPage implements OnInit, OnDestroy {
   private pollUntilDone(): void {
     this.clearPollInterval();
     this.pollIntervalId = setInterval(() => {
-      this.api.verificationSchedulerStatus().subscribe({
+      this.api.verificationSchedulerStatus().pipe(takeUntil(this.destroy$)).subscribe({
         next: (s: SchedulerStatus) => {
           this.isRunning = s.currently_running;
           if (!s.currently_running) {

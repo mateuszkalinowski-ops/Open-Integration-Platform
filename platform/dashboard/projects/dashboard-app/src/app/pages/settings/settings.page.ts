@@ -195,7 +195,10 @@ export class SettingsPage implements OnInit {
 
   ngOnInit(): void {
     this.isAdmin = this.api.isAdmin;
-    this.api.health().subscribe(data => this.health = data);
+    this.api.health().subscribe({
+      next: data => this.health = data,
+      error: () => { this.health = null; },
+    });
     this.loadAiSettings();
   }
 
@@ -216,7 +219,7 @@ export class SettingsPage implements OnInit {
 
   private loadAiSettings(): void {
     try {
-      const stored = localStorage.getItem('pinquark_ai_settings');
+      const stored = sessionStorage.getItem('pinquark_ai_settings');
       if (stored) {
         const parsed = JSON.parse(stored);
         this.aiModel = parsed.model || 'gemini';
@@ -226,7 +229,7 @@ export class SettingsPage implements OnInit {
   }
 
   saveAiSettings(): void {
-    localStorage.setItem('pinquark_ai_settings', JSON.stringify({
+    sessionStorage.setItem('pinquark_ai_settings', JSON.stringify({
       model: this.aiModel,
       apiKey: this.aiApiKey,
     }));

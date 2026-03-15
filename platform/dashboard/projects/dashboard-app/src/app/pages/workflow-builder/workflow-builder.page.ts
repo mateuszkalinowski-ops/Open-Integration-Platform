@@ -16,7 +16,8 @@ import { MatChipsModule } from '@angular/material/chips';
 import { MatTooltipModule } from '@angular/material/tooltip';
 import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { MatMenuModule } from '@angular/material/menu';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 import { MatDialog, MatDialogModule } from '@angular/material/dialog';
 
 import {
@@ -777,6 +778,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   private resizeStartWidth = 0;
   private boundResizeMove: ((e: MouseEvent) => void) | null = null;
   private boundResizeEnd: ((e: MouseEvent) => void) | null = null;
+  private destroy$ = new Subject<void>();
 
   saving = false;
   testing = false;
@@ -851,21 +853,53 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     return `${this.doc.location.protocol}//${this.doc.location.hostname}:8080`;
   }
 
+  private compareConnectorVersions(left: string, right: string): number {
+    const leftParts = left.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const rightParts = right.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const maxLength = Math.max(leftParts.length, rightParts.length);
+    for (let index = 0; index < maxLength; index++) {
+      const diff = (leftParts[index] ?? 0) - (rightParts[index] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return left.localeCompare(right);
+  }
+
+  private sortConnectors(connectors: Connector[]): Connector[] {
+    return [...connectors].sort((left, right) => {
+      const displayCompare = left.display_name.localeCompare(right.display_name);
+      if (displayCompare !== 0) return displayCompare;
+      const nameCompare = left.name.localeCompare(right.name);
+      if (nameCompare !== 0) return nameCompare;
+      return this.compareConnectorVersions(right.version, left.version);
+    });
+  }
+
+  private resolveConnector(connectorName: string, connectorVersion?: string | null): Connector | undefined {
+    const matches = this.connectors.filter(c => c.name === connectorName);
+    if (matches.length === 0) return undefined;
+    if (connectorVersion) {
+      return matches.find(c => c.version === connectorVersion)
+        ?? [...matches].sort((left, right) => this.compareConnectorVersions(right.version, left.version))[0];
+    }
+    return [...matches].sort((left, right) => this.compareConnectorVersions(right.version, left.version))[0];
+  }
+
   ngOnInit(): void {
     this.workflowId = this.route.snapshot.paramMap.get('id');
 
     forkJoin({
       connectors: this.api.listConnectors(),
       instances: this.api.listConnectorInstances(),
-    }).subscribe(({ connectors, instances }) => {
+    }).pipe(takeUntil(this.destroy$)).subscribe(({ connectors, instances }) => {
       const activeKeys = new Set(
         instances.filter(i => i.is_enabled).map(i => `${i.connector_name}:${i.connector_version}`)
       );
-      this.connectors = connectors.filter(c => activeKeys.has(`${c.name}:${c.version}`));
+      const active = connectors.filter(c => activeKeys.has(`${c.name}:${c.version}`));
+      this.connectors = this.sortConnectors(active);
     });
 
     if (this.workflowId && this.workflowId !== 'new') {
-      this.api.getWorkflow(this.workflowId).subscribe(wf => {
+      this.api.getWorkflow(this.workflowId).pipe(takeUntil(this.destroy$)).subscribe(wf => {
         this.workflow = wf;
         this.workflowName = wf.name;
         this.workflowDescription = wf.description;
@@ -885,6 +919,8 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   ngOnDestroy(): void {
     this.onResizeEnd();
+    this.destroy$.next();
+    this.destroy$.complete();
   }
 
   goBack(): void {
@@ -935,7 +971,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
       autoFocus: false,
     });
 
-    dialogRef.afterClosed().subscribe((result?: FieldMapping[]) => {
+    dialogRef.afterClosed().pipe(takeUntil(this.destroy$)).subscribe((result?: FieldMapping[]) => {
       if (!result) return;
       const updated = { ...node, config: { ...cfg, [mappingKey]: result } };
       this.canvas.updateNode(updated);
@@ -949,7 +985,10 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     const upstreamIds = this.getUpstreamNodeIds(node.id);
 
     for (const tn of this.nodes.filter(n => n.type === 'trigger')) {
-      const c = this.connectors.find(cn => cn.name === tn.config['connector_name']);
+      const c = this.resolveConnector(
+        String(tn.config['connector_name'] ?? ''),
+        String(tn.config['connector_version'] ?? ''),
+      );
       const eventFields = c?.event_fields?.[tn.config['event'] as string] ?? [];
       for (const f of eventFields) {
         if (!seen.has(f.field)) { seen.add(f.field); fields.push(f); }
@@ -957,7 +996,10 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     }
 
     for (const an of this.nodes.filter(n => n.type === 'action' && n.id !== node.id && upstreamIds.has(n.id))) {
-      const c = this.connectors.find(cn => cn.name === an.config['connector_name']);
+      const c = this.resolveConnector(
+        String(an.config['connector_name'] ?? ''),
+        String(an.config['connector_version'] ?? ''),
+      );
       const outFields = c?.output_fields?.[an.config['action'] as string] ?? [];
       for (const f of outFields) {
         if (!seen.has(f.field)) { seen.add(f.field); fields.push(f); }
@@ -969,7 +1011,10 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   private getDestFieldsForNode(node: WorkflowNode): ConnectorFieldDef[] {
     if (node.type !== 'action') return [];
-    const c = this.connectors.find(cn => cn.name === node.config['connector_name']);
+    const c = this.resolveConnector(
+      String(node.config['connector_name'] ?? ''),
+      String(node.config['connector_version'] ?? ''),
+    );
     return c?.action_fields?.[node.config['action'] as string] ?? [];
   }
 
@@ -1113,7 +1158,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     };
 
     if (this.workflow) {
-      this.api.updateWorkflow(this.workflow.id, body).subscribe({
+      this.api.updateWorkflow(this.workflow.id, body).pipe(takeUntil(this.destroy$)).subscribe({
         next: (wf) => {
           this.workflow = wf;
           this.saving = false;
@@ -1125,7 +1170,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
         },
       });
     } else {
-      this.api.createWorkflow(body).subscribe({
+      this.api.createWorkflow(body).pipe(takeUntil(this.destroy$)).subscribe({
         next: (wf) => {
           this.workflow = wf;
           this.workflowId = wf.id;
@@ -1143,7 +1188,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   toggleEnabled(): void {
     if (!this.workflow) return;
-    this.api.toggleWorkflow(this.workflow.id).subscribe({
+    this.api.toggleWorkflow(this.workflow.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (res) => {
         if (this.workflow) {
           this.workflow = { ...this.workflow, is_enabled: res.is_enabled };
@@ -1172,7 +1217,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
     this.testNodeResults = [];
     this.aiErrorExplanation = null;
 
-    this.api.testWorkflow(this.workflow.id, triggerData).subscribe({
+    this.api.testWorkflow(this.workflow.id, triggerData).pipe(takeUntil(this.destroy$)).subscribe({
       next: (exec) => {
         this.testExecution = exec;
         this.testNodeResults = exec.node_results;
@@ -1225,7 +1270,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
       error: this.testExecution.error,
       trigger_data: this.testExecution.trigger_data,
       node_results: this.testExecution.node_results,
-    }).subscribe({
+    }).pipe(takeUntil(this.destroy$)).subscribe({
       next: (response) => {
         this.aiExplaining = false;
         this.aiErrorExplanation = response;
@@ -1240,7 +1285,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   private loadAiSettings(): { model: 'gemini' | 'opus'; apiKey: string } | null {
     try {
-      const stored = localStorage.getItem('pinquark_ai_settings');
+      const stored = sessionStorage.getItem('pinquark_ai_settings');
       if (!stored) {
         return null;
       }
@@ -1313,7 +1358,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   loadSyncStats(): void {
     if (!this.workflow) return;
     this.syncLoading = true;
-    this.api.getSyncStats(this.workflow.id).subscribe({
+    this.api.getSyncStats(this.workflow.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (data: { stats: { synced: number; failed: number; pending: number; stale: number; total: number } }) => {
         this.syncStats = data.stats;
         this.syncLoading = false;
@@ -1331,16 +1376,19 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   private loadSyncFailed(): void {
     if (!this.workflow) return;
-    this.api.getSyncFailed(this.workflow.id).subscribe({
+    this.api.getSyncFailed(this.workflow.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: (entries: { id: string; entity_key: string; attempt_count: number; last_error: string | null; updated_at: string | null }[]) => {
         this.syncFailedEntries = entries;
+      },
+      error: () => {
+        this.snackBar.open('Failed to load sync failures', 'OK', { duration: 3000 });
       },
     });
   }
 
   retrySyncs(): void {
     if (!this.workflow) return;
-    this.api.retrySyncs(this.workflow.id).subscribe({
+    this.api.retrySyncs(this.workflow.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.snackBar.open('Failed entries reset for retry', 'OK', { duration: 3000 });
         this.loadSyncStats();
@@ -1353,7 +1401,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   clearSyncLedger(): void {
     if (!this.workflow) return;
-    this.api.clearSyncLedger(this.workflow.id).subscribe({
+    this.api.clearSyncLedger(this.workflow.id).pipe(takeUntil(this.destroy$)).subscribe({
       next: () => {
         this.snackBar.open('Sync ledger cleared — next poll will re-sync everything', 'OK', { duration: 5000 });
         this.loadSyncStats();

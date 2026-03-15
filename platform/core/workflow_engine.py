@@ -12,6 +12,7 @@ a specific node, and execution diff comparison.
 """
 
 import asyncio
+import concurrent.futures
 import copy
 import operator
 import re
@@ -70,6 +71,8 @@ class WorkflowContext:
         self.node_results: list[dict[str, Any]] = []
         self.dry_run: bool = False
         self._workflow_chain: list[str] = []
+        self._merge_hits: dict[str, int] = {}
+        self._visited_merges: set[str] = set()
 
     def set_node_output(self, node_id: str, output: Any) -> None:
         self.node_outputs[node_id] = output
@@ -82,6 +85,28 @@ class WorkflowContext:
             "data": copy.deepcopy(self.data),
             "variables": copy.deepcopy(self.variables),
         }
+
+
+_REGEX_MAX_PATTERN_LEN = 1000
+_REGEX_TIMEOUT_SECONDS = 2.0
+_regex_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="regex")
+
+
+def _safe_regex_search(pattern: str, text: str) -> bool:
+    """Run regex with length limit and timeout to prevent ReDoS."""
+    if len(pattern) > _REGEX_MAX_PATTERN_LEN:
+        return False
+    try:
+        compiled = re.compile(pattern)
+    except re.error:
+        return False
+    future = _regex_executor.submit(compiled.search, text)
+    try:
+        result = future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+        return result is not None
+    except (concurrent.futures.TimeoutError, re.error):
+        future.cancel()
+        return False
 
 
 ExecuteActionFn = Callable[..., Coroutine[Any, Any, dict[str, Any]]]
@@ -238,6 +263,19 @@ class WorkflowEngine:
         config = node.get("config", {})
         node_start = time.monotonic()
 
+        if node_type == "merge":
+            if node_id in ctx._visited_merges:
+                return
+            predecessors = graph._incoming.get(node_id, [])
+            executed_predecessors = sum(
+                1 for pid in predecessors if pid in ctx.node_outputs or pid in {r["node_id"] for r in ctx.node_results}
+            )
+            expected_hits = max(executed_predecessors, 1)
+            current_hits = ctx._merge_hits.get(node_id, 0) + 1
+            ctx._merge_hits[node_id] = current_hits
+            if current_hits < expected_hits:
+                return
+
         result_entry: dict[str, Any] = {
             "node_id": node_id,
             "node_type": node_type,
@@ -286,6 +324,7 @@ class WorkflowEngine:
             elif node_type == "set_variable":
                 output = self._exec_set_variable(config, ctx)
             elif node_type == "merge":
+                ctx._visited_merges.add(node_id)
                 output = ctx.data
             elif node_type == "parallel":
                 output = await self._exec_parallel(db, graph, node, config, ctx, workflow, depth)
@@ -614,6 +653,10 @@ class WorkflowEngine:
             branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
             branch_ctx.variables = copy.deepcopy(ctx.variables)
             branch_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
+            branch_ctx.dry_run = ctx.dry_run
+            branch_ctx._workflow_chain = list(ctx._workflow_chain)
+            branch_ctx._merge_hits = copy.deepcopy(ctx._merge_hits)
+            branch_ctx._visited_merges = set(ctx._visited_merges)
 
             try:
                 async with async_session_factory() as branch_db:
@@ -1013,6 +1056,8 @@ class WorkflowEngine:
                 item_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
                 item_ctx.dry_run = ctx.dry_run
                 item_ctx._workflow_chain = list(ctx._workflow_chain)
+                item_ctx._merge_hits = copy.deepcopy(ctx._merge_hits)
+                item_ctx._visited_merges = set(ctx._visited_merges)
 
                 try:
                     if body_nodes:
@@ -1108,10 +1153,7 @@ class WorkflowEngine:
         elif op == "regex":
             if actual is None:
                 return False
-            try:
-                return bool(re.search(str(expected), str(actual)))
-            except re.error:
-                return False
+            return _safe_regex_search(str(expected), str(actual))
         elif op == "is_empty":
             return not actual
         elif op == "is_not_empty":
@@ -1290,9 +1332,13 @@ class WorkflowEngine:
             group = transform.get("group", 0)
             if val is None or not pattern:
                 return val
+            if len(pattern) > _REGEX_MAX_PATTERN_LEN:
+                return val
             try:
-                match = re.search(pattern, str(val))
-            except re.error:
+                compiled = re.compile(pattern)
+                future = _regex_executor.submit(compiled.search, str(val))
+                match = future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+            except (re.error, concurrent.futures.TimeoutError):
                 return val
             if match:
                 try:
@@ -1320,9 +1366,13 @@ class WorkflowEngine:
             replacement = transform.get("replacement", "")
             if val is None or not pattern:
                 return val
+            if len(pattern) > _REGEX_MAX_PATTERN_LEN:
+                return val
             try:
-                return re.sub(pattern, replacement, str(val))
-            except re.error:
+                compiled = re.compile(pattern)
+                future = _regex_executor.submit(compiled.sub, replacement, str(val))
+                return future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+            except (re.error, concurrent.futures.TimeoutError):
                 return val
         if t == "substring":
             start = transform.get("start", 0)
@@ -1476,6 +1526,9 @@ class WorkflowEngine:
         if mode == "force":
             check = await sync_mgr.should_sync(
                 db, workflow.id, entity_key, content_hash, max_retries=max_retries,
+                tenant_id=workflow.tenant_id,
+                source_connector=connector_name,
+                source_event=event,
             )
             execution = await self.execute_workflow(db, workflow, event_data)
             if execution.status == "success":
@@ -1505,6 +1558,9 @@ class WorkflowEngine:
 
         check = await sync_mgr.should_sync(
             db, workflow.id, entity_key, content_hash, max_retries=max_retries,
+            tenant_id=workflow.tenant_id,
+            source_connector=connector_name,
+            source_event=event,
         )
 
         if check.decision == SyncDecision.SKIP:
@@ -1585,13 +1641,16 @@ class WorkflowEngine:
         hash_fields = sync_cfg.get("content_hash_fields")
         content_hash = compute_content_hash(trigger_data, hash_fields)
 
+        connector_name = workflow.trigger_connector or "manual"
+        event = workflow.trigger_event or "manual.execute"
+
         sync_mgr = SyncStateManager()
         check = await sync_mgr.should_sync(
             db, workflow.id, entity_key, content_hash,
+            tenant_id=workflow.tenant_id,
+            source_connector=connector_name,
+            source_event=event,
         )
-
-        connector_name = workflow.trigger_connector or "manual"
-        event = workflow.trigger_event or "manual.execute"
 
         if execution.status == "success":
             await sync_mgr.record_success(
@@ -1873,7 +1932,13 @@ def _redact_by_paths(data: Any, pii_paths: set[str], current: str = "", depth: i
         for key, value in data.items():
             p = f"{current}.{key}" if current else key
             if p in pii_paths:
-                result[key] = [_PII_PLACEHOLDER] * len(value) if isinstance(value, list) else _PII_PLACEHOLDER
+                if isinstance(value, list):
+                    result[key] = [
+                        _redact_by_paths(item, pii_paths, p, depth + 1) if isinstance(item, dict) else _PII_PLACEHOLDER
+                        for item in value
+                    ]
+                else:
+                    result[key] = _PII_PLACEHOLDER
             elif _is_pii_value(value):
                 result[key] = _PII_PLACEHOLDER
             else:
@@ -2047,10 +2112,7 @@ def _evaluate_trigger_filter(
     elif op == "regex":
         if actual is None:
             return False
-        try:
-            return bool(re.search(str(expected), str(actual)))
-        except re.error:
-            return False
+        return _safe_regex_search(str(expected), str(actual))
     elif op == "is_empty":
         return not actual
     elif op == "is_not_empty":
@@ -2078,11 +2140,16 @@ class WorkflowGraph:
         self._nodes = {n["id"]: n for n in nodes}
         self._edges = edges
         self._adjacency: dict[str, list[dict]] = {}
+        self._incoming: dict[str, list[dict]] = {}
         for edge in edges:
             src = edge["source"]
             if src not in self._adjacency:
                 self._adjacency[src] = []
             self._adjacency[src].append(edge)
+            target = edge["target"]
+            if target not in self._incoming:
+                self._incoming[target] = []
+            self._incoming[target].append(edge)
 
     def find_trigger(self) -> dict[str, Any] | None:
         for node in self._nodes.values():
@@ -2107,6 +2174,9 @@ class WorkflowGraph:
             if target:
                 result.append(target)
         return result
+
+    def get_predecessor_count(self, node_id: str) -> int:
+        return len(self._incoming.get(node_id, []))
 
 
 

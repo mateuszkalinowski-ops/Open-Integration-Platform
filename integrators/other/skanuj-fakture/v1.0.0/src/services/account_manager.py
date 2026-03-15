@@ -43,7 +43,7 @@ class AccountManager:
                 name=name,
                 login=os.getenv(f"{prefix}LOGIN", ""),
                 password=os.getenv(f"{prefix}PASSWORD", ""),
-                api_url=os.getenv(f"{prefix}API_URL", "https://skanujfakture.pl:8443/SFApi"),
+                api_url=os.getenv(f"{prefix}API_URL", ""),
                 company_id=int(cid) if (cid := os.getenv(f"{prefix}COMPANY_ID")) else None,
                 environment=os.getenv(f"{prefix}ENVIRONMENT", "production"),
             )

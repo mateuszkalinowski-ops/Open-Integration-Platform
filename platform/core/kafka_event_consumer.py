@@ -166,9 +166,21 @@ class KafkaEventBridge:
 
         async with self._session_factory() as db:
             await set_rls_bypass(db)
-            result = await db.execute(
-                select(Tenant).where(Tenant.is_active.is_(True))
-            )
+            target_tenant_id = data.get("_tenant_id")
+            if target_tenant_id:
+                import uuid as _uuid
+                try:
+                    tid = _uuid.UUID(str(target_tenant_id))
+                except (ValueError, AttributeError):
+                    logger.warning("kafka_event_bridge: invalid _tenant_id=%s", target_tenant_id)
+                    return
+                result = await db.execute(
+                    select(Tenant).where(Tenant.is_active.is_(True), Tenant.id == tid)
+                )
+            else:
+                result = await db.execute(
+                    select(Tenant).where(Tenant.is_active.is_(True))
+                )
             tenants = list(result.scalars().all())
 
             if not tenants:
@@ -181,8 +193,8 @@ class KafkaEventBridge:
                         await self._process_for_tenant(db, tenant, connector_name, event, data)
                 except Exception:
                     logger.exception(
-                        "kafka_event_bridge: tenant processing failed tenant=%s connector=%s event=%s",
-                        tenant.id, connector_name, event,
+                        "kafka_event_bridge: tenant processing failed — DLQ event tenant=%s connector=%s event=%s key=%s",
+                        tenant.id, connector_name, event, key,
                     )
 
             await db.commit()

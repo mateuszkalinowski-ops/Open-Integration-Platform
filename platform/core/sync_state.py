@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import logging
 import uuid
 from dataclasses import dataclass
 from datetime import datetime, timezone
@@ -16,6 +17,7 @@ from enum import Enum
 from typing import Any
 
 from sqlalchemy import func, select, update
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from db.models import SyncLedger
@@ -91,18 +93,61 @@ class SyncStateManager:
         entity_key: str,
         content_hash: str,
         max_retries: int = 3,
+        *,
+        tenant_id: uuid.UUID | None = None,
+        source_connector: str = "",
+        source_event: str = "",
     ) -> SyncCheckResult:
-        """Check the ledger and decide whether this entity should be synced."""
+        """Check the ledger and decide whether this entity should be synced.
+
+        Uses ``SELECT … FOR UPDATE`` to prevent concurrent executions for the
+        same entity.  When no row exists yet, a "pending" row is inserted
+        immediately so a racing second call will block on the row lock instead
+        of also seeing "no row" and proceeding.
+        """
         result = await db.execute(
-            select(SyncLedger).where(
+            select(SyncLedger)
+            .where(
                 SyncLedger.workflow_id == workflow_id,
                 SyncLedger.entity_key == entity_key,
             )
+            .with_for_update()
         )
         entry = result.scalar_one_or_none()
 
         if entry is None:
-            return SyncCheckResult(decision=SyncDecision.SYNC)
+            if tenant_id is None:
+                return SyncCheckResult(decision=SyncDecision.SYNC)
+            pending = SyncLedger(
+                tenant_id=tenant_id,
+                workflow_id=workflow_id,
+                source_connector=source_connector,
+                source_event=source_event,
+                entity_key=entity_key,
+                content_hash=content_hash,
+                sync_status="pending",
+                attempt_count=0,
+            )
+            try:
+                async with db.begin_nested():
+                    db.add(pending)
+                    await db.flush()
+            except IntegrityError:
+                return SyncCheckResult(decision=SyncDecision.SKIP)
+            except Exception:
+                logging.getLogger(__name__).exception(
+                    "sync_ledger insert failed (not a race condition) workflow=%s entity=%s",
+                    workflow_id, entity_key,
+                )
+                raise
+            return SyncCheckResult(decision=SyncDecision.SYNC, ledger_id=pending.id)
+
+        if entry.sync_status == "pending":
+            return SyncCheckResult(
+                decision=SyncDecision.SKIP,
+                existing_hash=entry.content_hash,
+                ledger_id=entry.id,
+            )
 
         if entry.sync_status == "failed" and entry.attempt_count < max_retries:
             return SyncCheckResult(
@@ -217,14 +262,17 @@ class SyncStateManager:
         self,
         db: AsyncSession,
         workflow_id: uuid.UUID,
+        tenant_id: uuid.UUID | None = None,
     ) -> int:
         """Mark all synced entries as stale (used before full_sync mode)."""
+        filters = [
+            SyncLedger.workflow_id == workflow_id,
+            SyncLedger.sync_status == "synced",
+        ]
+        if tenant_id is not None:
+            filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
-            update(SyncLedger)
-            .where(
-                SyncLedger.workflow_id == workflow_id,
-                SyncLedger.sync_status == "synced",
-            )
+            update(SyncLedger).where(*filters)
             .values(sync_status="stale", updated_at=datetime.now(timezone.utc))
         )
         return result.rowcount  # type: ignore[return-value]
@@ -233,13 +281,17 @@ class SyncStateManager:
         self,
         db: AsyncSession,
         workflow_id: uuid.UUID,
+        tenant_id: uuid.UUID | None = None,
     ) -> dict[str, int]:
+        filters = [SyncLedger.workflow_id == workflow_id]
+        if tenant_id is not None:
+            filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
             select(
                 SyncLedger.sync_status,
                 func.count(SyncLedger.id),
             )
-            .where(SyncLedger.workflow_id == workflow_id)
+            .where(*filters)
             .group_by(SyncLedger.sync_status)
         )
         stats: dict[str, int] = {"synced": 0, "failed": 0, "pending": 0, "stale": 0}
@@ -253,13 +305,17 @@ class SyncStateManager:
         db: AsyncSession,
         workflow_id: uuid.UUID,
         limit: int = 50,
+        tenant_id: uuid.UUID | None = None,
     ) -> list[dict[str, Any]]:
+        filters = [
+            SyncLedger.workflow_id == workflow_id,
+            SyncLedger.sync_status == "failed",
+        ]
+        if tenant_id is not None:
+            filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
             select(SyncLedger)
-            .where(
-                SyncLedger.workflow_id == workflow_id,
-                SyncLedger.sync_status == "failed",
-            )
+            .where(*filters)
             .order_by(SyncLedger.updated_at.desc())
             .limit(limit)
         )
@@ -278,14 +334,18 @@ class SyncStateManager:
         self,
         db: AsyncSession,
         workflow_id: uuid.UUID,
+        tenant_id: uuid.UUID | None = None,
     ) -> int:
         """Reset all failed entries to pending so they are retried."""
+        filters = [
+            SyncLedger.workflow_id == workflow_id,
+            SyncLedger.sync_status == "failed",
+        ]
+        if tenant_id is not None:
+            filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
             update(SyncLedger)
-            .where(
-                SyncLedger.workflow_id == workflow_id,
-                SyncLedger.sync_status == "failed",
-            )
+            .where(*filters)
             .values(
                 sync_status="pending",
                 attempt_count=0,
@@ -299,10 +359,14 @@ class SyncStateManager:
         self,
         db: AsyncSession,
         workflow_id: uuid.UUID,
+        tenant_id: uuid.UUID | None = None,
     ) -> int:
         """Delete all ledger entries for a workflow (force full re-sync)."""
         from sqlalchemy import delete
+        filters = [SyncLedger.workflow_id == workflow_id]
+        if tenant_id is not None:
+            filters.append(SyncLedger.tenant_id == tenant_id)
         result = await db.execute(
-            delete(SyncLedger).where(SyncLedger.workflow_id == workflow_id)
+            delete(SyncLedger).where(*filters)
         )
         return result.rowcount  # type: ignore[return-value]

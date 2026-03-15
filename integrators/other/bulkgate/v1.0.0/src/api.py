@@ -47,7 +47,7 @@ def handle_errors(func):
                 body = exc.response.json()
             except Exception:
                 body = {"error": exc.response.text}
-            logger.error("BulkGate API error %d in %s: %s", status, func.__name__, body)
+            logger.error("BulkGate API error %d in %s", status, func.__name__)
             return body, status
         except Exception as exc:
             logger.exception("Unexpected error in %s", func.__name__)

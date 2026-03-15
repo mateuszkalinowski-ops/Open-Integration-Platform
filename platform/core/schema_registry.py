@@ -135,12 +135,19 @@ class SchemaRegistry:
                 logger.info("schema_registry.schema_changed", extra=change_event)
 
     async def _refresh_loop(self) -> None:
+        consecutive_failures = 0
         while True:
             try:
                 await self.refresh_observed_schemas()
+                consecutive_failures = 0
             except Exception:
-                logger.exception("schema_registry.refresh_failed")
-            await asyncio.sleep(self._refresh_interval_seconds)
+                consecutive_failures += 1
+                logger.exception("schema_registry.refresh_failed", consecutive_failures=consecutive_failures)
+            backoff = min(
+                self._refresh_interval_seconds * (2 ** min(consecutive_failures, 5)),
+                self._refresh_interval_seconds * 32,
+            ) if consecutive_failures > 0 else self._refresh_interval_seconds
+            await asyncio.sleep(backoff)
 
     async def _build_schema_payload(
         self,

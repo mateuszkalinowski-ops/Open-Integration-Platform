@@ -5,6 +5,7 @@ Layer 2: Per-tenant overrides from the database, cached in Redis.
 Resolution: merge defaults with overrides, tenant overrides take priority.
 """
 
+import concurrent.futures
 import json
 import logging
 import re
@@ -21,6 +22,10 @@ from core.redis_client import cache_delete, cache_get, cache_set
 from db.models import FieldMapping
 
 logger = logging.getLogger(__name__)
+
+_REGEX_MAX_PATTERN_LEN = 1000
+_REGEX_TIMEOUT_SECONDS = 2.0
+_regex_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="mr-regex")
 
 _CACHE_PREFIX = "mapping:"
 _DEFAULTS_TTL = 600
@@ -244,7 +249,7 @@ class MappingResolver:
         if t == "template":
             tpl = transform.get("template", "")
             for i, v in enumerate(values):
-                tpl = tpl.replace(f"{{{{{i}}}}}", str(v) if v is not None else "")
+                tpl = tpl.replace(f"{{{i}}}", str(v) if v is not None else "")
             return tpl
         if t == "join":
             sep = transform.get("separator", " ")
@@ -297,11 +302,13 @@ class MappingResolver:
         if t == "regex_extract":
             pattern = transform.get("pattern", "")
             group = transform.get("group", 0)
-            if val is None or not pattern:
+            if val is None or not pattern or len(pattern) > _REGEX_MAX_PATTERN_LEN:
                 return val
             try:
-                match = re.search(pattern, str(val))
-            except re.error:
+                compiled = re.compile(pattern)
+                future = _regex_executor.submit(compiled.search, str(val))
+                match = future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+            except (re.error, concurrent.futures.TimeoutError):
                 return val
             if match:
                 try:
@@ -312,11 +319,13 @@ class MappingResolver:
         if t == "regex_replace":
             pattern = transform.get("pattern", "")
             replacement = transform.get("replacement", "")
-            if val is None or not pattern:
+            if val is None or not pattern or len(pattern) > _REGEX_MAX_PATTERN_LEN:
                 return val
             try:
-                return re.sub(pattern, replacement, str(val))
-            except re.error:
+                compiled = re.compile(pattern)
+                future = _regex_executor.submit(compiled.sub, replacement, str(val))
+                return future.result(timeout=_REGEX_TIMEOUT_SECONDS)
+            except (re.error, concurrent.futures.TimeoutError):
                 return val
         if t == "substring":
             start = transform.get("start", 0)

@@ -4,6 +4,7 @@ import asyncio
 import base64
 import logging
 import smtplib
+import ssl
 import time
 from email.mime.application import MIMEApplication
 from email.mime.multipart import MIMEMultipart
@@ -100,13 +101,14 @@ class SmtpClient:
         msg.attach(part)
 
     def _send_sync(self, mime_msg: MIMEMultipart, all_recipients: list[str]) -> None:
+        ssl_ctx = ssl.create_default_context()
         if self._use_ssl and self._port == 465:
-            server = smtplib.SMTP_SSL(self._host, self._port, timeout=self._timeout)
+            server = smtplib.SMTP_SSL(self._host, self._port, timeout=self._timeout, context=ssl_ctx)
         else:
             server = smtplib.SMTP(self._host, self._port, timeout=self._timeout)
             server.ehlo()
             if self._use_ssl:
-                server.starttls()
+                server.starttls(context=ssl_ctx)
                 server.ehlo()
 
         try:
@@ -164,16 +166,22 @@ class SmtpClient:
         loop = asyncio.get_event_loop()
         try:
             def _test_connection() -> bool:
+                ssl_ctx = ssl.create_default_context()
                 if self._use_ssl and self._port == 465:
-                    server = smtplib.SMTP_SSL(self._host, self._port, timeout=self._timeout)
+                    server = smtplib.SMTP_SSL(self._host, self._port, timeout=self._timeout, context=ssl_ctx)
                 else:
                     server = smtplib.SMTP(self._host, self._port, timeout=self._timeout)
                     server.ehlo()
                     if self._use_ssl:
-                        server.starttls()
+                        server.starttls(context=ssl_ctx)
                         server.ehlo()
-                server.login(self._login, self._password)
-                server.quit()
+                try:
+                    server.login(self._login, self._password)
+                finally:
+                    try:
+                        server.quit()
+                    except Exception:
+                        server.close()
                 return True
 
             return await loop.run_in_executor(None, _test_connection)

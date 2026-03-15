@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Input, OnChanges, OnInit, Output, SimpleChanges } from '@angular/core';
+import { Component, EventEmitter, Input, OnChanges, OnDestroy, OnInit, Output, SimpleChanges } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormArray, FormBuilder, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { MatFormFieldModule } from '@angular/material/form-field';
@@ -8,7 +8,8 @@ import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { MatStepperModule } from '@angular/material/stepper';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
-import { forkJoin } from 'rxjs';
+import { forkJoin, Subject } from 'rxjs';
+import { takeUntil } from 'rxjs/operators';
 
 import { Connector, ConnectorFieldDef, Flow, FieldMapping, COUNTRY_FLAG_MAP } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
@@ -213,7 +214,7 @@ import { VisualFieldMapperComponent } from '../visual-field-mapper/visual-field-
     .flow-designer__manual-toggle { margin: 14px 0 10px; }
   `],
 })
-export class FlowDesignerComponent implements OnInit, OnChanges {
+export class FlowDesignerComponent implements OnInit, OnChanges, OnDestroy {
   @Input() editFlow: Flow | null = null;
   @Output() flowCreated = new EventEmitter<Flow>();
   @Output() flowUpdated = new EventEmitter<Flow>();
@@ -229,6 +230,9 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
   sourceForm: FormGroup;
   destForm: FormGroup;
   mappingForm: FormGroup;
+
+  private readonly destroy$ = new Subject<void>();
+  private schemaRequestId = 0;
 
   constructor(
     private readonly fb: FormBuilder,
@@ -256,11 +260,16 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
   get visualMappings(): FieldMapping[] {
     const raw = this.mappingForm.value.field_mapping ?? [];
     return raw
-      .map((mapping: { from: string; to: string; from_custom?: string; to_custom?: string }) => ({
-        from: mapping.from === '__custom__' ? (mapping.from_custom ?? '') : mapping.from,
-        to: mapping.to === '__custom__' ? (mapping.to_custom ?? '') : mapping.to,
-      }))
-      .filter((mapping: FieldMapping) => mapping.from || mapping.to);
+      .map((mapping: any) => {
+        const resolved: FieldMapping = {
+          from: mapping.from === '__custom__' ? (mapping.from_custom ?? '') : mapping.from,
+          to: mapping.to === '__custom__' ? (mapping.to_custom ?? '') : mapping.to,
+        };
+        if (mapping.sources?.length) resolved.sources = mapping.sources;
+        if (mapping.transform) resolved.transform = mapping.transform;
+        return resolved;
+      })
+      .filter((mapping: FieldMapping) => mapping.from || mapping.to || mapping.sources?.length);
   }
 
   get mappingContextHint(): string {
@@ -271,15 +280,28 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
     return `Map ${source}.${event} to ${destination}.${action}`.trim();
   }
 
+  ngOnDestroy(): void {
+    this.destroy$.next();
+    this.destroy$.complete();
+  }
+
   ngOnInit(): void {
     forkJoin({
       connectors: this.api.listConnectors(),
       instances: this.api.listConnectorInstances(),
-    }).subscribe(({ connectors, instances }) => {
+    }).pipe(takeUntil(this.destroy$)).subscribe(({ connectors, instances }) => {
       const activeKeys = new Set(
         instances.filter(i => i.is_enabled).map(i => `${i.connector_name}:${i.connector_version}`)
       );
-      this.connectors = connectors.filter(c => activeKeys.has(`${c.name}:${c.version}`));
+      const active = connectors.filter(c => activeKeys.has(`${c.name}:${c.version}`));
+      const byName = new Map<string, typeof active[0]>();
+      for (const c of active) {
+        const existing = byName.get(c.name);
+        if (!existing || this.compareSemver(c.version, existing.version) > 0) {
+          byName.set(c.name, c);
+        }
+      }
+      this.connectors = Array.from(byName.values());
 
       if (this.editFlow) {
         this.populateForm(this.editFlow);
@@ -319,6 +341,8 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
         to: [m.to || ''],
         from_custom: [''],
         to_custom: [''],
+        sources: [m.sources ?? []],
+        transform: [m.transform ?? null],
       }));
     }
   }
@@ -373,11 +397,16 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
     const connector = this.connectors.find(c => c.name === connectorName);
     this.destFieldDefs = connector?.action_fields?.[actionName] ?? [];
     if (connectorName && actionName) {
-      this.api.getConnectorActionSchema(connectorName, actionName, connector?.version).subscribe({
+      const requestId = ++this.schemaRequestId;
+      this.api.getConnectorActionSchema(connectorName, actionName, connector?.version).pipe(
+        takeUntil(this.destroy$),
+      ).subscribe({
         next: schema => {
+          if (requestId !== this.schemaRequestId) return;
           this.destFieldDefs = schema.input_fields.length > 0 ? schema.input_fields : this.destFieldDefs;
         },
         error: () => {
+          if (requestId !== this.schemaRequestId) return;
           this.destFieldDefs = connector?.action_fields?.[actionName] ?? [];
         },
       });
@@ -402,7 +431,10 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
   }
 
   addMapping(): void {
-    this.fieldMappings.push(this.fb.group({ from: [''], to: [''], from_custom: [''], to_custom: [''] }));
+    this.fieldMappings.push(this.fb.group({
+      from: [''], to: [''], from_custom: [''], to_custom: [''],
+      sources: [[]], transform: [null],
+    }));
   }
 
   removeMapping(index: number): void {
@@ -417,18 +449,24 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
         to: [mapping.to || ''],
         from_custom: [''],
         to_custom: [''],
+        sources: [mapping.sources ?? []],
+        transform: [mapping.transform ?? null],
       }));
     }
   }
 
   saveFlow(): void {
     this.saving = true;
-    const rawMapping: { from: string; to: string; from_custom?: string; to_custom?: string }[] =
-      this.mappingForm.value.field_mapping ?? [];
-    const resolvedMapping = rawMapping.map(m => ({
-      from: m.from === '__custom__' ? (m.from_custom ?? '') : m.from,
-      to: m.to === '__custom__' ? (m.to_custom ?? '') : m.to,
-    }));
+    const rawMapping: any[] = this.mappingForm.value.field_mapping ?? [];
+    const resolvedMapping = rawMapping.map(m => {
+      const entry: any = {
+        from: m.from === '__custom__' ? (m.from_custom ?? '') : m.from,
+        to: m.to === '__custom__' ? (m.to_custom ?? '') : m.to,
+      };
+      if (m.sources?.length) entry.sources = m.sources;
+      if (m.transform) entry.transform = m.transform;
+      return entry;
+    });
     const body = {
       ...this.mappingForm.value,
       ...this.sourceForm.value,
@@ -461,5 +499,15 @@ export class FlowDesignerComponent implements OnInit, OnChanges {
         },
       });
     }
+  }
+
+  private compareSemver(a: string, b: string): number {
+    const pa = a.split(/[^0-9]+/).filter(Boolean).map(Number);
+    const pb = b.split(/[^0-9]+/).filter(Boolean).map(Number);
+    for (let i = 0; i < Math.max(pa.length, pb.length); i++) {
+      const diff = (pa[i] ?? 0) - (pb[i] ?? 0);
+      if (diff !== 0) return diff;
+    }
+    return 0;
   }
 }

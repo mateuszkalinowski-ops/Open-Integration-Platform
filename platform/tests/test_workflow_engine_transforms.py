@@ -278,15 +278,15 @@ class TestApplyTransformAdvanced:
 
 class TestApplyTransformMultiSource:
     def test_template(self, engine: WorkflowEngine) -> None:
-        t = {"type": "template", "template": "{{0}} {{1}}"}
+        t = {"type": "template", "template": "{0} {1}"}
         assert engine._apply_transform(["Jan", "Kowalski"], t) == "Jan Kowalski"
 
     def test_template_with_none(self, engine: WorkflowEngine) -> None:
-        t = {"type": "template", "template": "{{0}} {{1}}"}
+        t = {"type": "template", "template": "{0} {1}"}
         assert engine._apply_transform(["Jan", None], t) == "Jan "
 
     def test_template_three_sources(self, engine: WorkflowEngine) -> None:
-        t = {"type": "template", "template": "{{0}}, {{1}} {{2}}"}
+        t = {"type": "template", "template": "{0}, {1} {2}"}
         assert engine._apply_transform(["Marszałkowska 1", "00-001", "Warszawa"], t) == "Marszałkowska 1, 00-001 Warszawa"
 
     def test_join(self, engine: WorkflowEngine) -> None:
@@ -343,7 +343,7 @@ class TestApplyFieldMapping:
             {
                 "sources": ["buyer.last_name", "buyer.first_name"],
                 "to": "full_name",
-                "transform": {"type": "template", "template": "{{0}}, {{1}}"},
+                "transform": {"type": "template", "template": "{0}, {1}"},
             }
         ]
         result = engine._apply_field_mapping(mappings, ctx)
