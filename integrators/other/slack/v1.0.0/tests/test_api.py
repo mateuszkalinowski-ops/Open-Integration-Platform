@@ -20,35 +20,29 @@ from src.slack_client.schemas import (
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        SlackAccountConfig(
-            name="test",
-            bot_token="xoxb-test-token",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            SlackAccountConfig(
+                name="test",
+                bot_token="xoxb-test-token",
+            )
         )
-    )
-    app_state.account_manager = account_manager
+        app_state.account_manager = account_manager
 
-    integration = MagicMock(spec=SlackIntegration)
-    integration.get_auth_status = AsyncMock(
-        return_value=AuthStatusResponse(
-            account_name="test",
-            authenticated=True,
-            bot_user_id="U001",
-            team_name="TestTeam",
+        integration = MagicMock(spec=SlackIntegration)
+        integration.get_auth_status = AsyncMock(
+            return_value=AuthStatusResponse(
+                account_name="test",
+                authenticated=True,
+                bot_user_id="U001",
+                team_name="TestTeam",
+            )
         )
-    )
-    app_state.integration = integration
+        app_state.integration = integration
 
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
         yield c
 
 
