@@ -1,5 +1,6 @@
 """Tests for FtpSftpClient path resolution and protocol dispatch."""
 
+import pytest
 from src.config import FtpAccountConfig
 from src.ftp_client.client import FtpSftpClient
 
@@ -7,7 +8,8 @@ from src.ftp_client.client import FtpSftpClient
 def test_resolve_path_absolute():
     account = FtpAccountConfig(name="t", host="h", base_path="/data")
     client = FtpSftpClient(account)
-    assert client._resolve_path("/absolute/path") == "/absolute/path"
+    with pytest.raises(ValueError, match="Path escapes base directory"):
+        client._resolve_path("/absolute/path")
 
 
 def test_resolve_path_relative():

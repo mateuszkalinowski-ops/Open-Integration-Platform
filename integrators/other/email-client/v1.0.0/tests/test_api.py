@@ -19,35 +19,28 @@ from src.services.account_manager import AccountManager
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        EmailAccountConfig(
-            name="test",
-            email_address="test@example.com",
-            password="pass",
-            imap_host="imap.example.com",
-            smtp_host="smtp.example.com",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            EmailAccountConfig(
+                name="test",
+                email_address="test@example.com",
+                password="pass",
+                imap_host="imap.example.com",
+                smtp_host="smtp.example.com",
+            )
         )
-    )
-    app_state.account_manager = account_manager
+        app_state.account_manager = account_manager
 
-    integration = MagicMock(spec=EmailIntegration)
-    integration.get_auth_status.return_value = AuthStatusResponse(
-        account_name="test",
-        imap_connected=False,
-        smtp_connected=False,
-    )
-    app_state.integration = integration
-
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
+        integration = MagicMock(spec=EmailIntegration)
+        integration.get_auth_status.return_value = AuthStatusResponse(
+            account_name="test",
+            imap_connected=False,
+            smtp_connected=False,
+        )
+        app_state.integration = integration
         yield c
 
 

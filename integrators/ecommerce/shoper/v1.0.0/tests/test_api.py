@@ -10,27 +10,20 @@ from src.shoper.auth import ShoperAuthManager
 
 
 @pytest.fixture
-def test_app():
+def client():
     application = create_app()
-
-    account_manager = AccountManager()
-    account_manager.add_account(
-        ShoperAccountConfig(
-            name="test",
-            shop_url="https://test.shoparena.pl",
-            login="admin",
-            password="pass",
+    with TestClient(application, raise_server_exceptions=False) as c:
+        account_manager = AccountManager()
+        account_manager.add_account(
+            ShoperAccountConfig(
+                name="test",
+                shop_url="https://test.shoparena.pl",
+                login="admin",
+                password="pass",
+            )
         )
-    )
-    app_state.account_manager = account_manager
-    app_state.auth_manager = ShoperAuthManager()
-
-    return application
-
-
-@pytest.fixture
-def client(test_app):
-    with TestClient(test_app, raise_server_exceptions=False) as c:
+        app_state.account_manager = account_manager
+        app_state.auth_manager = ShoperAuthManager()
         yield c
 
 

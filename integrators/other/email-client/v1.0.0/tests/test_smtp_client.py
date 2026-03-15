@@ -77,8 +77,11 @@ class TestSmtpBuildMessage:
             body_html="<h1>Hello</h1>",
         )
         msg = self.smtp._build_message(request)
-        payload = msg.as_string()
-        assert "<h1>Hello</h1>" in payload
+        parts = list(msg.walk())
+        html_parts = [p for p in parts if p.get_content_type() == "text/html"]
+        assert html_parts, "Expected at least one text/html part"
+        decoded = html_parts[0].get_payload(decode=True).decode()
+        assert "<h1>Hello</h1>" in decoded
 
     def test_build_message_with_attachment(self) -> None:
         import base64

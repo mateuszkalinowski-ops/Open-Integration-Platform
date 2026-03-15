@@ -166,7 +166,7 @@ class TestStockEndpoints:
             },
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "SUCCESS"
+        assert response.json()["status"] == "success"
         assert response.json()["succeeded"] == 2
 
 
@@ -195,4 +195,4 @@ class TestProductEndpoints:
             },
         )
         assert response.status_code == 200
-        assert response.json()["status"] == "SUCCESS"
+        assert response.json()["status"] == "success"
