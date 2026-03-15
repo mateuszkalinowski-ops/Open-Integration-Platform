@@ -69,7 +69,9 @@ jobs:
               if [ -f "$dir/requirements-dev.txt" ]; then
                 pip install -r "$dir/requirements-dev.txt"
               fi
-              if ! (cd "$dir" && python -m pytest tests/ -v --tb=short); then
+              (cd "$dir" && python -m pytest tests/ -v --tb=short)
+              rc=$?
+              if [ $rc -ne 0 ] && [ $rc -ne 5 ]; then
                 FAILED=1
               fi
             fi
