@@ -147,7 +147,10 @@ class WebhookIngestionService:
                 connector=connector_name,
                 event_type=event_type,
             )
-            return {"status": "rejected", "reason": "Webhook signature verification required but not configured for this event"}
+            return {
+                "status": "rejected",
+                "reason": "Webhook signature verification required but not configured for this event",
+            }
 
         external_id = self._extract_external_id(headers, payload)
         if external_id:

@@ -642,7 +642,9 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
     import traceback
 
     tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
-    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc), traceback=tb)
+    await logger.aerror(
+        "unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc), traceback=tb
+    )
     detail = f"{type(exc).__name__}: {exc}"
     show_detail = settings.app_env != "production" or (
         settings.admin_secret and request.headers.get("X-Admin-Secret", "") == settings.admin_secret

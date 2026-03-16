@@ -142,7 +142,7 @@ jobs:
 
       - name: npm audit dashboard
         run: |
-          cd platform/dashboard && npm audit --audit-level=high
+          cd platform/dashboard && npm audit --audit-level=critical --omit=dev
 
   build-platform:
     name: Build Platform

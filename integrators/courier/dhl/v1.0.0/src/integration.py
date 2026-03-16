@@ -434,7 +434,7 @@ class DhlIntegration:
                         structure=structure,
                     )
             else:
-                    response = self.client.service.getNearestServicepoints(
+                response = self.client.service.getNearestServicepoints(
                     authData=self._get_auth_data(credentials),
                     structure=structure,
                 )
