@@ -325,6 +325,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
     await logger.ainfo("redis_connected")
 
     async with async_session_factory() as db_session:
+        await set_rls_bypass(db_session)
         tenant_result = await db_session.execute(select(Tenant).limit(1))
         existing_tenant = tenant_result.scalar_one_or_none()
 
