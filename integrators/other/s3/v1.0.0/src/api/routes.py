@@ -1,6 +1,7 @@
 """FastAPI routes for S3 integrator."""
 
 import binascii
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
@@ -27,6 +28,7 @@ from src.s3_client.validators import S3ValidationError
 
 _CLIENT_ERRORS = (S3ValidationError, ValueError, binascii.Error)
 
+logger = logging.getLogger(__name__)
 router = APIRouter()
 
 
@@ -48,7 +50,8 @@ async def readiness() -> dict[str, Any]:
         data = result.model_dump() if hasattr(result, "model_dump") else result
         status = result.status if hasattr(result, "status") else data.get("status")
         if status != "healthy":
-            raise HTTPException(status_code=503, detail=data)
+            logger.error("S3 readiness check failed: %s", data)
+            raise HTTPException(status_code=503, detail="Service unavailable")
         return data
     return {"status": "ready"}
 
@@ -63,7 +66,8 @@ async def test_connection(account_name: str) -> ConnectionTestResponse:
     try:
         return await app_state.integration.test_connection(account_name)
     except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Connection test failed: {exc}") from exc
+        logger.exception("S3 connection test failed")
+        raise HTTPException(status_code=502, detail="Connection test failed") from exc
 
 
 @router.get("/auth/status", response_model=list[dict[str, str]])
@@ -178,7 +182,8 @@ async def list_objects(
             max_keys=max_keys,
         )
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 list_objects failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.post("/objects/upload", response_model=ObjectUploadResponse)
@@ -190,7 +195,8 @@ async def upload_object(
     try:
         return await app_state.integration.upload_object(account_name, body)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 upload_object failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.get("/objects/download", response_model=ObjectDownloadResponse)
@@ -203,7 +209,8 @@ async def download_object(
     try:
         return await app_state.integration.download_object(account_name, bucket, key)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 download_object failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.delete("/objects")
@@ -215,7 +222,8 @@ async def delete_object(
     try:
         return await app_state.integration.delete_object(account_name, body)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 delete_object failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.post("/objects/copy", response_model=ObjectCopyResponse)
@@ -227,7 +235,8 @@ async def copy_object(
     try:
         return await app_state.integration.copy_object(account_name, body)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 copy_object failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.post("/objects/presign", response_model=PresignResponse)
@@ -239,7 +248,8 @@ async def generate_presigned_url(
     try:
         return await app_state.integration.generate_presigned_url(account_name, body)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 generate_presigned_url failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 # --- Buckets ---
@@ -266,7 +276,8 @@ async def create_bucket(
             region=body.region,
         )
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 create_bucket failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 @router.delete("/buckets/{bucket}")
@@ -278,7 +289,8 @@ async def delete_bucket(
     try:
         return await app_state.integration.delete_bucket(account_name, bucket)
     except _CLIENT_ERRORS as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        logger.exception("S3 delete_bucket failed")
+        raise HTTPException(status_code=400, detail="Request failed") from exc
 
 
 # --- Helpers ---

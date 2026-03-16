@@ -64,14 +64,15 @@ async def create_shipment(request: CreateShipmentRequest):
         if isinstance(result, tuple):
             data, code = result
             if code >= 400:
-                raise HTTPException(status_code=code, detail=str(data))
+                logger.error("GLS shipment creation failed: %s", data)
+                raise HTTPException(status_code=code, detail="GLS shipment creation failed")
             return JSONResponse(content=data, status_code=code)
         return JSONResponse(content=result, status_code=201)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create GLS shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="GLS shipment creation failed")
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -84,12 +85,14 @@ async def get_tracking(
         credentials = GlsCredentials(username=username, password=password)
         result, status_code = integration.get_tracking_info(credentials, waybill_number)
         if status_code != 200:
-            raise HTTPException(status_code=status_code, detail=str(result))
+            logger.error("GLS tracking lookup failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="GLS tracking lookup failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("GLS tracking lookup failed")
+        raise HTTPException(status_code=500, detail="GLS tracking lookup failed")
 
 
 @app.post("/rates")
@@ -113,11 +116,11 @@ async def get_rates(request: RateRequest):
             source="gls",
             raw={"method": "pricing_table", "weight": request.weight},
         ).model_dump()
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to calculate GLS rates")
         return StandardizedRateResponse(
             source="gls",
-            raw={"error": str(exc)},
+            raw={"error": "GLS rate calculation failed"},
         ).model_dump()
 
 
@@ -221,13 +224,14 @@ async def get_label(request: LabelRequest):
             args,
         )
         if status_code != 200:
-            raise HTTPException(status_code=status_code, detail=str(label_bytes))
+            logger.error("GLS label retrieval failed: %s", label_bytes)
+            raise HTTPException(status_code=status_code, detail="GLS label retrieval failed")
         return Response(content=label_bytes, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get GLS label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="GLS label retrieval failed")
 
 
 if augment_legacy_fastapi_app is not None:

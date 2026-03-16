@@ -3,9 +3,12 @@
 All entity operations are proxied to the on-premise agent.
 """
 
+import logging
 from typing import Any
 
 from fastapi import APIRouter, HTTPException, Query
+
+logger = logging.getLogger(__name__)
 
 from src.api.dependencies import app_state
 
@@ -36,7 +39,8 @@ async def readiness() -> dict[str, Any]:
         data = result.model_dump() if hasattr(result, "model_dump") else result
         status = result.status if hasattr(result, "status") else data.get("status")
         if status != "healthy":
-            raise HTTPException(status_code=503, detail=data)
+            logger.error("InsERT Nexo readiness check failed: %s", data)
+            raise HTTPException(status_code=503, detail="Service unavailable")
         return data
     return {"status": "ready"}
 
@@ -54,8 +58,9 @@ async def agent_health(account: str) -> dict[str, Any]:
     proxy = _get_proxy(account)
     try:
         return await proxy.health()
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}") from exc
+    except Exception:
+        logger.exception("InsERT Nexo agent unreachable")
+        raise HTTPException(status_code=502, detail="Agent unreachable")
 
 
 @router.get("/agents/{account}/connection/status")
@@ -63,8 +68,9 @@ async def agent_connection_status(account: str) -> dict[str, Any]:
     proxy = _get_proxy(account)
     try:
         return await proxy.get("/connection/status")
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Agent unreachable: {exc}") from exc
+    except Exception:
+        logger.exception("InsERT Nexo agent unreachable")
+        raise HTTPException(status_code=502, detail="Agent unreachable")
 
 
 # --- Contractors ---

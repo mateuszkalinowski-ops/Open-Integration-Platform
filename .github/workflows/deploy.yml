@@ -71,13 +71,18 @@ jobs:
             DOMAIN="${{ secrets.DOMAIN }}"
             printf '%s\n' \
               "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
+              "DB_APP_PASSWORD=${{ secrets.DB_APP_PASSWORD }}" \
               "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" \
               "DEFAULT_API_KEY=${DEFAULT_KEY}" \
               "ADMIN_SECRET=${{ secrets.ADMIN_SECRET }}" \
               "INTERNAL_SECRET=${{ secrets.INTERNAL_SECRET }}" \
+              "REDIS_PASSWORD=${{ secrets.REDIS_PASSWORD }}" \
+              "KAFKA_SASL_PASSWORD=${{ secrets.KAFKA_SASL_PASSWORD }}" \
               "DOMAIN=${DOMAIN}" \
               "GITHUB_ORG=${{ github.repository_owner }}" \
-              "DEMO_MODE=true" \
+              "DEMO_MODE=${{ secrets.DEMO_MODE || 'false' }}" \
+              "TRUSTED_PROXY_IPS=172.18.0.0/16" \
+              "IMAGE_TAG=${SHA}" \
               > .env
 
             # ── Template nginx.conf with actual domain ──

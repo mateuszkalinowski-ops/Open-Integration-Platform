@@ -295,3 +295,22 @@ class WmsCredentials(BaseModel):
     username: str
     password: str
     polling_interval_seconds: int | None = None
+
+    @field_validator("api_url")
+    @classmethod
+    def _validate_api_url(cls, v: str) -> str:
+        from urllib.parse import urlparse
+
+        parsed = urlparse(v)
+        if parsed.scheme not in ("http", "https"):
+            raise ValueError("api_url must use http or https scheme")
+        host = parsed.hostname or ""
+        if host in ("localhost", "127.0.0.1", "::1", "metadata.google.internal"):
+            raise ValueError("api_url must not target localhost or metadata endpoints")
+        _private_prefixes = ("10.", "172.16.", "172.17.", "172.18.", "172.19.",
+                             "172.20.", "172.21.", "172.22.", "172.23.", "172.24.",
+                             "172.25.", "172.26.", "172.27.", "172.28.", "172.29.",
+                             "172.30.", "172.31.", "192.168.", "169.254.")
+        if any(host.startswith(p) for p in _private_prefixes):
+            raise ValueError("api_url must not target private network addresses")
+        return v

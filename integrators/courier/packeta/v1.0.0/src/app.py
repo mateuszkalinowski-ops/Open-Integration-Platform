@@ -62,7 +62,8 @@ async def create_shipment(request: CreateShipmentRequest):
         request.command,
     )
     if status_code >= 400:
-        raise HTTPException(status_code=status_code, detail=result)
+        logger.error("Packeta shipment creation failed: %s", result)
+        raise HTTPException(status_code=status_code, detail="Packeta shipment creation failed")
     return JSONResponse(content=result, status_code=status_code)
 
 
@@ -73,7 +74,8 @@ async def get_status(request: StatusRequest):
         request.waybill_number,
     )
     if status_code >= 400:
-        raise HTTPException(status_code=status_code, detail=result)
+        logger.error("Packeta status lookup failed: %s", result)
+        raise HTTPException(status_code=status_code, detail="Packeta status lookup failed")
     return {"status": result}
 
 
@@ -85,7 +87,8 @@ async def get_label(request: LabelRequest):
         request.external_id,
     )
     if status_code >= 400:
-        raise HTTPException(status_code=status_code, detail=label_bytes)
+        logger.error("Packeta label retrieval failed: %s", label_bytes)
+        raise HTTPException(status_code=status_code, detail="Packeta label retrieval failed")
     return Response(content=label_bytes, media_type="application/pdf")
 
 
@@ -96,7 +99,8 @@ async def cancel_shipment(request: DeleteRequest):
         request.waybill_number,
     )
     if status_code >= 400:
-        raise HTTPException(status_code=status_code, detail=result)
+        logger.error("Packeta shipment deletion failed: %s", result)
+        raise HTTPException(status_code=status_code, detail="Packeta shipment deletion failed")
     return {"result": result}
 
 

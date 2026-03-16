@@ -67,13 +67,14 @@ async def create_shipment(request: CreateShipmentRequest):
     try:
         result, status_code = integration.create_order(request.credentials, request.command)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("DPD create_order error %d: %s", status_code, result)
+            raise HTTPException(status_code=status_code, detail="DPD shipment creation failed")
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create DPD shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal error creating DPD shipment")
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -89,12 +90,14 @@ async def get_status(
         info_creds = DpdInfoCredentials(login=login, password=password, channel=info_channel) if info_channel else None
         result, status_code = integration.get_order_status(credentials, waybill_number, info_creds)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("DPD get_order_status error %d: %s", status_code, result)
+            raise HTTPException(status_code=status_code, detail="DPD status query failed")
         return {"status": result}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Failed to get DPD status")
+        raise HTTPException(status_code=500, detail="Internal error querying DPD status")
 
 
 @app.post("/labels")
@@ -111,14 +114,15 @@ async def get_label(request: LabelRequest):
         if isinstance(label_bytes, tuple):
             data, code = label_bytes
             if code != 200:
-                raise HTTPException(status_code=code, detail=str(data))
+                logger.error("DPD label error %d: %s", code, data)
+                raise HTTPException(status_code=code, detail="DPD label retrieval failed")
             label_bytes = data
         return Response(content=label_bytes, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get DPD label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal error retrieving DPD label")
 
 
 @app.post("/rates")
@@ -142,11 +146,11 @@ async def get_rates(request: RateRequest):
             source="dpd",
             raw={"method": "pricing_table", "weight": request.weight},
         ).model_dump()
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to calculate DPD rates")
         return StandardizedRateResponse(
             source="dpd",
-            raw={"error": str(exc)},
+            raw={"error": "Rate calculation failed"},
         ).model_dump()
 
 
@@ -245,13 +249,14 @@ async def generate_protocol(request: ProtocolRequest):
             request.session_type,
         )
         if status_code != 200:
-            raise HTTPException(status_code=status_code, detail=str(result))
+            logger.error("DPD protocol error %d: %s", status_code, result)
+            raise HTTPException(status_code=status_code, detail="DPD protocol generation failed")
         return Response(content=result, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to generate DPD protocol")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal error generating DPD protocol")
 
 
 if augment_legacy_fastapi_app is not None:

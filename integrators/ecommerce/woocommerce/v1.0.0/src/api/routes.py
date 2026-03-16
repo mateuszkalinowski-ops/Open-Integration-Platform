@@ -112,7 +112,8 @@ async def readiness():
     if app_state.health_checker:
         result = await app_state.health_checker.run()
         if result.status != "healthy":
-            raise HTTPException(status_code=503, detail=result.model_dump())
+            logger.error("WooCommerce readiness check failed: %s", result.model_dump())
+            raise HTTPException(status_code=503, detail="Service unavailable")
         return result
     return {"status": "ready"}
 
@@ -139,8 +140,9 @@ async def test_connection(account_name: str):
     try:
         result = await app_state.client.test_connection(account_name)
         return {"status": "connected", "woocommerce_version": result.get("settings", {}).get("version", "unknown")}
-    except Exception as exc:
-        raise HTTPException(status_code=502, detail=f"Connection test failed: {exc}") from exc
+    except Exception:
+        logger.exception("WooCommerce connection test failed")
+        raise HTTPException(status_code=502, detail="Connection test failed")
 
 
 @router.get("/connection/{account_name}/status")
@@ -403,8 +405,9 @@ async def upload_invoice_json(order_id: str, body: InvoiceUploadJsonRequest, acc
     _require_auth(account_name)
     try:
         contents = base64.b64decode(body.invoice_base64)
-    except (ValueError, KeyError) as exc:
-        raise HTTPException(status_code=400, detail=f"Invalid base64: {exc}") from exc
+    except (ValueError, KeyError):
+        logger.exception("WooCommerce invalid base64 invoice")
+        raise HTTPException(status_code=400, detail="Invalid base64 input")
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
     result = await app_state.integration.upload_invoice(

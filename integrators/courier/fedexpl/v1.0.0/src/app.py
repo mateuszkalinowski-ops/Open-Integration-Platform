@@ -58,9 +58,9 @@ async def create_shipment(request: CreateShipmentRequest):
             request.command,
         )
         return JSONResponse(content=result, status_code=status_code)
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create FedEx PL shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="FedEx PL shipment creation failed")
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -71,8 +71,9 @@ async def get_status(waybill_number: str, credentials: FedexPlCredentials):
             waybill_number,
         )
         return JSONResponse(content={"status": result}, status_code=status_code)
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("FedEx PL shipment status retrieval failed")
+        raise HTTPException(status_code=500, detail="FedEx PL shipment status retrieval failed")
 
 
 @app.post("/labels")
@@ -86,9 +87,9 @@ async def get_label(request: LabelRequest):
         if status_code != 200:
             return JSONResponse(content={"error": str(label_bytes)}, status_code=status_code)
         return Response(content=label_bytes, media_type="application/pdf")
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get FedEx PL label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="FedEx PL label retrieval failed")
 
 
 if augment_legacy_fastapi_app is not None:

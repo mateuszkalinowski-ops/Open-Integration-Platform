@@ -7,13 +7,50 @@ that configuration and executes the appropriate checks.
 """
 
 import asyncio
+import ipaddress
+import logging
 import time
 from typing import Any
+from urllib.parse import urlparse
 
 import httpx
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
 
 _TIMEOUT = httpx.Timeout(connect=10, read=15, write=10, pool=10)
+
+_logger = logging.getLogger(__name__)
+
+_BLOCKED_NETWORKS = [
+    ipaddress.ip_network("10.0.0.0/8"),
+    ipaddress.ip_network("172.16.0.0/12"),
+    ipaddress.ip_network("192.168.0.0/16"),
+    ipaddress.ip_network("127.0.0.0/8"),
+    ipaddress.ip_network("169.254.0.0/16"),
+    ipaddress.ip_network("::1/128"),
+    ipaddress.ip_network("fc00::/7"),
+    ipaddress.ip_network("fe80::/10"),
+]
+
+
+def _is_url_safe(url: str) -> bool:
+    """Reject URLs targeting private/internal IP ranges (SSRF protection)."""
+    try:
+        parsed = urlparse(url)
+        hostname = parsed.hostname
+        if not hostname:
+            return False
+        if hostname in ("localhost", "metadata.google.internal"):
+            return False
+        import socket
+
+        for info in socket.getaddrinfo(hostname, None, socket.AF_UNSPEC, socket.SOCK_STREAM):
+            addr = ipaddress.ip_address(info[4][0])
+            if any(addr in net for net in _BLOCKED_NETWORKS):
+                _logger.warning("SSRF blocked: %s resolves to private IP %s", hostname, addr)
+                return False
+    except (ValueError, socket.gaierror):
+        return False
+    return True
 
 
 def _missing_fields(creds: dict[str, str], fields: list[str], service_name: str) -> dict[str, Any] | None:
@@ -184,6 +221,10 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
     smtp_port = int(creds.get("smtp_port", "587"))
     use_ssl = creds.get("use_ssl", "true").lower() in ("true", "1", "yes")
 
+    for host in (imap_host, smtp_host):
+        if host and not _is_url_safe(f"tcp://{host}"):
+            return {"status": "failed", "message": f"Connection to {display_name} blocked: private/internal host"}
+
     loop = asyncio.get_event_loop()
     results: dict[str, Any] = {}
     start = time.monotonic()
@@ -252,6 +293,10 @@ async def _execute_test_request(test_cfg: dict, creds: dict[str, str], display_n
 
     url = _resolve_template(test_cfg["url_template"], creds, defaults)
     url = _deduplicate_url_path(url)
+
+    if not _is_url_safe(url):
+        return {"status": "failed", "message": f"Validation blocked: URL targets a private or internal address"}
+
     method = test_cfg.get("method", "GET")
 
     headers: dict[str, str] | None = None

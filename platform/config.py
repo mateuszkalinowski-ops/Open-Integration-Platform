@@ -29,8 +29,8 @@ class Settings(BaseSettings):
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800
 
-    # Redis (override via REDIS_URL env var; use redis://:password@host for production)
-    redis_url: str = "redis://localhost:6379/0"
+    # Redis — MUST be overridden; production requires authentication
+    redis_url: str = "redis://:changeme@localhost:6379/0"
     redis_max_connections: int = 50
     redis_socket_timeout: float = 5.0
     redis_cache_ttl: int = 300

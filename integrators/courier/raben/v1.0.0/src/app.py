@@ -75,13 +75,14 @@ async def create_shipment(request: CreateShipmentRequest):
             request,
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben shipment creation failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben shipment creation failed")
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create Raben transport order")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Raben shipment creation failed")
 
 
 @app.get("/shipments/{waybill_number}")
@@ -101,12 +102,14 @@ async def get_shipment(
     try:
         result, status_code = await integration.get_order(credentials, waybill_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben shipment retrieval failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben shipment retrieval failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben shipment retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben shipment retrieval failed")
 
 
 @app.put("/shipments/{waybill_number}/cancel")
@@ -126,12 +129,14 @@ async def cancel_shipment(
     try:
         result, status_code = await integration.cancel_order(credentials, waybill_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben shipment cancellation failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben shipment cancellation failed")
         return {"result": result}
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben shipment cancellation failed")
+        raise HTTPException(status_code=500, detail="Raben shipment cancellation failed")
 
 
 # ---------------------------------------------------------------------------
@@ -156,12 +161,14 @@ async def get_tracking(
     try:
         result, status_code = await integration.get_tracking(credentials, waybill_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben tracking retrieval failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben tracking retrieval failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben tracking retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben tracking retrieval failed")
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -184,12 +191,14 @@ async def get_shipment_status(
             waybill_number,
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben shipment status retrieval failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben shipment status retrieval failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben shipment status retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben shipment status retrieval failed")
 
 
 @app.get("/shipments/{waybill_number}/eta")
@@ -209,12 +218,14 @@ async def get_eta(
     try:
         result, status_code = await integration.get_eta(credentials, waybill_number)
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben ETA retrieval failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben ETA retrieval failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben ETA retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben ETA retrieval failed")
 
 
 # ---------------------------------------------------------------------------
@@ -231,14 +242,15 @@ async def get_label(request: LabelRequest):
             request.format,
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=label_data)
+            logger.error("Raben label retrieval failed: %s", label_data)
+            raise HTTPException(status_code=status_code, detail="Raben label retrieval failed")
         media_type = "application/pdf" if request.format == "pdf" else "application/x-zpl"
         return Response(content=label_data, media_type=media_type)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get Raben label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Raben label retrieval failed")
 
 
 # ---------------------------------------------------------------------------
@@ -258,13 +270,14 @@ async def create_claim(request: ClaimSubmitRequest):
             request.contact_phone,
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben claim creation failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben claim creation failed")
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to create Raben claim")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Raben claim creation failed")
 
 
 # ---------------------------------------------------------------------------
@@ -292,12 +305,14 @@ async def get_delivery_confirmation(
             waybill_number,
         )
         if status_code >= 400:
-            raise HTTPException(status_code=status_code, detail=result)
+            logger.error("Raben delivery confirmation retrieval failed: %s", result)
+            raise HTTPException(status_code=status_code, detail="Raben delivery confirmation retrieval failed")
         return result
     except HTTPException:
         raise
-    except Exception as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    except Exception:
+        logger.exception("Raben delivery confirmation retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben delivery confirmation retrieval failed")
 
 
 if augment_legacy_fastapi_app is not None:
