@@ -359,9 +359,7 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
             preset_key = os.environ.get("DEFAULT_API_KEY", "")
             if preset_key:
                 key_hash = hash_api_key(preset_key)
-                exists = await db_session.execute(
-                    select(ApiKey).where(ApiKey.key_hash == key_hash)
-                )
+                exists = await db_session.execute(select(ApiKey).where(ApiKey.key_hash == key_hash))
                 if not exists.scalar_one_or_none():
                     api_key = ApiKey(
                         tenant_id=existing_tenant.id,
