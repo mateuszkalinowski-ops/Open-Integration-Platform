@@ -173,7 +173,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy scan platform image
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }}
           format: table
@@ -216,7 +216,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy scan dashboard image
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }}
           format: table
@@ -259,7 +259,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy scan verification-agent image
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }}
           format: table
@@ -422,7 +422,7 @@ jobs:
           cache-to: type=gha,mode=max
 
       - name: Trivy scan ${{ matrix.name }}
-        uses: aquasecurity/trivy-action@0.30.0
+        uses: aquasecurity/trivy-action@0.35.0
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
           format: table
