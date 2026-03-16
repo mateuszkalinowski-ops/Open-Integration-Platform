@@ -25,10 +25,14 @@ router = APIRouter()
 def _forward_http_error(exc: httpx.HTTPStatusError) -> HTTPException:
     """Convert an external API HTTP error into an appropriate FastAPI HTTPException."""
     status = exc.response.status_code
-    try:
-        detail = exc.response.json()
-    except Exception:
-        detail = exc.response.text[:500] or f"External API returned {status}"
+    safe_messages = {
+        400: "Bad request to external service",
+        401: "Authentication failed with external service",
+        403: "Access denied by external service",
+        404: "Resource not found on external service",
+        429: "Rate limited by external service",
+    }
+    detail = safe_messages.get(status, f"External service returned status {status}")
     return HTTPException(status_code=status, detail=detail)
 
 

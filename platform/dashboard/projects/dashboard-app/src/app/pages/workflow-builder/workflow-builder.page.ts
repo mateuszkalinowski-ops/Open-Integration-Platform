@@ -850,7 +850,7 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
   private getApiBaseUrl(): string {
     const cfg = (this.doc.defaultView as any)?.['__PINQUARK_CONFIG__'];
     if (cfg?.apiUrl) return cfg.apiUrl;
-    return `${this.doc.location.protocol}//${this.doc.location.hostname}:8080`;
+    return this.doc.location.origin;
   }
 
   private compareConnectorVersions(left: string, right: string): number {

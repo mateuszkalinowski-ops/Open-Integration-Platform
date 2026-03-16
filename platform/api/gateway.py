@@ -641,8 +641,8 @@ app.add_middleware(SecurityHeadersMiddleware)
 async def global_exception_handler(request: Request, exc: Exception) -> JSONResponse:
     import traceback
 
-    traceback.format_exception(type(exc), exc, exc.__traceback__)
-    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc))
+    tb = "".join(traceback.format_exception(type(exc), exc, exc.__traceback__))
+    await logger.aerror("unhandled_exception", path=request.url.path, error=type(exc).__name__, detail=str(exc), traceback=tb)
     detail = f"{type(exc).__name__}: {exc}"
     show_detail = settings.app_env != "production" or (
         settings.admin_secret and request.headers.get("X-Admin-Secret", "") == settings.admin_secret
@@ -660,12 +660,17 @@ async def global_exception_handler(request: Request, exc: Exception) -> JSONResp
 
 @app.exception_handler(ValueError)
 async def value_error_handler(request: Request, exc: ValueError) -> JSONResponse:
+    msg = str(exc)
+    if settings.app_env == "production":
+        safe_patterns = ("must be", "invalid", "required", "expected", "cannot", "missing")
+        if not any(p in msg.lower() for p in safe_patterns):
+            msg = "Invalid input provided"
     return JSONResponse(
         status_code=400,
         content={
             "error": {
                 "code": "INVALID_INPUT",
-                "message": str(exc),
+                "message": msg,
             }
         },
     )
@@ -1124,7 +1129,7 @@ async def receive_webhook(
     body = await request.body()
     headers = dict(request.headers)
 
-    tenant_id = await _resolve_webhook_tenant(db, connector_name, headers)
+    tenant_id, is_authenticated = await _resolve_webhook_tenant(db, connector_name, headers)
     if tenant_id is None:
         raise HTTPException(status_code=400, detail="Cannot determine tenant for this webhook")
 
@@ -1135,6 +1140,7 @@ async def receive_webhook(
         body,
         headers,
         tenant_id,
+        require_signature=not is_authenticated,
     )
     await db.commit()
 
@@ -1324,25 +1330,21 @@ async def _resolve_webhook_tenant(
     db: AsyncSession,
     connector_name: str,
     headers: dict[str, str],
-) -> uuid.UUID | None:
+) -> tuple[uuid.UUID | None, bool]:
     """Determine which tenant a webhook belongs to.
 
-    Priority: X-Tenant-Id header > X-API-Key lookup > single active tenant for connector.
+    Returns (tenant_id, is_authenticated):
+    - is_authenticated=True when tenant was resolved via a verified API key
+    - is_authenticated=False when inferred via single-tenant fallback
+    Note: X-Tenant-Id header is NOT trusted without verified authentication.
     """
-    tenant_header = headers.get("x-tenant-id") or headers.get("X-Tenant-Id")
-    if tenant_header:
-        try:
-            return uuid.UUID(tenant_header)
-        except ValueError:
-            pass
-
     api_key = headers.get("x-api-key") or headers.get("X-API-Key")
     if api_key:
         key_hash = hash_api_key(api_key)
         result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True)))
         ak = result.scalar_one_or_none()
         if ak:
-            return ak.tenant_id
+            return ak.tenant_id, True
 
     result = await db.execute(
         select(ConnectorInstance.tenant_id)
@@ -1351,9 +1353,9 @@ async def _resolve_webhook_tenant(
     )
     tenant_ids = list(result.scalars().all())
     if len(tenant_ids) == 1:
-        return tenant_ids[0]
+        return tenant_ids[0], False
 
-    return None
+    return None, False
 
 
 # --- Audit Trail & Versioning ---
@@ -3030,15 +3032,29 @@ def _validate_trigger_request_access(nodes: list[dict]) -> None:
 
 
 def _get_request_client_ip(request: Request) -> str | None:
-    forwarded_for = request.headers.get("x-forwarded-for")
-    if forwarded_for:
-        first_hop = forwarded_for.split(",")[0].strip()
-        if first_hop:
-            return first_hop
+    """Extract client IP from request.
 
+    Uses the rightmost non-private IP from X-Forwarded-For to prevent
+    spoofing by untrusted clients prepending fake IPs.
+    Falls back to X-Real-IP (typically set by the reverse proxy) and
+    then to the direct connection address.
+    """
     real_ip = request.headers.get("x-real-ip", "").strip()
     if real_ip:
         return real_ip
+
+    forwarded_for = request.headers.get("x-forwarded-for")
+    if forwarded_for:
+        parts = [p.strip() for p in forwarded_for.split(",") if p.strip()]
+        for ip_str in reversed(parts):
+            try:
+                addr = ipaddress.ip_address(ip_str)
+                if not (addr.is_private or addr.is_loopback or addr.is_link_local):
+                    return ip_str
+            except ValueError:
+                continue
+        if parts:
+            return parts[-1]
 
     return request.client.host if request.client else None
 

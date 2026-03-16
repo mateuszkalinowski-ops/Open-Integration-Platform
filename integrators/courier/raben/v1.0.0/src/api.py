@@ -17,8 +17,10 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
+import re as _re
 
 import httpx
+from fastapi import HTTPException
 
 from src.config import settings
 from src.schemas import (
@@ -28,6 +30,14 @@ from src.schemas import (
 )
 
 logger = logging.getLogger("courier-raben")
+
+_SAFE_ID_PATTERN = _re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_path_id(value: str, name: str = "id") -> str:
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+    return value
 
 
 # ---------------------------------------------------------------------------
@@ -105,19 +115,26 @@ def handle_errors(func):
 
 
 def _format_error_response(response: httpx.Response) -> tuple[str, int]:
+    status = response.status_code
     try:
         resp_json = response.json()
         msg = resp_json.get("message", "") or resp_json.get("error", "")
-        if not msg:
-            msg = str(resp_json)
-    except Exception:
-        msg = response.text
+    except (ValueError, UnicodeDecodeError):
+        msg = ""
     logger.error(
-        "Raben API error — url=%s status=%s",
+        "Raben API error — url=%s status=%s detail=%s",
         response.url.path,
-        response.status_code,
+        status,
+        msg or response.text[:200],
     )
-    return msg, response.status_code
+    safe_messages = {
+        400: "Bad request",
+        401: "Authentication failed",
+        403: "Access denied",
+        404: "Resource not found",
+        429: "Rate limited",
+    }
+    return safe_messages.get(status, msg or f"Raben API error (HTTP {status})"), status
 
 
 # ---------------------------------------------------------------------------
@@ -155,6 +172,7 @@ class ApiOrders:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /orders/{waybillNumber} — get order details."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/orders/{waybill_number}",
@@ -171,6 +189,7 @@ class ApiOrders:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """PUT /orders/{waybillNumber}/cancel — cancel transport order."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.put(
             f"{self._base_url}/orders/{waybill_number}/cancel",
@@ -198,6 +217,7 @@ class ApiTracking:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /tracking/{waybillNumber} — full tracking history."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/tracking/{waybill_number}",
@@ -214,6 +234,7 @@ class ApiTracking:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /tracking/{waybillNumber}/status — current status with ETA."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/tracking/{waybill_number}/status",
@@ -230,6 +251,7 @@ class ApiTracking:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /tracking/{waybillNumber}/eta — estimated time of arrival."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/tracking/{waybill_number}/eta",
@@ -258,6 +280,7 @@ class ApiLabels:
         credentials: RabenCredentials,
     ) -> tuple[bytes | str, int]:
         """GET /labels/{waybillNumber} — shipping label (PDF or ZPL)."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         accept = "application/pdf" if label_format == "pdf" else "application/x-zpl"
         response = await self._client.get(
@@ -303,6 +326,7 @@ class ApiClaims:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /claims/{claimId} — get claim details."""
+        _validate_path_id(claim_id, "claim_id")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/claims/{claim_id}",
@@ -330,6 +354,7 @@ class ApiPcd:
         credentials: RabenCredentials,
     ) -> tuple[dict, int]:
         """GET /deliveries/{waybillNumber}/confirmation — PCD with photos."""
+        _validate_path_id(waybill_number, "waybill_number")
         auth_header = _build_auth_header(credentials.access_token or "")
         response = await self._client.get(
             f"{self._base_url}/deliveries/{waybill_number}/confirmation",

@@ -114,16 +114,16 @@ class DhlIntegration:
             logger.info("SOAP client connected — %s", settings.wsdl_url)
         except ConnectionError:
             logger.error("SOAP client timeout — %s", settings.wsdl_url)
-        except Exception:
-            logger.exception("SOAP client init failed — %s", settings.wsdl_url)
+        except (TransportError, Fault, OSError) as exc:
+            logger.exception("SOAP client init failed — %s: %s", settings.wsdl_url, exc)
 
         try:
             self.client_ps = Client(settings.parcelshop_url, transport=transport)
             logger.info("SOAP ServicePoint client connected — %s", settings.parcelshop_url)
         except ConnectionError:
             logger.error("SOAP ServicePoint client timeout — %s", settings.parcelshop_url)
-        except Exception:
-            logger.exception("SOAP ServicePoint client init failed — %s", settings.parcelshop_url)
+        except (TransportError, Fault, OSError) as exc:
+            logger.exception("SOAP ServicePoint client init failed — %s: %s", settings.parcelshop_url, exc)
 
     # ------------------------------------------------------------------
     # Order status
@@ -161,7 +161,7 @@ class DhlIntegration:
             if status_code == HTTPStatus.OK:
                 return order["orderStatus"], HTTPStatus.OK
             return order, status_code
-        except Exception:
+        except (AttributeError, TypeError, IndexError, KeyError):
             return None, HTTPStatus.NO_CONTENT
 
     # ------------------------------------------------------------------
@@ -938,7 +938,7 @@ class DhlIntegration:
             extras = get_extras(data)
             created_from = extras.get("created_from", date.today() - timedelta(days=2))
             created_to = extras.get("created_to", date.today())
-        except Exception:
+        except (ValueError, KeyError, TypeError):
             return date.today() - timedelta(days=89), date.today()
         if created_from is None or created_to is None:
             return date.today() - timedelta(days=89), date.today()

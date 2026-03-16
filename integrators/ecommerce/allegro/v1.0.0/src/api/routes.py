@@ -13,9 +13,20 @@ from pinquark_common.schemas.ecommerce import (
 )
 from pydantic import BaseModel
 
+import re as _re
+
 from src.allegro.schemas import AuthStatusResponse
 from src.api.dependencies import app_state
 from src.config import AllegroAccountConfig
+
+_SAFE_ID_PATTERN = _re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_path_id(value: str, name: str = "id") -> str:
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+    return value
+
 
 router = APIRouter()
 
@@ -147,6 +158,7 @@ async def get_order(
     order_id: str,
     account_name: str = Query(..., description="Allegro account name"),
 ):
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     return await app_state.integration.get_order(account_name, order_id)
 
@@ -161,6 +173,7 @@ async def update_order_status(
     body: UpdateStatusRequest,
     account_name: str = Query(..., description="Allegro account name"),
 ):
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     await app_state.integration.update_order_status(account_name, order_id, body.status)
     return {"status": "updated", "order_id": order_id, "new_status": body.status}
@@ -213,6 +226,7 @@ async def add_tracking_number(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Add a parcel tracking number (POST /order/checkout-forms/{id}/shipments)."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     payload: dict[str, Any] = {
         "carrierId": body.carrier_id,
@@ -229,6 +243,7 @@ async def get_tracking_numbers(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get tracking numbers for an order (GET /order/checkout-forms/{id}/shipments)."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     return await _proxy_get(f"order/checkout-forms/{order_id}/shipments", account_name)
 
@@ -250,6 +265,8 @@ async def get_tracking_history(
     carrier_id: str = Query(..., description="Carrier ID"),
 ):
     """Get carrier parcel tracking history."""
+    _validate_path_id(order_id, "order_id")
+    _validate_path_id(carrier_id, "carrier_id")
     _require_auth(account_name)
     return await _proxy_get(
         f"order/carriers/{carrier_id}/tracking",
@@ -272,6 +289,7 @@ async def upload_billing_document(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Upload URL to billing documents (POST /billing/billing-entries)."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     return await _proxy_post(
         f"order/checkout-forms/{order_id}/billing",
@@ -297,6 +315,7 @@ async def upload_invoice_multipart(
     file: UploadFile = File(...),
 ):
     """Upload an invoice PDF to an Allegro order (multipart form)."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     contents = await file.read()
     if len(contents) > 8 * 1024 * 1024:
@@ -318,6 +337,7 @@ async def upload_invoice_json(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Upload an invoice PDF to an Allegro order (base64 JSON body)."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     try:
         contents = base64.b64decode(body.invoice_base64)
@@ -341,6 +361,7 @@ async def get_order_invoices(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get invoice details for an Allegro order."""
+    _validate_path_id(order_id, "order_id")
     _require_auth(account_name)
     return await app_state.integration.get_order_invoices(account_name, order_id)
 
@@ -386,6 +407,7 @@ async def get_offer(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get all data of a particular offer (GET /sale/product-offers/{offerId})."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/product-offers/{offer_id}", account_name)
 
@@ -446,6 +468,7 @@ async def edit_offer(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Edit an offer (PATCH /sale/product-offers/{offerId})."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_request("PATCH", f"sale/product-offers/{offer_id}", account_name, json_data=body)
 
@@ -456,6 +479,7 @@ async def delete_draft_offer(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete a draft offer (DELETE /sale/offers/{offerId})."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/offers/{offer_id}", account_name)
 
@@ -568,6 +592,7 @@ async def get_offer_promo(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get offer promotion packages (GET /sale/offers/{offerId}/promo-options)."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offers/{offer_id}/promo-options", account_name)
 
@@ -578,6 +603,7 @@ async def get_offer_rating(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get offer rating (GET /sale/offers/{offerId}/rating)."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offers/{offer_id}/rating", account_name)
 
@@ -618,6 +644,7 @@ async def get_product(
     product_id: str,
     account_name: str = Query(..., description="Allegro account name"),
 ):
+    _validate_path_id(product_id, "product_id")
     _require_auth(account_name)
     return await app_state.integration.get_product(account_name, product_id)
 
@@ -628,6 +655,7 @@ async def get_product_params(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get product parameters available in given category."""
+    _validate_path_id(product_id, "product_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/products/{product_id}", account_name)
 
@@ -682,6 +710,7 @@ async def get_category(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a category by ID (GET /sale/categories/{categoryId})."""
+    _validate_path_id(category_id, "category_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/categories/{category_id}", account_name)
 
@@ -692,6 +721,7 @@ async def get_category_params(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get parameters supported by a category (GET /sale/categories/{categoryId}/parameters)."""
+    _validate_path_id(category_id, "category_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/categories/{category_id}/parameters", account_name)
 
@@ -784,6 +814,7 @@ async def get_variant_set(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a variant set (GET /sale/offer-variants/{setId})."""
+    _validate_path_id(set_id, "set_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offer-variants/{set_id}", account_name)
 
@@ -805,6 +836,7 @@ async def update_variant_set(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Update variant set (PUT /sale/offer-variants/{setId})."""
+    _validate_path_id(set_id, "set_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/offer-variants/{set_id}", account_name, json_data=body)
 
@@ -815,6 +847,7 @@ async def delete_variant_set(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete a variant set (DELETE /sale/offer-variants/{setId})."""
+    _validate_path_id(set_id, "set_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/offer-variants/{set_id}", account_name)
 
@@ -853,6 +886,7 @@ async def update_tag(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Modify a tag (PUT /sale/offer-tags/{tagId})."""
+    _validate_path_id(tag_id, "tag_id")
     _require_auth(account_name)
     return await _proxy_request(
         "PUT", f"sale/offer-tags/{tag_id}", account_name, json_data={"name": body.name, "hidden": body.hidden}
@@ -865,6 +899,7 @@ async def delete_tag(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete a tag (DELETE /sale/offer-tags/{tagId})."""
+    _validate_path_id(tag_id, "tag_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/offer-tags/{tag_id}", account_name)
 
@@ -880,6 +915,7 @@ async def assign_tags(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Assign tags to an offer (POST /sale/offers/{offerId}/tags)."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_post(f"sale/offers/{offer_id}/tags", account_name, {"tags": [{"id": t} for t in body.tag_ids]})
 
@@ -904,6 +940,7 @@ async def get_promotion(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a promotion data by id (GET /sale/loyalty/promotions/{promotionId})."""
+    _validate_path_id(promotion_id, "promotion_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/loyalty/promotions/{promotion_id}", account_name)
 
@@ -925,6 +962,7 @@ async def update_promotion(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Modify a promotion (PUT /sale/loyalty/promotions/{promotionId})."""
+    _validate_path_id(promotion_id, "promotion_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/loyalty/promotions/{promotion_id}", account_name, json_data=body)
 
@@ -935,6 +973,7 @@ async def delete_promotion(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Deactivate a promotion (DELETE /sale/loyalty/promotions/{promotionId})."""
+    _validate_path_id(promotion_id, "promotion_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/loyalty/promotions/{promotion_id}", account_name)
 
@@ -958,6 +997,7 @@ async def create_turnover_discount(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Create/modify turnover discount (PUT /sale/loyalty/turnover-discount/{marketplaceId})."""
+    _validate_path_id(marketplace_id, "marketplace_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/loyalty/turnover-discount/{marketplace_id}", account_name, json_data=body)
 
@@ -968,6 +1008,7 @@ async def deactivate_turnover_discount(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Deactivate turnover discount (PUT /sale/loyalty/turnover-discount/{marketplaceId} with empty)."""
+    _validate_path_id(marketplace_id, "marketplace_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/loyalty/turnover-discount/{marketplace_id}", account_name)
 
@@ -992,6 +1033,7 @@ async def get_bundle(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get bundle by ID (GET /sale/bundles/{bundleId})."""
+    _validate_path_id(bundle_id, "bundle_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/bundles/{bundle_id}", account_name)
 
@@ -1012,6 +1054,7 @@ async def delete_bundle(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete bundle by ID (DELETE /sale/bundles/{bundleId})."""
+    _validate_path_id(bundle_id, "bundle_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"sale/bundles/{bundle_id}", account_name)
 
@@ -1107,6 +1150,7 @@ async def get_shipment(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get shipment details (GET /shipment-management/shipments/{shipmentId})."""
+    _validate_path_id(shipment_id, "shipment_id")
     _require_auth(account_name)
     return await _proxy_get(f"shipment-management/shipments/{shipment_id}", account_name)
 
@@ -1117,6 +1161,7 @@ async def cancel_shipment(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Cancel shipment (POST /shipment-management/shipments/cancel-commands)."""
+    _validate_path_id(shipment_id, "shipment_id")
     _require_auth(account_name)
     return await _proxy_post("shipment-management/shipments/cancel-commands", account_name, {"shipmentId": shipment_id})
 
@@ -1212,6 +1257,7 @@ async def get_return(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get customer return by id (GET /order/customer-returns/{customerReturnId})."""
+    _validate_path_id(return_id, "return_id")
     _require_auth(account_name)
     return await _proxy_get(f"order/customer-returns/{return_id}", account_name)
 
@@ -1227,6 +1273,7 @@ async def reject_return(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Reject customer return refund (POST /order/customer-returns/{customerReturnId}/rejection)."""
+    _validate_path_id(return_id, "return_id")
     _require_auth(account_name)
     return await _proxy_post(
         f"order/customer-returns/{return_id}/rejection", account_name, {"rejectionReason": body.rejection_reason}
@@ -1279,6 +1326,7 @@ async def get_shipping_rates(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the details of a shipping rates set (GET /sale/shipping-rates/{shippingRatesSetId})."""
+    _validate_path_id(rates_id, "rates_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/shipping-rates/{rates_id}", account_name)
 
@@ -1300,6 +1348,7 @@ async def update_shipping_rates(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Edit a user's shipping rates set (PUT /sale/shipping-rates/{shippingRatesSetId})."""
+    _validate_path_id(rates_id, "rates_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/shipping-rates/{rates_id}", account_name, json_data=body)
 
@@ -1322,6 +1371,7 @@ async def get_warranty(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the user's warranty (GET /after-sales-service-conditions/warranties/{warrantyId})."""
+    _validate_path_id(warranty_id, "warranty_id")
     _require_auth(account_name)
     return await _proxy_get(f"after-sales-service-conditions/warranties/{warranty_id}", account_name)
 
@@ -1343,6 +1393,7 @@ async def update_warranty(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Change the user's warranty (PUT /after-sales-service-conditions/warranties/{warrantyId})."""
+    _validate_path_id(warranty_id, "warranty_id")
     _require_auth(account_name)
     return await _proxy_request(
         "PUT", f"after-sales-service-conditions/warranties/{warranty_id}", account_name, json_data=body
@@ -1364,6 +1415,7 @@ async def get_return_policy(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the user's return policy (GET /after-sales-service-conditions/return-policies/{returnPolicyId})."""
+    _validate_path_id(policy_id, "policy_id")
     _require_auth(account_name)
     return await _proxy_get(f"after-sales-service-conditions/return-policies/{policy_id}", account_name)
 
@@ -1385,6 +1437,7 @@ async def update_return_policy(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Change the user's return policy (PUT /after-sales-service-conditions/return-policies/{returnPolicyId})."""
+    _validate_path_id(policy_id, "policy_id")
     _require_auth(account_name)
     return await _proxy_request(
         "PUT", f"after-sales-service-conditions/return-policies/{policy_id}", account_name, json_data=body
@@ -1397,6 +1450,7 @@ async def delete_return_policy(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete the user's return policy (DELETE /after-sales-service-conditions/return-policies/{returnPolicyId})."""
+    _validate_path_id(policy_id, "policy_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"after-sales-service-conditions/return-policies/{policy_id}", account_name)
 
@@ -1421,6 +1475,7 @@ async def get_message_thread(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get user thread (GET /messaging/threads/{threadId})."""
+    _validate_path_id(thread_id, "thread_id")
     _require_auth(account_name)
     return await _proxy_get(f"messaging/threads/{thread_id}", account_name)
 
@@ -1433,6 +1488,7 @@ async def list_thread_messages(
     offset: int = Query(0, ge=0),
 ):
     """List messages in thread (GET /messaging/threads/{threadId}/messages)."""
+    _validate_path_id(thread_id, "thread_id")
     _require_auth(account_name)
     return await _proxy_get(
         f"messaging/threads/{thread_id}/messages", account_name, params={"limit": limit, "offset": offset}
@@ -1473,6 +1529,7 @@ async def mark_thread_read(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Mark a particular thread as read (PUT /messaging/threads/{threadId}/read)."""
+    _validate_path_id(thread_id, "thread_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"messaging/threads/{thread_id}/read", account_name, json_data={"read": True})
 
@@ -1562,6 +1619,7 @@ async def get_commission_refund(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a refund application details (GET /order/refund-claims/{claimId})."""
+    _validate_path_id(refund_id, "refund_id")
     _require_auth(account_name)
     return await _proxy_get(f"order/refund-claims/{refund_id}", account_name)
 
@@ -1582,6 +1640,7 @@ async def cancel_commission_refund(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Cancel a refund application (DELETE /order/refund-claims/{claimId})."""
+    _validate_path_id(refund_id, "refund_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"order/refund-claims/{refund_id}", account_name)
 
@@ -1604,6 +1663,7 @@ async def get_additional_service_group(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the details of an additional services group."""
+    _validate_path_id(group_id, "group_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offer-additional-services/groups/{group_id}", account_name)
 
@@ -1625,6 +1685,7 @@ async def update_additional_service_group(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Modify an additional services group."""
+    _validate_path_id(group_id, "group_id")
     _require_auth(account_name)
     return await _proxy_request(
         "PUT", f"sale/offer-additional-services/groups/{group_id}", account_name, json_data=body
@@ -1662,6 +1723,7 @@ async def get_size_table(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a size table (GET /sale/size-tables/{tableId})."""
+    _validate_path_id(table_id, "table_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/size-tables/{table_id}", account_name)
 
@@ -1683,6 +1745,7 @@ async def update_size_table(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Update a size table (PUT /sale/size-tables/{tableId})."""
+    _validate_path_id(table_id, "table_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/size-tables/{table_id}", account_name, json_data=body)
 
@@ -1705,6 +1768,7 @@ async def get_point_of_service(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the details of a point of service (GET /points-of-service/{pointOfServiceId})."""
+    _validate_path_id(point_id, "point_id")
     _require_auth(account_name)
     return await _proxy_get(f"points-of-service/{point_id}", account_name)
 
@@ -1726,6 +1790,7 @@ async def update_point_of_service(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Modify a point of service (PUT /points-of-service/{pointOfServiceId})."""
+    _validate_path_id(point_id, "point_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"points-of-service/{point_id}", account_name, json_data=body)
 
@@ -1736,6 +1801,7 @@ async def delete_point_of_service(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Delete a point of service (DELETE /points-of-service/{pointOfServiceId})."""
+    _validate_path_id(point_id, "point_id")
     _require_auth(account_name)
     return await _proxy_request("DELETE", f"points-of-service/{point_id}", account_name)
 
@@ -1758,6 +1824,7 @@ async def get_contact(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get contact details (GET /sale/offer-contacts/{contactId})."""
+    _validate_path_id(contact_id, "contact_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offer-contacts/{contact_id}", account_name)
 
@@ -1779,6 +1846,7 @@ async def update_contact(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Modify contact details (PUT /sale/offer-contacts/{contactId})."""
+    _validate_path_id(contact_id, "contact_id")
     _require_auth(account_name)
     return await _proxy_request("PUT", f"sale/offer-contacts/{contact_id}", account_name, json_data=body)
 
@@ -1814,6 +1882,7 @@ async def get_tax_settings(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get all tax settings for category (GET /sale/tax-settings)."""
+    _validate_path_id(category_id, "category_id")
     _require_auth(account_name)
     return await _proxy_get("sale/tax-settings", account_name, params={"category.id": category_id})
 
@@ -1865,6 +1934,7 @@ async def get_compatible_products(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get list of compatible products (GET /sale/offers/{offerId}/compatibility-list)."""
+    _validate_path_id(offer_id, "offer_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/offers/{offer_id}/compatibility-list", account_name)
 
@@ -1875,6 +1945,7 @@ async def get_compatibility_groups(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get list of compatible product groups (GET /sale/compatibility-list/supported-categories/{categoryId})."""
+    _validate_path_id(category_id, "category_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/compatibility-list/supported-categories/{category_id}", account_name)
 
@@ -1943,6 +2014,7 @@ async def get_advance_ship_notice(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get single Advance Ship Notice (GET /fulfillment/advance-ship-notices/{id})."""
+    _validate_path_id(asn_id, "asn_id")
     _require_auth(account_name)
     return await _proxy_get(f"fulfillment/advance-ship-notices/{asn_id}", account_name)
 
@@ -1977,6 +2049,7 @@ async def get_dispute(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get a single dispute or claim (GET /sale/disputes/{disputeId})."""
+    _validate_path_id(dispute_id, "dispute_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/disputes/{dispute_id}", account_name)
 
@@ -1987,6 +2060,7 @@ async def get_dispute_messages(
     account_name: str = Query(..., description="Allegro account name"),
 ):
     """Get the messages and state changes within a post purchase issue."""
+    _validate_path_id(dispute_id, "dispute_id")
     _require_auth(account_name)
     return await _proxy_get(f"sale/disputes/{dispute_id}/messages", account_name)
 

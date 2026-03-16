@@ -17,12 +17,15 @@ that future migrations apply incrementally.
 from __future__ import annotations
 
 import argparse
+import logging
 import sys
 from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
 from sqlalchemy import create_engine, inspect, text
+
+logger = logging.getLogger(__name__)
 
 PLATFORM_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = PLATFORM_DIR / "alembic.ini"
@@ -62,12 +65,12 @@ def apply_migrations() -> None:
     cfg.set_main_option("sqlalchemy.url", sync_url)
 
     if has_tables and not has_alembic:
-        print(f"[init_db] Existing database detected without alembic_version — stamping baseline ({BASELINE_REV})")
+        logger.info("Existing database detected without alembic_version — stamping baseline (%s)", BASELINE_REV)
         command.stamp(cfg, BASELINE_REV)
 
-    print("[init_db] Running migrations (upgrade head)...")
+    logger.info("Running migrations (upgrade head)...")
     command.upgrade(cfg, "head")
-    print("[init_db] Migrations complete.")
+    logger.info("Migrations complete.")
 
     engine.dispose()
 
@@ -78,7 +81,7 @@ def stamp_baseline() -> None:
     cfg = _alembic_cfg()
     cfg.set_main_option("sqlalchemy.url", sync_url)
     command.stamp(cfg, BASELINE_REV)
-    print(f"[init_db] Stamped at {BASELINE_REV}")
+    logger.info("Stamped at %s", BASELINE_REV)
 
 
 def show_current() -> None:
@@ -110,7 +113,7 @@ def check_current() -> bool:
 
     current = row[0] if row else None
     is_current = current == head
-    print(f"[init_db] current={current}  head={head}  up_to_date={is_current}")
+    logger.info("current=%s  head=%s  up_to_date=%s", current, head, is_current)
     return is_current
 
 

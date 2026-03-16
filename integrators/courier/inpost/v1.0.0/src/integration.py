@@ -14,11 +14,13 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re as _re
 from datetime import datetime
 from http import HTTPStatus
 from typing import ClassVar
 
 import httpx
+from fastapi import HTTPException
 
 from src.config import settings
 from src.schemas import (
@@ -29,6 +31,15 @@ from src.schemas import (
 )
 
 logger = logging.getLogger("courier-inpost")
+
+_SAFE_ID_PATTERN = _re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_path_id(value: str, name: str = "id") -> str:
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+    return value
+
 
 # ---------------------------------------------------------------------------
 # Utility helpers (ported from app.integrations.utils / schema_templates)
@@ -132,6 +143,7 @@ class InpostIntegration:
         """
         if not waybill_number:
             return "Należy podać numer listu przewozowego", HTTPStatus.BAD_REQUEST
+        _validate_path_id(waybill_number, "waybill_number")
 
         response = await self._client.get(
             f"{self._api_url(credentials)}v1/tracking/{waybill_number}",
@@ -187,6 +199,7 @@ class InpostIntegration:
         After creation, retries to obtain the waybill number since
         InPost may not return it immediately.
         """
+        _validate_path_id(credentials.organization_id, "organization_id")
         inpost_create_command = self._get_create_order_command(command)
         response = await self._client.post(
             f"{self._api_url(credentials)}v1/organizations/{credentials.organization_id}/shipments",
@@ -236,6 +249,7 @@ class InpostIntegration:
             return found_orders, get_order_status
 
         order_id = found_orders["id"]
+        _validate_path_id(str(order_id), "order_id")
         response = await self._client.delete(
             f"{self._api_url(credentials)}v1/shipments/{order_id}",
             headers=self._get_headers(credentials.api_token),
@@ -263,6 +277,7 @@ class InpostIntegration:
         InPost labels are fetched by shipment IDs, so we first resolve
         each waybill number to its shipment ID.
         """
+        _validate_path_id(credentials.organization_id, "organization_id")
         order_ids: list[str] = []
         for waybill_number in waybill_numbers:
             order_id, get_order_id_status = await self.get_order_id(credentials, waybill_number)
@@ -297,6 +312,7 @@ class InpostIntegration:
         """Retrieve a shipment by tracking number."""
         if not waybill_number:
             return "Należy podać numer listu przewozowego", HTTPStatus.BAD_REQUEST
+        _validate_path_id(credentials.organization_id, "organization_id")
 
         response = await self._client.get(
             f"{self._api_url(credentials)}v1/organizations/{credentials.organization_id}/shipments",
@@ -384,6 +400,7 @@ class InpostIntegration:
         InPost sometimes returns an empty waybill number right after
         creation — callers should retry.
         """
+        _validate_path_id(credentials.organization_id, "organization_id")
         response = await self._client.get(
             f"{self._api_url(credentials)}v1/organizations/{credentials.organization_id}/shipments",
             headers=self._get_headers(credentials.api_token),
@@ -632,18 +649,23 @@ class InpostIntegration:
     @staticmethod
     def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
         """Format an error response from the InPost REST API."""
+        status = response.status_code
         try:
             resp_json = response.json()
             msg = resp_json.get("message", "")
-            if "Check details object for more info" in msg:
-                msg = msg + " " + str(resp_json.get("details", ""))
-            if not msg:
-                msg = str(resp_json)
-        except Exception:
-            msg = response.text
+        except (ValueError, UnicodeDecodeError):
+            msg = ""
         logger.error(
-            "InPost API error — url=%s status=%s",
+            "InPost API error — url=%s status=%s detail=%s",
             response.url.path,
-            response.status_code,
+            status,
+            msg or response.text[:200],
         )
-        return msg, response.status_code
+        safe_messages = {
+            400: "Bad request",
+            401: "Authentication failed",
+            403: "Access denied",
+            404: "Resource not found",
+            429: "Rate limited",
+        }
+        return safe_messages.get(status, msg or f"InPost API error (HTTP {status})"), status

@@ -45,13 +45,13 @@ def handle_errors(func):
             status = exc.response.status_code
             try:
                 body = exc.response.json()
-            except Exception:
+            except (ValueError, UnicodeDecodeError):
                 body = {"error": exc.response.text}
             logger.error("BulkGate API error %d in %s", status, func.__name__)
             return body, status
-        except Exception as exc:
-            logger.exception("Unexpected error in %s", func.__name__)
-            return {"error": {"code": "INTERNAL_ERROR", "message": str(exc)}}, 500
+        except (httpx.ConnectError, httpx.ReadError, OSError) as exc:
+            logger.exception("Connection error in %s", func.__name__)
+            return {"error": {"code": "CONNECTION_ERROR", "message": str(exc)}}, 502
 
     return wrapper
 

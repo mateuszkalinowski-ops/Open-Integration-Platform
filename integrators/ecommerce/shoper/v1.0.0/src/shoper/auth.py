@@ -58,7 +58,7 @@ class ShoperAuthManager:
         url = f"{shop_url.rstrip('/')}/webapi/rest/auth"
         credentials = base64.b64encode(f"{login}:{password}".encode("ascii")).decode("ascii")
 
-        async with httpx.AsyncClient(timeout=settings.http_connect_timeout) as client:
+        async with httpx.AsyncClient(timeout=httpx.Timeout(connect=settings.http_connect_timeout, read=settings.http_read_timeout, write=settings.http_connect_timeout, pool=settings.http_connect_timeout)) as client:
             response = await client.post(
                 url,
                 headers={"Authorization": f"Basic {credentials}"},

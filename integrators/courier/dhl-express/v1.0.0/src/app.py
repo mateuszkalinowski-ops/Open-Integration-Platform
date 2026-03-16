@@ -16,7 +16,7 @@ except (IndexError, OSError):
     pass
 
 import httpx
-from fastapi import FastAPI, HTTPException, Query, Response
+from fastapi import FastAPI, HTTPException, Header, Query, Response
 from fastapi.responses import JSONResponse
 
 try:
@@ -77,9 +77,9 @@ async def readiness() -> dict:
 @app.get("/connection/{account_name}/status")
 async def connection_status(
     account_name: str,
-    api_key: str = Query("", description="API key override"),
-    api_secret: str = Query("", description="API secret override"),
     sandbox_mode: bool = Query(False, description="Use sandbox API URL"),
+    api_key: str = Header("", alias="X-DHL-Api-Key", description="API key override"),
+    api_secret: str = Header("", alias="X-DHL-Api-Secret", description="API secret override"),
 ) -> dict:
     key = api_key or settings.dhl_express_api_key
     secret = api_secret or settings.dhl_express_api_secret

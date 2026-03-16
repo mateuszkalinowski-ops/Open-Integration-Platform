@@ -49,19 +49,26 @@ def handle_errors(func):
 
 
 def _format_error_response(response: httpx.Response) -> tuple[str, int]:
+    status = response.status_code
     try:
         resp_json = response.json()
         msg = resp_json.get("message", "") or resp_json.get("error", "")
-        if not msg:
-            msg = str(resp_json)
     except (ValueError, KeyError):
-        msg = response.text
+        msg = ""
     logger.error(
-        "FX Couriers API error — url=%s status=%s",
+        "FX Couriers API error — url=%s status=%s detail=%s",
         response.url.path,
-        response.status_code,
+        status,
+        msg or response.text[:200],
     )
-    return msg, response.status_code
+    safe_messages = {
+        400: "Bad request",
+        401: "Authentication failed",
+        403: "Access denied",
+        404: "Resource not found",
+        429: "Rate limited",
+    }
+    return safe_messages.get(status, msg or f"FX Couriers API error (HTTP {status})"), status
 
 
 # ---------------------------------------------------------------------------

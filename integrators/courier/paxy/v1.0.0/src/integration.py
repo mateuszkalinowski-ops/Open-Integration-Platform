@@ -339,20 +339,36 @@ class PaxyIntegration:
 
     @staticmethod
     def _format_error_response(response: httpx.Response) -> tuple[str, int]:
+        status = response.status_code
         try:
             body = response.json()
-            message = body.get("message", str(body))
-        except Exception:
-            message = response.text
-        logger.error("Paxy REST error %s: %s", response.url.path, message)
-        return message, HTTPStatus.BAD_REQUEST
+            message = body.get("message", "")
+        except (ValueError, UnicodeDecodeError):
+            message = ""
+        logger.error("Paxy REST error %s [%s]: %s", response.url.path, status, message or response.text[:200])
+        safe_messages = {
+            400: "Bad request",
+            401: "Authentication failed",
+            403: "Access denied",
+            404: "Resource not found",
+            429: "Rate limited",
+        }
+        return safe_messages.get(status, message or f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST
 
     @staticmethod
     def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
+        status = response.status_code
         try:
             body = response.json()
-            message = body.get("message", str(body))
-        except Exception:
-            message = response.text
-        logger.error("Paxy REST error %s [%s]: %s", response.url.path, response.status_code, message)
-        return message, HTTPStatus.BAD_REQUEST
+            message = body.get("message", "")
+        except (ValueError, UnicodeDecodeError):
+            message = ""
+        logger.error("Paxy REST error %s [%s]: %s", response.url.path, status, message or response.text[:200])
+        safe_messages = {
+            400: "Bad request",
+            401: "Authentication failed",
+            403: "Access denied",
+            404: "Resource not found",
+            429: "Rate limited",
+        }
+        return safe_messages.get(status, message or f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST

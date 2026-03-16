@@ -6,7 +6,7 @@ COPY . .
 RUN npx ng build integrations-lib --configuration=production
 RUN npx ng build dashboard-app --configuration=production
 
-FROM nginx:alpine
+FROM nginx:1.27-alpine
 LABEL maintainer="integrations@pinquark.com"
 LABEL component="dashboard"
 COPY --from=build /app/dist/dashboard-app/browser /usr/share/nginx/html

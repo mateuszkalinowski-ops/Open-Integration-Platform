@@ -8,7 +8,7 @@ x-connector-healthcheck: &connector-healthcheck
 services:
   # --- Reverse Proxy ---
   nginx:
-    image: nginx:alpine
+    image: nginx:1.27-alpine
     ports:
       - "80:80"
       - "443:443"
@@ -27,7 +27,7 @@ services:
       retries: 3
 
   certbot:
-    image: certbot/certbot
+    image: certbot/certbot:v2.11.0
     volumes:
       - ./certbot/www:/var/www/certbot
       - ./certbot/conf:/etc/letsencrypt
@@ -41,7 +41,7 @@ services:
       - "8080"
     environment:
       DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
-      REDIS_URL: redis://redis:6379/0
+      REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
       JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DEFAULT_API_KEY: ${DEFAULT_API_KEY}
@@ -55,7 +55,10 @@ services:
       VERIFICATION_AGENT_URL: http://verification-agent:8000
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     volumes:
       - ./integrators:/integrators:ro
     depends_on:
@@ -89,16 +92,23 @@ services:
       retries: 3
 
   # --- Infrastructure ---
+  # NOTE: For production with external Kafka, use SASL_SSL listeners and
+  # configure certificates. This single-node setup uses SASL_PLAINTEXT
+  # for internal Docker network communication.
   kafka:
     image: apache/kafka:3.7.0
     environment:
       KAFKA_NODE_ID: 1
       KAFKA_PROCESS_ROLES: broker,controller
-      KAFKA_LISTENERS: PLAINTEXT://:9092,CONTROLLER://:9093
-      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:9092
+      KAFKA_LISTENERS: SASL_PLAINTEXT://:9092,CONTROLLER://:9093
+      KAFKA_ADVERTISED_LISTENERS: SASL_PLAINTEXT://kafka:9092
       KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
       KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
-      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_INTER_BROKER_LISTENER_NAME: SASL_PLAINTEXT
+      KAFKA_SASL_MECHANISM_INTER_BROKER_PROTOCOL: PLAIN
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: SASL_PLAINTEXT:SASL_PLAINTEXT,CONTROLLER:PLAINTEXT
+      KAFKA_SASL_ENABLED_MECHANISMS: PLAIN
+      KAFKA_LISTENER_NAME_SASL__PLAINTEXT_PLAIN_SASL_JAAS_CONFIG: "org.apache.kafka.common.security.plain.PlainLoginModule required username=\"admin\" password=\"${KAFKA_SASL_PASSWORD}\" user_admin=\"${KAFKA_SASL_PASSWORD}\";"
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
@@ -106,7 +116,7 @@ services:
     volumes:
       - kafkadata:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 || exit 1"]
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 --command-config /dev/null 2>&1 | grep -q ApiVersion || exit 0"]
       interval: 15s
       timeout: 10s
       retries: 5
@@ -131,10 +141,11 @@ services:
 
   redis:
     image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD}
     volumes:
       - redisdata:/data
     healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
+      test: ["CMD", "redis-cli", "-a", "${REDIS_PASSWORD}", "ping"]
       interval: 5s
       timeout: 3s
       retries: 5
@@ -192,7 +203,10 @@ services:
       APP_PORT: 8000
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -206,7 +220,10 @@ services:
       BASELINKER_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -220,7 +237,10 @@ services:
       SHOPIFY_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -249,7 +269,10 @@ services:
       PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -307,7 +330,10 @@ services:
       SLACK_POLLING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -527,7 +553,10 @@ services:
       SHOPER_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -541,7 +570,10 @@ services:
       IDOSELL_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -555,7 +587,10 @@ services:
       WOOCOMMERCE_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -569,7 +604,10 @@ services:
       AMAZON_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka
@@ -583,7 +621,10 @@ services:
       APILO_SCRAPING_ENABLED: "false"
       KAFKA_ENABLED: "true"
       KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      KAFKA_SECURITY_PROTOCOL: PLAINTEXT
+      KAFKA_SECURITY_PROTOCOL: ${KAFKA_SECURITY_PROTOCOL:-SASL_PLAINTEXT}
+      KAFKA_SASL_MECHANISM: ${KAFKA_SASL_MECHANISM:-PLAIN}
+      KAFKA_SASL_USERNAME: ${KAFKA_SASL_USERNAME:-admin}
+      KAFKA_SASL_PASSWORD: ${KAFKA_SASL_PASSWORD}
     depends_on:
       - platform
       - kafka

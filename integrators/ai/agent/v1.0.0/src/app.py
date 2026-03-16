@@ -12,7 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Header, Query
 from fastapi.responses import JSONResponse
 from google import genai
 
@@ -81,7 +81,7 @@ async def readiness():
 @app.get("/connection/{account_name}/status")
 async def connection_status(
     account_name: str,
-    gemini_api_key: str = Query("", description="API key override (falls back to env var)"),
+    gemini_api_key: str = Header("", alias="X-Gemini-Api-Key", description="API key override (falls back to env var)"),
 ):
     """Validate the Gemini API key by listing available models."""
     api_key = gemini_api_key or settings.gemini_api_key

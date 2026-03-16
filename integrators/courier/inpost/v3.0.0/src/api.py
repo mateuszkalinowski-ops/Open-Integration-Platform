@@ -17,8 +17,10 @@ from __future__ import annotations
 import functools
 import inspect
 import logging
+import re as _re
 
 import httpx
+from fastapi import HTTPException
 
 from src.config import settings
 from src.schemas import (
@@ -31,6 +33,15 @@ from src.schemas import (
 )
 
 logger = logging.getLogger("courier-inpost-int-2025")
+
+_SAFE_ID_PATTERN = _re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_path_id(value: str, name: str = "id") -> str:
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+    return value
+
 
 AUTH_SCOPES = (
     "openid api:points:read api:shipments:write api:tracking:read api:one-time-pickups:write api:one-time-pickups:read"
@@ -113,19 +124,26 @@ def handle_errors(func):
 
 
 def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
+    status = response.status_code
     try:
         resp_json = response.json()
         msg = resp_json.get("message", "")
-        if not msg:
-            msg = str(resp_json)
-    except Exception:
-        msg = response.text
+    except (ValueError, UnicodeDecodeError):
+        msg = ""
     logger.error(
-        "InPost API error — path=%s status=%s",
+        "InPost API error — path=%s status=%s detail=%s",
         response.url.path,
-        response.status_code,
+        status,
+        msg or response.text[:200],
     )
-    return msg, response.status_code
+    safe_messages = {
+        400: "Bad request",
+        401: "Authentication failed",
+        403: "Access denied",
+        404: "Resource not found",
+        429: "Rate limited",
+    }
+    return safe_messages.get(status, msg or f"InPost API error (HTTP {status})"), status
 
 
 # ---------------------------------------------------------------------------
@@ -146,6 +164,7 @@ class ApiShipping:
         deduplication_id: str | None = None,
     ) -> str:
         """POST /shipping/v2/organizations/{orgId}/shipments — returns trackingNumber."""
+        _validate_path_id(organization_id, "organization_id")
         headers: dict[str, str] = {"Content-Type": "application/json", **auth_header}
         if deduplication_id:
             headers["X-Inpost-Deduplication-Id"] = deduplication_id
@@ -166,6 +185,8 @@ class ApiShipping:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /shipping/v2/organizations/{orgId}/shipments/{trackingNumber}/label."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(tracking_number, "tracking_number")
         url = f"{self._base_url}/shipping/v2/organizations/{organization_id}/shipments/{tracking_number}/label"
         response = await self._client.get(
             url,
@@ -185,6 +206,8 @@ class ApiShipping:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /shipping/v2/organizations/{orgId}/shipments/{trackingNumber}."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(tracking_number, "tracking_number")
         url = f"{self._base_url}/shipping/v2/organizations/{organization_id}/shipments/{tracking_number}"
         response = await self._client.get(
             url,
@@ -239,6 +262,7 @@ class ApiPickups:
         auth_header: dict[str, str],
     ) -> dict:
         """POST /pickups/v1/organizations/{orgId}/one-time-pickups."""
+        _validate_path_id(organization_id, "organization_id")
         url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups"
         response = await self._client.post(
             url,
@@ -256,6 +280,7 @@ class ApiPickups:
         size: int | None = None,
     ) -> dict:
         """GET /pickups/v1/organizations/{orgId}/one-time-pickups."""
+        _validate_path_id(organization_id, "organization_id")
         url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups"
         response = await self._client.get(
             url,
@@ -272,6 +297,8 @@ class ApiPickups:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /pickups/v1/organizations/{orgId}/one-time-pickups/{orderId}."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(order_id, "order_id")
         url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups/{order_id}"
         response = await self._client.get(
             url,
@@ -287,6 +314,8 @@ class ApiPickups:
         auth_header: dict[str, str],
     ) -> dict:
         """PUT /pickups/v1/organizations/{orgId}/one-time-pickups/{orderId}/cancel."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(order_id, "order_id")
         url = f"{self._base_url}/pickups/v1/organizations/{organization_id}/one-time-pickups/{order_id}/cancel"
         response = await self._client.put(
             url,
@@ -361,6 +390,7 @@ class ApiLocation:
         header_accept_language: str | None = None,
     ) -> PointDto:
         """GET /location/v1/points/{id}."""
+        _validate_path_id(id_, "point_id")
         response = await self._client.get(
             f"{self._base_url}/location/v1/points/{id_}",
             headers=self._create_headers(auth_header, header_accept_language),
@@ -430,6 +460,7 @@ class ApiReturns:
         auth_header: dict[str, str],
     ) -> dict:
         """POST /returns/v1/organizations/{orgId}/shipments — create return shipment."""
+        _validate_path_id(organization_id, "organization_id")
         url = f"{self._base_url}/returns/v1/organizations/{organization_id}/shipments"
         response = await self._client.post(
             url,
@@ -446,6 +477,8 @@ class ApiReturns:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /returns/v1/organizations/{orgId}/shipments/{shipmentId}."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(shipment_id, "shipment_id")
         url = f"{self._base_url}/returns/v1/organizations/{organization_id}/shipments/{shipment_id}"
         response = await self._client.get(
             url,
@@ -462,6 +495,8 @@ class ApiReturns:
         auth_header: dict[str, str],
     ) -> dict:
         """GET /returns/v1/organizations/{orgId}/shipments/{trackingNumber}/label."""
+        _validate_path_id(organization_id, "organization_id")
+        _validate_path_id(tracking_number, "tracking_number")
         url = f"{self._base_url}/returns/v1/organizations/{organization_id}/shipments/{tracking_number}/label"
         response = await self._client.get(
             url,

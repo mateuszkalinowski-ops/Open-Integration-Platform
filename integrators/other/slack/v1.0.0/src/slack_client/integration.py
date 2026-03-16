@@ -3,6 +3,8 @@
 import logging
 from typing import Any
 
+import httpx
+
 from src.config import SlackAccountConfig
 from src.services.account_manager import AccountManager
 from src.slack_client.client import SlackClient
@@ -52,7 +54,8 @@ class SlackIntegration:
                 team_name=data.get("team", ""),
                 team_id=data.get("team_id", ""),
             )
-        except Exception:
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            logger.debug("Auth check failed for account %s: %s", account_name, exc)
             return AuthStatusResponse(account_name=account_name, authenticated=False)
 
     async def list_channels(
@@ -169,7 +172,8 @@ class SlackIntegration:
             name = data.get("user", {}).get("real_name", "") or data.get("user", {}).get("name", "")
             self._user_cache[cache_key] = name
             return name
-        except Exception:
+        except (httpx.HTTPError, ValueError, KeyError) as exc:
+            logger.debug("Failed to resolve user %s in account %s: %s", user_id, account_name, exc)
             return ""
 
     async def close(self) -> None:

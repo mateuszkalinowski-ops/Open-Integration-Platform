@@ -108,8 +108,14 @@ class WebhookIngestionService:
         body: bytes,
         headers: dict[str, str],
         tenant_id: uuid.UUID,
+        *,
+        require_signature: bool = False,
     ) -> dict[str, Any]:
-        """Verify, dedup, persist, and return 200 immediately. Processing is async."""
+        """Verify, dedup, persist, and return 200 immediately. Processing is async.
+
+        When ``require_signature`` is True (tenant inferred, not verified via
+        API key), the webhook is rejected unless signature verification passes.
+        """
         WEBHOOK_RECEIVED.labels(connector=connector_name, event=event_type).inc()
 
         try:
@@ -134,6 +140,14 @@ class WebhookIngestionService:
             if sig_valid is False:
                 WEBHOOK_FAILED.labels(connector=connector_name, event=event_type, reason="bad_signature").inc()
                 return {"status": "rejected", "reason": "Invalid signature"}
+        elif require_signature:
+            WEBHOOK_FAILED.labels(connector=connector_name, event=event_type, reason="no_signature_config").inc()
+            logger.warning(
+                "webhook.rejected_no_signature_config",
+                connector=connector_name,
+                event_type=event_type,
+            )
+            return {"status": "rejected", "reason": "Webhook signature verification required but not configured for this event"}
 
         external_id = self._extract_external_id(headers, payload)
         if external_id:

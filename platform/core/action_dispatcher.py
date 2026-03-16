@@ -9,6 +9,7 @@ import asyncio
 import base64
 import json
 import re
+import urllib.parse
 import uuid
 from typing import Any
 
@@ -75,7 +76,7 @@ def _build_url(
     for key in list(body.keys()):
         placeholder = "{" + key + "}"
         if placeholder in path:
-            path = path.replace(placeholder, str(body.pop(key)))
+            path = path.replace(placeholder, urllib.parse.quote(str(body.pop(key)), safe=""))
 
     query_params: dict[str, Any] = {}
     for qp in route.get("query_from_payload", []):

@@ -97,22 +97,27 @@ async def get_current_tenant_or_token(
     api_key: str | None = Security(api_key_header),
     db: AsyncSession = Depends(get_db),
 ) -> Tenant:
-    """Auth via X-API-Key header or credential token in query string.
+    """Auth via X-API-Key header or credential token.
 
-    Priority: X-API-Key header > ``token`` query parameter.
+    Priority: X-API-Key header > X-Credential-Token header > ``token`` query
+    parameter (deprecated).
     Designed for public-facing endpoints like workflow /call where the
     caller may only have a credential token, not a full API key.
     """
     if api_key:
         return await _resolve_tenant(api_key, db)
 
-    token = request.query_params.get("token")
+    token = request.headers.get("X-Credential-Token", "").strip()
+
+    if not token:
+        token = request.query_params.get("token", "")
+
     if token:
         return await _resolve_tenant_by_token(token, db)
 
     raise HTTPException(
         status_code=401,
-        detail="Provide X-API-Key header or token query parameter",
+        detail="Provide X-API-Key header or X-Credential-Token header",
     )
 
 

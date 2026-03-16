@@ -95,17 +95,21 @@ def retry_with_refresh_token(func):
 
 async def _format_rest_error_response(response: httpx.Response) -> tuple[Any, int]:
     """Extract a meaningful error message from a UPS error response."""
+    status = response.status_code
     try:
         body = response.json()
         msg = body.get("message", "")
-        if "Check details object for more info" in msg:
-            msg = f"{msg} {body.get('details', '')}"
-        if not msg:
-            msg = str(body)
     except (ValueError, KeyError, AttributeError):
-        msg = response.text
-    logger.error("UPS API error %s: %s", response.url.path, msg)
-    return msg, response.status_code
+        msg = ""
+    logger.error("UPS API error %s [%s]: %s", response.url.path, status, msg or response.text[:200])
+    safe_messages = {
+        400: "Bad request",
+        401: "Authentication failed",
+        403: "Access denied",
+        404: "Resource not found",
+        429: "Rate limited",
+    }
+    return safe_messages.get(status, msg or f"UPS API error (HTTP {status})"), status
 
 
 # ---------------------------------------------------------------------------

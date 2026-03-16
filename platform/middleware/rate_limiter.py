@@ -17,6 +17,15 @@ logger = logging.getLogger(__name__)
 _BYPASS_PATHS = {"/health", "/readiness", "/metrics", "/docs", "/openapi.json"}
 _RATE_LIMIT_PREFIX = "ratelimit:"
 
+_SENSITIVE_PATH_PREFIXES = (
+    "/api/v1/tenants",
+    "/api/v1/webhooks/",
+    "/api/v1/demo/register",
+    "/api/v1/workflows/",
+)
+_SENSITIVE_RATE_LIMIT_REQUESTS = 30
+_SENSITIVE_RATE_LIMIT_WINDOW = 60
+
 
 class RateLimiterMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next: RequestResponseEndpoint) -> Response:
@@ -29,8 +38,15 @@ class RateLimiterMiddleware(BaseHTTPMiddleware):
         else:
             client_ip = request.client.host if request.client else "unknown"
             identifier = f"ip:{client_ip}"
-        window = settings.rate_limit_window_seconds
-        max_requests = settings.rate_limit_requests
+
+        is_sensitive = any(request.url.path.startswith(p) for p in _SENSITIVE_PATH_PREFIXES)
+        if is_sensitive:
+            window = _SENSITIVE_RATE_LIMIT_WINDOW
+            max_requests = _SENSITIVE_RATE_LIMIT_REQUESTS
+            identifier = f"sensitive:{identifier}"
+        else:
+            window = settings.rate_limit_window_seconds
+            max_requests = settings.rate_limit_requests
 
         remaining: int | None = None
         try:

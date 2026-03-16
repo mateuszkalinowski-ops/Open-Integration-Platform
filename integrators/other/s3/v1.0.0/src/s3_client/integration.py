@@ -88,8 +88,8 @@ class S3Integration:
                         json={"connector_name": "s3", "event": event, "data": data},
                         headers=_headers,
                     )
-            except Exception:
-                logger.debug("Failed to notify platform about %s event", event, exc_info=True)
+            except (httpx.HTTPError, OSError, ValueError) as exc:
+                logger.debug("Failed to notify platform about %s event: %s", event, exc)
 
     def _resolve_bucket(self, account_name: str, bucket: str) -> str:
         if bucket:

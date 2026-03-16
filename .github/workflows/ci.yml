@@ -78,6 +78,25 @@ jobs:
           done
           exit $FAILED
 
+  security-scan:
+    name: Security Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: pip-audit platform
+        run: |
+          pip install pip-audit
+          pip-audit -r platform/requirements.txt --ignore-vuln PYSEC-0 || true
+
+      - name: npm audit dashboard
+        run: |
+          cd platform/dashboard && npm audit --audit-level=high || true
+
   build-platform:
     name: Build Platform
     runs-on: ubuntu-latest
@@ -103,6 +122,14 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy scan platform image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
   build-dashboard:
     name: Build Dashboard
