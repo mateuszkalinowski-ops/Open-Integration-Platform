@@ -58,9 +58,9 @@ async def agent_health(account: str) -> dict[str, Any]:
     proxy = _get_proxy(account)
     try:
         return await proxy.health()
-    except Exception:
+    except Exception as exc:
         logger.exception("InsERT Nexo agent unreachable")
-        raise HTTPException(status_code=502, detail="Agent unreachable")
+        raise HTTPException(status_code=502, detail="Agent unreachable") from exc
 
 
 @router.get("/agents/{account}/connection/status")
@@ -68,9 +68,9 @@ async def agent_connection_status(account: str) -> dict[str, Any]:
     proxy = _get_proxy(account)
     try:
         return await proxy.get("/connection/status")
-    except Exception:
+    except Exception as exc:
         logger.exception("InsERT Nexo agent unreachable")
-        raise HTTPException(status_code=502, detail="Agent unreachable")
+        raise HTTPException(status_code=502, detail="Agent unreachable") from exc
 
 
 # --- Contractors ---

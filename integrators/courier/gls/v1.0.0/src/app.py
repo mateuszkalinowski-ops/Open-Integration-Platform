@@ -70,9 +70,9 @@ async def create_shipment(request: CreateShipmentRequest):
         return JSONResponse(content=result, status_code=201)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create GLS shipment")
-        raise HTTPException(status_code=500, detail="GLS shipment creation failed")
+        raise HTTPException(status_code=500, detail="GLS shipment creation failed") from exc
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -90,9 +90,9 @@ async def get_tracking(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("GLS tracking lookup failed")
-        raise HTTPException(status_code=500, detail="GLS tracking lookup failed")
+        raise HTTPException(status_code=500, detail="GLS tracking lookup failed") from exc
 
 
 @app.post("/rates")
@@ -229,9 +229,9 @@ async def get_label(request: LabelRequest):
         return Response(content=label_bytes, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to get GLS label")
-        raise HTTPException(status_code=500, detail="GLS label retrieval failed")
+        raise HTTPException(status_code=500, detail="GLS label retrieval failed") from exc
 
 
 if augment_legacy_fastapi_app is not None:

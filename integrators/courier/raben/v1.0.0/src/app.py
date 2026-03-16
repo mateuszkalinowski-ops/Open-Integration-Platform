@@ -80,9 +80,9 @@ async def create_shipment(request: CreateShipmentRequest):
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create Raben transport order")
-        raise HTTPException(status_code=500, detail="Raben shipment creation failed")
+        raise HTTPException(status_code=500, detail="Raben shipment creation failed") from exc
 
 
 @app.get("/shipments/{waybill_number}")
@@ -107,9 +107,9 @@ async def get_shipment(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben shipment retrieval failed")
-        raise HTTPException(status_code=500, detail="Raben shipment retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben shipment retrieval failed") from exc
 
 
 @app.put("/shipments/{waybill_number}/cancel")
@@ -134,9 +134,9 @@ async def cancel_shipment(
         return {"result": result}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben shipment cancellation failed")
-        raise HTTPException(status_code=500, detail="Raben shipment cancellation failed")
+        raise HTTPException(status_code=500, detail="Raben shipment cancellation failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -166,9 +166,9 @@ async def get_tracking(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben tracking retrieval failed")
-        raise HTTPException(status_code=500, detail="Raben tracking retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben tracking retrieval failed") from exc
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -196,9 +196,9 @@ async def get_shipment_status(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben shipment status retrieval failed")
-        raise HTTPException(status_code=500, detail="Raben shipment status retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben shipment status retrieval failed") from exc
 
 
 @app.get("/shipments/{waybill_number}/eta")
@@ -223,9 +223,9 @@ async def get_eta(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben ETA retrieval failed")
-        raise HTTPException(status_code=500, detail="Raben ETA retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben ETA retrieval failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -248,9 +248,9 @@ async def get_label(request: LabelRequest):
         return Response(content=label_data, media_type=media_type)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to get Raben label")
-        raise HTTPException(status_code=500, detail="Raben label retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben label retrieval failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -275,9 +275,9 @@ async def create_claim(request: ClaimSubmitRequest):
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create Raben claim")
-        raise HTTPException(status_code=500, detail="Raben claim creation failed")
+        raise HTTPException(status_code=500, detail="Raben claim creation failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -310,9 +310,9 @@ async def get_delivery_confirmation(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Raben delivery confirmation retrieval failed")
-        raise HTTPException(status_code=500, detail="Raben delivery confirmation retrieval failed")
+        raise HTTPException(status_code=500, detail="Raben delivery confirmation retrieval failed") from exc
 
 
 if augment_legacy_fastapi_app is not None:

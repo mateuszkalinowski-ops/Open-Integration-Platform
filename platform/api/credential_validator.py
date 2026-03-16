@@ -11,7 +11,7 @@ import ipaddress
 import logging
 import time
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlunparse
 
 import httpx
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
@@ -130,7 +130,7 @@ async def _http_credential_check(
             "message": f"{service_name} API connection timed out",
             "response_time_ms": elapsed_ms,
         }
-    except Exception as exc:
+    except (httpx.HTTPError, ValueError) as exc:
         elapsed_ms = int((time.monotonic() - start) * 1000)
         return {"status": "failed", "message": str(exc), "response_time_ms": elapsed_ms}
 
@@ -144,8 +144,6 @@ def _deduplicate_url_path(url: str) -> str:
     ``https://host/api/auth/sign-in/auth/sign-in``.  Detect this and
     strip the duplicate.
     """
-    from urllib.parse import urlparse, urlunparse
-
     parsed = urlparse(url)
     path = parsed.path
     if len(path) < 2:
@@ -246,7 +244,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
         results["imap"] = f"auth_failed: {exc}"
     except OSError as exc:
         results["imap"] = f"connection_failed: {exc}"
-    except Exception as exc:
+    except (ValueError, RuntimeError) as exc:
         results["imap"] = f"error: {exc}"
 
     try:
@@ -266,7 +264,7 @@ async def _validate_email_imap_smtp(creds: dict[str, str], display_name: str) ->
 
         await loop.run_in_executor(None, _test_smtp)
         results["smtp"] = "ok"
-    except Exception as exc:
+    except (smtplib.SMTPException, OSError, ValueError, RuntimeError) as exc:
         results["smtp"] = f"error: {exc}"
 
     elapsed_ms = int((time.monotonic() - start) * 1000)
@@ -295,7 +293,7 @@ async def _execute_test_request(test_cfg: dict, creds: dict[str, str], display_n
     url = _deduplicate_url_path(url)
 
     if not _is_url_safe(url):
-        return {"status": "failed", "message": f"Validation blocked: URL targets a private or internal address"}
+        return {"status": "failed", "message": "Validation blocked: URL targets a private or internal address"}
 
     method = test_cfg.get("method", "GET")
 

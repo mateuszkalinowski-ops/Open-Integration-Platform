@@ -72,9 +72,9 @@ async def create_shipment(request: CreateShipmentRequest):
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create DPD shipment")
-        raise HTTPException(status_code=500, detail="Internal error creating DPD shipment")
+        raise HTTPException(status_code=500, detail="Internal error creating DPD shipment") from exc
 
 
 @app.get("/shipments/{waybill_number}/status")
@@ -95,9 +95,9 @@ async def get_status(
         return {"status": result}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to get DPD status")
-        raise HTTPException(status_code=500, detail="Internal error querying DPD status")
+        raise HTTPException(status_code=500, detail="Internal error querying DPD status") from exc
 
 
 @app.post("/labels")
@@ -120,9 +120,9 @@ async def get_label(request: LabelRequest):
         return Response(content=label_bytes, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to get DPD label")
-        raise HTTPException(status_code=500, detail="Internal error retrieving DPD label")
+        raise HTTPException(status_code=500, detail="Internal error retrieving DPD label") from exc
 
 
 @app.post("/rates")
@@ -254,9 +254,9 @@ async def generate_protocol(request: ProtocolRequest):
         return Response(content=result, media_type="application/pdf")
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to generate DPD protocol")
-        raise HTTPException(status_code=500, detail="Internal error generating DPD protocol")
+        raise HTTPException(status_code=500, detail="Internal error generating DPD protocol") from exc
 
 
 if augment_legacy_fastapi_app is not None:

@@ -80,9 +80,9 @@ async def get_services(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_services failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -104,9 +104,9 @@ async def get_company(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_company failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -127,9 +127,9 @@ async def create_order(request: CreateOrderApiRequest):
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create FX Couriers order")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.get("/shipments")
@@ -153,9 +153,9 @@ async def get_orders(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_orders failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.get("/shipments/by-number/{order_number}")
@@ -176,9 +176,9 @@ async def find_order_by_number(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers find_order_by_number failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.get("/shipments/{order_id}")
@@ -195,9 +195,9 @@ async def get_order(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_order failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.delete("/shipments/{order_id}")
@@ -214,9 +214,9 @@ async def delete_order(
         return {"result": result}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers delete_order failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -238,9 +238,9 @@ async def get_order_status(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_order_status failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.get("/tracking/{order_id}")
@@ -257,9 +257,9 @@ async def get_tracking(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_tracking failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -287,9 +287,9 @@ async def get_label(request: LabelRequest):
         }
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to get FX Couriers label")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 # ---------------------------------------------------------------------------
@@ -310,9 +310,9 @@ async def create_pickup(request: CreatePickupApiRequest):
         return JSONResponse(content=result, status_code=status_code)
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("Failed to create FX Couriers pickup")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.get("/pickups/{order_id}")
@@ -329,9 +329,9 @@ async def get_pickup(
         return result
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers get_pickup failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 @app.delete("/pickups/{order_id}")
@@ -348,9 +348,9 @@ async def cancel_pickup(
         return {"result": result}
     except HTTPException:
         raise
-    except Exception:
+    except Exception as exc:
         logger.exception("FX Couriers cancel_pickup failed")
-        raise HTTPException(status_code=500, detail="Request failed")
+        raise HTTPException(status_code=500, detail="Request failed") from exc
 
 
 if augment_legacy_fastapi_app is not None:

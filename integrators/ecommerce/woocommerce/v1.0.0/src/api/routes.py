@@ -140,9 +140,9 @@ async def test_connection(account_name: str):
     try:
         result = await app_state.client.test_connection(account_name)
         return {"status": "connected", "woocommerce_version": result.get("settings", {}).get("version", "unknown")}
-    except Exception:
+    except Exception as exc:
         logger.exception("WooCommerce connection test failed")
-        raise HTTPException(status_code=502, detail="Connection test failed")
+        raise HTTPException(status_code=502, detail="Connection test failed") from exc
 
 
 @router.get("/connection/{account_name}/status")
@@ -405,9 +405,9 @@ async def upload_invoice_json(order_id: str, body: InvoiceUploadJsonRequest, acc
     _require_auth(account_name)
     try:
         contents = base64.b64decode(body.invoice_base64)
-    except (ValueError, KeyError):
+    except (ValueError, KeyError) as exc:
         logger.exception("WooCommerce invalid base64 invoice")
-        raise HTTPException(status_code=400, detail="Invalid base64 input")
+        raise HTTPException(status_code=400, detail="Invalid base64 input") from exc
     if len(contents) > 10 * 1024 * 1024:
         raise HTTPException(status_code=413, detail="Invoice file exceeds 10 MB limit")
     result = await app_state.integration.upload_invoice(
