@@ -1,10 +1,10 @@
-FROM python:3.12-slim AS build
+FROM python:3.14-slim AS build
 WORKDIR /app
 COPY platform/requirements.txt .
 COPY shared/python /shared/python
 RUN pip install --no-cache-dir --prefix=/install -r requirements.txt
 
-FROM python:3.12-slim
+FROM python:3.14-slim
 LABEL maintainer="integrations@pinquark.com"
 LABEL version="0.1.0"
 LABEL component="platform"
