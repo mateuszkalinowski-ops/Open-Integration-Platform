@@ -1,3 +1,5 @@
+# Example deploy workflow for a single-node VPS (Hetzner).
+# Adapt paths, secrets, and infrastructure settings to your environment.
 name: Deploy to VPS
 
 on:
@@ -160,23 +162,29 @@ jobs:
               sleep 2
             done
 
-            # Create/update pinquark_app role on existing database
+            # Create/update pinquark_app role on existing database (only if password is set)
             DB_APP_PW=$(grep DB_APP_PASSWORD .env | cut -d= -f2-)
-            docker compose -f docker-compose.vps.yml exec -T postgres psql -U pinquark -d pinquark_platform -c "
-              DO \$\$
-              BEGIN
-                IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pinquark_app') THEN
-                  CREATE ROLE pinquark_app LOGIN PASSWORD '${DB_APP_PW}';
-                ELSE
-                  ALTER ROLE pinquark_app PASSWORD '${DB_APP_PW}';
-                END IF;
-              END
-              \$\$;
-              GRANT CONNECT ON DATABASE pinquark_platform TO pinquark_app;
-              GRANT USAGE ON SCHEMA public TO pinquark_app;
-              GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO pinquark_app;
-              GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO pinquark_app;
-            " || echo "WARNING: pinquark_app role setup failed"
+            if [ -n "$DB_APP_PW" ]; then
+              docker compose -f docker-compose.vps.yml exec -T postgres psql -U pinquark -d pinquark_platform -c "
+                DO \$\$
+                BEGIN
+                  IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'pinquark_app') THEN
+                    CREATE ROLE pinquark_app LOGIN PASSWORD '${DB_APP_PW}';
+                  ELSE
+                    ALTER ROLE pinquark_app PASSWORD '${DB_APP_PW}';
+                  END IF;
+                END
+                \$\$;
+                GRANT CONNECT ON DATABASE pinquark_platform TO pinquark_app;
+                GRANT USAGE ON SCHEMA public TO pinquark_app;
+                GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA public TO pinquark_app;
+                GRANT USAGE, SELECT ON ALL SEQUENCES IN SCHEMA public TO pinquark_app;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT SELECT, INSERT, UPDATE, DELETE ON TABLES TO pinquark_app;
+                ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT USAGE, SELECT ON SEQUENCES TO pinquark_app;
+              " || echo "WARNING: pinquark_app role setup failed"
+            else
+              echo "WARNING: DB_APP_PASSWORD not set — skipping pinquark_app role setup (platform will use owner role)"
+            fi
 
             docker compose -f docker-compose.vps.yml up -d --remove-orphans || {
               echo "=== docker compose up failed — dumping infra logs ==="
