@@ -36,24 +36,17 @@ async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
     if not api_key:
         raise HTTPException(status_code=401, detail="Missing API key")
 
-    # Bypass RLS for auth lookup (chicken-and-egg: need to read api_keys to find tenant)
-    await db.execute(text("SELECT set_config('app.rls_bypass', 'on', true)"))
-
     key_hash = hash_api_key(api_key)
     result = await db.execute(select(ApiKey).where(ApiKey.key_hash == key_hash, ApiKey.is_active.is_(True)).options())
     api_key_record = result.scalar_one_or_none()
 
     if not api_key_record:
-        await db.execute(text("SELECT set_config('app.rls_bypass', '', true)"))
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     tenant_result = await db.execute(
         select(Tenant).where(Tenant.id == api_key_record.tenant_id, Tenant.is_active.is_(True))
     )
     tenant = tenant_result.scalar_one_or_none()
-
-    # Switch from bypass to tenant-scoped RLS for the rest of the request
-    await db.execute(text("SELECT set_config('app.rls_bypass', '', true)"))
 
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")
@@ -63,8 +56,6 @@ async def _resolve_tenant(api_key: str | None, db: AsyncSession) -> Tenant:
 
 
 async def _resolve_tenant_by_token(token: str, db: AsyncSession) -> Tenant:
-    await db.execute(text("SELECT set_config('app.rls_bypass', 'on', true)"))
-
     result = await db.execute(
         select(CredentialToken).where(
             CredentialToken.token == token,
@@ -73,14 +64,10 @@ async def _resolve_tenant_by_token(token: str, db: AsyncSession) -> Tenant:
     )
     token_row = result.scalar_one_or_none()
     if not token_row:
-        await db.execute(text("SELECT set_config('app.rls_bypass', '', true)"))
         raise HTTPException(status_code=401, detail="Invalid or inactive credential token")
 
     tenant_result = await db.execute(select(Tenant).where(Tenant.id == token_row.tenant_id, Tenant.is_active.is_(True)))
     tenant = tenant_result.scalar_one_or_none()
-
-    await db.execute(text("SELECT set_config('app.rls_bypass', '', true)"))
-
     if not tenant:
         raise HTTPException(status_code=403, detail="Tenant is disabled")
 
