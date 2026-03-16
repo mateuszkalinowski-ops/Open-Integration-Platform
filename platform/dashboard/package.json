@@ -22,7 +22,7 @@
     "@angular/platform-browser-dynamic": "^19.0.0",
     "@angular/router": "^19.0.0",
     "rxjs": "^7.8.0",
-    "swagger-ui-dist": "^5.31.2",
+    "swagger-ui-dist": "^5.32.0",
     "tslib": "^2.6.0",
     "zone.js": "~0.15.0"
   },
