@@ -9,7 +9,6 @@ services:
       DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD:-devpassword}@postgres:5432/pinquark_platform
       REDIS_URL: redis://:${REDIS_PASSWORD:-devredispass}@redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY:-dev-encryption-key-do-not-use-in-prod}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY:-dev-jwt-secret-do-not-use-in-prod}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: development
       LOG_LEVEL: ${LOG_LEVEL:-INFO}

@@ -36,14 +36,13 @@ services:
 
   # --- Core Platform ---
   platform:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/platform:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/platform:${IMAGE_TAG:-latest}
     expose:
       - "8080"
     environment:
       DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       DEFAULT_API_KEY: ${DEFAULT_API_KEY}
       ADMIN_SECRET: ${ADMIN_SECRET:-}
       INTERNAL_SECRET: ${INTERNAL_SECRET}
@@ -76,7 +75,7 @@ services:
       retries: 3
 
   dashboard:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/dashboard:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/dashboard:${IMAGE_TAG:-latest}
     expose:
       - "80"
     environment:
@@ -153,7 +152,7 @@ services:
 
   # --- Verification Agent ---
   verification-agent:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/verification-agent:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/verification-agent:${IMAGE_TAG:-latest}
     expose:
       - "8000"
     environment:
@@ -177,7 +176,7 @@ services:
 
   # --- Connectors ---
   connector-inpost-v3:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v3:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v3:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -187,7 +186,7 @@ services:
     <<: *connector-healthcheck
 
   connector-dhl:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -197,7 +196,7 @@ services:
     <<: *connector-healthcheck
 
   connector-allegro:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-allegro:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-allegro:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -213,7 +212,7 @@ services:
     restart: unless-stopped
 
   connector-baselinker:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-baselinker:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-baselinker:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -230,7 +229,7 @@ services:
     restart: unless-stopped
 
   connector-shopify:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shopify:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shopify:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -247,7 +246,7 @@ services:
     restart: unless-stopped
 
   connector-fxcouriers:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fxcouriers:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fxcouriers:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -258,7 +257,7 @@ services:
     <<: *connector-healthcheck
 
   connector-pinquark-wms:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pinquark-wms:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pinquark-wms:${IMAGE_TAG:-latest}
     environment:
       WMS_APP_ENV: production
       WMS_APP_PORT: 8000
@@ -279,7 +278,7 @@ services:
     restart: unless-stopped
 
   connector-email-client:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-email-client:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-email-client:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -295,7 +294,7 @@ services:
     restart: unless-stopped
 
   connector-skanuj-fakture:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-skanuj-fakture:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-skanuj-fakture:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -309,7 +308,7 @@ services:
     restart: unless-stopped
 
   connector-ftp-sftp:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ftp-sftp:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ftp-sftp:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -323,7 +322,7 @@ services:
     restart: unless-stopped
 
   connector-slack:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-slack:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-slack:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -340,7 +339,7 @@ services:
     restart: unless-stopped
 
   connector-bulkgate:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-bulkgate:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-bulkgate:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -350,7 +349,7 @@ services:
     <<: *connector-healthcheck
 
   connector-ai-agent:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ai-agent:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ai-agent:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -360,7 +359,7 @@ services:
     <<: *connector-healthcheck
 
   connector-s3:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-s3:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-s3:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -375,7 +374,7 @@ services:
 
   # --- Courier Connectors ---
   connector-inpost-v1:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v1:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v1:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -385,7 +384,7 @@ services:
     <<: *connector-healthcheck
 
   connector-inpost-v2:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v2:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v2:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -395,7 +394,7 @@ services:
     <<: *connector-healthcheck
 
   connector-dhl-express:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl-express:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dhl-express:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -405,7 +404,7 @@ services:
     <<: *connector-healthcheck
 
   connector-dpd:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dpd:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-dpd:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -415,7 +414,7 @@ services:
     <<: *connector-healthcheck
 
   connector-fedex:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedex:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedex:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -425,7 +424,7 @@ services:
     <<: *connector-healthcheck
 
   connector-fedexpl:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedexpl:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-fedexpl:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -435,7 +434,7 @@ services:
     <<: *connector-healthcheck
 
   connector-geis:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-geis:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-geis:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -445,7 +444,7 @@ services:
     <<: *connector-healthcheck
 
   connector-gls:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-gls:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-gls:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -455,7 +454,7 @@ services:
     <<: *connector-healthcheck
 
   connector-orlenpaczka:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-orlenpaczka:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-orlenpaczka:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -465,7 +464,7 @@ services:
     <<: *connector-healthcheck
 
   connector-packeta:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-packeta:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-packeta:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -475,7 +474,7 @@ services:
     <<: *connector-healthcheck
 
   connector-paxy:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-paxy:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-paxy:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -485,7 +484,7 @@ services:
     <<: *connector-healthcheck
 
   connector-pocztapolska:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pocztapolska:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-pocztapolska:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -495,7 +494,7 @@ services:
     <<: *connector-healthcheck
 
   connector-schenker:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-schenker:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-schenker:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -505,7 +504,7 @@ services:
     <<: *connector-healthcheck
 
   connector-sellasist:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-sellasist:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-sellasist:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -515,7 +514,7 @@ services:
     <<: *connector-healthcheck
 
   connector-suus:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-suus:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-suus:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -525,7 +524,7 @@ services:
     <<: *connector-healthcheck
 
   connector-ups:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ups:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ups:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -535,7 +534,7 @@ services:
     <<: *connector-healthcheck
 
   connector-raben:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-raben:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-raben:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -546,7 +545,7 @@ services:
 
   # --- E-commerce Connectors ---
   connector-shoper:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shoper:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-shoper:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -563,7 +562,7 @@ services:
     restart: unless-stopped
 
   connector-idosell:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-idosell:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-idosell:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -580,7 +579,7 @@ services:
     restart: unless-stopped
 
   connector-woocommerce:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-woocommerce:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-woocommerce:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -597,7 +596,7 @@ services:
     restart: unless-stopped
 
   connector-amazon:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-amazon:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-amazon:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -614,7 +613,7 @@ services:
     restart: unless-stopped
 
   connector-apilo:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-apilo:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-apilo:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000
@@ -632,7 +631,7 @@ services:
 
   # --- ERP Connector ---
   connector-insert-nexo:
-    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-insert-nexo:latest
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-insert-nexo:${IMAGE_TAG:-latest}
     environment:
       APP_ENV: production
       APP_PORT: 8000

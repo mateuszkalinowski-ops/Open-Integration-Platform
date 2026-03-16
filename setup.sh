@@ -42,9 +42,6 @@ DB_PASSWORD=${DB_PASSWORD}
 # Encryption key for credential vault (DO NOT CHANGE — stored credentials become unreadable)
 ENCRYPTION_KEY=${ENCRYPTION_KEY}
 
-# JWT secret for API authentication
-JWT_SECRET_KEY=${JWT_SECRET}
-
 # Internal secret for connector-to-platform communication (/internal/* endpoints)
 INTERNAL_SECRET=${INTERNAL_SECRET}
 

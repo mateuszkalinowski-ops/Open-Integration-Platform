@@ -1002,9 +1002,6 @@ Response headers:
 | Variable                          | Default      | Description                                             |
 | --------------------------------- | ------------ | ------------------------------------------------------- |
 | `ENCRYPTION_KEY`                  | *(required)* | AES-256-GCM key for credential vault (base64, 32 bytes) |
-| `JWT_SECRET_KEY`                  | *(required)* | JWT signing key                                         |
-| `JWT_ALGORITHM`                   | `HS256`      | JWT algorithm                                           |
-| `JWT_ACCESS_TOKEN_EXPIRE_MINUTES` | `30`         | JWT token lifetime (min)                                |
 
 
 #### Connector discovery & schema

@@ -111,6 +111,13 @@ async def get_current_tenant_or_token(
 
     if not token:
         token = request.query_params.get("token", "")
+        if token:
+            import logging as _logging
+            _logging.getLogger(__name__).warning(
+                "Deprecated: credential token passed via query string. "
+                "Use X-Credential-Token header instead. path=%s",
+                request.url.path,
+            )
 
     if token:
         return await _resolve_tenant_by_token(token, db)

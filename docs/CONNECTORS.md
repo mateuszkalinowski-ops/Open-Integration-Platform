@@ -1198,8 +1198,9 @@ curl http://localhost:8080/api/v1/credentials/inpost \
   -H "X-API-Key: pk_live_xxx"
 # Response: { "values": {"organization_id": "••••••••", ...}, "token": "ctok_aBcDeFgH..." }
 
-# Use token to call a workflow (instead of exposing the API key in URL)
-curl "https://your-domain.com/api/v1/workflows/{id}/call?token=ctok_aBcDeFgH...&key=file.pdf"
+# Use token to call a workflow (via header — recommended)
+curl "https://your-domain.com/api/v1/workflows/{id}/call?key=file.pdf" \
+  -H "X-Credential-Token: ctok_aBcDeFgH..."
 ```
 
 ### 6.3 Security

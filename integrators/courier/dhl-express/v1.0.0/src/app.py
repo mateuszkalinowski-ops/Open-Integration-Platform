@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re as _re
 import sys
 from collections.abc import AsyncGenerator
 from contextlib import asynccontextmanager
@@ -41,6 +42,26 @@ logging.basicConfig(
 logger = logging.getLogger("courier-dhl-express")
 
 integration = DhlExpressIntegration()
+
+_SAFE_ID_PATTERN = _re.compile(r"^[a-zA-Z0-9_\-]{1,128}$")
+
+
+def _validate_path_id(value: str, name: str = "id") -> str:
+    if not _SAFE_ID_PATTERN.match(value):
+        raise HTTPException(status_code=400, detail=f"Invalid {name} format")
+    return value
+
+
+def _sanitize_dhl_error(exc: DhlExpressError) -> HTTPException:
+    safe_messages = {
+        400: "Bad request to DHL Express",
+        401: "DHL Express authentication failed",
+        403: "Access denied by DHL Express",
+        404: "Resource not found",
+        429: "Rate limited by DHL Express",
+    }
+    msg = safe_messages.get(exc.status_code, f"DHL Express error (HTTP {exc.status_code})")
+    return HTTPException(status_code=exc.status_code, detail=msg)
 
 
 @asynccontextmanager
@@ -105,7 +126,7 @@ async def connection_status(
         }
     except Exception as exc:
         logger.warning("DHL Express connection check failed: %s", exc)
-        return {"connected": False, "error": str(exc)}
+        return {"connected": False, "error": "Connection check failed"}
 
 
 # ------------------------------------------------------------------
@@ -120,10 +141,10 @@ async def create_shipment(request: CreateShipmentRequest) -> JSONResponse:
         result, status_code = await integration.create_shipment(payload)
         return JSONResponse(content=result, status_code=status_code)
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
         logger.exception("Failed to create DHL Express shipment")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -137,6 +158,7 @@ async def get_status(
     tracking_view: str = Query("all-checkpoints", alias="trackingView"),
     level_of_detail: str = Query("all", alias="levelOfDetail"),
 ) -> dict:
+    _validate_path_id(tracking_number, "tracking_number")
     try:
         result, _ = await integration.get_tracking(
             tracking_number,
@@ -145,9 +167,9 @@ async def get_status(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -188,9 +210,9 @@ async def get_rates(request: RateRequest) -> dict:
         result, _ = await integration.get_rates(payload)
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 @app.post("/rates/standardized")
@@ -229,12 +251,13 @@ async def get_rates_standardized(request: RateRequest) -> dict:
     except DhlExpressError as exc:
         return StandardizedRateResponse(
             source="dhl-express",
-            raw={"error": str(exc.detail), "status_code": exc.status_code},
+            raw={"error": "DHL Express request failed", "status_code": exc.status_code},
         ).model_dump()
     except Exception as exc:
+        logger.exception("Failed to get standardized DHL Express rates")
         return StandardizedRateResponse(
             source="dhl-express",
-            raw={"error": str(exc)},
+            raw={"error": "Internal service error"},
         ).model_dump()
 
 
@@ -302,9 +325,9 @@ async def get_products(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -314,17 +337,18 @@ async def get_products(
 
 @app.get("/shipments/{tracking_number}/label")
 async def get_label(tracking_number: str) -> Response:
+    _validate_path_id(tracking_number, "tracking_number")
     try:
         label_bytes, _status_code = await integration.get_label_bytes(tracking_number)
         if not label_bytes:
             raise HTTPException(status_code=404, detail="Label not found")
         return Response(content=label_bytes, media_type="application/pdf")
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except HTTPException:
         raise
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 @app.get("/shipments/{tracking_number}/documents")
@@ -332,6 +356,7 @@ async def get_documents(
     tracking_number: str,
     type_code: str = Query("label", alias="typeCode"),
 ) -> dict:
+    _validate_path_id(tracking_number, "tracking_number")
     try:
         result, _ = await integration.get_shipment_image(
             tracking_number,
@@ -342,9 +367,9 @@ async def get_documents(
                 doc.pop("_decoded_content", None)
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -359,9 +384,9 @@ async def create_pickup(request: PickupRequest) -> JSONResponse:
         result, status_code = await integration.create_pickup(payload)
         return JSONResponse(content=result, status_code=status_code)
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 @app.patch("/pickups/{dispatch_confirmation_number}")
@@ -369,6 +394,7 @@ async def update_pickup(
     dispatch_confirmation_number: str,
     payload: dict,
 ) -> dict:
+    _validate_path_id(dispatch_confirmation_number, "dispatch_confirmation_number")
     try:
         result, _ = await integration.update_pickup(
             dispatch_confirmation_number,
@@ -376,9 +402,9 @@ async def update_pickup(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 @app.delete("/pickups/{dispatch_confirmation_number}")
@@ -387,6 +413,7 @@ async def cancel_pickup(
     requestor_name: str = Query("", alias="requestorName"),
     reason: str = Query("not needed"),
 ) -> dict:
+    _validate_path_id(dispatch_confirmation_number, "dispatch_confirmation_number")
     try:
         result, _ = await integration.cancel_pickup(
             dispatch_confirmation_number,
@@ -395,9 +422,9 @@ async def cancel_pickup(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -421,9 +448,9 @@ async def validate_address(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -453,9 +480,9 @@ async def get_service_points(
         )
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 # ------------------------------------------------------------------
@@ -469,9 +496,9 @@ async def get_landed_cost(payload: dict) -> dict:
         result, _ = await integration.get_landed_cost(payload)
         return result
     except DhlExpressError as exc:
-        raise HTTPException(status_code=exc.status_code, detail=exc.detail) from exc
+        raise _sanitize_dhl_error(exc) from exc
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Internal service error") from exc
 
 
 if augment_legacy_fastapi_app is not None:

@@ -72,7 +72,6 @@ jobs:
             printf '%s\n' \
               "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" \
               "ENCRYPTION_KEY=${{ secrets.ENCRYPTION_KEY }}" \
-              "JWT_SECRET_KEY=${{ secrets.JWT_SECRET_KEY }}" \
               "DEFAULT_API_KEY=${DEFAULT_KEY}" \
               "ADMIN_SECRET=${{ secrets.ADMIN_SECRET }}" \
               "INTERNAL_SECRET=${{ secrets.INTERNAL_SECRET }}" \

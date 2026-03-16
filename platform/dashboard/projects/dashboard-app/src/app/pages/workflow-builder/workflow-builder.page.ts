@@ -822,12 +822,13 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   get callEndpoint(): string {
     const base = this.getApiBaseUrl();
-    return `${base}/api/v1/workflows/${this.workflowId}/call?token=YOUR_CREDENTIAL_TOKEN&key=FILENAME`;
+    return `${base}/api/v1/workflows/${this.workflowId}/call?key=FILENAME`;
   }
 
   get callExample(): string {
     const base = this.getApiBaseUrl();
-    return `${base}/api/v1/workflows/${this.workflowId}/call?token=ctok_xxx&key=example-file.pdf`;
+    return `curl -X GET "${base}/api/v1/workflows/${this.workflowId}/call?key=example-file.pdf" \\
+  -H "X-Credential-Token: ctok_xxx"`;
   }
 
   get responseExample(): string {

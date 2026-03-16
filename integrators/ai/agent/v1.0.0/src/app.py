@@ -98,7 +98,7 @@ async def connection_status(
         }
     except Exception as exc:
         logger.warning("Gemini connection check failed: %s", exc)
-        return {"connected": False, "error": str(exc)}
+        return {"connected": False, "error": "Connection check failed"}
 
 
 # ── PRIMARY: Generic prompt-based analysis ──────────────────────
@@ -119,7 +119,7 @@ async def analyze(request: AnalyzeRequest):
         return JSONResponse(content=result.model_dump())
     except Exception as exc:
         logger.exception("Analysis failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="AI analysis failed") from exc
 
 
 # ── TEMPLATE: Risk Analysis ─────────────────────────────────────
@@ -152,7 +152,7 @@ async def analyze_risk(request: RiskAnalysisRequest):
         return JSONResponse(content=response)
     except Exception as exc:
         logger.exception("Risk analysis failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Risk analysis failed") from exc
 
 
 # ── TEMPLATE: Courier Recommendation ────────────────────────────
@@ -171,7 +171,7 @@ async def recommend_courier(request: CourierRecommendationRequest):
         return JSONResponse(content=result.model_dump())
     except Exception as exc:
         logger.exception("Courier recommendation failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Courier recommendation failed") from exc
 
 
 # ── TEMPLATE: Priority Classification ───────────────────────────
@@ -189,7 +189,7 @@ async def classify_priority(request: PriorityClassificationRequest):
         return JSONResponse(content=result.model_dump())
     except Exception as exc:
         logger.exception("Priority classification failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Priority classification failed") from exc
 
 
 # ── TEMPLATE: Data Extraction ───────────────────────────────────
@@ -207,7 +207,7 @@ async def extract_data(request: DataExtractionRequest):
         return JSONResponse(content=result.model_dump())
     except Exception as exc:
         logger.exception("Data extraction failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Data extraction failed") from exc
 
 
 # ── Generic action endpoint (used by Flow Engine dispatcher) ────

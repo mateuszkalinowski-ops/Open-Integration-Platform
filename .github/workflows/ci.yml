@@ -132,6 +132,7 @@ jobs:
           severity: CRITICAL,HIGH
 
   build-dashboard:
+
     name: Build Dashboard
     runs-on: ubuntu-latest
     if: github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -156,6 +157,14 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy scan dashboard image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
   build-verification-agent:
     name: Build Verification Agent
@@ -182,6 +191,14 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy scan verification-agent image
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH
 
   build-connectors:
     name: Build ${{ matrix.name }}
@@ -328,3 +345,11 @@ jobs:
             ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
+
+      - name: Trivy scan ${{ matrix.name }}
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
+          format: table
+          exit-code: "1"
+          severity: CRITICAL,HIGH

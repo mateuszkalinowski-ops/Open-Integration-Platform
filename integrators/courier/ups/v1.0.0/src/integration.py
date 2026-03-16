@@ -15,6 +15,7 @@ import contextlib
 import functools
 import logging
 import os
+import urllib.parse
 from decimal import Decimal
 from http import HTTPStatus
 from io import BytesIO
@@ -164,7 +165,7 @@ class UpsIntegration:
 
         https://developer.ups.com/api/reference?loc=en_PL#operation/getSingleTrackResponseUsingGET
         """
-        url = f"{settings.base_url}/api/track/v1/details/{waybill_number}"
+        url = f"{settings.base_url}/api/track/v1/details/{urllib.parse.quote(waybill_number, safe='')}"
         headers = self._auth_headers(credentials)
 
         response = await self._client.get(url, headers=headers)

@@ -18,6 +18,10 @@ class Settings(BaseSettings):
 
     available_couriers: str = "inpost,dhl,dpd,gls,fedex,ups,pocztapolska,orlenpaczka"
 
+    http_connect_timeout: float = 30.0
+    http_read_timeout: float = 120.0
+    gemini_request_timeout: float = 120.0
+
     model_config = {"env_prefix": "AI_", "env_file": ".env"}
 
     @property

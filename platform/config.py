@@ -55,9 +55,6 @@ class Settings(BaseSettings):
     base_url: str = "http://localhost:8080"
 
     encryption_key: str = ""
-    jwt_secret_key: str = ""
-    jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 30
 
     connector_discovery_path: str = "../integrators"
     schema_registry_ttl_seconds: int = 3600
@@ -100,11 +97,6 @@ if not settings.encryption_key:
     _logger.warning(
         "ENCRYPTION_KEY is not set — credential encryption will fail at runtime. "
         'Generate one with: python -c "import base64,os; print(base64.urlsafe_b64encode(os.urandom(32)).decode())"'
-    )
-if not settings.jwt_secret_key:
-    _logger.warning(
-        "JWT_SECRET_KEY is not set — JWT operations will fail at runtime. "
-        'Generate one with: python -c "import secrets; print(secrets.token_urlsafe(32))"'
     )
 if not settings.admin_secret:
     _logger.warning("ADMIN_SECRET is not set — tenant management endpoints are locked.")

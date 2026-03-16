@@ -11,6 +11,7 @@ Handles all Paxy REST API interactions including:
 from __future__ import annotations
 
 import logging
+import urllib.parse
 from http import HTTPStatus
 
 import httpx
@@ -185,7 +186,7 @@ class PaxyIntegration:
         async with httpx.AsyncClient(timeout=self.timeout) as client:
             response = await client.request(
                 "DELETE",
-                f"{self.base_url}/parcels/{waybill_number}",
+                f"{self.base_url}/parcels/{urllib.parse.quote(waybill_number, safe='')}",
                 headers=headers,
                 json=payload,
             )

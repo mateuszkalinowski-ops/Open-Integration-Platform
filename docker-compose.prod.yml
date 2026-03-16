@@ -11,13 +11,12 @@ services:
     build:
       context: .
       dockerfile: platform/Dockerfile
-    ports:
-      - "8080:8080"
+    expose:
+      - "8080"
     environment:
       DATABASE_URL: postgresql+asyncpg://pinquark:${DB_PASSWORD}@postgres:5432/pinquark_platform
       REDIS_URL: redis://:${REDIS_PASSWORD}@redis:6379/0
       ENCRYPTION_KEY: ${ENCRYPTION_KEY}
-      JWT_SECRET_KEY: ${JWT_SECRET_KEY}
       CONNECTOR_DISCOVERY_PATH: /integrators
       APP_ENV: production
       LOG_LEVEL: INFO

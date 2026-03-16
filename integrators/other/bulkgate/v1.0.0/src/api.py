@@ -43,15 +43,19 @@ def handle_errors(func):
             return {"error": {"code": "TIMEOUT", "message": "BulkGate API request timed out"}}, 504
         except httpx.HTTPStatusError as exc:
             status = exc.response.status_code
-            try:
-                body = exc.response.json()
-            except (ValueError, UnicodeDecodeError):
-                body = {"error": exc.response.text}
-            logger.error("BulkGate API error %d in %s", status, func.__name__)
-            return body, status
+            logger.error("BulkGate API error %d in %s: %s", status, func.__name__, exc.response.text[:200])
+            safe_messages = {
+                400: "Bad request to BulkGate",
+                401: "BulkGate authentication failed",
+                403: "Access denied by BulkGate",
+                404: "Resource not found",
+                429: "Rate limited by BulkGate",
+            }
+            msg = safe_messages.get(status, f"BulkGate API error (HTTP {status})")
+            return {"error": {"code": "EXTERNAL_API_ERROR", "message": msg}}, status
         except (httpx.ConnectError, httpx.ReadError, OSError) as exc:
             logger.exception("Connection error in %s", func.__name__)
-            return {"error": {"code": "CONNECTION_ERROR", "message": str(exc)}}, 502
+            return {"error": {"code": "CONNECTION_ERROR", "message": "Failed to connect to BulkGate"}}, 502
 
     return wrapper
 

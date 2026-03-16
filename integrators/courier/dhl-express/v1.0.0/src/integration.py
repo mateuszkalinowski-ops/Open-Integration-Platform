@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import base64
 import logging
+import urllib.parse
 from http import HTTPStatus
 from typing import Any
 
@@ -135,7 +136,9 @@ class DhlExpressIntegration:
             settings.dhl_tracking_url,
             params=params,
         )
-        tracking_url = self.TRACKING_URL.format(tracking_number=tracking_number)
+        tracking_url = self.TRACKING_URL.format(
+            tracking_number=urllib.parse.quote(tracking_number, safe=""),
+        )
         response["_trackingUrl"] = tracking_url
         return response, HTTPStatus.OK
 
@@ -204,7 +207,7 @@ class DhlExpressIntegration:
         params = {"typeCode": type_code}
         response = await self._request(
             "GET",
-            f"/shipments/{tracking_number}/get-image",
+            f"/shipments/{urllib.parse.quote(tracking_number, safe='')}/get-image",
             params=params,
         )
         if isinstance(response, dict) and "documents" in response:
@@ -249,7 +252,7 @@ class DhlExpressIntegration:
         """
         response = await self._request(
             "PATCH",
-            f"/pickups/{dispatch_confirmation_number}",
+            f"/pickups/{urllib.parse.quote(dispatch_confirmation_number, safe='')}",
             json=payload,
         )
         return response, HTTPStatus.OK
@@ -270,7 +273,7 @@ class DhlExpressIntegration:
             params["requestorName"] = requestor_name
         response = await self._request(
             "DELETE",
-            f"/pickups/{dispatch_confirmation_number}",
+            f"/pickups/{urllib.parse.quote(dispatch_confirmation_number, safe='')}",
             params=params,
         )
         return response, HTTPStatus.OK
