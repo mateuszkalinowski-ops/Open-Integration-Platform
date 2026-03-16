@@ -139,14 +139,12 @@ jobs:
               sudo chmod -R 755 "$CONF_BASE"/live 2>/dev/null || true
             fi
 
-            # Verify SHA-tagged image exists; fall back to "latest" if CI skipped builds
-            PROBE_IMG="ghcr.io/${{ github.repository_owner }}/oip/platform:${SHA}"
-            if ! docker manifest inspect "$PROBE_IMG" > /dev/null 2>&1; then
-              echo "Image ${PROBE_IMG} not found — falling back to latest tag"
+            # Pull images; if any SHA-tagged image is missing, fall back to "latest"
+            if ! docker compose -f docker-compose.vps.yml pull 2>&1; then
+              echo "Some images missing for tag ${SHA} — falling back to latest"
               sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=latest/' .env
+              docker compose -f docker-compose.vps.yml pull
             fi
-
-            docker compose -f docker-compose.vps.yml pull
             docker compose -f docker-compose.vps.yml up -d --remove-orphans
 
             sleep 5
