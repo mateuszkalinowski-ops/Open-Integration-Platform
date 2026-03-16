@@ -760,6 +760,17 @@ async def readiness_check(response: Response) -> dict[str, Any]:
     }
 
 
+# --- Auth check ---
+
+
+@app.get("/api/v1/me", tags=["auth"])
+async def get_current_user(
+    tenant: Tenant = Depends(get_current_tenant),
+) -> dict[str, Any]:
+    """Lightweight endpoint to validate an API key and return tenant info."""
+    return {"tenant_name": tenant.name, "tenant_slug": tenant.slug, "plan": tenant.plan}
+
+
 # --- Connectors (public catalog) ---
 
 

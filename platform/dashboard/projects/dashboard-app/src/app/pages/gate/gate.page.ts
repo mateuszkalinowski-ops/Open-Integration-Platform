@@ -261,8 +261,10 @@ export class GatePage {
       },
       error: (err) => {
         this.loading = false;
-        const msg = err.error?.detail || 'Registration failed';
-        this.snackBar.open(msg, 'OK', { duration: 5000 });
+        const msg = err.status === 404
+          ? 'Self-service registration is disabled. Contact your administrator for an API key.'
+          : (err.error?.detail || 'Registration failed');
+        this.snackBar.open(msg, 'OK', { duration: 6000 });
       },
     });
   }
@@ -272,24 +274,23 @@ export class GatePage {
     if (!key || this.loading) return;
 
     this.loading = true;
-    this.http.post<{ valid: boolean; tenant_name: string | null }>(
-      `${this.apiUrl}/api/v1/demo/validate-key`,
-      { api_key: key },
-    ).subscribe({
+    this.http.get<{ tenant_name?: string }>(`${this.apiUrl}/api/v1/me`, {
+      headers: { 'X-API-Key': key },
+    }).subscribe({
       next: (res) => {
         this.loading = false;
-        if (res.valid) {
-          if (res.tenant_name) {
-            sessionStorage.setItem('pinquark_tenant_name', res.tenant_name);
-          }
-          this.enterWithKey(key);
-        } else {
-          this.snackBar.open('Invalid API key', 'OK', { duration: 4000 });
+        if (res.tenant_name) {
+          sessionStorage.setItem('pinquark_tenant_name', res.tenant_name);
         }
+        this.enterWithKey(key);
       },
-      error: () => {
+      error: (err) => {
         this.loading = false;
-        this.snackBar.open('Could not validate key', 'OK', { duration: 4000 });
+        if (err.status === 401 || err.status === 403) {
+          this.snackBar.open('Invalid API key', 'OK', { duration: 4000 });
+        } else {
+          this.snackBar.open('Could not validate key', 'OK', { duration: 4000 });
+        }
       },
     });
   }
