@@ -326,7 +326,9 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
 
     async with async_session_factory() as db_session:
         tenant_result = await db_session.execute(select(Tenant).limit(1))
-        if not tenant_result.scalar_one_or_none():
+        existing_tenant = tenant_result.scalar_one_or_none()
+
+        if not existing_tenant:
             default_tenant = Tenant(name="Default", slug="default", is_active=True, plan="free")
             db_session.add(default_tenant)
             await db_session.flush()
@@ -353,6 +355,28 @@ async def lifespan(app: FastAPI):  # type: ignore[no-untyped-def]
                 api_key_prefix=raw_key[:10],
                 api_key="***auto-generated***" if not preset_key else "***set-from-env***",
             )
+        else:
+            preset_key = os.environ.get("DEFAULT_API_KEY", "")
+            if preset_key:
+                key_hash = hash_api_key(preset_key)
+                exists = await db_session.execute(
+                    select(ApiKey).where(ApiKey.key_hash == key_hash)
+                )
+                if not exists.scalar_one_or_none():
+                    api_key = ApiKey(
+                        tenant_id=existing_tenant.id,
+                        key_hash=key_hash,
+                        key_prefix=preset_key[:10],
+                        name="dashboard",
+                        is_active=True,
+                    )
+                    db_session.add(api_key)
+                    await db_session.commit()
+                    await logger.ainfo(
+                        "default_api_key_synced",
+                        tenant_id=str(existing_tenant.id),
+                        api_key_prefix=preset_key[:10],
+                    )
 
     count = registry.discover()
     await logger.ainfo("connectors_discovered", count=count)
