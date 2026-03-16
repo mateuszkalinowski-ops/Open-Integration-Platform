@@ -112,14 +112,15 @@ services:
       KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_LOG_RETENTION_HOURS: 168
-      CLUSTER_ID: "oip-vps-kafka-cluster-01"
+      CLUSTER_ID: "UzDKUkcMXRu30uhJVOqrLA"
     volumes:
       - kafkadata:/var/lib/kafka/data
     healthcheck:
-      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 --command-config /dev/null 2>&1 | grep -q ApiVersion || exit 0"]
-      interval: 15s
+      test: ["CMD-SHELL", "/opt/kafka/bin/kafka-broker-api-versions.sh --bootstrap-server localhost:9092 --command-config /dev/null 2>&1 | grep -q ApiVersion"]
+      interval: 10s
       timeout: 10s
-      retries: 5
+      retries: 10
+      start_period: 30s
     restart: unless-stopped
 
   postgres:

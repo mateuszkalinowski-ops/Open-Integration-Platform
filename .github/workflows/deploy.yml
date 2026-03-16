@@ -145,7 +145,18 @@ jobs:
               sed -i 's/^IMAGE_TAG=.*/IMAGE_TAG=latest/' .env
               docker compose -f docker-compose.vps.yml pull
             fi
-            docker compose -f docker-compose.vps.yml up -d --remove-orphans
+
+            # Clear stale Kafka data if cluster ID changed
+            docker compose -f docker-compose.vps.yml down kafka 2>/dev/null || true
+            docker volume rm pinquark_kafkadata 2>/dev/null || true
+
+            docker compose -f docker-compose.vps.yml up -d --remove-orphans || {
+              echo "=== docker compose up failed — dumping infra logs ==="
+              docker compose -f docker-compose.vps.yml logs kafka --tail=60 2>&1 || true
+              docker compose -f docker-compose.vps.yml logs redis --tail=30 2>&1 || true
+              docker compose -f docker-compose.vps.yml logs postgres --tail=30 2>&1 || true
+              exit 1
+            }
 
             sleep 5
             docker compose -f docker-compose.vps.yml restart nginx
@@ -163,5 +174,5 @@ jobs:
               sleep 5
             done
             echo "Health check failed after 30 attempts"
-            docker compose -f docker-compose.vps.yml logs --tail=50
+            docker compose -f docker-compose.vps.yml logs --tail=80
             exit 1
