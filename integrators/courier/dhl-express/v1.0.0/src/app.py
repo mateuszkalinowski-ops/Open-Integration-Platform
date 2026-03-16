@@ -17,7 +17,7 @@ except (IndexError, OSError):
     pass
 
 import httpx
-from fastapi import FastAPI, HTTPException, Header, Query, Response
+from fastapi import FastAPI, Header, HTTPException, Query, Response
 from fastapi.responses import JSONResponse
 
 try:
@@ -253,7 +253,7 @@ async def get_rates_standardized(request: RateRequest) -> dict:
             source="dhl-express",
             raw={"error": "DHL Express request failed", "status_code": exc.status_code},
         ).model_dump()
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get standardized DHL Express rates")
         return StandardizedRateResponse(
             source="dhl-express",

@@ -3,8 +3,8 @@ updates:
   - package-ecosystem: "pip"
     directory: "/platform"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
       - "security"
@@ -12,23 +12,24 @@ updates:
   - package-ecosystem: "pip"
     directory: "/shared/python"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 5
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
 
   - package-ecosystem: "npm"
     directory: "/platform/dashboard"
     schedule:
-      interval: "weekly"
-    open-pull-requests-limit: 10
+      interval: "monthly"
+    open-pull-requests-limit: 3
     labels:
       - "dependencies"
 
   - package-ecosystem: "docker"
     directory: "/platform"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     labels:
       - "dependencies"
       - "docker"
@@ -36,7 +37,8 @@ updates:
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
-      interval: "weekly"
+      interval: "monthly"
+    open-pull-requests-limit: 2
     labels:
       - "dependencies"
       - "ci"

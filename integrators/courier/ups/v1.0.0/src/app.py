@@ -123,7 +123,7 @@ async def get_rates(request: RateRequest):
                 raw={"error": "UPS rating request failed", "status_code": status_code},
             ).model_dump()
         return result
-    except Exception as exc:
+    except Exception:
         logger.exception("Failed to get UPS rates")
         return StandardizedRateResponse(
             source="ups",

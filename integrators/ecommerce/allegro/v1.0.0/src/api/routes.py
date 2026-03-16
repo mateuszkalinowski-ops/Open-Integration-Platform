@@ -1,6 +1,7 @@
 """FastAPI routes for Allegro integrator."""
 
 import base64
+import re as _re
 from datetime import datetime
 from typing import Any
 
@@ -12,8 +13,6 @@ from pinquark_common.schemas.ecommerce import (
     StockItem,
 )
 from pydantic import BaseModel
-
-import re as _re
 
 from src.allegro.schemas import AuthStatusResponse
 from src.api.dependencies import app_state

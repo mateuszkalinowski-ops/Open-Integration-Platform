@@ -12,7 +12,7 @@ import logging
 import sys
 from pathlib import Path
 
-from fastapi import FastAPI, HTTPException, Header, Query
+from fastapi import FastAPI, Header, HTTPException
 from fastapi.responses import JSONResponse
 from google import genai
 

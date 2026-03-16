@@ -3,8 +3,18 @@ name: CI — Build & Push
 on:
   push:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "LICENSE"
+      - ".github/dependabot.yml"
   pull_request:
     branches: [main]
+    paths-ignore:
+      - "docs/**"
+      - "*.md"
+      - "LICENSE"
+      - ".github/dependabot.yml"
 
 env:
   REGISTRY: ghcr.io
@@ -15,6 +25,42 @@ permissions:
   packages: write
 
 jobs:
+  changes:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      platform: ${{ steps.filter.outputs.platform }}
+      dashboard: ${{ steps.filter.outputs.dashboard }}
+      verification-agent: ${{ steps.filter.outputs.verification-agent }}
+      connectors: ${{ steps.filter.outputs.connectors }}
+      shared: ${{ steps.filter.outputs.shared }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            platform:
+              - 'platform/api/**'
+              - 'platform/core/**'
+              - 'platform/db/**'
+              - 'platform/middleware/**'
+              - 'platform/Dockerfile'
+              - 'platform/requirements.txt'
+              - 'platform/entrypoint.sh'
+              - 'platform/config.py'
+              - 'shared/python/**'
+            dashboard:
+              - 'platform/dashboard/**'
+            verification-agent:
+              - 'platform/verification-agent/**'
+              - 'shared/python/**'
+            connectors:
+              - 'integrators/**'
+              - 'shared/python/**'
+            shared:
+              - 'shared/python/**'
+
   lint:
     name: Lint Python
     runs-on: ubuntu-latest
@@ -91,7 +137,8 @@ jobs:
       - name: pip-audit platform
         run: |
           pip install pip-audit
-          pip-audit -r platform/requirements.txt --ignore-vuln PYSEC-0
+          grep -v 'file://' platform/requirements.txt > /tmp/audit-reqs.txt
+          pip-audit -r /tmp/audit-reqs.txt --ignore-vuln PYSEC-0
 
       - name: npm audit dashboard
         run: |
@@ -99,9 +146,11 @@ jobs:
 
   build-platform:
     name: Build Platform
-    needs: [lint, test, security-scan]
+    needs: [changes, lint, test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && (needs.changes.outputs.platform == 'true' || needs.changes.outputs.shared == 'true')
     steps:
       - uses: actions/checkout@v4
 
@@ -139,9 +188,11 @@ jobs:
 
   build-dashboard:
     name: Build Dashboard
-    needs: [lint, test, security-scan]
+    needs: [changes, lint, test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && needs.changes.outputs.dashboard == 'true'
     steps:
       - uses: actions/checkout@v4
 
@@ -179,9 +230,11 @@ jobs:
 
   build-verification-agent:
     name: Build Verification Agent
-    needs: [lint, test, security-scan]
+    needs: [changes, lint, test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && (needs.changes.outputs.verification-agent == 'true' || needs.changes.outputs.shared == 'true')
     steps:
       - uses: actions/checkout@v4
 
@@ -219,9 +272,11 @@ jobs:
 
   build-connectors:
     name: Build ${{ matrix.name }}
-    needs: [lint, test, security-scan]
+    needs: [changes, lint, test, security-scan]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: >-
+      github.event_name == 'push' && github.ref == 'refs/heads/main'
+      && (needs.changes.outputs.connectors == 'true' || needs.changes.outputs.shared == 'true')
     strategy:
       fail-fast: false
       matrix:

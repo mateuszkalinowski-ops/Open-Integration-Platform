@@ -53,7 +53,7 @@ def handle_errors(func):
             }
             msg = safe_messages.get(status, f"BulkGate API error (HTTP {status})")
             return {"error": {"code": "EXTERNAL_API_ERROR", "message": msg}}, status
-        except (httpx.ConnectError, httpx.ReadError, OSError) as exc:
+        except (httpx.ConnectError, httpx.ReadError, OSError):
             logger.exception("Connection error in %s", func.__name__)
             return {"error": {"code": "CONNECTION_ERROR", "message": "Failed to connect to BulkGate"}}, 502
 
