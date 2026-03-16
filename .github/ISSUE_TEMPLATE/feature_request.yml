@@ -1,0 +1,43 @@
+name: Feature Request
+description: Suggest a new feature or connector
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Have an idea for a new feature or connector? We'd love to hear it.
+
+  - type: dropdown
+    id: type
+    attributes:
+      label: Request type
+      options:
+        - New connector
+        - New platform feature
+        - Improvement to existing connector
+        - Documentation
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Description
+      description: Describe the feature you'd like to see.
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-case
+    attributes:
+      label: Use case
+      description: How would this feature help you or others?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Any workarounds or alternative approaches you've tried?
