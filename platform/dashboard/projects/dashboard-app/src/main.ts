@@ -10,13 +10,12 @@ import { PINQUARK_CONFIG } from '@pinquark/integrations';
 
 declare global {
   interface Window {
-    __PINQUARK_CONFIG__?: { apiUrl: string; apiKey: string };
+    __PINQUARK_CONFIG__?: { apiUrl: string };
   }
 }
 
-const runtimeConfig = window.__PINQUARK_CONFIG__ ?? { apiUrl: '', apiKey: '' };
-const savedKey = localStorage.getItem('pinquark_demo_api_key');
-const effectiveApiKey = savedKey || runtimeConfig.apiKey;
+const runtimeConfig = window.__PINQUARK_CONFIG__ ?? { apiUrl: '' };
+const savedKey = sessionStorage.getItem('pinquark_api_key') || '';
 
 bootstrapApplication(AppComponent, {
   providers: [
@@ -26,7 +25,7 @@ bootstrapApplication(AppComponent, {
     provideHttpClient(),
     { provide: PINQUARK_CONFIG, useValue: {
       apiUrl: runtimeConfig.apiUrl,
-      apiKey: effectiveApiKey,
+      apiKey: savedKey,
     } },
   ],
 }).catch(err => console.error(err));

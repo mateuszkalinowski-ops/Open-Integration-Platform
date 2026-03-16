@@ -91,11 +91,11 @@ jobs:
       - name: pip-audit platform
         run: |
           pip install pip-audit
-          pip-audit -r platform/requirements.txt --ignore-vuln PYSEC-0 || true
+          pip-audit -r platform/requirements.txt --ignore-vuln PYSEC-0
 
       - name: npm audit dashboard
         run: |
-          cd platform/dashboard && npm audit --audit-level=high || true
+          cd platform/dashboard && npm audit --audit-level=high
 
   build-platform:
     name: Build Platform

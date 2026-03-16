@@ -65,7 +65,7 @@ async def login(request: LoginRequest):
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
         logger.exception("UPS login failed")
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="UPS login failed") from exc
 
 
 @app.post("/shipments")
@@ -78,7 +78,7 @@ async def create_shipment(request: CreateShipmentRequest):
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
         logger.exception("Failed to create UPS shipment")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to create UPS shipment") from exc
 
 
 @app.post("/labels")
@@ -93,7 +93,7 @@ async def get_label(request: LabelRequest):
         return JSONResponse(content={"error": label_bytes}, status_code=status_code)
     except Exception as exc:
         logger.exception("Failed to get UPS label")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to retrieve UPS label") from exc
 
 
 @app.post("/shipments/{waybill}/status")
@@ -109,7 +109,7 @@ async def get_status(waybill: str, request: StatusRequest):
         )
     except Exception as exc:
         logger.exception("Failed to get UPS shipment status")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to get UPS shipment status") from exc
 
 
 @app.post("/rates")
@@ -120,14 +120,14 @@ async def get_rates(request: RateRequest):
         if status_code != HTTPStatus.OK:
             return StandardizedRateResponse(
                 source="ups",
-                raw={"error": str(result), "status_code": status_code},
+                raw={"error": "UPS rating request failed", "status_code": status_code},
             ).model_dump()
         return result
     except Exception as exc:
         logger.exception("Failed to get UPS rates")
         return StandardizedRateResponse(
             source="ups",
-            raw={"error": str(exc)},
+            raw={"error": "UPS rating request failed"},
         ).model_dump()
 
 
@@ -147,7 +147,7 @@ async def upload_document(request: UploadDocumentRequest):
         return JSONResponse(content=result, status_code=status_code)
     except Exception as exc:
         logger.exception("Failed to upload document to UPS")
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
+        raise HTTPException(status_code=500, detail="Failed to upload document to UPS") from exc
 
 
 if augment_legacy_fastapi_app is not None:

@@ -80,7 +80,6 @@ services:
       - "80"
     environment:
       PINQUARK_API_URL: ""
-      PINQUARK_API_KEY: ""
     depends_on:
       - platform
     restart: unless-stopped

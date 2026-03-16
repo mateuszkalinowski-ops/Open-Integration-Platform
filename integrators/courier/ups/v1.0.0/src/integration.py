@@ -110,7 +110,7 @@ async def _format_rest_error_response(response: httpx.Response) -> tuple[Any, in
         404: "Resource not found",
         429: "Rate limited",
     }
-    return safe_messages.get(status, msg or f"UPS API error (HTTP {status})"), status
+    return safe_messages.get(status, f"UPS API error (HTTP {status})"), status
 
 
 # ---------------------------------------------------------------------------
@@ -175,7 +175,7 @@ class UpsIntegration:
             status_code = HTTPStatus.NOT_FOUND
 
         if status_code != HTTPStatus.OK:
-            return response.json(), status_code
+            return await _format_rest_error_response(response)
 
         shipments = response.json()["shipment"]
         if len(shipments) != 1:
@@ -301,7 +301,10 @@ class UpsIntegration:
         }
 
         response = await self._client.post(url, json=payload, headers=headers)
-        return response.json(), response.status_code
+
+        if response.status_code == HTTPStatus.OK:
+            return response.json(), HTTPStatus.OK
+        return await _format_rest_error_response(response)
 
     # ------------------------------------------------------------------
     # Rating

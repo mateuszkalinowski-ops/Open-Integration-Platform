@@ -192,10 +192,12 @@ class PaxyIntegration:
             )
 
         response_formatted = response.json()
-        if response.status_code == HTTPStatus.OK and response_formatted.get("message"):
-            return response_formatted["message"], HTTPStatus.OK
+        if response.status_code == HTTPStatus.OK:
+            logger.info("Paxy shipment deleted: %s", waybill_number)
+            return {"message": "Shipment deleted successfully"}, HTTPStatus.OK
 
-        return response_formatted.get("message", "Unknown error"), HTTPStatus.BAD_REQUEST
+        logger.error("Paxy delete error for %s: %s", waybill_number, str(response_formatted.get("message", ""))[:200])
+        return {"error": "Paxy API request failed"}, HTTPStatus.BAD_REQUEST
 
     # ------------------------------------------------------------------
     # Private — build create order command
@@ -354,7 +356,7 @@ class PaxyIntegration:
             404: "Resource not found",
             429: "Rate limited",
         }
-        return safe_messages.get(status, message or f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST
+        return safe_messages.get(status, f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST
 
     @staticmethod
     def _format_rest_error_response(response: httpx.Response) -> tuple[str, int]:
@@ -372,4 +374,4 @@ class PaxyIntegration:
             404: "Resource not found",
             429: "Rate limited",
         }
-        return safe_messages.get(status, message or f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST
+        return safe_messages.get(status, f"Paxy API error (HTTP {status})"), HTTPStatus.BAD_REQUEST

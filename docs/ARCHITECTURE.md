@@ -352,7 +352,7 @@ User opens dashboard
 1. On first visit the Angular dashboard shows a full-screen gate page (route `/gate`).
 2. The user either creates a new workspace (enters a name) or provides an existing API key.
 3. `POST /api/v1/demo/register` creates a `Tenant` (with plan `demo`) and an `ApiKey` with prefix `pk_demo_`, returns the raw key once.
-4. The key is stored in `localStorage('pinquark_demo_api_key')` and used as the `X-API-Key` header for all subsequent API calls — the existing `get_current_tenant()` middleware handles tenant resolution identically to production keys.
+4. The key is stored in `sessionStorage('pinquark_api_key')` and used as the `X-API-Key` header for all subsequent API calls — the existing `get_current_tenant()` middleware handles tenant resolution identically to production keys. Using `sessionStorage` ensures the key is cleared when the browser tab is closed.
 5. All data (credentials, flows, workflows, connector instances) is scoped to the tenant via `tenant_id` foreign keys — users cannot see each other's data.
 6. A `canActivate` route guard redirects unauthenticated users to `/gate`; the sidebar shows the workspace name and offers "Copy API key" and "Switch workspace" actions.
 
@@ -658,7 +658,7 @@ Migration `007` enables PostgreSQL Row Level Security (RLS) on all tenant-scoped
 
 **Session variable lifecycle:**
 
-1. `get_current_tenant()` authenticates via API key (header) or credential token (query param) and executes `SET LOCAL app.current_tenant_id = '<uuid>'` on the shared database session.
+1. `get_current_tenant()` authenticates via API key (header) or credential token (header) and executes `SET LOCAL app.current_tenant_id = '<uuid>'` on the shared database session.
 2. All subsequent queries in that request are automatically scoped to the tenant by the DB engine.
 3. Cross-tenant operations (Kafka event bridge, verification runner, startup provisioning) call `set_rls_bypass(session)` to set `app.rls_bypass = 'on'`.
 

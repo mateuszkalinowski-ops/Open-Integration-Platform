@@ -153,11 +153,11 @@ export class AppComponent {
     private readonly snackBar: MatSnackBar,
     @Inject(PINQUARK_CONFIG) private readonly config: PinquarkConfig,
   ) {
-    this.tenantName = localStorage.getItem('pinquark_demo_tenant_name') || '';
+    this.tenantName = sessionStorage.getItem('pinquark_tenant_name') || '';
   }
 
   copyApiKey(): void {
-    const key = localStorage.getItem('pinquark_demo_api_key') || this.config.apiKey;
+    const key = sessionStorage.getItem('pinquark_api_key') || this.config.apiKey;
     if (key) {
       navigator.clipboard.writeText(key).then(() => {
         this.snackBar.open('API key copied to clipboard', 'OK', { duration: 2000 });
@@ -166,8 +166,8 @@ export class AppComponent {
   }
 
   switchWorkspace(): void {
-    localStorage.removeItem('pinquark_demo_api_key');
-    localStorage.removeItem('pinquark_demo_tenant_name');
+    sessionStorage.removeItem('pinquark_api_key');
+    sessionStorage.removeItem('pinquark_tenant_name');
     window.location.href = '/gate';
   }
 }

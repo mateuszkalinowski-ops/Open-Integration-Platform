@@ -3034,14 +3034,14 @@ def _validate_trigger_request_access(nodes: list[dict]) -> None:
 def _get_request_client_ip(request: Request) -> str | None:
     """Extract client IP from request.
 
-    Uses the rightmost non-private IP from X-Forwarded-For to prevent
-    spoofing by untrusted clients prepending fake IPs.
-    Falls back to X-Real-IP (typically set by the reverse proxy) and
-    then to the direct connection address.
+    When Uvicorn runs with ``--proxy-headers --forwarded-allow-ips``,
+    it overwrites ``request.client`` with the value from the trusted
+    proxy's X-Forwarded-For header.  We therefore prefer the socket-level
+    address (already corrected by Uvicorn) and only fall back to header
+    parsing when request.client is unavailable.
     """
-    real_ip = request.headers.get("x-real-ip", "").strip()
-    if real_ip:
-        return real_ip
+    if request.client and request.client.host:
+        return request.client.host
 
     forwarded_for = request.headers.get("x-forwarded-for")
     if forwarded_for:
@@ -3056,7 +3056,7 @@ def _get_request_client_ip(request: Request) -> str | None:
         if parts:
             return parts[-1]
 
-    return request.client.host if request.client else None
+    return None
 
 
 def _enforce_workflow_request_ip_allowlist(workflow: Workflow, request: Request) -> None:
@@ -3382,14 +3382,14 @@ async def call_workflow_get(
 ) -> Any:
     """Execute a workflow via GET with query params as trigger_data.
 
-    Auth: ``X-API-Key`` header or ``token`` query parameter (credential token).
+    Auth: ``X-API-Key`` header or ``X-Credential-Token`` header (credential token).
 
     Returns the presigned URL as a redirect (302) when the output contains
     a ``url`` field, otherwise returns the full context data as JSON.
 
-    Example: /api/v1/workflows/{id}/call?token=ctok_xxx&key=report.pdf
+    Example: /api/v1/workflows/{id}/call?key=report.pdf  (with X-Credential-Token header)
     """
-    _AUTH_PARAMS = {"api_key", "token"}
+    _AUTH_PARAMS = {"api_key"}
     trigger_data = {k: v for k, v in request.query_params.items() if k not in _AUTH_PARAMS}
     result = await db.execute(select(Workflow).where(Workflow.id == workflow_id, Workflow.tenant_id == tenant.id))
     workflow = result.scalar_one_or_none()

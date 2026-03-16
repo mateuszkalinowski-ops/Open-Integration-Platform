@@ -141,9 +141,11 @@ class DhlIntegration:
                 shipmentId=waybill_number,
             )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.NOT_FOUND
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.NOT_FOUND
 
         if response is None:
             return None, HTTPStatus.NO_CONTENT
@@ -244,9 +246,11 @@ class DhlIntegration:
                 },
             )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.NOT_FOUND
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.NOT_FOUND
 
         if response is None:
             return "Brak danych", HTTPStatus.NO_CONTENT
@@ -305,9 +309,11 @@ class DhlIntegration:
                 },
             )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.NOT_FOUND
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.NOT_FOUND
 
         if response is None:
             return "Brak danych", HTTPStatus.OK
@@ -359,9 +365,11 @@ class DhlIntegration:
                 orders.extend(response)
                 offset += 100
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.NOT_FOUND
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.NOT_FOUND
 
         if not orders:
             return (
@@ -426,14 +434,16 @@ class DhlIntegration:
                         structure=structure,
                     )
             else:
-                response = self.client.service.getNearestServicepoints(
+                    response = self.client.service.getNearestServicepoints(
                     authData=self._get_auth_data(credentials),
                     structure=structure,
                 )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.NOT_FOUND
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.NOT_FOUND
 
         if response is None:
             return "Brak danych", HTTPStatus.OK
@@ -445,7 +455,8 @@ class DhlIntegration:
         )
 
         if status_code != HTTPStatus.OK:
-            return response.message, status_code
+            logger.error("DHL SOAP error in get_points: %s", str(response.message)[:200])
+            return {"error": "DHL API request failed"}, status_code
 
         points: dict = {}
         resp_json = wsdl_to_json(response)
@@ -508,9 +519,11 @@ class DhlIntegration:
                 courierWithLabel=extras_dhl.get("courier_with_label", False),
             )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.BAD_REQUEST
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.BAD_REQUEST
 
         if response is None:
             return "Brak danych", HTTPStatus.CREATED
@@ -535,7 +548,8 @@ class DhlIntegration:
             resp_json["extras"]["dhl"]["shipment_id"] = extras_dhl["shipment_id"]
             return resp_json, status_code
 
-        return response.message, status_code
+        logger.error("DHL SOAP error in _buy_offer: %s", str(response.message)[:200])
+        return {"error": "DHL API request failed"}, status_code
 
     # ------------------------------------------------------------------
     # Private — create shipment (SOAP call)
@@ -568,9 +582,11 @@ class DhlIntegration:
                     shipments=self._get_create_order_structure(command),
                 )
         except TransportError as exc:
-            return exc.content, exc.status_code
+            logger.error("DHL SOAP transport error: %s", str(exc.content)[:200])
+            return {"error": "DHL API communication error"}, exc.status_code
         except Fault as exc:
-            return exc.message, HTTPStatus.BAD_REQUEST
+            logger.error("DHL SOAP fault: %s", str(exc.message)[:200])
+            return {"error": "DHL API request failed"}, HTTPStatus.BAD_REQUEST
 
         if response is None:
             return "Brak danych", HTTPStatus.NOT_FOUND
@@ -588,7 +604,8 @@ class DhlIntegration:
         )
         if status_code == HTTPStatus.OK:
             return wsdl_to_json(response[0]), status_code
-        return response.message, status_code
+        logger.error("DHL SOAP error in _create_order: %s", str(response.message)[:200])
+        return {"error": "DHL API request failed"}, status_code
 
     # ------------------------------------------------------------------
     # Private — build the SOAP shipment structure

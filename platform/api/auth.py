@@ -99,8 +99,7 @@ async def get_current_tenant_or_token(
 ) -> Tenant:
     """Auth via X-API-Key header or credential token.
 
-    Priority: X-API-Key header > X-Credential-Token header > ``token`` query
-    parameter (deprecated).
+    Priority: X-API-Key header > X-Credential-Token header.
     Designed for public-facing endpoints like workflow /call where the
     caller may only have a credential token, not a full API key.
     """
@@ -108,16 +107,6 @@ async def get_current_tenant_or_token(
         return await _resolve_tenant(api_key, db)
 
     token = request.headers.get("X-Credential-Token", "").strip()
-
-    if not token:
-        token = request.query_params.get("token", "")
-        if token:
-            import logging as _logging
-            _logging.getLogger(__name__).warning(
-                "Deprecated: credential token passed via query string. "
-                "Use X-Credential-Token header instead. path=%s",
-                request.url.path,
-            )
 
     if token:
         return await _resolve_tenant_by_token(token, db)

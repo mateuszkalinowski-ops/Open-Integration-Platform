@@ -280,7 +280,7 @@ export class GatePage {
         this.loading = false;
         if (res.valid) {
           if (res.tenant_name) {
-            localStorage.setItem('pinquark_demo_tenant_name', res.tenant_name);
+            sessionStorage.setItem('pinquark_tenant_name', res.tenant_name);
           }
           this.enterWithKey(key);
         } else {
@@ -295,9 +295,9 @@ export class GatePage {
   }
 
   enterWithKey(key: string): void {
-    localStorage.setItem('pinquark_demo_api_key', key);
+    sessionStorage.setItem('pinquark_api_key', key);
     if (this.generatedTenantName) {
-      localStorage.setItem('pinquark_demo_tenant_name', this.generatedTenantName);
+      sessionStorage.setItem('pinquark_tenant_name', this.generatedTenantName);
     }
     window.location.href = '/connectors';
   }

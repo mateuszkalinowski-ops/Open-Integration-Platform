@@ -22,14 +22,14 @@ class Settings(BaseSettings):
     app_port: int = 8080
     log_level: str = "INFO"
 
-    # PostgreSQL
+    # PostgreSQL (override via DATABASE_URL env var; use ?ssl=require for production)
     database_url: str = "postgresql+asyncpg://localhost:5432/pinquark_platform"
     db_pool_size: int = 20
     db_max_overflow: int = 30
     db_pool_timeout: int = 30
     db_pool_recycle: int = 1800
 
-    # Redis
+    # Redis (override via REDIS_URL env var; use redis://:password@host for production)
     redis_url: str = "redis://localhost:6379/0"
     redis_max_connections: int = 50
     redis_socket_timeout: float = 5.0
