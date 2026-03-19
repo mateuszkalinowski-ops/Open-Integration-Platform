@@ -99,21 +99,24 @@ async def get_current_tenant_or_token(
 ) -> Tenant:
     """Auth via X-API-Key header or credential token.
 
-    Priority: X-API-Key header > X-Credential-Token header.
-    Designed for public-facing endpoints like workflow /call where the
-    caller may only have a credential token, not a full API key.
+    Priority: X-API-Key header > X-Credential-Token header > ``token`` query
+    parameter.  The query-param fallback exists because the ``/call`` endpoint
+    is designed to be pasted in a browser address bar (302 redirect to file),
+    where setting custom headers is not possible.
     """
     if api_key:
         return await _resolve_tenant(api_key, db)
 
     token = request.headers.get("X-Credential-Token", "").strip()
+    if not token:
+        token = request.query_params.get("token", "").strip()
 
     if token:
         return await _resolve_tenant_by_token(token, db)
 
     raise HTTPException(
         status_code=401,
-        detail="Provide X-API-Key header or X-Credential-Token header",
+        detail="Provide X-API-Key header, X-Credential-Token header, or ?token= query parameter",
     )
 
 

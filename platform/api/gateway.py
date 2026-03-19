@@ -3418,12 +3418,14 @@ async def call_workflow_get(
 ) -> Any:
     """Execute a workflow via GET with query params as trigger_data.
 
-    Auth: ``X-API-Key`` header or ``X-Credential-Token`` header (credential token).
+    Auth: ``X-API-Key`` header, ``X-Credential-Token`` header, or ``?token=ctok_xxx``
+    query parameter.  The query-param form is supported so the URL can be pasted
+    directly into a browser address bar.
 
     Returns the presigned URL as a redirect (302) when the output contains
     a ``url`` field, otherwise returns the full context data as JSON.
 
-    Example: /api/v1/workflows/{id}/call?key=report.pdf  (with X-Credential-Token header)
+    Example: /api/v1/workflows/{id}/call?token=ctok_xxx&key=report.pdf
     """
     _AUTH_PARAMS = {"api_key"}
     trigger_data = {k: v for k, v in request.query_params.items() if k not in _AUTH_PARAMS}

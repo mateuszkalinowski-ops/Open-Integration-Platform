@@ -381,7 +381,7 @@ import {
                       </div>
 
                       <div class="wb__api-hint">
-                        Pass <strong>trigger_data</strong> as query parameters.
+                        Pass <strong>token</strong> and <strong>trigger_data</strong> as query parameters.
                         If the workflow output contains a <strong>url</strong> field,
                         the endpoint returns a <strong>302 redirect</strong> — the
                         browser follows it automatically (e.g. to download a file from S3).
@@ -822,13 +822,12 @@ export class WorkflowBuilderPage implements OnInit, OnDestroy {
 
   get callEndpoint(): string {
     const base = this.getApiBaseUrl();
-    return `${base}/api/v1/workflows/${this.workflowId}/call?key=FILENAME`;
+    return `${base}/api/v1/workflows/${this.workflowId}/call?token=ctok_xxx&key=FILENAME`;
   }
 
   get callExample(): string {
     const base = this.getApiBaseUrl();
-    return `curl -X GET "${base}/api/v1/workflows/${this.workflowId}/call?key=example-file.pdf" \\
-  -H "X-Credential-Token: ctok_xxx"`;
+    return `curl -X GET "${base}/api/v1/workflows/${this.workflowId}/call?token=ctok_xxx&key=example-file.pdf"`;
   }
 
   get responseExample(): string {
