@@ -104,11 +104,16 @@ jobs:
           pip install pytest pytest-asyncio pytest-cov httpx
           cd platform && python -m pytest tests/ -v --tb=short --cov=. --cov-report=term
 
+      - name: Test SDK
+        run: |
+          pip install -e sdk/python/
+          cd sdk/python && python -m pytest tests/ -v --tb=short
+
       - name: Test connectors
         run: |
           pip install pytest pytest-asyncio httpx
           FAILED=0
-          for dir in integrators/courier/*/v1.0.0 integrators/ecommerce/*/v1.0.0 integrators/other/*/v1.0.0; do
+          for dir in integrators/courier/*/v* integrators/ecommerce/*/v* integrators/erp/*/v* integrators/wms/*/v* integrators/ai/*/v* integrators/other/*/v*; do
             if [ -d "$dir/tests" ] && [ -f "$dir/requirements.txt" ]; then
               echo "--- Testing $dir ---"
               pip install -r "$dir/requirements.txt"
@@ -144,9 +149,30 @@ jobs:
         run: |
           cd platform/dashboard && npm audit --audit-level=critical --omit=dev
 
+  build-dashboard-verify:
+    name: Verify Dashboard Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: platform/dashboard/package-lock.json
+
+      - name: Install dependencies
+        run: cd platform/dashboard && npm ci
+
+      - name: Build library
+        run: cd platform/dashboard && npx ng build integrations-lib
+
+      - name: Build application
+        run: cd platform/dashboard && npx ng build dashboard-app
+
   build-platform:
     name: Build Platform
-    needs: [changes, lint, test, security-scan]
+    needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -177,7 +203,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
@@ -189,7 +215,7 @@ jobs:
 
   build-dashboard:
     name: Build Dashboard
-    needs: [changes, lint, test, security-scan]
+    needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -220,7 +246,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
@@ -232,7 +258,7 @@ jobs:
 
   build-verification-agent:
     name: Build Verification Agent
-    needs: [changes, lint, test, security-scan]
+    needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -263,7 +289,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 
@@ -275,7 +301,7 @@ jobs:
 
   build-connectors:
     name: Build ${{ matrix.name }}
-    needs: [changes, lint, test, security-scan]
+    needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
       github.event_name == 'push' && github.ref == 'refs/heads/main'
@@ -426,7 +452,7 @@ jobs:
         with:
           image-ref: ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
           format: table
-          exit-code: "0"
+          exit-code: "1"
           severity: CRITICAL,HIGH
           ignore-unfixed: true
 

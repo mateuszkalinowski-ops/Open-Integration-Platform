@@ -7,8 +7,11 @@
 1. [Platform overview](#1-platform-overview)
 2. [System architecture](#2-system-architecture)
 3. [Data exchange](#3-data-exchange)
-  - [3.2 Integration paths](#32-integration-paths) — event-driven, on-demand, and external API trigger
-  - [3.5 Sync State Engine](#35-sync-state-engine--incremental-data-synchronization) — deduplication, change detection, retry logic
+   - [3.1 Communication patterns](#31-communication-patterns)
+   - [3.2 Integration paths](#32-integration-paths) — event-driven, on-demand, and external API trigger
+   - [3.3 Data format](#33-data-format)
+   - [3.4 Authentication](#34-authentication)
+   - [3.5 Sync State Engine](#35-sync-state-engine--incremental-data-synchronization) — deduplication, change detection, retry logic
 4. [Database schema](#4-database-schema)
 5. [Scaling mechanisms](#5-scaling-mechanisms)
 6. [Throughput](#6-throughput)
@@ -28,7 +31,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 | Category   | Number of connectors             | Examples                                                                                                              |
 | ---------- | -------------------------------- | --------------------------------------------------------------------------------------------------------------------- |
 | Courier    | 18 (including 3 InPost versions) | InPost, DHL, DPD, GLS, FedEx, UPS, Poczta Polska, Orlen Paczka, Schenker, Geis, Paxy, Packeta, SUUS, Raben           |
-| E-commerce | 8                                | Allegro, Amazon, Apilo, BaseLinker, Shopify, Shoper, IdoSell, SellAsist                                               |
+| E-commerce | 8                                | Allegro, Amazon, Apilo, BaseLinker, Shopify, Shoper, IdoSell, WooCommerce                                             |
 | ERP        | 1                                | InsERT Nexo (hybrid on-premise + cloud)                                                                               |
 | WMS        | 1                                | Pinquark WMS                                                                                                          |
 | AI         | 1                                | Gemini AI Agent (risk analysis, courier recommendations, data extraction)                                             |
@@ -124,7 +127,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 #### REST API -- flow
 
 ```
-Klient  ──HTTP──>  Platform Gateway  ──HTTP──>  Integrator  ──HTTP──>  External API
+Client  ──HTTP──>  Platform Gateway  ──HTTP──>  Integrator  ──HTTP──>  External API
                         │
                         └── PostgreSQL (persistence)
                         └── Redis (cache)
@@ -565,9 +568,11 @@ The entity key uniquely identifies a record across sync runs. It supports:
 
 ## 4. Database schema
 
-> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`. Current diagram reflects migrations 001–013.
+> **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`.
 
-![Database Schema ERD](database-schema.png)
+> **TODO**: Generate `database-schema.png` from the current database schema. You can use tools like [SchemaCrawler](https://www.schemacrawler.com/), [pgAdmin ERD](https://www.pgadmin.org/), or [DBeaver](https://dbeaver.io/) to export an ERD diagram. Place the resulting PNG at `docs/database-schema.png`.
+
+<!-- ![Database Schema ERD](database-schema.png) -->
 
 ### 4.1 Table overview
 

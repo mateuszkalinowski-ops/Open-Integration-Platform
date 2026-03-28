@@ -14,8 +14,8 @@ Thank you for your interest in contributing! This guide covers everything you ne
 ### Clone and install
 
 ```bash
-git clone https://github.com/your-org/Open-Integration-Platform.git
-cd Open-Integration-Platform
+git clone https://github.com/pinquark/open-integration-platform.git
+cd open-integration-platform
 
 # Install shared library
 cd shared/python
@@ -31,7 +31,10 @@ cd ../../../..
 ### Run locally
 
 ```bash
-# Start full platform (API + database + dashboard)
+# Start platform + database + Redis + dashboard (development mode)
+docker compose up -d
+
+# Or start full production-like stack with all connectors
 docker compose -f docker-compose.prod.yml up -d
 
 # Or run a single connector in development mode

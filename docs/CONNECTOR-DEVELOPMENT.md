@@ -631,20 +631,265 @@ curl -X POST "http://localhost:18080/api/verification/run?connector_filter={name
 
 ## 5. Integration Interfaces
 
+Each connector declares its `interface` in `connector.yaml`. The interface defines the contract — which capabilities, actions, and events are expected. Connectors MAY implement additional actions beyond the required set.
+
+> **Note**: `action_routes` in `connector.yaml` are HTTP mapping metadata. The logical interface is defined by **capabilities**, **actions**, and **events** listed below.
+
 ### 5.1 Courier integration interface
 
-Every courier integrator MUST implement:
+**Interface name**: `courier`
 
-List will be created
+Every courier connector MUST implement the following core capabilities and actions:
+
+#### Required capabilities
+
+| Capability | Description |
+| --- | --- |
+| `create_shipment` | Create a new shipment/parcel |
+| `get_label` | Retrieve shipping label (PDF/ZPL) |
+| `get_shipment_status` | Query current shipment tracking status |
+
+#### Required actions
+
+| Action | Method | Description |
+| --- | --- | --- |
+| `shipment.create` | POST | Create shipment with receiver, parcel dimensions, and service options |
+| `label.get` | GET | Retrieve label by shipment ID (returns PDF bytes or base64) |
+
+#### Required events
+
+| Event | Description |
+| --- | --- |
+| `shipment.status_changed` | Emitted when a shipment's tracking status changes |
+
+#### Optional capabilities (implement when the carrier supports them)
+
+| Capability | Action | Description |
+| --- | --- | --- |
+| `cancel_shipment` | `shipment.cancel` | Cancel a created shipment |
+| `get_pickup_points` | `pickup_points.list` | List parcel lockers, pickup points, or service points |
+| `create_return_shipment` | `return.create` | Create a return shipment |
+| `get_rates` | `rates.get` | Get shipping rates in standardized format (see `CONNECTORS.md` §Standardized Rate Comparison) |
+| `generate_protocol` | `protocol.generate` | Generate end-of-day protocol/manifest |
+| `create_pickup_order` | `pickup_order.create` | Schedule a courier pickup |
+| `get_return_label` | `return_label.get` | Retrieve label for a return shipment |
+
+#### Standardized `rates.get` response
+
+Connectors implementing `get_rates` MUST return the standardized format defined in [CONNECTORS.md](CONNECTORS.md#standardized-rate-comparison-ratesget) to enable cross-carrier price comparison workflows.
+
+---
 
 ### 5.2 E-commerce integration interface
 
-List will be created
+**Interface name**: `ecommerce`
+
+Every e-commerce connector MUST implement the following core capabilities and actions:
+
+#### Required capabilities
+
+| Capability | Description |
+| --- | --- |
+| `fetch_orders` | Fetch orders (with pagination and date filtering) |
+| `get_order` | Get a single order by ID |
+| `update_order_status` | Update order status/fulfillment state |
+| `sync_stock` | Synchronize stock/inventory levels |
+| `get_product` | Get a single product by ID |
+| `search_products` | Search products by keyword/SKU |
+
+#### Required actions
+
+| Action | Method | Description |
+| --- | --- | --- |
+| `order.fetch` | GET | Fetch orders with filters (date range, status, pagination) |
+| `order.get` | GET | Get order details by ID |
+| `order.status_update` | POST/PUT | Update order status |
+| `stock.sync` | POST/PUT | Update stock quantities (by product ID or SKU) |
+| `product.get` | GET | Get product details by ID |
+| `product.search` | GET | Search products by keyword, title, or SKU |
+
+#### Required events
+
+| Event | Description |
+| --- | --- |
+| `order.created` | Emitted when a new order is placed |
+| `order.status_changed` | Emitted when an order status changes |
+
+#### Optional capabilities (implement when the platform supports them)
+
+| Capability | Action | Description |
+| --- | --- | --- |
+| `sync_products` | `product.sync` | Create/update products in the e-commerce platform |
+| `create_parcel` | `parcel.create` | Register a parcel/shipment on an order |
+| `manage_offers` | `offer.*` | Manage marketplace listings (Allegro-specific) |
+| `manage_returns` | `return.*` | Process returns and refunds |
+| `manage_shipments` | `shipment.*` | Marketplace-level shipment management |
+| `upload_invoice` | `invoice.upload` | Upload invoice documents to orders |
+
+#### Background polling
+
+E-commerce connectors SHOULD support configurable background polling for new orders via environment variables:
+
+```bash
+{CONNECTOR}_SCRAPING_ENABLED=true
+{CONNECTOR}_SCRAPING_INTERVAL_SECONDS=60
+```
+
+---
 
 ### 5.3 ERP integration interface
 
-List will be created
+**Interface name**: `erp`
 
-### 5.4 Automation integration interface
+ERP connectors manage master data (contractors, products), documents (sales, warehouse), orders, and stock levels. ERP systems often run on-premise, so the interface supports hybrid deployment.
 
-List will be created
+#### Required capabilities
+
+| Capability | Description |
+| --- | --- |
+| `list_contractors` | List business partners/contractors |
+| `get_contractor` | Get contractor details |
+| `create_contractor` | Create a new contractor |
+| `list_products` | List products/articles |
+| `get_product` | Get product details |
+| `list_orders` | List orders |
+| `get_order` | Get order details |
+| `get_stock_levels` | Get current stock levels |
+
+#### Required actions
+
+| Action | Method | Description |
+| --- | --- | --- |
+| `contractor.list` | GET | List contractors with pagination |
+| `contractor.get` | GET | Get contractor by ID |
+| `contractor.create` | POST | Create a new contractor |
+| `product.list` | GET | List products with pagination |
+| `product.get` | GET | Get product by ID |
+| `order.list` | GET | List orders |
+| `order.get` | GET | Get order by ID |
+| `stock.levels` | GET | Get stock levels for all products |
+
+#### Required events
+
+| Event | Description |
+| --- | --- |
+| `order.created` | Emitted when a new order is created |
+| `order.status_changed` | Emitted when an order status changes |
+| `stock.level_changed` | Emitted when stock quantity changes |
+
+#### Optional capabilities
+
+| Capability | Action | Description |
+| --- | --- | --- |
+| `update_contractor` | `contractor.update` | Update contractor data |
+| `delete_contractor` | `contractor.delete` | Delete a contractor |
+| `create_product` | `product.create` | Create a new product |
+| `update_product` | `product.update` | Update product data |
+| `delete_product` | `product.delete` | Delete a product |
+| `create_order` | `order.create` | Create a new order |
+| `update_order` | `order.update` | Update an existing order |
+| `create_sales_document` | `document.sales.create` | Create a sales document (invoice, receipt) |
+| `create_warehouse_document` | `document.warehouse.create` | Create a warehouse document (receipt, release) |
+| `get_stock_for_product` | `stock.get` | Get stock for a specific product |
+
+#### Hybrid deployment
+
+ERP connectors that require on-premise access (e.g., local .NET SDK, direct database connection) MUST declare `deployment: hybrid` and `requires_onpremise_agent: true` in `connector.yaml`. The on-premise agent runs in the client's network and communicates with the cloud connector over HTTPS.
+
+---
+
+### 5.4 WMS integration interface
+
+**Interface name**: `wms`
+
+WMS connectors synchronize master data and operational documents between the platform and a warehouse management system.
+
+#### Required capabilities
+
+| Capability | Description |
+| --- | --- |
+| `get_articles` | Fetch articles/products from WMS |
+| `create_article` | Create a single article |
+| `get_documents` | Fetch warehouse documents |
+| `create_document` | Create a single document |
+| `get_contractors` | Fetch contractors/business partners |
+| `create_contractor` | Create a single contractor |
+| `get_feedbacks` | Poll for processing confirmations |
+
+#### Required actions
+
+| Action | Method | Description |
+| --- | --- | --- |
+| `article.create` | POST | Create a single article |
+| `document.create` | POST | Create a single document |
+| `contractor.create` | POST | Create a single contractor |
+
+#### Required events
+
+| Event | Description |
+| --- | --- |
+| `document.synced` | Emitted when a document is synchronized |
+| `article.synced` | Emitted when an article is synchronized |
+
+#### Optional capabilities
+
+| Capability | Action | Description |
+| --- | --- | --- |
+| `create_articles` (bulk) | `articles.create_list` | Create multiple articles in one call |
+| `delete_article` | `article.delete` | Delete an article |
+| `create_documents` (bulk) | `documents.create_wrapper` | Create multiple documents |
+| `delete_document` | `document.delete` | Delete a document |
+| `create_positions` (bulk) | `positions.create_list` | Create document line items |
+| `create_contractors` (bulk) | `contractors.create_list` | Create multiple contractors |
+| `get_errors` | — | Poll for processing errors |
+
+---
+
+### 5.5 AI Agent integration interface
+
+**Interface name**: `ai-agent`
+
+AI connectors provide analysis, classification, and data extraction capabilities powered by LLM models.
+
+#### Required capabilities
+
+| Capability | Description |
+| --- | --- |
+| `analyze` | Universal analysis with custom prompt and data |
+
+#### Required actions
+
+| Action | Method | Description |
+| --- | --- | --- |
+| `agent.analyze` | POST | Accept prompt + data, return structured JSON response |
+
+#### Required events
+
+| Event | Description |
+| --- | --- |
+| `analysis.completed` | Emitted when an analysis finishes |
+
+#### Optional capabilities
+
+| Capability | Action | Description |
+| --- | --- | --- |
+| `analyze_order_risk` | `agent.analyze_risk` | Evaluate order fraud risk |
+| `recommend_courier` | `agent.recommend_courier` | Recommend optimal courier based on parameters |
+| `extract_data` | `agent.extract_data` | Extract structured data from text (invoices, addresses) |
+| `classify_priority` | `agent.classify_priority` | Classify order priority based on SLA rules |
+
+---
+
+### 5.6 Generic integration interface
+
+**Interface name**: `generic` (or domain-specific like `object_storage`)
+
+Connectors in the `other` category may use `generic` or a domain-specific interface name (e.g., `object_storage`, `messaging`, `file_transfer`). There are no mandatory actions — the connector defines its own capability surface in `connector.yaml`.
+
+Generic connectors MUST still expose:
+
+- `GET /health` — liveness probe
+- `GET /readiness` — readiness probe
+- `GET /docs` — OpenAPI/Swagger documentation
+- `GET /accounts` — account listing
+- `POST /accounts` — account creation

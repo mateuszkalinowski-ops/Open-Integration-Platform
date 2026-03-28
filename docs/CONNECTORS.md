@@ -11,9 +11,10 @@ Credentials are stored in an encrypted vault (AES-256-GCM) and managed via the p
 2. [Couriers](#1-couriers)
 3. [E-commerce](#2-e-commerce)
 4. [WMS](#3-wms)
-5. [Other](#4-other)
-6. [AI](#5-ai)
-7. [Credential Management via API](#6-credential-management-via-api)
+5. [ERP](#4-erp)
+6. [Other](#5-other)
+7. [AI](#6-ai)
+8. [Credential Management via API](#7-credential-management-via-api)
 
 ---
 
@@ -793,7 +794,49 @@ Features:
 
 ---
 
-## 4. Other
+## 4. ERP
+
+### InsERT Nexo / Subiekt (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `sql_server` | Yes | SQL Server hostname or IP (on-premise) |
+| `sql_database` | Yes | Nexo database name |
+| `nexo_operator_login` | Yes | Nexo operator login |
+| `nexo_operator_password` | Yes | Nexo operator password |
+| `cloud_url` | No | Cloud connector URL (for hybrid mode) |
+| `sync_interval_seconds` | No | Sync interval in seconds (default: 300) |
+
+**Deployment model**: Hybrid (on-premise agent + cloud connector)
+
+The InsERT Nexo connector requires an **on-premise agent** (`onpremise/nexo-agent/`) running in the client's network with direct access to the SQL Server database and the Nexo .NET SDK (via Python.NET). The agent syncs data with the cloud connector over HTTPS.
+
+Environment variables:
+```bash
+NEXO_CONNECTOR_LOG_LEVEL=INFO
+NEXO_SQL_SERVER=localhost\\NEXO
+NEXO_SQL_DATABASE=NexoDB
+NEXO_OPERATOR_LOGIN=operator
+NEXO_OPERATOR_PASSWORD=${NEXO_PASSWORD}
+```
+
+Features:
+- Contractor CRUD (list, get, create, update, delete)
+- Product catalog CRUD (list, get, create, update, delete)
+- Sales document creation (invoices, receipts) and retrieval
+- Warehouse document creation (PZ, WZ, MM) and retrieval
+- Order management (create, update, list, get)
+- Stock level queries (all products or by product ID)
+- Hybrid deployment: on-premise agent communicates with cloud connector
+- .NET SDK interop via Python.NET (pythonnet)
+- SQLite local queue for offline resilience
+- Automatic heartbeat monitoring
+
+Protocol: .NET SDK (pythonnet) + REST (cloud connector).
+
+---
+
+## 5. Other
 
 ### Email Client (v1.0.0)
 
@@ -1119,7 +1162,7 @@ Protocol: REST (Amazon S3 API / AWS Signature V4 authentication).
 
 ---
 
-## 5. AI
+## 6. AI
 
 ### AI Agent (v1.0.0)
 
@@ -1161,7 +1204,7 @@ Protocol: REST (Google Gemini API with API Key authentication).
 
 ---
 
-## 6. Credential Management via API
+## 7. Credential Management via API
 
 Integration credentials are managed through the platform REST API. Authentication: `X-API-Key` header.
 

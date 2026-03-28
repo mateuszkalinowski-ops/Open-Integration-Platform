@@ -1,0 +1,35 @@
+# Default owners for all files
+* @pinquark/maintainers
+
+# Platform core
+/platform/api/ @pinquark/platform
+/platform/core/ @pinquark/platform
+/platform/db/ @pinquark/platform
+/platform/middleware/ @pinquark/platform
+
+# Dashboard
+/platform/dashboard/ @pinquark/frontend
+
+# Verification agent
+/platform/verification-agent/ @pinquark/platform
+
+# Shared library
+/shared/ @pinquark/platform
+
+# Connectors by category
+/integrators/courier/ @pinquark/connectors
+/integrators/ecommerce/ @pinquark/connectors
+/integrators/erp/ @pinquark/connectors
+/integrators/wms/ @pinquark/connectors
+/integrators/ai/ @pinquark/connectors
+/integrators/other/ @pinquark/connectors
+
+# Infrastructure
+/k8s/ @pinquark/devops
+/ci/ @pinquark/devops
+/monitoring/ @pinquark/devops
+/.github/workflows/ @pinquark/devops
+
+# Documentation
+/docs/ @pinquark/maintainers
+AGENTS.md @pinquark/maintainers
