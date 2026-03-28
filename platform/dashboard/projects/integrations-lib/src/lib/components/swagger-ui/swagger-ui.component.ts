@@ -17,6 +17,20 @@ import { MatInputModule } from '@angular/material/input';
 
 declare const SwaggerUIBundle: any;
 
+let swaggerCssLoaded = false;
+
+function ensureSwaggerCss(): void {
+  if (swaggerCssLoaded) return;
+  const existing = document.querySelector('link[data-swagger-ui-css]');
+  if (existing) { swaggerCssLoaded = true; return; }
+  const link = document.createElement('link');
+  link.rel = 'stylesheet';
+  link.href = 'https://cdn.jsdelivr.net/npm/swagger-ui-dist@5/swagger-ui.css';
+  link.setAttribute('data-swagger-ui-css', '');
+  document.head.appendChild(link);
+  swaggerCssLoaded = true;
+}
+
 @Component({
   selector: 'pinquark-swagger-ui',
   standalone: true,
@@ -183,6 +197,8 @@ export class SwaggerUiComponent implements OnChanges, OnDestroy {
       this.error = 'Swagger UI library not loaded.';
       return;
     }
+
+    ensureSwaggerCss();
 
     this.loading = true;
 

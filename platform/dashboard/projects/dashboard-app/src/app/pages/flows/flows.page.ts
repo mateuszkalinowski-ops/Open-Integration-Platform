@@ -187,10 +187,12 @@ import {
       justify-content: space-between;
       align-items: flex-start;
       margin-bottom: 20px;
+      gap: 16px;
+      flex-wrap: wrap;
     }
     .flows-page__header h2 { margin: 0; }
     .flows-page__subtitle { color: #666; margin: 4px 0 0; font-size: 14px; }
-    .flows-page__actions { display: flex; gap: 10px; }
+    .flows-page__actions { display: flex; gap: 10px; flex-shrink: 0; }
     .tab-icon { margin-right: 6px; }
     .flows-page__tab-content { padding-top: 16px; }
     .flows-page__list { display: flex; flex-direction: column; gap: 12px; }

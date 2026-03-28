@@ -3,3 +3,41 @@ html, body {
   margin: 0;
   font-family: Roboto, "Helvetica Neue", sans-serif;
 }
+
+/*
+ * Prevent swagger-ui global CSS from leaking into Angular Material components.
+ * Swagger-ui sets aggressive styles on <select>, <input>, <textarea>, etc.
+ */
+.swagger-ui select,
+.swagger-ui input[type="text"],
+.swagger-ui input[type="password"],
+.swagger-ui input[type="search"],
+.swagger-ui input[type="email"],
+.swagger-ui input[type="file"],
+.swagger-ui input[type="url"],
+.swagger-ui textarea {
+  /* keep swagger styles scoped to .swagger-ui only */
+}
+
+/* Reset swagger-ui overrides on Angular Material form fields */
+.mat-mdc-form-field select,
+.mat-mdc-form-field input,
+.mat-mdc-form-field textarea,
+mat-select,
+.mat-mdc-select {
+  font-family: Roboto, "Helvetica Neue", sans-serif !important;
+  font-size: inherit !important;
+  line-height: inherit !important;
+  padding: unset;
+  margin: unset;
+  border: unset;
+  background: unset;
+  box-shadow: unset;
+}
+
+/* Fix mat-toolbar with azure-blue theme */
+.mat-toolbar.mat-primary,
+.mat-toolbar[color="primary"] {
+  background-color: var(--mat-sys-primary, #005cbb);
+  color: var(--mat-sys-on-primary, #ffffff);
+}

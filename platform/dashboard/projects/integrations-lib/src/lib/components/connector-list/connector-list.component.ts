@@ -277,13 +277,14 @@ const BATCH_SIZE = 12;
   styles: [`
     .connector-list__header {
       display: flex;
-      justify-content: space-between;
-      align-items: center;
+      flex-direction: column;
+      gap: 12px;
       margin-bottom: 16px;
     }
+    .connector-list__header h2 { margin: 0; }
     .connector-list__filters { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
-    .connector-list__search { width: 280px; }
-    .connector-list__filter { width: 200px; }
+    .connector-list__search { width: 280px; flex-shrink: 1; min-width: 180px; }
+    .connector-list__filter { width: 160px; flex-shrink: 0; }
 
     /* ---- Category sections ---- */
     .category-section { margin-bottom: 8px; }

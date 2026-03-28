@@ -80,8 +80,47 @@ Try it instantly with `./setup.sh` — no manual configuration required.
 
 ## Screenshots
 
-<!-- Screenshots will be added before the first public release. -->
-<!-- Place them in docs/screenshots/ and update the references below. -->
+### Connector catalog
+
+Browse all connectors with search, status, category, and country filters.
+
+![Connectors list](docs/Screenshots/connectors-list.png)
+
+### Connector detail
+
+Version selector, interactive Swagger UI, capabilities, events, actions, and configuration — all loaded from the connector service.
+
+![Connector detail](docs/Screenshots/connector.png)
+
+### Credentials
+
+Manage credentials for connected systems. Each card shows the connector, config fields, last update time, and real-time connection health status.
+
+![Credentials](docs/Screenshots/credentials.png)
+
+### Flows & Workflows
+
+Create simple flows (source event to destination action) or advanced DAG-based workflows with multiple node types.
+
+![Workflow list](docs/Screenshots/workflow-list.png)
+
+### Visual Workflow Builder
+
+Drag-and-drop DAG editor with 18 node types — triggers, conditions, actions, AI nodes, loops, and more. Test and activate workflows from the builder.
+
+![Workflow builder](docs/Screenshots/workflow.png)
+
+### Operation Log
+
+Monitor all workflow and flow executions with status, duration, connector info, and error details. Filter by status, type, connector, and date range.
+
+![Operation log](docs/Screenshots/operation-log.png)
+
+### Execution details
+
+Drill into any execution to see the workflow graph with per-node status (success, failed, filtered, not executed), trigger data, and GDPR-compliant data masking.
+
+![Operation log details](docs/Screenshots/operation-log-details.png)
 
 ## Quick Start
 
@@ -171,7 +210,7 @@ Flows and workflows are configured via the dashboard UI or REST API. Default fie
 
 ## Connectors — 35 and growing
 
-Every connector is a self-contained microservice with its own API, versioning, and documentation. Browse them all in the [dashboard](#screenshots) or via the REST API.
+Every connector is a self-contained microservice with its own API, versioning, and documentation. Browse them all in the [dashboard](#connector-catalog) or via the REST API.
 
 | Category | # | Connectors |
 |----------|---|------------|
@@ -215,7 +254,7 @@ credential_validation:
 
 The platform reads `connector.yaml` at startup for action routing, credential provisioning, credential validation, and verification agent test discovery. No platform files (`gateway.py`, `action_dispatcher.py`, `discovery.py`) need modification.
 
-See [AGENTS.md](AGENTS.md) section 2.1.1 for the full connector.yaml field reference.
+See [docs/CONNECTOR-DEVELOPMENT.md](docs/CONNECTOR-DEVELOPMENT.md) for the full connector.yaml field reference.
 
 ## On-premise agents
 
@@ -317,6 +356,8 @@ Runs on schedule (default: every 7 days), on-demand via API, or from the dashboa
 |----------|------|-------------|
 | Architecture | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | System architecture, scalability, deployment |
 | Connectors | [docs/CONNECTORS.md](docs/CONNECTORS.md) | Configuration reference for all connectors |
+| Connector Development | [docs/CONNECTOR-DEVELOPMENT.md](docs/CONNECTOR-DEVELOPMENT.md) | connector.yaml spec, SDK, verification, testing guide |
+| Standards | [docs/STANDARDS.md](docs/STANDARDS.md) | Docker, CI/CD, security, monitoring, documentation |
 | Agent Guidelines | [AGENTS.md](AGENTS.md) | Coding standards, CI/CD, security, interfaces |
 
 ## Contributing

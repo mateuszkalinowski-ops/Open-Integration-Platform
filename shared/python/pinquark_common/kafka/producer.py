@@ -10,6 +10,25 @@ from aiokafka import AIOKafkaProducer
 logger = logging.getLogger(__name__)
 
 
+def _resolve_compression(requested: str) -> str | None:
+    """Return *requested* compression if the runtime library is available, else fall back to None."""
+    try:
+        from aiokafka.codec import has_lz4, has_snappy, has_gzip
+
+        checks = {"lz4": has_lz4, "snappy": has_snappy, "gzip": has_gzip}
+        check_fn = checks.get(requested)
+        if check_fn and check_fn():
+            return requested
+    except ImportError:
+        pass
+    if requested != "gzip":
+        logger.warning(
+            "Compression %r unavailable (missing cramjam?); falling back to no compression",
+            requested,
+        )
+    return None
+
+
 class KafkaMessageProducer:
     def __init__(
         self,
@@ -25,11 +44,12 @@ class KafkaMessageProducer:
         max_request_size: int = 10_485_760,
     ):
         self._bootstrap_servers = bootstrap_servers
+        effective_compression = _resolve_compression(compression_type)
         self._config: dict[str, Any] = {
             "bootstrap_servers": bootstrap_servers,
             "value_serializer": lambda v: json.dumps(v, default=str).encode("utf-8"),
             "key_serializer": lambda k: k.encode("utf-8") if k else None,
-            "compression_type": compression_type,
+            "compression_type": effective_compression,
             "linger_ms": linger_ms,
             "max_batch_size": batch_size,
             "max_request_size": max_request_size,

@@ -1662,7 +1662,6 @@ async def activate_connector(
         ip_address=request.client.host if request.client else None,
     )
     await db.commit()
-    await db.refresh(instance)
     return ConnectorInstanceResponse.model_validate(instance)
 
 
@@ -2140,7 +2139,6 @@ async def create_flow(
         ip_address=request.client.host if request.client else None,
     )
     await db.commit()
-    await db.refresh(flow)
     return FlowResponse.model_validate(flow)
 
 
@@ -2212,7 +2210,6 @@ async def update_flow(
         ip_address=request.client.host if request.client else None,
     )
     await db.commit()
-    await db.refresh(flow)
     return FlowResponse.model_validate(flow)
 
 
@@ -3198,7 +3195,6 @@ async def create_workflow(
     )
 
     await db.commit()
-    await db.refresh(workflow)
 
     await _provision_trigger_account(db, tenant.id, nodes_raw)
 
@@ -3277,7 +3273,6 @@ async def update_workflow(
     )
 
     await db.commit()
-    await db.refresh(workflow)
 
     needs_provision = "nodes" in update_data or (update_data.get("is_enabled") is True)
     if needs_provision:

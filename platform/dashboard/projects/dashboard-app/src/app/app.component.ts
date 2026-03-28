@@ -2,7 +2,6 @@ import { Component, Inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { Router, RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { MatSidenavModule } from '@angular/material/sidenav';
-import { MatToolbarModule } from '@angular/material/toolbar';
 import { MatListModule } from '@angular/material/list';
 import { MatIconModule } from '@angular/material/icon';
 import { MatButtonModule } from '@angular/material/button';
@@ -19,7 +18,6 @@ import { PINQUARK_CONFIG, PinquarkConfig } from '@pinquark/integrations';
     RouterLink,
     RouterLinkActive,
     MatSidenavModule,
-    MatToolbarModule,
     MatListModule,
     MatIconModule,
     MatButtonModule,
@@ -90,9 +88,9 @@ import { PINQUARK_CONFIG, PinquarkConfig } from '@pinquark/integrations';
         </mat-sidenav>
 
         <mat-sidenav-content class="app-content">
-          <mat-toolbar color="primary">
+          <div class="app-toolbar">
             <span>{{ pageTitle }}</span>
-          </mat-toolbar>
+          </div>
           <main class="app-main">
             <router-outlet></router-outlet>
           </main>
@@ -107,6 +105,17 @@ import { PINQUARK_CONFIG, PinquarkConfig } from '@pinquark/integrations';
     .app-sidenav__header h2 { margin: 0; font-size: 24px; }
     .app-sidenav__subtitle { font-size: 12px; opacity: 0.7; }
     .app-content { display: flex; flex-direction: column; }
+    .app-toolbar {
+      display: flex;
+      align-items: center;
+      height: 48px;
+      padding: 0 24px;
+      background: var(--mat-sys-primary, #005cbb);
+      color: var(--mat-sys-on-primary, #fff);
+      font-size: 18px;
+      font-weight: 500;
+      flex-shrink: 0;
+    }
     .app-main { padding: 24px; flex: 1; overflow: auto; }
     .active { background: rgba(0,0,0,0.04); }
 
