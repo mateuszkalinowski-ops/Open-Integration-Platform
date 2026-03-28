@@ -3,6 +3,7 @@ name: CI — Build & Push
 on:
   push:
     branches: [main]
+    tags: ["v*.*.*"]
     paths-ignore:
       - "docs/**"
       - "*.md"
@@ -21,7 +22,7 @@ env:
   IMAGE_PREFIX: ghcr.io/${{ github.repository_owner }}/oip
 
 permissions:
-  contents: read
+  contents: write
   packages: write
 
 jobs:
@@ -188,8 +189,10 @@ jobs:
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && (needs.changes.outputs.platform == 'true' || needs.changes.outputs.shared == 'true')
+      github.event_name == 'push' &&
+      (github.ref_type == 'tag' ||
+      (github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.platform == 'true' || needs.changes.outputs.shared == 'true')))
     steps:
       - uses: actions/checkout@v4
 
@@ -225,14 +228,19 @@ jobs:
           docker tag ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/platform:latest
           docker push ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }}
           docker push ${{ env.IMAGE_PREFIX }}/platform:latest
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker tag ${{ env.IMAGE_PREFIX }}/platform:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/platform:${{ github.ref_name }}
+            docker push ${{ env.IMAGE_PREFIX }}/platform:${{ github.ref_name }}
+          fi
 
   build-dashboard:
     name: Build Dashboard
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && needs.changes.outputs.dashboard == 'true'
+      github.event_name == 'push' &&
+      (github.ref_type == 'tag' ||
+      (github.ref == 'refs/heads/main' && needs.changes.outputs.dashboard == 'true'))
     steps:
       - uses: actions/checkout@v4
 
@@ -268,14 +276,20 @@ jobs:
           docker tag ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/dashboard:latest
           docker push ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }}
           docker push ${{ env.IMAGE_PREFIX }}/dashboard:latest
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker tag ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.ref_name }}
+            docker push ${{ env.IMAGE_PREFIX }}/dashboard:${{ github.ref_name }}
+          fi
 
   build-verification-agent:
     name: Build Verification Agent
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && (needs.changes.outputs.verification-agent == 'true' || needs.changes.outputs.shared == 'true')
+      github.event_name == 'push' &&
+      (github.ref_type == 'tag' ||
+      (github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.verification-agent == 'true' || needs.changes.outputs.shared == 'true')))
     steps:
       - uses: actions/checkout@v4
 
@@ -311,14 +325,20 @@ jobs:
           docker tag ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/verification-agent:latest
           docker push ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }}
           docker push ${{ env.IMAGE_PREFIX }}/verification-agent:latest
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker tag ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.ref_name }}
+            docker push ${{ env.IMAGE_PREFIX }}/verification-agent:${{ github.ref_name }}
+          fi
 
   build-connectors:
     name: Build ${{ matrix.name }}
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' && github.ref == 'refs/heads/main'
-      && (needs.changes.outputs.connectors == 'true' || needs.changes.outputs.shared == 'true')
+      github.event_name == 'push' &&
+      (github.ref_type == 'tag' ||
+      (github.ref == 'refs/heads/main' &&
+      (needs.changes.outputs.connectors == 'true' || needs.changes.outputs.shared == 'true')))
     strategy:
       fail-fast: false
       matrix:
@@ -474,3 +494,41 @@ jobs:
           docker tag ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:latest
           docker push ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }}
           docker push ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:latest
+          if [[ "${{ github.ref_type }}" == "tag" ]]; then
+            docker tag ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.sha }} ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.ref_name }}
+            docker push ${{ env.IMAGE_PREFIX }}/${{ matrix.name }}:${{ github.ref_name }}
+          fi
+
+  create-release:
+    name: Create GitHub Release
+    needs:
+      - build-platform
+      - build-dashboard
+      - build-verification-agent
+      - build-connectors
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Extract changelog for this version
+        id: changelog
+        run: |
+          VERSION="${{ github.ref_name }}"
+          # Extract the section for this version from CHANGELOG.md
+          awk "/^## \[${VERSION}\]/{found=1; next} /^## \[/{if(found) exit} found{print}" CHANGELOG.md > release_notes.md
+          echo "Release notes:"
+          cat release_notes.md
+
+      - name: Create GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          name: "Release ${{ github.ref_name }}"
+          body_path: release_notes.md
+          draft: false
+          prerelease: ${{ contains(github.ref_name, '-') }}
+          generate_release_notes: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
