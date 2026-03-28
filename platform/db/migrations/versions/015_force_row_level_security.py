@@ -1,7 +1,7 @@
 """Force RLS on all tenant-scoped tables.
 
-Revision ID: 015
-Revises: 014
+Revision ID: 0015
+Revises: 0014
 Create Date: 2026-03-16
 
 ENABLE ROW LEVEL SECURITY allows the table owner to bypass policies.
@@ -14,8 +14,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "015"
-down_revision: str | None = "014"
+revision: str = "0015"
+down_revision: str | None = "0014"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

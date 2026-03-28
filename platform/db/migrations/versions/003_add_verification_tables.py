@@ -1,7 +1,7 @@
 """Add verification_reports and verification_settings tables
 
-Revision ID: 003
-Revises: 002
+Revision ID: 0003
+Revises: 0002
 Create Date: 2026-02-24
 
 Tables for the Verification Agent: stores periodic E2E test results
@@ -14,8 +14,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "003"
-down_revision: str | None = "002"
+revision: str = "0003"
+down_revision: str | None = "0002"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

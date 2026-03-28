@@ -1,7 +1,7 @@
 """Fix tenant_isolation RLS policies to handle missing/empty GUC safely.
 
-Revision ID: 017
-Revises: 016
+Revision ID: 0017
+Revises: 0016
 Create Date: 2026-03-20
 
 Several tenant_isolation policies used ``current_setting('app.current_tenant_id')``
@@ -22,8 +22,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "017"
-down_revision: str | None = "016"
+revision: str = "0017"
+down_revision: str | None = "0016"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

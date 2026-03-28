@@ -7,7 +7,7 @@ Usage:
     python -m db.init_db --current    # print current revision
 
 On a **fresh** database the script creates the ``alembic_version`` table and
-runs every migration from 001 onward.
+runs every migration from 0001 onward.
 
 On an **existing** database that predates Alembic (no ``alembic_version``
 table) the script detects live tables and stamps the baseline revision so
@@ -29,7 +29,7 @@ logger = logging.getLogger(__name__)
 
 PLATFORM_DIR = Path(__file__).resolve().parents[1]
 ALEMBIC_INI = PLATFORM_DIR / "alembic.ini"
-BASELINE_REV = "001"
+BASELINE_REV = "0001"
 
 
 def _alembic_cfg() -> Config:
@@ -53,6 +53,20 @@ def _table_exists(engine, table_name: str) -> bool:  # type: ignore[no-untyped-d
     return table_name in insp.get_table_names()
 
 
+def _pad_revision_ids(engine) -> None:  # type: ignore[no-untyped-def]
+    """Pad 3-char revision IDs to 4-char (e.g. '017' → '0017').
+
+    Alembic ≥1.14 requires at least 4 characters for partial revision
+    identifier matches.  Older deployments stored 3-char IDs.
+    """
+    with engine.begin() as conn:
+        row = conn.execute(text("SELECT version_num FROM alembic_version")).fetchone()
+        if row and len(row[0]) < 4:
+            padded = row[0].zfill(4)
+            conn.execute(text("UPDATE alembic_version SET version_num = :v"), {"v": padded})
+            logger.info("Padded alembic_version: %s → %s", row[0], padded)
+
+
 def apply_migrations() -> None:
     """Run ``alembic upgrade head``, auto-stamping baseline for existing DBs."""
     sync_url = _sync_url()
@@ -67,6 +81,9 @@ def apply_migrations() -> None:
     if has_tables and not has_alembic:
         logger.info("Existing database detected without alembic_version — stamping baseline (%s)", BASELINE_REV)
         command.stamp(cfg, BASELINE_REV)
+
+    if has_alembic:
+        _pad_revision_ids(engine)
 
     logger.info("Running migrations (upgrade head)...")
     command.upgrade(cfg, "head")

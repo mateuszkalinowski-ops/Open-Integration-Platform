@@ -1,7 +1,7 @@
 """Add workflow_nodes_snapshot and workflow_edges_snapshot to workflow_executions
 
-Revision ID: 002
-Revises: 001
+Revision ID: 0002
+Revises: 0001
 Create Date: 2026-02-24
 
 Stores a copy of the workflow graph (nodes + edges) at execution time so
@@ -16,8 +16,8 @@ from alembic import op
 from sqlalchemy import inspect
 from sqlalchemy.dialects import postgresql
 
-revision: str = "002"
-down_revision: str | None = "001"
+revision: str = "0002"
+down_revision: str | None = "0001"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

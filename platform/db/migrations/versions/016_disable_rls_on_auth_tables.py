@@ -1,7 +1,7 @@
 """Disable RLS on authentication lookup tables.
 
-Revision ID: 016
-Revises: 015
+Revision ID: 0016
+Revises: 0015
 Create Date: 2026-03-16
 
 api_keys and tenants are queried during authentication *before* the
@@ -17,8 +17,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "016"
-down_revision: str | None = "015"
+revision: str = "0016"
+down_revision: str | None = "0015"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

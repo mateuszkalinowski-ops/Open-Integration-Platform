@@ -1,7 +1,7 @@
 """Add sync_ledger table and sync_config column to workflows
 
-Revision ID: 004
-Revises: 003
+Revision ID: 0004
+Revises: 0003
 Create Date: 2026-02-25
 
 Enables incremental data synchronization by tracking per-entity sync state
@@ -15,8 +15,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
 
-revision: str = "004"
-down_revision: str | None = "003"
+revision: str = "0004"
+down_revision: str | None = "0003"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

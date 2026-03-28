@@ -1,7 +1,7 @@
 """Add oauth_tokens table for OAuth2 lifecycle management.
 
-Revision ID: 010
-Revises: 009
+Revision ID: 0010
+Revises: 0009
 Create Date: 2026-03-11
 
 Stores encrypted OAuth2 tokens with refresh tracking and expiry.
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import UUID
 
-revision: str = "010"
-down_revision: str | None = "009"
+revision: str = "0010"
+down_revision: str | None = "0009"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

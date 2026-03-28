@@ -1,7 +1,7 @@
 """Add webhook_events table for webhook ingestion service.
 
-Revision ID: 011
-Revises: 010
+Revision ID: 0011
+Revises: 0010
 Create Date: 2026-03-11
 
 Stores received webhook events with signature validation and processing status.
@@ -13,8 +13,8 @@ import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects.postgresql import JSONB, UUID
 
-revision: str = "011"
-down_revision: str | None = "010"
+revision: str = "0011"
+down_revision: str | None = "0010"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 

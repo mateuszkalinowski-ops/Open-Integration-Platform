@@ -1,7 +1,7 @@
 """Fix FK cascades, add missing indexes, drop redundant index.
 
-Revision ID: 008
-Revises: 007
+Revision ID: 0008
+Revises: 0007
 Create Date: 2026-03-08
 
 - flow_executions.flow_id: add ON DELETE SET NULL (consistent with workflow_executions)
@@ -14,8 +14,8 @@ from collections.abc import Sequence
 
 from alembic import op
 
-revision: str = "008"
-down_revision: str | None = "007"
+revision: str = "0008"
+down_revision: str | None = "0007"
 branch_labels: str | Sequence[str] | None = None
 depends_on: str | Sequence[str] | None = None
 
