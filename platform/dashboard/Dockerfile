@@ -9,6 +9,7 @@ RUN npx ng build dashboard-app --configuration=production
 FROM nginx:1.27-alpine
 LABEL maintainer="integrations@pinquark.com"
 LABEL component="dashboard"
+RUN apk upgrade --no-cache
 COPY --from=build /app/dist/dashboard-app/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
 COPY docker-entrypoint.sh /docker-entrypoint.sh
