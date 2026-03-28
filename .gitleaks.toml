@@ -1,0 +1,15 @@
+title = "Gitleaks config for Open Integration Platform"
+
+[allowlist]
+paths = [
+    '''docs/.*/external-api-docs/.*''',
+    '''.*tests/conftest\.py''',
+    '''.*tests/test_.*\.py''',
+]
+description = "Ignore example tokens in API docs and test fixtures"
+
+[[rules]]
+id = "docs-curl-placeholders"
+description = "Ignore curl examples with placeholder credentials in documentation"
+path = '''docs/.*\.md'''
+allowlist = { regexTarget = "match", regexes = ['''pk_live_xxx''', '''YOUR_API_KEY''', '''ctok_aBcDeFgH''', '''consumer_key:consumer_secret'''] }

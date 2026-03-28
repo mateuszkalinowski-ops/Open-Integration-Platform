@@ -14,7 +14,7 @@ Thank you for your interest in contributing! This guide covers everything you ne
 ### Clone and install
 
 ```bash
-git clone https://github.com/pinquark/open-integration-platform.git
+git clone https://github.com/mateuszkalinowski-ops/Open-Integration-Platform.git
 cd open-integration-platform
 
 # Install shared library
@@ -141,7 +141,7 @@ Examples:
 
 ## Pull Request Process
 
-1. Fork the repository and create a branch from `dev`:
+1. Fork the repository and create a branch from `main`:
    - `feature/courier-new-system` for new connectors
    - `fix/inpost-label-format` for bug fixes
    - `docs/allegro-api-mapping` for documentation
@@ -154,7 +154,7 @@ Examples:
 
 3. Update documentation if you changed APIs or added features.
 
-4. Submit PR against `dev` branch with a clear description of changes.
+4. Submit PR against `main` branch with a clear description of changes.
 
 5. A maintainer will review your PR. Address any feedback promptly.
 

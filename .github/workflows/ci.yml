@@ -79,6 +79,19 @@ jobs:
       - name: Ruff format check
         run: ruff format --check platform/ integrators/ --config ruff.toml
 
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITLEAKS_CONFIG: .gitleaks.toml
+
   test:
     name: Test Platform & Connectors
     runs-on: ubuntu-latest

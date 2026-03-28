@@ -1,35 +1,35 @@
 # Default owners for all files
-* @pinquark/maintainers
+* @mateuszkalinowski-ops
 
 # Platform core
-/platform/api/ @pinquark/platform
-/platform/core/ @pinquark/platform
-/platform/db/ @pinquark/platform
-/platform/middleware/ @pinquark/platform
+/platform/api/ @mateuszkalinowski-ops
+/platform/core/ @mateuszkalinowski-ops
+/platform/db/ @mateuszkalinowski-ops
+/platform/middleware/ @mateuszkalinowski-ops
 
 # Dashboard
-/platform/dashboard/ @pinquark/frontend
+/platform/dashboard/ @mateuszkalinowski-ops
 
 # Verification agent
-/platform/verification-agent/ @pinquark/platform
+/platform/verification-agent/ @mateuszkalinowski-ops
 
 # Shared library
-/shared/ @pinquark/platform
+/shared/ @mateuszkalinowski-ops
 
 # Connectors by category
-/integrators/courier/ @pinquark/connectors
-/integrators/ecommerce/ @pinquark/connectors
-/integrators/erp/ @pinquark/connectors
-/integrators/wms/ @pinquark/connectors
-/integrators/ai/ @pinquark/connectors
-/integrators/other/ @pinquark/connectors
+/integrators/courier/ @mateuszkalinowski-ops
+/integrators/ecommerce/ @mateuszkalinowski-ops
+/integrators/erp/ @mateuszkalinowski-ops
+/integrators/wms/ @mateuszkalinowski-ops
+/integrators/ai/ @mateuszkalinowski-ops
+/integrators/other/ @mateuszkalinowski-ops
 
 # Infrastructure
-/k8s/ @pinquark/devops
-/ci/ @pinquark/devops
-/monitoring/ @pinquark/devops
-/.github/workflows/ @pinquark/devops
+/k8s/ @mateuszkalinowski-ops
+/ci/ @mateuszkalinowski-ops
+/monitoring/ @mateuszkalinowski-ops
+/.github/workflows/ @mateuszkalinowski-ops
 
 # Documentation
-/docs/ @pinquark/maintainers
-AGENTS.md @pinquark/maintainers
+/docs/ @mateuszkalinowski-ops
+AGENTS.md @mateuszkalinowski-ops

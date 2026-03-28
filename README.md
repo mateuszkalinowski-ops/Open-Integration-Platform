@@ -4,6 +4,7 @@
 
 Courier services, e-commerce platforms, ERP systems, WMS, automation — all connected through configurable flows and workflows with a visual dashboard.
 
+[![CI](https://github.com/mateuszkalinowski-ops/Open-Integration-Platform/actions/workflows/ci.yml/badge.svg)](https://github.com/mateuszkalinowski-ops/Open-Integration-Platform/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python](https://img.shields.io/badge/Python-3.12+-green.svg)](https://python.org)
 [![Angular](https://img.shields.io/badge/Angular-18+-red.svg)](https://angular.dev)
