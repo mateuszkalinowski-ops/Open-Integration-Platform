@@ -119,7 +119,9 @@ async def analyze(request: AnalyzeRequest):
         return JSONResponse(content=result.model_dump())
     except Exception as exc:
         logger.exception("Analysis failed")
-        raise HTTPException(status_code=500, detail="AI analysis failed") from exc
+        raise HTTPException(
+            status_code=500, detail=f"AI analysis failed: {exc}"
+        ) from exc
 
 
 # ── TEMPLATE: Risk Analysis ─────────────────────────────────────

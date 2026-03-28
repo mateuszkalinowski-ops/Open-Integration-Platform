@@ -8,7 +8,7 @@ alembic==1.14.1
 psycopg2-binary==2.9.10
 redis[hiredis]==5.2.1
 httpx==0.28.1
-cryptography==46.0.5
+cryptography==46.0.6
 passlib[bcrypt]==1.7.4
 prometheus-client==0.21.1
 structlog==24.4.0
