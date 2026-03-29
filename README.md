@@ -123,6 +123,19 @@ Drill into any execution to see the workflow graph with per-node status (success
 
 ![Operation log details](docs/Screenshots/operation-log-details.png)
 
+## Live Demo
+
+A public demo instance is available at **[pq.dotts.pl](https://pq.dotts.pl)** — no installation required.
+
+1. Open [https://pq.dotts.pl](https://pq.dotts.pl)
+2. Enter a workspace name and click **Create workspace**
+3. Save the generated API key — it grants access to your isolated workspace
+4. Browse connectors, manage credentials, create flows and visual workflows
+
+Each workspace is fully isolated (separate tenant with its own data). The API key is stored in `sessionStorage` and cleared when the browser tab is closed. Registration is rate-limited to 10 workspaces per IP per hour.
+
+> Already have a key? Switch to the **"I Have a Key"** tab and enter it to resume your session.
+
 ## Quick Start
 
 ### Self-hosted (Docker Compose)
