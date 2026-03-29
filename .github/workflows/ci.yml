@@ -459,6 +459,9 @@ jobs:
           - name: connector-s3
             context: .
             dockerfile: integrators/other/s3/v1.0.0/Dockerfile
+          - name: connector-ksef
+            context: .
+            dockerfile: integrators/other/ksef/v1.0.0/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
