@@ -25,8 +25,8 @@ from src.schemas import (
     ShippingContactInfo,
     ShippingDimensions,
     ShippingWeight,
-    StandardParcel,
     StandardizedRateResponse,
+    StandardParcel,
     Tracking,
 )
 
@@ -79,7 +79,10 @@ class TestShippingContactInfo:
 
     def test_serialization_by_alias(self):
         contact = ShippingContactInfo(
-            firstName="Jan", lastName="K", phone="123", email="j@t.pl",
+            firstName="Jan",
+            lastName="K",
+            phone="123",
+            email="j@t.pl",
         )
         data = contact.model_dump(by_alias=True)
         assert "firstName" in data
@@ -100,7 +103,10 @@ class TestShippingAddress:
 
     def test_serialization_by_alias(self):
         addr = ShippingAddress(
-            countryCode="PL", street="Test", city="W", postalCode="00-001",
+            countryCode="PL",
+            street="Test",
+            city="W",
+            postalCode="00-001",
         )
         data = addr.model_dump(by_alias=True)
         assert "countryCode" in data
@@ -200,8 +206,13 @@ class TestShipmentParty:
 
     def test_alias_serialization(self):
         party = ShipmentParty(
-            first_name="J", last_name="K", building_number="1",
-            city="W", postal_code="00-001", street="S", company="Co",
+            first_name="J",
+            last_name="K",
+            building_number="1",
+            city="W",
+            postal_code="00-001",
+            street="S",
+            company="Co",
         )
         data = party.model_dump(by_alias=True)
         assert "company" in data
@@ -227,12 +238,20 @@ class TestCreateShipmentRequest:
             serviceName="inpost_international",
             parcels=[Parcel(height=20, length=30, weight=5.0, width=15)],
             shipper=ShipmentParty(
-                first_name="J", last_name="K", building_number="1",
-                city="W", postal_code="00-001", street="S",
+                first_name="J",
+                last_name="K",
+                building_number="1",
+                city="W",
+                postal_code="00-001",
+                street="S",
             ),
             receiver=ShipmentParty(
-                first_name="A", last_name="N", building_number="2",
-                city="K", postal_code="30-001", street="R",
+                first_name="A",
+                last_name="N",
+                building_number="2",
+                city="K",
+                postal_code="30-001",
+                street="R",
             ),
         )
         assert req.service_name == "inpost_international"
@@ -270,8 +289,12 @@ class TestPickupRequest:
         req = PickupRequest(
             credentials=InpostCredentials(organization_id="org-1", client_secret="sec"),
             shipper=ShipmentParty(
-                first_name="J", last_name="K", building_number="1",
-                city="W", postal_code="00-001", street="S",
+                first_name="J",
+                last_name="K",
+                building_number="1",
+                city="W",
+                postal_code="00-001",
+                street="S",
             ),
             parcels=[Parcel(height=20, length=30, weight=5.0, width=15)],
         )
@@ -282,8 +305,12 @@ class TestPickupRequest:
         req = PickupRequest(
             credentials=InpostCredentials(organization_id="org-1", client_secret="sec"),
             shipper=ShipmentParty(
-                first_name="J", last_name="K", building_number="1",
-                city="W", postal_code="00-001", street="S",
+                first_name="J",
+                last_name="K",
+                building_number="1",
+                city="W",
+                postal_code="00-001",
+                street="S",
             ),
             parcels=[Parcel(height=20, length=30, weight=5.0, width=15)],
             trackingNumbers=["TN001", "TN002"],
@@ -342,7 +369,8 @@ class TestRateProduct:
 
     def test_serialization(self):
         product = RateProduct(
-            name="Test", price=10.0,
+            name="Test",
+            price=10.0,
             attributes={"source": "inpost", "service": "paczkomat"},
         )
         data = product.model_dump()
@@ -402,8 +430,11 @@ class TestPickupAddress:
 
     def test_serialization_by_alias(self):
         addr = PickupAddress(
-            countryCode="PL", street="T", houseNumber="1",
-            city="W", postalCode="00-001",
+            countryCode="PL",
+            street="T",
+            houseNumber="1",
+            city="W",
+            postalCode="00-001",
         )
         data = addr.model_dump(by_alias=True)
         assert "countryCode" in data

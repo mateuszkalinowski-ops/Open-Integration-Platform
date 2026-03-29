@@ -1,8 +1,8 @@
 """Tests for UPS Pydantic schemas."""
 
-import pytest
-from pydantic import ValidationError
 from src.schemas import (
+    UPS_AVAILABLE_PARCEL_TYPES,
+    UPS_AVAILABLE_SERVICES,
     AddressResponse,
     CreateOrderResponse,
     CreateShipmentRequest,
@@ -16,8 +16,6 @@ from src.schemas import (
     ShipmentPartyResponse,
     StandardizedRateResponse,
     StatusRequest,
-    UPS_AVAILABLE_PARCEL_TYPES,
-    UPS_AVAILABLE_SERVICES,
     UploadDocumentRequest,
     UpsCredentials,
     UpsExtras,

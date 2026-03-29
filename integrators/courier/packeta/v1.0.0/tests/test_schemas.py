@@ -1,6 +1,5 @@
 """Tests for Packeta Pydantic schemas."""
 
-import pytest
 from src.schemas import (
     Address,
     CreateOrderCommand,

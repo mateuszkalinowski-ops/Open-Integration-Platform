@@ -5,8 +5,9 @@ from __future__ import annotations
 from unittest.mock import AsyncMock, patch
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
-from src.app import app, _normalize_dhl_express_rates, _validate_path_id
+from src.app import _normalize_dhl_express_rates, _validate_path_id, app
 from src.integration import DhlExpressError
 
 client = TestClient(app)
@@ -35,12 +36,12 @@ def test_validate_path_id_valid():
 
 
 def test_validate_path_id_invalid():
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         _validate_path_id("../../../etc/passwd")
 
 
 def test_validate_path_id_empty():
-    with pytest.raises(Exception):
+    with pytest.raises(HTTPException):
         _validate_path_id("")
 
 
@@ -96,9 +97,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_dhl_error(mock_integration):
-    mock_integration.create_shipment = AsyncMock(
-        side_effect=DhlExpressError("Bad request", 400)
-    )
+    mock_integration.create_shipment = AsyncMock(side_effect=DhlExpressError("Bad request", 400))
     payload = {
         "plannedShippingDateAndTime": "2026-04-01T10:00:00Z",
         "shipper": {
@@ -120,11 +119,13 @@ def test_get_status_success(mock_integration):
     mock_integration.get_tracking = AsyncMock(
         return_value=(
             {
-                "shipments": [{
-                    "shipmentTrackingNumber": "1234567890",
-                    "status": "transit",
-                    "events": [{"description": "Shipment picked up"}],
-                }]
+                "shipments": [
+                    {
+                        "shipmentTrackingNumber": "1234567890",
+                        "status": "transit",
+                        "events": [{"description": "Shipment picked up"}],
+                    }
+                ]
             },
             200,
         )
@@ -137,9 +138,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_not_found(mock_integration):
-    mock_integration.get_tracking = AsyncMock(
-        side_effect=DhlExpressError("Not found", 404)
-    )
+    mock_integration.get_tracking = AsyncMock(side_effect=DhlExpressError("Not found", 404))
     response = client.get("/shipments/UNKNOWN123/status")
     assert response.status_code == 404
 
@@ -211,9 +210,7 @@ def test_get_rates_standardized_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_rates_standardized_dhl_error(mock_integration):
-    mock_integration.get_rates = AsyncMock(
-        side_effect=DhlExpressError("Rate limit", 429)
-    )
+    mock_integration.get_rates = AsyncMock(side_effect=DhlExpressError("Rate limit", 429))
     payload = {"shipperCountryCode": "PL", "receiverCountryCode": "DE", "weight": 5.0}
     response = client.post("/rates/standardized", json=payload)
     assert response.status_code == 200
@@ -224,9 +221,7 @@ def test_get_rates_standardized_dhl_error(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_success(mock_integration):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 dhl express label", 200)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 dhl express label", 200))
     response = client.get("/shipments/1234567890/label")
     assert response.status_code == 200
     assert response.headers["content-type"] == "application/pdf"
@@ -234,9 +229,7 @@ def test_get_label_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_not_found(mock_integration):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=(b"", 200)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=(b"", 200))
     response = client.get("/shipments/1234567890/label")
     assert response.status_code == 404
 
@@ -276,9 +269,7 @@ def test_create_pickup_success(mock_integration):
 
 @patch("src.app.integration")
 def test_update_pickup_success(mock_integration):
-    mock_integration.update_pickup = AsyncMock(
-        return_value=({"status": "updated"}, 200)
-    )
+    mock_integration.update_pickup = AsyncMock(return_value=({"status": "updated"}, 200))
     response = client.patch(
         "/pickups/PRG999123",
         json={"closeTime": "19:00"},
@@ -288,9 +279,7 @@ def test_update_pickup_success(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_pickup_success(mock_integration):
-    mock_integration.cancel_pickup = AsyncMock(
-        return_value=({"status": "cancelled"}, 200)
-    )
+    mock_integration.cancel_pickup = AsyncMock(return_value=({"status": "cancelled"}, 200))
     response = client.delete(
         "/pickups/PRG999123",
         params={"requestorName": "Jan Kowalski", "reason": "rescheduled"},
@@ -352,9 +341,7 @@ def test_get_products_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_landed_cost_success(mock_integration):
-    mock_integration.get_landed_cost = AsyncMock(
-        return_value=({"landedCost": {"totalCost": 250.00}}, 200)
-    )
+    mock_integration.get_landed_cost = AsyncMock(return_value=({"landedCost": {"totalCost": 250.00}}, 200))
     response = client.post("/landed-cost", json={"items": [{"description": "Books"}]})
     assert response.status_code == 200
 
@@ -406,6 +393,7 @@ def test_normalize_dhl_express_rates_empty():
 )
 def test_sanitize_dhl_error_messages(status_code, expected_detail):
     from src.app import _sanitize_dhl_error
+
     exc = DhlExpressError("raw error", status_code)
     http_exc = _sanitize_dhl_error(exc)
     assert http_exc.status_code == status_code
