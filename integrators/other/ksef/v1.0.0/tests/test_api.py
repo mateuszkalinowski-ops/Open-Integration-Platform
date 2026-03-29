@@ -1,12 +1,9 @@
 """Tests for KSeF FastAPI routes."""
 
-from unittest.mock import AsyncMock, MagicMock, patch
-
 import pytest
 from fastapi.testclient import TestClient
 
 from src.api.dependencies import app_state
-from src.config import KSeFAccountConfig, KSeFEnvironment
 from src.main import create_app
 from src.services.account_manager import AccountManager
 

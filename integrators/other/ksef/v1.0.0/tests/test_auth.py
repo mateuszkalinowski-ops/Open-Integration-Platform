@@ -1,9 +1,6 @@
 """Tests for KSeF authentication flow."""
 
 from datetime import datetime, timezone
-from unittest.mock import AsyncMock, MagicMock, patch
-
-import pytest
 
 from src.ksef.auth import AuthSession, _parse_datetime
 

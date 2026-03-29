@@ -112,7 +112,10 @@ class TestCalculateInpostRates:
 def _make_connector(**overrides):
     conn = object.__new__(InPostConnector)
     conn._integration = MagicMock()
-    conn.accounts = {}
+    accounts_data = overrides.pop("accounts", {})
+    account_store = MagicMock()
+    account_store.get = MagicMock(side_effect=lambda name: accounts_data.get(name))
+    conn._account_store = account_store
     for k, v in overrides.items():
         setattr(conn, k, v)
     return conn

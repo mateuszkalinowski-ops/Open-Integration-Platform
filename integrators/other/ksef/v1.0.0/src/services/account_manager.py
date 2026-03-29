@@ -100,7 +100,9 @@ class AccountManager:
 
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(client.close())
+                task = loop.create_task(client.close())
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
             except RuntimeError:
                 pass
 
