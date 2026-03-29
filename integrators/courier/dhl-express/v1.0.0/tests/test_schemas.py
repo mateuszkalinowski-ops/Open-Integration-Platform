@@ -67,7 +67,10 @@ class TestContact:
 
     def test_serialization_by_alias(self):
         contact = Contact(
-            companyName="C", fullName="F", phone="1", email="e@t.pl",
+            companyName="C",
+            fullName="F",
+            phone="1",
+            email="e@t.pl",
         )
         data = contact.model_dump(by_alias=True)
         assert "companyName" in data
@@ -87,7 +90,9 @@ class TestParty:
 class TestRegistrationNumber:
     def test_create(self):
         reg = RegistrationNumber(
-            typeCode="VAT", number="PL1234567890", issuerCountryCode="PL",
+            typeCode="VAT",
+            number="PL1234567890",
+            issuerCountryCode="PL",
         )
         assert reg.type_code == "VAT"
         assert reg.number == "PL1234567890"
@@ -343,7 +348,9 @@ class TestStandardizedRateResponse:
             RateProduct(name="EXPRESS 9:00", price=300.0, currency="EUR"),
         ]
         resp = StandardizedRateResponse(
-            products=products, source="dhl-express", raw={"key": "value"},
+            products=products,
+            source="dhl-express",
+            raw={"key": "value"},
         )
         data = resp.model_dump()
         assert len(data["products"]) == 2

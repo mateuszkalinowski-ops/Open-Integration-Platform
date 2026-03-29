@@ -54,9 +54,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_bad_request(mock_integration):
-    mock_integration.create_order = MagicMock(
-        return_value=({"error": "Invalid address"}, 400)
-    )
+    mock_integration.create_order = MagicMock(return_value=({"error": "Invalid address"}, 400))
     response = client.post(
         "/shipments",
         json={"credentials": VALID_CREDENTIALS, "command": VALID_COMMAND},
@@ -66,9 +64,7 @@ def test_create_shipment_bad_request(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_unauthorized(mock_integration):
-    mock_integration.create_order = MagicMock(
-        return_value=({"error": "Invalid credentials"}, 401)
-    )
+    mock_integration.create_order = MagicMock(return_value=({"error": "Invalid credentials"}, 401))
     response = client.post(
         "/shipments",
         json={"credentials": VALID_CREDENTIALS, "command": VALID_COMMAND},
@@ -78,9 +74,7 @@ def test_create_shipment_unauthorized(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("DELIVERED", 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("DELIVERED", 200))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "SUUS123456"},
@@ -91,9 +85,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_not_found(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("Not found", 404)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("Not found", 404))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "INVALID"},
@@ -103,9 +95,7 @@ def test_get_status_not_found(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 suus label content", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 suus label content", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["SUUS123456"]},
@@ -116,9 +106,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_multiple_waybills(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 merged labels", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 merged labels", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["SUUS001", "SUUS002"]},
@@ -129,9 +117,7 @@ def test_get_label_multiple_waybills(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=("Label generation failed", 500)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=("Label generation failed", 500))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["INVALID"]},
@@ -145,9 +131,7 @@ def test_get_label_error(mock_integration):
 )
 @patch("src.app.integration")
 def test_status_mapping(mock_integration, status_value):
-    mock_integration.get_order_status = MagicMock(
-        return_value=(status_value, 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=(status_value, 200))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "SUUS123456"},
@@ -162,9 +146,7 @@ def test_status_mapping(mock_integration, status_value):
 )
 @patch("src.app.integration")
 def test_create_shipment_error_codes(mock_integration, error_code):
-    mock_integration.create_order = MagicMock(
-        return_value=({"error": "fail"}, error_code)
-    )
+    mock_integration.create_order = MagicMock(return_value=({"error": "fail"}, error_code))
     response = client.post(
         "/shipments",
         json={"credentials": VALID_CREDENTIALS, "command": VALID_COMMAND},

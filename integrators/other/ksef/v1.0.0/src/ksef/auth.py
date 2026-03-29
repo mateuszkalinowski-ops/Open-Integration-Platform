@@ -14,7 +14,7 @@ import asyncio
 import base64
 import logging
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import UTC, datetime
 
 import httpx
 
@@ -36,8 +36,8 @@ class AuthSession:
 
     access_token: str = ""
     refresh_token: str = ""
-    access_valid_until: datetime = field(default_factory=lambda: datetime.min.replace(tzinfo=datetime.UTC))
-    refresh_valid_until: datetime = field(default_factory=lambda: datetime.min.replace(tzinfo=datetime.UTC))
+    access_valid_until: datetime = field(default_factory=lambda: datetime.min.replace(tzinfo=UTC))
+    refresh_valid_until: datetime = field(default_factory=lambda: datetime.min.replace(tzinfo=UTC))
     reference_number: str = ""
     nip: str = ""
 
@@ -46,14 +46,14 @@ class AuthSession:
         if not self.access_token:
             return False
         buffer = 60  # refresh 60s before expiry
-        now = datetime.now(tz=datetime.UTC)
+        now = datetime.now(tz=UTC)
         return now.timestamp() < (self.access_valid_until.timestamp() - buffer)
 
     @property
     def is_refresh_valid(self) -> bool:
         if not self.refresh_token:
             return False
-        now = datetime.now(tz=datetime.UTC)
+        now = datetime.now(tz=UTC)
         return now.timestamp() < self.refresh_valid_until.timestamp()
 
     @property

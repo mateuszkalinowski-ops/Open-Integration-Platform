@@ -106,9 +106,7 @@ def test_create_shipment_error(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 UPS shipping label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 UPS shipping label", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["1Z999AA10123456784"]},
@@ -119,9 +117,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error_returns_json(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=("Label not found", 404)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=("Label not found", 404))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["INVALID"]},
@@ -142,9 +138,7 @@ def test_get_label_exception(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=("IN_TRANSIT", 200)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=("IN_TRANSIT", 200))
     response = client.post(
         "/shipments/1Z999AA10123456784/status",
         json={"credentials": VALID_CREDENTIALS},
@@ -155,9 +149,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_error(mock_integration):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=("Tracking not available", 404)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=("Tracking not available", 404))
     response = client.post(
         "/shipments/1Z999AA10123456784/status",
         json={"credentials": VALID_CREDENTIALS},
@@ -212,9 +204,7 @@ def test_get_rates_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_rates_error_returns_empty_products(mock_integration):
-    mock_integration.get_rates = AsyncMock(
-        return_value=({"error": "Rate lookup failed"}, 500)
-    )
+    mock_integration.get_rates = AsyncMock(return_value=({"error": "Rate lookup failed"}, 500))
     response = client.post(
         "/rates",
         json={
@@ -288,9 +278,7 @@ def test_upload_document_error(mock_integration):
 )
 @patch("src.app.integration")
 def test_status_mapping(mock_integration, status_value):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=(status_value, 200)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=(status_value, 200))
     response = client.post(
         "/shipments/1Z999AA10123456784/status",
         json={"credentials": VALID_CREDENTIALS},

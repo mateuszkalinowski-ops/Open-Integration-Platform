@@ -56,9 +56,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_error(mock_integration):
-    mock_integration.create_order = MagicMock(
-        return_value=("Invalid credentials", 401)
-    )
+    mock_integration.create_order = MagicMock(return_value=("Invalid credentials", 401))
     payload = {
         "credentials": {"login": "bad", "password": "bad"},
         "command": {},
@@ -80,9 +78,7 @@ def test_create_shipment_exception(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=({"statusCode": "DEL", "description": "Delivered"}, 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=({"statusCode": "DEL", "description": "Delivered"}, 200))
     response = client.get("/shipments/DPD987654/status", headers=VALID_HEADERS)
     assert response.status_code == 200
     data = response.json()
@@ -91,9 +87,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_with_info_channel(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=({"statusCode": "IN_TRANSIT"}, 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=({"statusCode": "IN_TRANSIT"}, 200))
     response = client.get(
         "/shipments/DPD987654/status",
         headers=VALID_HEADERS,
@@ -104,18 +98,14 @@ def test_get_status_with_info_channel(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_error(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("Not found", 404)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("Not found", 404))
     response = client.get("/shipments/UNKNOWN/status", headers=VALID_HEADERS)
     assert response.status_code == 404
 
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 dpd label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 dpd label", 200))
     payload = {
         "waybill_numbers": ["DPD987654"],
         "credentials": {"login": "user", "password": "pass"},
@@ -127,9 +117,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_with_external_id(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 dpd label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 dpd label", 200))
     payload = {
         "waybill_numbers": ["DPD987654"],
         "credentials": {"login": "user", "password": "pass"},
@@ -141,9 +129,7 @@ def test_get_label_with_external_id(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=("Label error", 500)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=("Label error", 500))
     payload = {
         "waybill_numbers": ["BAD"],
         "credentials": {"login": "user", "password": "pass"},
@@ -214,9 +200,7 @@ def test_rates_domestic_product_count_by_weight(weight, expected_min_products):
 
 @patch("src.app.integration")
 def test_generate_protocol_success(mock_integration):
-    mock_integration.generate_protocol = MagicMock(
-        return_value=(b"%PDF-1.4 protocol", 200)
-    )
+    mock_integration.generate_protocol = MagicMock(return_value=(b"%PDF-1.4 protocol", 200))
     payload = {
         "waybill_numbers": ["DPD001", "DPD002"],
         "credentials": {"login": "user", "password": "pass"},
@@ -229,9 +213,7 @@ def test_generate_protocol_success(mock_integration):
 
 @patch("src.app.integration")
 def test_generate_protocol_error(mock_integration):
-    mock_integration.generate_protocol = MagicMock(
-        return_value=("Protocol generation failed", 500)
-    )
+    mock_integration.generate_protocol = MagicMock(return_value=("Protocol generation failed", 500))
     payload = {
         "waybill_numbers": ["BAD"],
         "credentials": {"login": "user", "password": "pass"},

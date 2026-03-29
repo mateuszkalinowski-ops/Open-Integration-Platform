@@ -56,9 +56,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_error(mock_integration):
-    mock_integration.create_order = MagicMock(
-        return_value=("Invalid credentials", 401)
-    )
+    mock_integration.create_order = MagicMock(return_value=("Invalid credentials", 401))
     payload = {
         "credentials": {"username": "bad", "password": "bad"},
         "command": {},
@@ -91,18 +89,14 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_error(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("Waybill not found", 404)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("Waybill not found", 404))
     response = client.get("/shipments/UNKNOWN/status", headers=VALID_HEADERS)
     assert response.status_code == 404
 
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 fake label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 fake label", 200))
     payload = {
         "waybill_numbers": ["DHL123456"],
         "credentials": {"username": "user", "password": "pass"},
@@ -114,9 +108,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=("Label generation failed", 500)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=("Label generation failed", 500))
     payload = {
         "waybill_numbers": ["BAD"],
         "credentials": {"username": "user", "password": "pass"},
@@ -187,9 +179,7 @@ def test_rates_domestic_product_count_by_weight(weight, expected_min_products):
 
 @patch("src.app.integration")
 def test_cancel_shipment_success(mock_integration):
-    mock_integration.delete_order = MagicMock(
-        return_value=({"message": "Order cancelled"}, 200)
-    )
+    mock_integration.delete_order = MagicMock(return_value=({"message": "Order cancelled"}, 200))
     response = client.delete("/shipments/DHL123456", headers=VALID_HEADERS)
     assert response.status_code == 200
     assert response.json()["result"]["message"] == "Order cancelled"
@@ -197,9 +187,7 @@ def test_cancel_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_error(mock_integration):
-    mock_integration.delete_order = MagicMock(
-        return_value=("Cannot cancel delivered shipment", 400)
-    )
+    mock_integration.delete_order = MagicMock(return_value=("Cannot cancel delivered shipment", 400))
     response = client.delete("/shipments/DHL123456", headers=VALID_HEADERS)
     assert response.status_code == 400
 
@@ -224,8 +212,6 @@ def test_get_points_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_points_error(mock_integration):
-    mock_integration.get_points = MagicMock(
-        return_value=("Service unavailable", 503)
-    )
+    mock_integration.get_points = MagicMock(return_value=("Service unavailable", 503))
     response = client.get("/points", headers=VALID_HEADERS)
     assert response.status_code == 503

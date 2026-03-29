@@ -212,12 +212,20 @@ class TestCreateShipmentRequest:
             serviceName="inpost_international",
             parcels=[Parcel(height=20, length=30, weight=5.0, width=15)],
             shipper=ShipmentParty(
-                first_name="J", last_name="K", building_number="1",
-                city="W", postal_code="00-001", street="S",
+                first_name="J",
+                last_name="K",
+                building_number="1",
+                city="W",
+                postal_code="00-001",
+                street="S",
             ),
             receiver=ShipmentParty(
-                first_name="A", last_name="N", building_number="2",
-                city="K", postal_code="30-001", street="R",
+                first_name="A",
+                last_name="N",
+                building_number="2",
+                city="K",
+                postal_code="30-001",
+                street="R",
             ),
         )
         assert req.service_name == "inpost_international"
@@ -255,8 +263,12 @@ class TestPickupRequest:
         req = PickupRequest(
             credentials=InpostCredentials(organization_id="org-1", client_secret="sec"),
             shipper=ShipmentParty(
-                first_name="J", last_name="K", building_number="1",
-                city="W", postal_code="00-001", street="S",
+                first_name="J",
+                last_name="K",
+                building_number="1",
+                city="W",
+                postal_code="00-001",
+                street="S",
             ),
             parcels=[Parcel(height=20, length=30, weight=5.0, width=15)],
         )

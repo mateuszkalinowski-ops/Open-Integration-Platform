@@ -66,9 +66,7 @@ def test_create_shipment_error(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("IN_TRANSIT", 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("IN_TRANSIT", 200))
     response = client.get(
         "/shipments/SCH123456789/status",
         headers=HEADER_CREDENTIALS,
@@ -79,9 +77,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_with_credentials_id(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("DELIVERED", 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("DELIVERED", 200))
     response = client.get(
         "/shipments/SCH123456789/status",
         headers={**HEADER_CREDENTIALS, "X-Credentials-Id": "CRED-001"},
@@ -116,18 +112,14 @@ def test_get_tracking_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_tracking_not_found(mock_integration):
-    mock_integration.get_tracking_info = MagicMock(
-        return_value=({"error": "Not found"}, 404)
-    )
+    mock_integration.get_tracking_info = MagicMock(return_value=({"error": "Not found"}, 404))
     response = client.get("/shipments/INVALID/tracking")
     assert response.status_code == 404
 
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 schenker label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 schenker label", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["SCH123456789"]},
@@ -138,9 +130,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=("Label unavailable", 404)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=("Label unavailable", 404))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["INVALID"]},
@@ -161,9 +151,7 @@ def test_get_label_exception(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_success(mock_integration):
-    mock_integration.delete_order = MagicMock(
-        return_value=({"status": "cancelled"}, 200)
-    )
+    mock_integration.delete_order = MagicMock(return_value=({"status": "cancelled"}, 200))
     response = client.delete(
         "/shipments/SCH123456789",
         headers=HEADER_CREDENTIALS,
@@ -188,9 +176,7 @@ def test_cancel_shipment_error(mock_integration):
 )
 @patch("src.app.integration")
 def test_status_mapping(mock_integration, status_value):
-    mock_integration.get_order_status = MagicMock(
-        return_value=(status_value, 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=(status_value, 200))
     response = client.get(
         "/shipments/SCH123456789/status",
         headers=HEADER_CREDENTIALS,

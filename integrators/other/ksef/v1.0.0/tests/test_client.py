@@ -1,8 +1,13 @@
 """Tests for KSeF client operations."""
 
+from datetime import UTC, datetime
+
 import pytest
 from src.config import KSeFAccountConfig, KSeFEnvironment
+from src.ksef.auth import AuthSession
 from src.ksef.client import FA3_FORM_CODE, KSeFClient
+
+_FAR_FUTURE = datetime(2099, 1, 1, tzinfo=UTC)
 
 
 class TestKSeFClientInit:
@@ -55,6 +60,11 @@ class TestKSeFClientValidation:
             environment=KSeFEnvironment.TEST,
         )
         client = KSeFClient(account)
+        client._auth_session = AuthSession(
+            access_token="fake",
+            access_valid_until=_FAR_FUTURE,
+            reference_number="",
+        )
         with pytest.raises(ValueError, match="No session reference"):
             await client.send_invoice(b"<Faktura/>")
 
@@ -67,6 +77,11 @@ class TestKSeFClientValidation:
             environment=KSeFEnvironment.TEST,
         )
         client = KSeFClient(account)
+        client._auth_session = AuthSession(
+            access_token="fake",
+            access_valid_until=_FAR_FUTURE,
+            reference_number="",
+        )
         with pytest.raises(ValueError, match="No session reference"):
             await client.close_session()
 
@@ -79,5 +94,10 @@ class TestKSeFClientValidation:
             environment=KSeFEnvironment.TEST,
         )
         client = KSeFClient(account)
+        client._auth_session = AuthSession(
+            access_token="fake",
+            access_valid_until=_FAR_FUTURE,
+            reference_number="",
+        )
         with pytest.raises(ValueError, match="No session reference"):
             await client.get_session_status()

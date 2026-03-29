@@ -69,9 +69,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_error(mock_integration):
-    mock_integration.create_order = AsyncMock(
-        return_value=("Invalid API token", 401)
-    )
+    mock_integration.create_order = AsyncMock(return_value=("Invalid API token", 401))
     payload = {
         "credentials": {"organization_id": "org-1", "api_token": "bad"},
         "serviceName": "inpost_locker_standard",
@@ -138,18 +136,14 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_error(mock_integration):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=("Not found", 404)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=("Not found", 404))
     response = client.get("/shipments/UNKNOWN/status", headers=VALID_HEADERS)
     assert response.status_code == 404
 
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 inpost label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 inpost label", 200))
     payload = {
         "waybill_numbers": ["620000000001"],
         "credentials": {"organization_id": "org-1", "api_token": "tok"},
@@ -161,9 +155,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=("Label not available", 404)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=("Label not available", 404))
     payload = {
         "waybill_numbers": ["BAD"],
         "credentials": {"organization_id": "org-1", "api_token": "tok"},
@@ -174,9 +166,7 @@ def test_get_label_error(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_success(mock_integration):
-    mock_integration.delete_order = AsyncMock(
-        return_value=({"message": "Shipment cancelled"}, 200)
-    )
+    mock_integration.delete_order = AsyncMock(return_value=({"message": "Shipment cancelled"}, 200))
     response = client.delete("/shipments/620000000001", headers=VALID_HEADERS)
     assert response.status_code == 200
     assert response.json()["result"]["message"] == "Shipment cancelled"
@@ -184,9 +174,7 @@ def test_cancel_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_error(mock_integration):
-    mock_integration.delete_order = AsyncMock(
-        return_value=("Cannot cancel", 400)
-    )
+    mock_integration.delete_order = AsyncMock(return_value=("Cannot cancel", 400))
     response = client.delete("/shipments/620000000001", headers=VALID_HEADERS)
     assert response.status_code == 400
 
@@ -207,9 +195,7 @@ def test_get_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_shipment_error(mock_integration):
-    mock_integration.get_order = AsyncMock(
-        return_value=("Shipment not found", 404)
-    )
+    mock_integration.get_order = AsyncMock(return_value=("Shipment not found", 404))
     response = client.get("/shipments/UNKNOWN", headers=VALID_HEADERS)
     assert response.status_code == 404
 
@@ -221,9 +207,7 @@ def test_get_tracking_success(mock_integration):
         "tracking_number": "620000000001",
         "tracking_url": "https://inpost.pl/tracking/620000000001",
     }
-    mock_integration.get_tracking_info = AsyncMock(
-        return_value=(tracking_mock, 200)
-    )
+    mock_integration.get_tracking_info = AsyncMock(return_value=(tracking_mock, 200))
     response = client.get("/tracking/620000000001")
     assert response.status_code == 200
     data = response.json()
@@ -232,8 +216,6 @@ def test_get_tracking_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_tracking_error(mock_integration):
-    mock_integration.get_tracking_info = AsyncMock(
-        return_value=("Tracking unavailable", 404)
-    )
+    mock_integration.get_tracking_info = AsyncMock(return_value=("Tracking unavailable", 404))
     response = client.get("/tracking/UNKNOWN")
     assert response.status_code == 404

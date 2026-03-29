@@ -65,9 +65,7 @@ def test_create_shipment_error(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = MagicMock(
-        return_value=("DELIVERED", 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=("DELIVERED", 200))
     response = client.get(
         "/shipments/PP000111222PL/status",
         headers={"X-Login": "testuser", "X-Password": "testpass"},
@@ -103,18 +101,14 @@ def test_get_tracking_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_tracking_not_found(mock_integration):
-    mock_integration.get_tracking_info = MagicMock(
-        return_value=({"error": "Not found"}, 404)
-    )
+    mock_integration.get_tracking_info = MagicMock(return_value=({"error": "Not found"}, 404))
     response = client.get("/shipments/INVALID/tracking")
     assert response.status_code == 404
 
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 poczta polska label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 poczta polska label", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["PP000111222PL"]},
@@ -125,9 +119,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_with_external_id(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=(b"%PDF-1.4 label", 200)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=(b"%PDF-1.4 label", 200))
     response = client.post(
         "/labels",
         json={
@@ -141,9 +133,7 @@ def test_get_label_with_external_id(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = MagicMock(
-        return_value=("Label not available", 404)
-    )
+    mock_integration.get_waybill_label_bytes = MagicMock(return_value=("Label not available", 404))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["INVALID"]},
@@ -195,9 +185,7 @@ def test_get_points_exception(mock_integration):
 )
 @patch("src.app.integration")
 def test_status_mapping(mock_integration, status_value):
-    mock_integration.get_order_status = MagicMock(
-        return_value=(status_value, 200)
-    )
+    mock_integration.get_order_status = MagicMock(return_value=(status_value, 200))
     response = client.get(
         "/shipments/PP000111222PL/status",
         headers={"X-Login": "testuser", "X-Password": "testpass"},

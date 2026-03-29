@@ -105,7 +105,7 @@ class TestBuildInvoiceXml:
 
     def test_line_item_count(self) -> None:
         xml_bytes = build_invoice_xml(SAMPLE_INVOICE_DATA)
-        assert b"<LiczbaWierszyFaktur>2</LiczbaWierszyFaktur>" in xml_bytes
+        assert xml_bytes.count(b"<FaWiersz>") == 2
 
     def test_minimal_invoice(self) -> None:
         minimal = {

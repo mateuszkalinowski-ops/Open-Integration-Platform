@@ -54,9 +54,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_invalid_credentials(mock_integration):
-    mock_integration.create_order = AsyncMock(
-        return_value=({"error": "Unauthorized"}, 401)
-    )
+    mock_integration.create_order = AsyncMock(return_value=({"error": "Unauthorized"}, 401))
     response = client.post(
         "/shipments",
         json={"credentials": VALID_CREDENTIALS, "command": VALID_COMMAND},
@@ -66,9 +64,7 @@ def test_create_shipment_invalid_credentials(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_bad_request(mock_integration):
-    mock_integration.create_order = AsyncMock(
-        return_value=({"error": "Missing required field"}, 400)
-    )
+    mock_integration.create_order = AsyncMock(return_value=({"error": "Missing required field"}, 400))
     response = client.post(
         "/shipments",
         json={"credentials": VALID_CREDENTIALS, "command": VALID_COMMAND},
@@ -78,9 +74,7 @@ def test_create_shipment_bad_request(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_success(mock_integration):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=("IN_TRANSIT", 200)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=("IN_TRANSIT", 200))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "PAX123456"},
@@ -91,9 +85,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_not_found(mock_integration):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=("Shipment not found", 404)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=("Shipment not found", 404))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "UNKNOWN"},
@@ -103,9 +95,7 @@ def test_get_status_not_found(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 fake label content", 200)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 fake label content", 200))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["PAX123456"]},
@@ -116,9 +106,7 @@ def test_get_label_returns_pdf(mock_integration):
 
 @patch("src.app.integration")
 def test_get_label_error(mock_integration):
-    mock_integration.get_waybill_label_bytes = AsyncMock(
-        return_value=("Label generation failed", 500)
-    )
+    mock_integration.get_waybill_label_bytes = AsyncMock(return_value=("Label generation failed", 500))
     response = client.post(
         "/labels",
         json={"credentials": VALID_CREDENTIALS, "waybill_numbers": ["INVALID"]},
@@ -128,9 +116,7 @@ def test_get_label_error(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_success(mock_integration):
-    mock_integration.delete_order = AsyncMock(
-        return_value=("cancelled", 200)
-    )
+    mock_integration.delete_order = AsyncMock(return_value=("cancelled", 200))
     response = client.post(
         "/shipments/delete",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "PAX123456"},
@@ -141,9 +127,7 @@ def test_cancel_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_cancel_shipment_error(mock_integration):
-    mock_integration.delete_order = AsyncMock(
-        return_value=("Cannot cancel", 409)
-    )
+    mock_integration.delete_order = AsyncMock(return_value=("Cannot cancel", 409))
     response = client.post(
         "/shipments/delete",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "PAX123456"},
@@ -157,9 +141,7 @@ def test_cancel_shipment_error(mock_integration):
 )
 @patch("src.app.integration")
 def test_status_mapping(mock_integration, status_value):
-    mock_integration.get_order_status = AsyncMock(
-        return_value=(status_value, 200)
-    )
+    mock_integration.get_order_status = AsyncMock(return_value=(status_value, 200))
     response = client.post(
         "/shipments/status",
         json={"credentials": VALID_CREDENTIALS, "waybill_number": "PAX123456"},

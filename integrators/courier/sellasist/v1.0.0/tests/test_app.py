@@ -38,9 +38,7 @@ def test_readiness_endpoint(client: TestClient):
 
 @patch("src.app.integration")
 def test_get_label_returns_pdf(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 sellasist label", 200)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 sellasist label", 200))
     response = client.post(
         "/labels",
         json={
@@ -56,9 +54,7 @@ def test_get_label_returns_pdf(mock_integration, client: TestClient):
 
 @patch("src.app.integration")
 def test_get_label_filename_from_waybill(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=(b"%PDF-1.4 label", 200)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=(b"%PDF-1.4 label", 200))
     response = client.post(
         "/labels",
         json={
@@ -73,9 +69,7 @@ def test_get_label_filename_from_waybill(mock_integration, client: TestClient):
 
 @patch("src.app.integration")
 def test_get_label_error_returns_json(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=("Label not found", 404)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=("Label not found", 404))
     response = client.post(
         "/labels",
         json={
@@ -92,9 +86,7 @@ def test_get_label_error_returns_json(mock_integration, client: TestClient):
 
 @patch("src.app.integration")
 def test_get_label_error_message_in_response(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=("API key expired", 401)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=("API key expired", 401))
     response = client.post(
         "/labels",
         json={
@@ -110,9 +102,7 @@ def test_get_label_error_message_in_response(mock_integration, client: TestClien
 
 @patch("src.app.integration")
 def test_get_label_server_error(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=("Internal server error", 500)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=("Internal server error", 500))
     response = client.post(
         "/labels",
         json={
@@ -127,9 +117,7 @@ def test_get_label_server_error(mock_integration, client: TestClient):
 
 @patch("src.app.integration")
 def test_get_label_calls_integration_correctly(mock_integration, client: TestClient):
-    mock_integration.get_label_bytes = AsyncMock(
-        return_value=(b"%PDF", 200)
-    )
+    mock_integration.get_label_bytes = AsyncMock(return_value=(b"%PDF", 200))
     client.post(
         "/labels",
         json={
