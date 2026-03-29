@@ -268,7 +268,7 @@ async def send_invoices_batch(req: BatchInvoicesRequest) -> dict[str, Any]:
                     "reference_number": result.reference_number,
                     "status": "sent",
                 })
-            except Exception as inv_exc:  # noqa: BLE001
+            except Exception as inv_exc:
                 send_errors.append({"index": idx, "error": str(inv_exc)})
 
         return {

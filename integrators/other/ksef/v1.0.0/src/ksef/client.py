@@ -20,7 +20,6 @@ import httpx
 from src.config import KSeFAccountConfig
 from src.ksef.auth import AuthSession, KSeFAuthenticator
 from src.ksef.crypto import (
-    encrypt_invoice,
     generate_aes_key,
     sha256_base64,
     wrap_key_rsa_oaep,

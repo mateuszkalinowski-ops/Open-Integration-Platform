@@ -2,13 +2,8 @@
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any
-
-if TYPE_CHECKING:
-    from src.services.account_manager import AccountManager
-
-    from pinquark_common.monitoring.health import HealthChecker
+from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass
