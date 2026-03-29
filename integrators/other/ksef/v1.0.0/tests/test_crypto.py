@@ -3,8 +3,6 @@
 import base64
 import os
 
-import pytest
-
 from src.ksef.crypto import (
     decrypt_aes_cbc,
     encrypt_aes_cbc,

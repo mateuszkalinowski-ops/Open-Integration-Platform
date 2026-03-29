@@ -178,6 +178,7 @@ def _add_invoice_body(fa: Element, data: dict[str, Any]) -> None:
     inv_num = data.get("invoice_number", "")
     if not inv_num:
         from datetime import datetime
+
         inv_num = f"FV/{datetime.now().strftime('%Y/%m/%d/%H%M%S')}"
     p2.text = inv_num
 
@@ -215,10 +216,7 @@ def _add_totals(fa: Element, data: dict[str, Any]) -> None:
     if total_net is None and items:
         total_net = sum(_item_net(i) for i in items)
     if total_vat is None and items:
-        total_vat = sum(
-            _item_net(i) * _vat_rate_decimal(i.get("vat_rate", 0))
-            for i in items
-        )
+        total_vat = sum(_item_net(i) * _vat_rate_decimal(i.get("vat_rate", 0)) for i in items)
     if total_gross is None and total_net is not None and total_vat is not None:
         total_gross = total_net + total_vat
 

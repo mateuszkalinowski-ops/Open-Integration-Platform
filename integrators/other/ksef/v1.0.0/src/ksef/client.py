@@ -69,9 +69,7 @@ class KSeFClient:
     async def authenticate(self) -> AuthSession:
         """Authenticate with KSeF using the account's token."""
         if not self._account.ksef_token:
-            raise ValueError(
-                f"ksef_token is required for account '{self._account.name}'"
-            )
+            raise ValueError(f"ksef_token is required for account '{self._account.name}'")
 
         self._auth_session = await self._authenticator.authenticate_with_token(
             nip=self._account.nip,

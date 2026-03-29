@@ -62,6 +62,7 @@ def _register_fonts() -> None:
         _FONT_NAME_BOLD = "DejaVuSans"
         logger.info("Registered DejaVuSans (regular only) for PDF rendering")
 
+
 FA3_NS = "{http://crd.gov.pl/wzor/2025/06/25/13775/}"
 
 _COLOR_TEXT = colors.HexColor("#333333")
@@ -90,8 +91,15 @@ INVOICE_TYPE_LABELS = {
 }
 
 VAT_RATE_LABELS = {
-    "23": "23%", "22": "22%", "8": "8%", "7": "7%",
-    "5": "5%", "0": "0%", "zw": "zw", "np": "np.", "oo": "o.o.",
+    "23": "23%",
+    "22": "22%",
+    "8": "8%",
+    "7": "7%",
+    "5": "5%",
+    "0": "0%",
+    "zw": "zw",
+    "np": "np.",
+    "oo": "o.o.",
 }
 
 
@@ -233,16 +241,18 @@ def _parse_items(fa: Element | None) -> list[dict[str, str]]:
         return []
     items = []
     for w in fa.findall(f"{FA3_NS}FaWiersz"):
-        items.append({
-            "lp": _ft(w, "NrWierszaFa"),
-            "description": _ft(w, "P_7"),
-            "unit": _ft(w, "P_8A"),
-            "quantity": _ft(w, "P_8B"),
-            "unit_price_net": _ft(w, "P_9A"),
-            "unit_price_gross": _ft(w, "P_9B"),
-            "net_amount": _ft(w, "P_11"),
-            "vat_rate": _ft(w, "P_12"),
-        })
+        items.append(
+            {
+                "lp": _ft(w, "NrWierszaFa"),
+                "description": _ft(w, "P_7"),
+                "unit": _ft(w, "P_8A"),
+                "quantity": _ft(w, "P_8B"),
+                "unit_price_net": _ft(w, "P_9A"),
+                "unit_price_gross": _ft(w, "P_9B"),
+                "net_amount": _ft(w, "P_11"),
+                "vat_rate": _ft(w, "P_12"),
+            }
+        )
     return items
 
 
@@ -255,79 +265,134 @@ def _build_styles() -> dict[str, ParagraphStyle]:
     fnb = _FONT_NAME_BOLD
     return {
         "ksef_title": ParagraphStyle(
-            "KsefTitle", parent=base["Normal"],
-            fontSize=14, leading=18, fontName=fn,
+            "KsefTitle",
+            parent=base["Normal"],
+            fontSize=14,
+            leading=18,
+            fontName=fn,
             textColor=_COLOR_TEXT,
         ),
         "inv_number": ParagraphStyle(
-            "InvNumber", parent=base["Normal"],
-            fontSize=16, leading=20, fontName=fnb,
-            alignment=TA_RIGHT, textColor=_COLOR_TEXT,
+            "InvNumber",
+            parent=base["Normal"],
+            fontSize=16,
+            leading=20,
+            fontName=fnb,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_TEXT,
         ),
         "inv_type": ParagraphStyle(
-            "InvType", parent=base["Normal"],
-            fontSize=9, leading=12, fontName=fn,
-            alignment=TA_RIGHT, textColor=_COLOR_LABEL,
+            "InvType",
+            parent=base["Normal"],
+            fontSize=9,
+            leading=12,
+            fontName=fn,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_LABEL,
         ),
         "section": ParagraphStyle(
-            "Section", parent=base["Normal"],
-            fontSize=11, leading=14, fontName=fnb,
-            textColor=_COLOR_TEXT, spaceBefore=2 * mm, spaceAfter=2 * mm,
+            "Section",
+            parent=base["Normal"],
+            fontSize=11,
+            leading=14,
+            fontName=fnb,
+            textColor=_COLOR_TEXT,
+            spaceBefore=2 * mm,
+            spaceAfter=2 * mm,
         ),
         "label": ParagraphStyle(
-            "Label", parent=base["Normal"],
-            fontSize=8.5, leading=11, fontName=fnb,
+            "Label",
+            parent=base["Normal"],
+            fontSize=8.5,
+            leading=11,
+            fontName=fnb,
             textColor=_COLOR_TEXT,
         ),
         "value": ParagraphStyle(
-            "Value", parent=base["Normal"],
-            fontSize=8.5, leading=11, fontName=fn,
+            "Value",
+            parent=base["Normal"],
+            fontSize=8.5,
+            leading=11,
+            fontName=fn,
             textColor=_COLOR_TEXT,
         ),
         "label_small": ParagraphStyle(
-            "LabelSmall", parent=base["Normal"],
-            fontSize=8, leading=10, fontName=fnb,
+            "LabelSmall",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            fontName=fnb,
             textColor=_COLOR_LABEL,
         ),
         "value_small": ParagraphStyle(
-            "ValueSmall", parent=base["Normal"],
-            fontSize=8, leading=10, fontName=fn,
+            "ValueSmall",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            fontName=fn,
             textColor=_COLOR_TEXT,
         ),
         "sub_header": ParagraphStyle(
-            "SubHeader", parent=base["Normal"],
-            fontSize=8, leading=10, fontName=fn,
-            textColor=_COLOR_LABEL, spaceAfter=1 * mm,
+            "SubHeader",
+            parent=base["Normal"],
+            fontSize=8,
+            leading=10,
+            fontName=fn,
+            textColor=_COLOR_LABEL,
+            spaceAfter=1 * mm,
         ),
         "right": ParagraphStyle(
-            "Right", parent=base["Normal"],
-            fontSize=8.5, leading=11, fontName=fn,
-            alignment=TA_RIGHT, textColor=_COLOR_TEXT,
+            "Right",
+            parent=base["Normal"],
+            fontSize=8.5,
+            leading=11,
+            fontName=fn,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_TEXT,
         ),
         "right_bold": ParagraphStyle(
-            "RightBold", parent=base["Normal"],
-            fontSize=8.5, leading=11, fontName=fnb,
-            alignment=TA_RIGHT, textColor=_COLOR_TEXT,
+            "RightBold",
+            parent=base["Normal"],
+            fontSize=8.5,
+            leading=11,
+            fontName=fnb,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_TEXT,
         ),
         "total": ParagraphStyle(
-            "Total", parent=base["Normal"],
-            fontSize=9, leading=12, fontName=fnb,
-            alignment=TA_RIGHT, textColor=_COLOR_TEXT,
+            "Total",
+            parent=base["Normal"],
+            fontSize=9,
+            leading=12,
+            fontName=fnb,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_TEXT,
         ),
         "footer": ParagraphStyle(
-            "Footer", parent=base["Normal"],
-            fontSize=7, leading=9, fontName=fn,
+            "Footer",
+            parent=base["Normal"],
+            fontSize=7,
+            leading=9,
+            fontName=fn,
             textColor=_COLOR_LABEL,
         ),
         "qr_title": ParagraphStyle(
-            "QrTitle", parent=base["Normal"],
-            fontSize=10, leading=13, fontName=fnb,
-            alignment=TA_RIGHT, textColor=_COLOR_TEXT,
+            "QrTitle",
+            parent=base["Normal"],
+            fontSize=10,
+            leading=13,
+            fontName=fnb,
+            alignment=TA_RIGHT,
+            textColor=_COLOR_TEXT,
         ),
         "qr_label": ParagraphStyle(
-            "QrLabel", parent=base["Normal"],
-            fontSize=7, leading=9, fontName=fn,
-            alignment=TA_CENTER, textColor=_COLOR_RED,
+            "QrLabel",
+            parent=base["Normal"],
+            fontSize=7,
+            leading=9,
+            fontName=fn,
+            alignment=TA_CENTER,
+            textColor=_COLOR_RED,
         ),
     }
 
@@ -337,40 +402,57 @@ def _build_styles() -> dict[str, ParagraphStyle]:
 
 def _hr(elements: list[Any], thickness: float = 0.5) -> None:
     elements.append(Spacer(1, 2 * mm))
-    elements.append(HRFlowable(
-        width="100%", thickness=thickness,
-        color=_COLOR_LINE, spaceBefore=0, spaceAfter=0,
-    ))
+    elements.append(
+        HRFlowable(
+            width="100%",
+            thickness=thickness,
+            color=_COLOR_LINE,
+            spaceBefore=0,
+            spaceAfter=0,
+        )
+    )
     elements.append(Spacer(1, 2 * mm))
 
 
 def _label_value(s: dict, label: str, value: str) -> Paragraph:
-    return Paragraph(f'<b>{label}:</b> {value}', s["value"])
+    return Paragraph(f"<b>{label}:</b> {value}", s["value"])
 
 
 # ── Section builders ─────────────────────────────────────────────────
 
 
 def _add_header(
-    elements: list[Any], s: dict[str, ParagraphStyle],
-    inv: dict[str, Any], ksef_number: str,
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
+    inv: dict[str, Any],
+    ksef_number: str,
 ) -> None:
     inv_type = INVOICE_TYPE_LABELS.get(inv["invoice_type"], f"Faktura {inv['invoice_type']}")
     inv_number = inv.get("invoice_number", "")
 
     title_text = 'Krajowy System <font color="#C0392B"><b>e</b></font> -Faktur'
 
-    header_data = [[
-        Paragraph(title_text, s["ksef_title"]),
-        Paragraph("Numer faktury", s["inv_type"]),
-    ]]
-    elements.append(Table(header_data, colWidths=[9 * cm, 8 * cm], style=TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 0),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
-    ])))
+    header_data = [
+        [
+            Paragraph(title_text, s["ksef_title"]),
+            Paragraph("Numer faktury", s["inv_type"]),
+        ]
+    ]
+    elements.append(
+        Table(
+            header_data,
+            colWidths=[9 * cm, 8 * cm],
+            style=TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "BOTTOM"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 0),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 0),
+                ]
+            ),
+        )
+    )
 
     elements.append(Paragraph(inv_number, s["inv_number"]))
     elements.append(Paragraph(inv_type, s["inv_type"]))
@@ -380,7 +462,8 @@ def _add_header(
 
 
 def _add_parties(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     inv: dict[str, Any],
 ) -> None:
     seller = inv.get("seller", {})
@@ -391,15 +474,19 @@ def _add_parties(
     ]
 
     if seller.get("nip") or buyer.get("nip"):
-        seller_cells.append([
-            _label_value(s, "NIP", seller.get("nip", "")),
-            _label_value(s, "NIP", buyer.get("nip", "")),
-        ])
+        seller_cells.append(
+            [
+                _label_value(s, "NIP", seller.get("nip", "")),
+                _label_value(s, "NIP", buyer.get("nip", "")),
+            ]
+        )
 
-    seller_cells.append([
-        _label_value(s, "Nazwa", seller.get("name", "")),
-        _label_value(s, "Nazwa", buyer.get("name", "")),
-    ])
+    seller_cells.append(
+        [
+            _label_value(s, "Nazwa", seller.get("name", "")),
+            _label_value(s, "Nazwa", buyer.get("name", "")),
+        ]
+    )
 
     addr_s = seller.get("address_line1", "")
     if seller.get("address_line2"):
@@ -409,35 +496,46 @@ def _add_parties(
         addr_b += f"<br/>{buyer['address_line2']}"
 
     if addr_s or addr_b:
-        seller_cells.append([
-            Paragraph("Adres", s["sub_header"]),
-            Paragraph("Adres", s["sub_header"]),
-        ])
-        seller_cells.append([
-            Paragraph(addr_s or "-", s["value"]),
-            Paragraph(addr_b or "-", s["value"]),
-        ])
-        seller_cells.append([
-            Paragraph("PL", s["value"]),
-            Paragraph("PL", s["value"]),
-        ])
+        seller_cells.append(
+            [
+                Paragraph("Adres", s["sub_header"]),
+                Paragraph("Adres", s["sub_header"]),
+            ]
+        )
+        seller_cells.append(
+            [
+                Paragraph(addr_s or "-", s["value"]),
+                Paragraph(addr_b or "-", s["value"]),
+            ]
+        )
+        seller_cells.append(
+            [
+                Paragraph("PL", s["value"]),
+                Paragraph("PL", s["value"]),
+            ]
+        )
 
     page_w = A4[0] - 4 * cm
     col_w = page_w / 2
 
     t = Table(seller_cells, colWidths=[col_w, col_w])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]
+        )
+    )
     elements.append(t)
 
 
 def _add_details(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     inv: dict[str, Any],
 ) -> None:
     elements.append(Paragraph("<b>Szczegóły</b>", s["section"]))
@@ -462,18 +560,23 @@ def _add_details(
     detail_rows.append(row2)
 
     t = Table(detail_rows, colWidths=[col_w, col_w])
-    t.setStyle(TableStyle([
-        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-        ("LEFTPADDING", (0, 0), (-1, -1), 0),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-        ("TOPPADDING", (0, 0), (-1, -1), 1),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                ("TOPPADDING", (0, 0), (-1, -1), 1),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 1),
+            ]
+        )
+    )
     elements.append(t)
 
 
 def _add_line_items(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     inv: dict[str, Any],
 ) -> None:
     elements.append(Paragraph("<b>Pozycje</b>", s["section"]))
@@ -493,42 +596,51 @@ def _add_line_items(
     for item in inv.get("items", []):
         vat_str = VAT_RATE_LABELS.get(item.get("vat_rate", ""), item.get("vat_rate", ""))
         price = item.get("unit_price_net") or item.get("unit_price_gross", "")
-        data.append([
-            Paragraph(item.get("lp", ""), s["value_small"]),
-            Paragraph(item.get("description", ""), s["value_small"]),
-            Paragraph(price, s["value_small"]),
-            Paragraph(item.get("quantity", ""), s["value_small"]),
-            Paragraph(item.get("unit", ""), s["value_small"]),
-            Paragraph(vat_str, s["value_small"]),
-            Paragraph(item.get("net_amount", ""), s["value_small"]),
-        ])
+        data.append(
+            [
+                Paragraph(item.get("lp", ""), s["value_small"]),
+                Paragraph(item.get("description", ""), s["value_small"]),
+                Paragraph(price, s["value_small"]),
+                Paragraph(item.get("quantity", ""), s["value_small"]),
+                Paragraph(item.get("unit", ""), s["value_small"]),
+                Paragraph(vat_str, s["value_small"]),
+                Paragraph(item.get("net_amount", ""), s["value_small"]),
+            ]
+        )
 
     col_widths = [1 * cm, 6 * cm, 2.2 * cm, 1.5 * cm, 1.3 * cm, 1.3 * cm, 2.7 * cm]
     t = Table(data, colWidths=col_widths, repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _COLOR_TABLE_HEADER_BG),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.5, _COLOR_TABLE_BORDER),
-        ("LINEBELOW", (0, -1), (-1, -1), 0.5, _COLOR_TABLE_BORDER),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), _COLOR_TABLE_HEADER_BG),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, _COLOR_TABLE_BORDER),
+                ("LINEBELOW", (0, -1), (-1, -1), 0.5, _COLOR_TABLE_BORDER),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
     elements.append(t)
 
     currency = inv.get("currency", "PLN")
     gross = inv.get("total_gross", "0.00")
     elements.append(Spacer(1, 2 * mm))
-    elements.append(Paragraph(
-        f'Kwota należności ogółem: <b>{gross}{currency}</b>',
-        s["total"],
-    ))
+    elements.append(
+        Paragraph(
+            f"Kwota należności ogółem: <b>{gross}{currency}</b>",
+            s["total"],
+        )
+    )
 
 
 def _add_vat_summary(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     inv: dict[str, Any],
 ) -> None:
     elements.append(Spacer(1, 4 * mm))
@@ -561,32 +673,39 @@ def _add_vat_summary(
     data = [header]
     for idx, (rate_key, vals) in enumerate(vat_groups.items(), start=1):
         rate_label = VAT_RATE_LABELS.get(rate_key, f"{rate_key}%")
-        data.append([
-            Paragraph(str(idx), s["value_small"]),
-            Paragraph(rate_label, s["value_small"]),
-            Paragraph(f'{vals["net"]:.2f}', s["value_small"]),
-            Paragraph(f'{vals["vat"]:.2f}', s["value_small"]),
-            Paragraph(f'{vals["gross"]:.2f}', s["value_small"]),
-        ])
+        data.append(
+            [
+                Paragraph(str(idx), s["value_small"]),
+                Paragraph(rate_label, s["value_small"]),
+                Paragraph(f"{vals['net']:.2f}", s["value_small"]),
+                Paragraph(f"{vals['vat']:.2f}", s["value_small"]),
+                Paragraph(f"{vals['gross']:.2f}", s["value_small"]),
+            ]
+        )
 
     col_widths = [1 * cm, 3.5 * cm, 3.5 * cm, 4 * cm, 4 * cm]
     t = Table(data, colWidths=col_widths, repeatRows=1)
-    t.setStyle(TableStyle([
-        ("BACKGROUND", (0, 0), (-1, 0), _COLOR_TABLE_HEADER_BG),
-        ("LINEBELOW", (0, 0), (-1, 0), 0.5, _COLOR_TABLE_BORDER),
-        ("LINEBELOW", (0, -1), (-1, -1), 0.5, _COLOR_TABLE_BORDER),
-        ("FONTSIZE", (0, 0), (-1, -1), 8),
-        ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
-        ("TOPPADDING", (0, 0), (-1, -1), 3),
-        ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
-        ("LEFTPADDING", (0, 0), (-1, -1), 4),
-        ("RIGHTPADDING", (0, 0), (-1, -1), 4),
-    ]))
+    t.setStyle(
+        TableStyle(
+            [
+                ("BACKGROUND", (0, 0), (-1, 0), _COLOR_TABLE_HEADER_BG),
+                ("LINEBELOW", (0, 0), (-1, 0), 0.5, _COLOR_TABLE_BORDER),
+                ("LINEBELOW", (0, -1), (-1, -1), 0.5, _COLOR_TABLE_BORDER),
+                ("FONTSIZE", (0, 0), (-1, -1), 8),
+                ("VALIGN", (0, 0), (-1, -1), "MIDDLE"),
+                ("TOPPADDING", (0, 0), (-1, -1), 3),
+                ("BOTTOMPADDING", (0, 0), (-1, -1), 3),
+                ("LEFTPADDING", (0, 0), (-1, -1), 4),
+                ("RIGHTPADDING", (0, 0), (-1, -1), 4),
+            ]
+        )
+    )
     elements.append(t)
 
 
 def _add_payment(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     inv: dict[str, Any],
 ) -> None:
     elements.append(Paragraph("<b>Płatność</b>", s["section"]))
@@ -624,7 +743,8 @@ def _make_qr_drawing(data: str, size: float = 35 * mm) -> Drawing:
 
 
 def _add_footer(
-    elements: list[Any], s: dict[str, ParagraphStyle],
+    elements: list[Any],
+    s: dict[str, ParagraphStyle],
     ksef_number: str,
     environment: str = "demo",
 ) -> None:
@@ -641,32 +761,41 @@ def _add_footer(
         qr_cell = [qr_drawing, Spacer(1, 2 * mm), qr_number]
 
         page_w = A4[0] - 4 * cm
-        data = [[
-            Paragraph("", s["footer"]),
-            qr_title,
-        ], [
-            Paragraph(
-                "Dokument wygenerowany z Krajowego Systemu e-Faktur (KSeF).<br/>"
-                "Faktura ustrukturyzowana nie wymaga podpisu.",
-                s["footer"],
-            ),
-            qr_cell,
-        ]]
+        data = [
+            [
+                Paragraph("", s["footer"]),
+                qr_title,
+            ],
+            [
+                Paragraph(
+                    "Dokument wygenerowany z Krajowego Systemu e-Faktur (KSeF).<br/>"
+                    "Faktura ustrukturyzowana nie wymaga podpisu.",
+                    s["footer"],
+                ),
+                qr_cell,
+            ],
+        ]
 
         t = Table(data, colWidths=[page_w - 5 * cm, 5 * cm])
-        t.setStyle(TableStyle([
-            ("VALIGN", (0, 0), (-1, -1), "TOP"),
-            ("ALIGN", (1, 0), (1, -1), "RIGHT"),
-            ("LEFTPADDING", (0, 0), (-1, -1), 0),
-            ("RIGHTPADDING", (0, 0), (-1, -1), 0),
-            ("TOPPADDING", (0, 0), (-1, -1), 2),
-            ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
-        ]))
+        t.setStyle(
+            TableStyle(
+                [
+                    ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                    ("ALIGN", (1, 0), (1, -1), "RIGHT"),
+                    ("LEFTPADDING", (0, 0), (-1, -1), 0),
+                    ("RIGHTPADDING", (0, 0), (-1, -1), 0),
+                    ("TOPPADDING", (0, 0), (-1, -1), 2),
+                    ("BOTTOMPADDING", (0, 0), (-1, -1), 2),
+                ]
+            )
+        )
         elements.append(t)
     else:
         elements.append(Spacer(1, 8 * mm))
-        elements.append(Paragraph(
-            "Dokument wygenerowany z Krajowego Systemu e-Faktur (KSeF). "
-            "Faktura ustrukturyzowana nie wymaga podpisu.",
-            s["footer"],
-        ))
+        elements.append(
+            Paragraph(
+                "Dokument wygenerowany z Krajowego Systemu e-Faktur (KSeF). "
+                "Faktura ustrukturyzowana nie wymaga podpisu.",
+                s["footer"],
+            )
+        )

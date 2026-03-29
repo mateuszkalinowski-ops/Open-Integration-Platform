@@ -2,10 +2,7 @@
 
 from xml.etree.ElementTree import fromstring
 
-import pytest
-
 from src.ksef.xml_builder import build_invoice_xml, validate_invoice_xml
-
 
 SAMPLE_INVOICE_DATA = {
     "invoice_number": "FV/2026/001",

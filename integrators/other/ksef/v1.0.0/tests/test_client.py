@@ -1,7 +1,6 @@
 """Tests for KSeF client operations."""
 
 import pytest
-
 from src.config import KSeFAccountConfig, KSeFEnvironment
 from src.ksef.client import FA3_FORM_CODE, KSeFClient
 

@@ -235,9 +235,7 @@ class KSeFAuthenticator:
             logger.debug("Auth in progress (code=%d), polling again...", code)
             await asyncio.sleep(self._poll_interval)
 
-        raise RuntimeError(
-            f"Authentication timed out after {self._max_poll_attempts} attempts"
-        )
+        raise RuntimeError(f"Authentication timed out after {self._max_poll_attempts} attempts")
 
     async def _redeem_tokens(self, auth_token: str) -> AuthTokensResponse:
         """Redeem the authentication token for access + refresh tokens (one-time only)."""

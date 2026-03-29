@@ -263,11 +263,13 @@ async def send_invoices_batch(req: BatchInvoicesRequest) -> dict[str, Any]:
                     reference_number=req.reference_number,
                     session_type="batch",
                 )
-                results.append({
-                    "index": idx,
-                    "reference_number": result.reference_number,
-                    "status": "sent",
-                })
+                results.append(
+                    {
+                        "index": idx,
+                        "reference_number": result.reference_number,
+                        "status": "sent",
+                    }
+                )
             except Exception as inv_exc:
                 send_errors.append({"index": idx, "error": str(inv_exc)})
 

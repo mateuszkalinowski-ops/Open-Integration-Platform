@@ -1,6 +1,6 @@
 """Tests for KSeF authentication flow."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from src.ksef.auth import AuthSession, _parse_datetime
 
@@ -14,9 +14,9 @@ class TestAuthSession:
     def test_session_with_future_expiry_is_valid(self) -> None:
         session = AuthSession(
             access_token="token123",
-            access_valid_until=datetime(2099, 1, 1, tzinfo=timezone.utc),
+            access_valid_until=datetime(2099, 1, 1, tzinfo=UTC),
             refresh_token="refresh123",
-            refresh_valid_until=datetime(2099, 1, 1, tzinfo=timezone.utc),
+            refresh_valid_until=datetime(2099, 1, 1, tzinfo=UTC),
             nip="1234567890",
         )
         assert session.is_access_valid
@@ -25,7 +25,7 @@ class TestAuthSession:
     def test_session_with_past_expiry_is_not_valid(self) -> None:
         session = AuthSession(
             access_token="token123",
-            access_valid_until=datetime(2020, 1, 1, tzinfo=timezone.utc),
+            access_valid_until=datetime(2020, 1, 1, tzinfo=UTC),
             nip="1234567890",
         )
         assert not session.is_access_valid

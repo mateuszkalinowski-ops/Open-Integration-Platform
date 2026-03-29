@@ -7,6 +7,7 @@ Tier 3: Functional smoke tests (open session, send test invoice, close session)
 
 from __future__ import annotations
 
+import contextlib
 import logging
 from typing import Any
 
@@ -147,10 +148,8 @@ async def _check_authentication(
     except Exception as exc:
         check["error"] = str(exc)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await client.delete(f"{base_url}/accounts/{account_name}")
-        except Exception:
-            pass
 
     if not check["passed"]:
         results["passed"] = False
@@ -211,10 +210,8 @@ async def _check_functional(
     except Exception as exc:
         check["error"] = str(exc)
     finally:
-        try:
+        with contextlib.suppress(Exception):
             await client.delete(f"{base_url}/accounts/{account_name}")
-        except Exception:
-            pass
 
     if not check["passed"]:
         results["passed"] = False

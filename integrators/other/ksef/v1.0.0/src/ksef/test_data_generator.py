@@ -64,13 +64,15 @@ def _generate_valid_pesel() -> str:
 
 def _generate_self_signed_cert(nip: str) -> tuple[rsa.RSAPrivateKey, x509.Certificate]:
     key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-    subject = x509.Name([
-        x509.NameAttribute(NameOID.COUNTRY_NAME, "PL"),
-        x509.NameAttribute(NameOID.COMMON_NAME, "OIP Test Person"),
-        x509.NameAttribute(NameOID.GIVEN_NAME, "Test"),
-        x509.NameAttribute(NameOID.SURNAME, "User"),
-        x509.NameAttribute(NameOID.SERIAL_NUMBER, f"TINPL-{nip}"),
-    ])
+    subject = x509.Name(
+        [
+            x509.NameAttribute(NameOID.COUNTRY_NAME, "PL"),
+            x509.NameAttribute(NameOID.COMMON_NAME, "OIP Test Person"),
+            x509.NameAttribute(NameOID.GIVEN_NAME, "Test"),
+            x509.NameAttribute(NameOID.SURNAME, "User"),
+            x509.NameAttribute(NameOID.SERIAL_NUMBER, f"TINPL-{nip}"),
+        ]
+    )
     cert = (
         x509.CertificateBuilder()
         .subject_name(subject)

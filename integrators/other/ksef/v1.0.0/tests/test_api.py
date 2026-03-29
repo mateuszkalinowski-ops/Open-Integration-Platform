@@ -2,7 +2,6 @@
 
 import pytest
 from fastapi.testclient import TestClient
-
 from src.api.dependencies import app_state
 from src.main import create_app
 from src.services.account_manager import AccountManager
@@ -11,12 +10,14 @@ from src.services.account_manager import AccountManager
 @pytest.fixture
 def account_manager() -> AccountManager:
     mgr = AccountManager()
-    mgr.add_account({
-        "name": "test-account",
-        "nip": "1234567890",
-        "ksef_token": "test-token",
-        "environment": "test",
-    })
+    mgr.add_account(
+        {
+            "name": "test-account",
+            "nip": "1234567890",
+            "ksef_token": "test-token",
+            "environment": "test",
+        }
+    )
     return mgr
 
 
@@ -50,12 +51,15 @@ class TestAccountsEndpoint:
         assert "****" in data[0]["nip"]
 
     def test_create_account(self, client: TestClient) -> None:
-        response = client.post("/accounts", json={
-            "name": "new-account",
-            "nip": "9876543210",
-            "ksef_token": "new-token",
-            "environment": "demo",
-        })
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "new-account",
+                "nip": "9876543210",
+                "ksef_token": "new-token",
+                "environment": "demo",
+            },
+        )
         assert response.status_code == 201
         data = response.json()
         assert data["name"] == "new-account"
@@ -66,11 +70,14 @@ class TestAccountsEndpoint:
         assert response.status_code == 200
 
     def test_list_accounts_after_create(self, client: TestClient) -> None:
-        client.post("/accounts", json={
-            "name": "second",
-            "nip": "5555555555",
-            "environment": "production",
-        })
+        client.post(
+            "/accounts",
+            json={
+                "name": "second",
+                "nip": "5555555555",
+                "environment": "production",
+            },
+        )
         response = client.get("/accounts")
         assert response.status_code == 200
         names = [a["name"] for a in response.json()]
@@ -79,18 +86,24 @@ class TestAccountsEndpoint:
 
 class TestAuthEndpoint:
     def test_auth_with_unknown_account_returns_404(self, client: TestClient) -> None:
-        response = client.post("/auth/token", json={
-            "account_name": "nonexistent",
-        })
+        response = client.post(
+            "/auth/token",
+            json={
+                "account_name": "nonexistent",
+            },
+        )
         assert response.status_code == 404
 
 
 class TestInvoiceEndpoints:
     def test_send_invoice_missing_data_returns_400(self, client: TestClient) -> None:
-        response = client.post("/invoices", json={
-            "account_name": "test-account",
-            "reference_number": "test-ref",
-        })
+        response = client.post(
+            "/invoices",
+            json={
+                "account_name": "test-account",
+                "reference_number": "test-ref",
+            },
+        )
         assert response.status_code == 400
 
     def test_get_invoice_unknown_account_returns_404(self, client: TestClient) -> None:
