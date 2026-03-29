@@ -20,6 +20,7 @@ class AccountManager:
     def __init__(self) -> None:
         self._accounts: dict[str, KSeFAccountConfig] = {}
         self._clients: dict[str, KSeFClient] = {}
+        self._background_tasks: set[object] = set()
 
     def load_from_yaml(self) -> None:
         """Load accounts from YAML configuration file."""
@@ -63,7 +64,9 @@ class AccountManager:
 
             try:
                 loop = asyncio.get_running_loop()
-                loop.create_task(old_client.close())
+                task = loop.create_task(old_client.close())
+                self._background_tasks.add(task)
+                task.add_done_callback(self._background_tasks.discard)
             except RuntimeError:
                 pass
 

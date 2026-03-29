@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import base64
 import logging
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 import httpx
@@ -26,10 +26,8 @@ from src.ksef.crypto import (
 )
 from src.ksef.schemas import (
     InvoiceQueryResponse,
-    InvoiceStatusResponse,
     SendInvoiceResponse,
     SessionOpenResponse,
-    SessionStatusResponse,
 )
 
 logger = logging.getLogger(__name__)
@@ -311,7 +309,7 @@ class KSeFClient:
         """Query invoice metadata using KSeF v2 /invoices/query/metadata."""
         session = await self.ensure_authenticated()
 
-        now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
+        now = datetime.now(datetime.UTC).strftime("%Y-%m-%dT%H:%M:%S.000+00:00")
         body: dict[str, Any] = {
             "subjectType": subject_type,
             "dateRange": {

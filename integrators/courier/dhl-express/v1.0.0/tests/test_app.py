@@ -97,7 +97,7 @@ def test_create_shipment_success(mock_integration):
 
 @patch("src.app.integration")
 def test_create_shipment_dhl_error(mock_integration):
-    mock_integration.create_shipment = AsyncMock(side_effect=DhlExpressError("Bad request", 400))
+    mock_integration.create_shipment = AsyncMock(side_effect=DhlExpressError(400, "Bad request"))
     payload = {
         "plannedShippingDateAndTime": "2026-04-01T10:00:00Z",
         "shipper": {
@@ -138,7 +138,7 @@ def test_get_status_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_status_not_found(mock_integration):
-    mock_integration.get_tracking = AsyncMock(side_effect=DhlExpressError("Not found", 404))
+    mock_integration.get_tracking = AsyncMock(side_effect=DhlExpressError(404, "Not found"))
     response = client.get("/shipments/UNKNOWN123/status")
     assert response.status_code == 404
 
@@ -210,7 +210,7 @@ def test_get_rates_standardized_success(mock_integration):
 
 @patch("src.app.integration")
 def test_get_rates_standardized_dhl_error(mock_integration):
-    mock_integration.get_rates = AsyncMock(side_effect=DhlExpressError("Rate limit", 429))
+    mock_integration.get_rates = AsyncMock(side_effect=DhlExpressError(429, "Rate limit"))
     payload = {"shipperCountryCode": "PL", "receiverCountryCode": "DE", "weight": 5.0}
     response = client.post("/rates/standardized", json=payload)
     assert response.status_code == 200
@@ -394,7 +394,7 @@ def test_normalize_dhl_express_rates_empty():
 def test_sanitize_dhl_error_messages(status_code, expected_detail):
     from src.app import _sanitize_dhl_error
 
-    exc = DhlExpressError("raw error", status_code)
+    exc = DhlExpressError(status_code, "raw error")
     http_exc = _sanitize_dhl_error(exc)
     assert http_exc.status_code == status_code
     assert http_exc.detail == expected_detail

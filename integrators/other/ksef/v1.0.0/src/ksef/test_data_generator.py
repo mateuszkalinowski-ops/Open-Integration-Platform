@@ -12,7 +12,7 @@ import hashlib
 import logging
 import random
 import re
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Any
 
 import httpx
@@ -42,7 +42,7 @@ def _generate_valid_nip() -> str:
         digits = [random.randint(1, 9)]
         for _ in range(8):
             digits.append(random.randint(0, 9))
-        checksum = sum(d * w for d, w in zip(digits, weights)) % 11
+        checksum = sum(d * w for d, w in zip(digits, weights, strict=True)) % 11
         if checksum < 10:
             digits.append(checksum)
             nip = "".join(str(d) for d in digits)
@@ -58,7 +58,7 @@ def _generate_valid_pesel() -> str:
         f"{random.randint(0, 9999):04d}"
     )
     pw = [1, 3, 7, 9, 1, 3, 7, 9, 1, 3]
-    ck = (10 - sum(int(d) * w for d, w in zip(pesel_base, pw)) % 10) % 10
+    ck = (10 - sum(int(d) * w for d, w in zip(pesel_base, pw, strict=True)) % 10) % 10
     return pesel_base + str(ck)
 
 
@@ -77,8 +77,8 @@ def _generate_self_signed_cert(nip: str) -> tuple[rsa.RSAPrivateKey, x509.Certif
         .issuer_name(subject)
         .public_key(key.public_key())
         .serial_number(x509.random_serial_number())
-        .not_valid_before(datetime(2025, 1, 1, tzinfo=timezone.utc))
-        .not_valid_after(datetime(2027, 12, 31, tzinfo=timezone.utc))
+        .not_valid_before(datetime(2025, 1, 1, tzinfo=UTC))
+        .not_valid_after(datetime(2027, 12, 31, tzinfo=UTC))
         .sign(key, hashes.SHA256())
     )
     return key, cert
@@ -110,7 +110,7 @@ def _build_xades_bes_signed_xml(
     cert_digest_b64 = _b64(_sha256(cert_der))
     issuer_name = cert.issuer.rfc4514_string()
     serial_number = str(cert.serial_number)
-    signing_time = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    signing_time = datetime.now(UTC).strftime("%Y-%m-%dT%H:%M:%SZ")
 
     sig_id = "Signature-1"
     sp_id = "SignedProperties-1"
@@ -185,7 +185,7 @@ async def generate_test_credentials() -> dict[str, Any]:
     logger.info("Generating test credentials for NIP=%s***", nip[:6])
 
     # verify=False is intentional: KSeF TE uses self-signed/test certificates
-    async with httpx.AsyncClient(timeout=30.0, verify=False) as client:  # noqa: S501
+    async with httpx.AsyncClient(timeout=30.0, verify=False) as client:
         # 1. Create test person
         resp = await client.post(
             f"{TE_API_URL}/testdata/person",
