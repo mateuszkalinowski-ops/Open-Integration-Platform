@@ -583,6 +583,24 @@ services:
       timeout: 5s
       retries: 3
 
+  # ─── Other: KSeF (e-invoicing) ─────────────────────────────
+  connector-ksef:
+    build:
+      context: .
+      dockerfile: integrators/other/ksef/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KSEF_DEFAULT_ENVIRONMENT: production
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
+    depends_on:
+      - platform
+    restart: unless-stopped
+    healthcheck: *connector-healthcheck
+
   # ─── ERP: InsERT Nexo (cloud connector) ─────────────────────
   connector-insert-nexo:
     build:

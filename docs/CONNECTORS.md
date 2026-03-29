@@ -59,6 +59,7 @@ The platform supports optional runtime schema discovery for connector actions. S
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 | 34 | InsERT Nexo (Subiekt) | ERP | v1.0.0 | .NET SDK (pythonnet) + REST | `sql_server`, `sql_database`, `nexo_operator_login`, `nexo_operator_password` |
 | 35 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
+| 36 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
 
 ---
 
@@ -1159,6 +1160,66 @@ Features:
 - Prometheus metrics for S3 operations
 
 Protocol: REST (Amazon S3 API / AWS Signature V4 authentication).
+
+---
+
+### KSeF (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `nip` | Yes | NIP (tax identification number) of the entity |
+| `ksef_token` | Yes | KSeF authorization token |
+| `environment` | No | API environment: `test`, `demo`, `production` (default: `demo`) |
+| `certificate_path` | No | Path to qualified certificate for XAdES auth (alternative to token) |
+| `certificate_password` | No | Certificate password |
+
+Environment variables:
+```bash
+KSEF_LOG_LEVEL=INFO
+KSEF_DEFAULT_ENVIRONMENT=demo
+KSEF_AUTH_POLL_INTERVAL=2.0
+KSEF_AUTH_POLL_MAX_ATTEMPTS=30
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+KSeF account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: main-company
+    nip: "1234567890"
+    ksef_token: "${KSEF_TOKEN}"
+    environment: production
+
+  - name: demo-company
+    nip: "0987654321"
+    ksef_token: "${KSEF_DEMO_TOKEN}"
+    environment: demo
+```
+
+Features:
+- Full KSeF 2.0 API support (API version 2.3.0)
+- Authentication via KSeF tokens (challenge → encrypted token → JWT)
+- Automatic JWT token refresh
+- Invoice encryption (AES-256-CBC + RSA-OAEP key wrapping)
+- FA(3) XML invoice generation from structured data
+- Interactive and batch session management
+- Invoice sending, retrieval, status checking, and querying
+- UPO (Urzędowe Poświadczenie Odbioru) download
+- Three environments: test, demo, production
+- Multi-account support (multiple NIP entities)
+- Connection validation with health checks
+- Prometheus metrics
+
+KSeF API environments:
+
+| Environment | URL | Description |
+|---|---|---|
+| Test | `https://api-test.ksef.mf.gov.pl/v2` | Self-signed certs, no legal effect |
+| Demo | `https://api-demo.ksef.mf.gov.pl/v2` | Real credentials, no legal effect |
+| Production | `https://api.ksef.mf.gov.pl/v2` | Real documents, legal effect |
+
+Protocol: REST (JWT authentication, AES-256-CBC invoice encryption, RSA-OAEP key exchange).
 
 ---
 

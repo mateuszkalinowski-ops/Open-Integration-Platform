@@ -233,7 +233,7 @@ Every connector is a self-contained microservice with its own API, versioning, a
 | **ERP** | 1 | InsERT Nexo (Subiekt) — hybrid: on-premise agent + cloud connector |
 | **WMS** | 1 | Pinquark WMS |
 | **AI** | 1 | AI Agent (Gemini) — risk analysis, courier recommendations, data extraction |
-| **Other** | 6 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR + KSeF) · FTP/SFTP · Slack · BulkGate SMS · Amazon S3 |
+| **Other** | 7 | Email Client (IMAP/SMTP) · SkanujFakture (invoice OCR) · KSeF (e-invoicing) · FTP/SFTP · Slack · BulkGate SMS · Amazon S3 |
 
 > **Coming soon:** PrestaShop, WAPRO, Comarch ERP, SAP, enova365, and more.
 >

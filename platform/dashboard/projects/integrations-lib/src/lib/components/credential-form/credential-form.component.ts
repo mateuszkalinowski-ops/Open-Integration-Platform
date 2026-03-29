@@ -8,6 +8,7 @@ import { MatIconModule } from '@angular/material/icon';
 import { MatSnackBar, MatSnackBarModule } from '@angular/material/snack-bar';
 import { MatSlideToggleModule } from '@angular/material/slide-toggle';
 import { MatSelectModule } from '@angular/material/select';
+import { MatProgressSpinnerModule } from '@angular/material/progress-spinner';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
 
@@ -28,6 +29,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     MatSnackBarModule,
     MatSlideToggleModule,
     MatSelectModule,
+    MatProgressSpinnerModule,
   ],
   template: `
     <div class="credential-form" *ngIf="connector">
@@ -82,7 +84,7 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
           } @else if (getFieldType(field)?.type === 'select') {
             <mat-form-field appearance="outline" class="credential-form__field">
               <mat-label>{{ getFieldLabel(field) }}{{ required ? ' *' : '' }}</mat-label>
-              <mat-select [formControlName]="field">
+              <mat-select [formControlName]="field" (selectionChange)="onSelectChange(field)">
                 @for (opt of getFieldType(field)?.options ?? []; track opt.value) {
                   <mat-option [value]="opt.value">{{ opt.label }}</mat-option>
                 }
@@ -97,6 +99,26 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
             </mat-form-field>
           }
         </ng-template>
+
+        @if (showGenerateTestData) {
+          <div class="credential-form__generate-test">
+            <button mat-stroked-button type="button"
+                    (click)="generateTestData()"
+                    [disabled]="generatingTestData"
+                    color="accent">
+              @if (generatingTestData) {
+                <mat-spinner diameter="18" style="display: inline-block; margin-right: 8px;"></mat-spinner>
+                Generating...
+              } @else {
+                <mat-icon style="font-size: 18px; height: 18px; width: 18px; margin-right: 4px;">science</mat-icon>
+                Generate test data (NIP + Token)
+              }
+            </button>
+            <span class="credential-form__generate-hint">
+              Auto-generates a test NIP and KSeF token on the test environment (api-test.ksef.mf.gov.pl)
+            </span>
+          </div>
+        }
 
         @if (validationResult) {
           <div class="credential-form__validation"
@@ -167,6 +189,14 @@ import { PinquarkApiService } from '../../services/pinquark-api.service';
     .credential-form__validation--unsupported { background: #fff3e0; color: #e65100; }
     .credential-form__validation mat-icon { font-size: 20px; height: 20px; width: 20px; }
     .credential-form__validation-time { opacity: 0.7; font-size: 12px; }
+    .credential-form__generate-test {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+      margin-bottom: 16px; padding: 12px 16px;
+      background: #fff3e0; border-radius: 8px; border-left: 4px solid #ff9800;
+    }
+    .credential-form__generate-hint {
+      font-size: 12px; color: rgba(0,0,0,0.54); flex: 1; min-width: 200px;
+    }
   `],
 })
 export class CredentialFormComponent implements OnInit, OnDestroy {
@@ -183,11 +213,27 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
   showPasswords = false;
   saving = false;
   validating = false;
+  generatingTestData = false;
+  showGenerateTestData = false;
   validationResult: CredentialValidationResult | null = null;
   requiredFieldRows: string[][] = [];
   optionalFieldRows: string[][] = [];
   private originalCredentialName = '';
   private destroy$ = new Subject<void>();
+
+  onSelectChange(field: string): void {
+    if (field === 'environment') {
+      this.updateGenerateTestDataVisibility();
+    }
+  }
+
+  private updateGenerateTestDataVisibility(): void {
+    if (!this.connector) { this.showGenerateTestData = false; return; }
+    const name = this.connectorName || this.connector.name;
+    if (name !== 'ksef') { this.showGenerateTestData = false; return; }
+    const env = this.form?.get('environment')?.value;
+    this.showGenerateTestData = env === 'test';
+  }
 
   constructor(
     private readonly fb: FormBuilder,
@@ -232,6 +278,11 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
 
     this.requiredFieldRows = this.buildFieldRows(this.connector?.config_schema?.required ?? []);
     this.optionalFieldRows = this.buildFieldRows(this.connector?.config_schema?.optional ?? []);
+
+    this.updateGenerateTestDataVisibility();
+    this.form.get('environment')?.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.updateGenerateTestDataVisibility();
+    });
   }
 
   buildFieldRows(fields: string[]): string[][] {
@@ -287,6 +338,31 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
       return '(saved — enter new value to overwrite)';
     }
     return this.getFieldType(field)?.placeholder ?? '';
+  }
+
+  generateTestData(): void {
+    this.generatingTestData = true;
+    const name = this.connectorName || this.connector.name;
+    this.api.generateTestData(name).pipe(takeUntil(this.destroy$)).subscribe({
+      next: (data) => {
+        this.generatingTestData = false;
+        if (data['nip'] && this.form.get('nip')) {
+          this.form.get('nip')!.setValue(data['nip']);
+        }
+        if (data['ksef_token'] && this.form.get('ksef_token')) {
+          this.form.get('ksef_token')!.setValue(data['ksef_token']);
+        }
+        if (data['environment'] && this.form.get('environment')) {
+          this.form.get('environment')!.setValue(data['environment']);
+        }
+        this.snackBar.open('Test data generated — NIP and token filled in', 'OK', { duration: 5000 });
+      },
+      error: (err) => {
+        this.generatingTestData = false;
+        const detail = err?.error?.detail || 'Failed to generate test data';
+        this.snackBar.open(detail, 'OK', { duration: 5000 });
+      },
+    });
   }
 
   testConnection(): void {

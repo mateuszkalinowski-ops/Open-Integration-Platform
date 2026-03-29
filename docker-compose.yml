@@ -69,5 +69,27 @@ services:
       timeout: 3s
       retries: 5
 
+  connector-ksef:
+    build:
+      context: .
+      dockerfile: integrators/other/ksef/v1.0.0/Dockerfile
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./integrators/other/ksef/v1.0.0/src:/app/src
+      - ./integrators/other/ksef/v1.0.0/config:/app/config:ro
+    environment:
+      KSEF_DEBUG: "true"
+      KSEF_LOG_LEVEL: DEBUG
+      KSEF_DEFAULT_ENVIRONMENT: demo
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      - platform
+    restart: unless-stopped
+
 volumes:
   pgdata:
