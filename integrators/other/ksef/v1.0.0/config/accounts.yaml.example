@@ -1,0 +1,14 @@
+# KSeF accounts configuration
+# Copy to accounts.yaml and fill in credentials
+
+accounts:
+  - name: default
+    nip: "1234567890"
+    ksef_token: "your-ksef-token-here"
+    environment: demo  # test, demo, or production
+
+  # Multiple accounts example:
+  # - name: company-b
+  #   nip: "0987654321"
+  #   ksef_token: "another-token"
+  #   environment: production

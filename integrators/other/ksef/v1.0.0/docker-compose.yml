@@ -1,0 +1,60 @@
+services:
+  ksef-integrator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ksef-integrator
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./config:/app/config:ro
+    env_file:
+      - .env
+    environment:
+      - KSEF_LOG_LEVEL=INFO
+      - KSEF_DEFAULT_ENVIRONMENT=demo
+    restart: unless-stopped
+    networks:
+      - integrations
+
+  ksef-integrator-dev:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ksef-integrator-dev
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./src:/app/src
+      - ./config:/app/config:ro
+    environment:
+      - KSEF_DEBUG=true
+      - KSEF_LOG_LEVEL=DEBUG
+      - KSEF_DEFAULT_ENVIRONMENT=demo
+      - KAFKA_ENABLED=false
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    profiles:
+      - dev
+    networks:
+      - integrations
+
+  tests:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: ksef-tests
+    volumes:
+      - ./src:/app/src
+      - ./tests:/app/tests
+    environment:
+      - KSEF_DEFAULT_ENVIRONMENT=test
+      - KAFKA_ENABLED=false
+    entrypoint: ["python", "-m", "pytest", "tests/", "-v", "--tb=short"]
+    profiles:
+      - test
+    networks:
+      - integrations
+
+networks:
+  integrations:
+    driver: bridge

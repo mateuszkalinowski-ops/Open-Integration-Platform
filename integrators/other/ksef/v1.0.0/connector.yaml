@@ -1,0 +1,278 @@
+name: ksef
+category: other
+version: 1.0.0
+display_name: "KSeF"
+description: "Krajowy System e-Faktur (KSeF 2.0) — wysyłka, odbiór i weryfikacja faktur ustrukturyzowanych"
+interface: e-invoicing
+service_name: connector-ksef
+country: PL
+website_url: https://ksef.mf.gov.pl
+logo_url: /assets/logos/ksef.png
+
+capabilities:
+  - authenticate
+  - open_session
+  - close_session
+  - send_invoice
+  - send_invoice_batch
+  - get_invoice
+  - get_invoice_pdf
+  - query_invoices
+  - get_upo
+  - get_session_status
+  - get_session_invoices
+
+events:
+  - invoice.sent
+  - invoice.accepted
+  - invoice.rejected
+  - session.opened
+  - session.closed
+
+actions:
+  - auth.token
+  - session.open
+  - session.close
+  - session.status
+  - invoice.send
+  - invoice.send_batch
+  - invoice.get
+  - invoice.pdf
+  - invoice.query
+  - session.invoices
+  - session.failed_invoices
+  - upo.get
+
+config_schema:
+  required:
+    - nip
+    - ksef_token
+  optional:
+    - environment
+    - certificate_path
+    - certificate_password
+  field_types:
+    nip:
+      type: string
+      label: NIP (numer identyfikacji podatkowej)
+      placeholder: "1234567890"
+    ksef_token:
+      type: password
+      label: Token autoryzacyjny KSeF
+      placeholder: Token wygenerowany w portalu KSeF
+    environment:
+      type: select
+      label: Środowisko KSeF
+      default: demo
+      options:
+        - value: test
+          label: "Test (api-test.ksef.mf.gov.pl)"
+        - value: demo
+          label: "Demo (api-demo.ksef.mf.gov.pl)"
+        - value: production
+          label: "Produkcja (api.ksef.mf.gov.pl)"
+    certificate_path:
+      type: string
+      label: Ścieżka do certyfikatu kwalifikowanego
+      placeholder: /certs/ksef-cert.pem
+    certificate_password:
+      type: password
+      label: Hasło certyfikatu
+
+action_routes:
+  auth.token:
+    method: POST
+    path: /auth/token
+    query_from_payload: []
+  session.open:
+    method: POST
+    path: /sessions
+    query_from_payload: [account_name]
+  session.close:
+    method: POST
+    path: /sessions/{reference_number}/close
+    query_from_payload: [account_name]
+  session.status:
+    method: GET
+    path: /sessions/{reference_number}
+    query_from_payload: [account_name]
+  invoice.send:
+    method: POST
+    path: /invoices
+    query_from_payload: [account_name]
+  invoice.send_batch:
+    method: POST
+    path: /invoices/batch
+    query_from_payload: [account_name]
+  invoice.get:
+    method: GET
+    path: /invoices/{ksef_reference_number}
+    query_from_payload: [account_name]
+  invoice.pdf:
+    method: GET
+    path: /invoices/{ksef_reference_number}/pdf
+    query_from_payload: [account_name]
+  invoice.query:
+    method: POST
+    path: /invoices/query
+    query_from_payload: []
+  session.invoices:
+    method: GET
+    path: /sessions/{reference_number}/invoices
+    query_from_payload: [account_name]
+  session.failed_invoices:
+    method: GET
+    path: /sessions/{reference_number}/invoices/failed
+    query_from_payload: [account_name]
+  upo.get:
+    method: GET
+    path: /sessions/{reference_number}/upo
+    query_from_payload: [account_name]
+
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    nip: nip
+    ksef_token: ksef_token
+    environment:
+      source: environment
+      default: demo
+
+credential_validation:
+  required_fields: [nip, ksef_token]
+  optional_fields: [environment]
+
+health_endpoint: /health
+docs_url: /docs
+
+rate_limits:
+  default: "60/min"
+  per_action:
+    auth.token: "60/s"
+    session.open: "10/min"
+    session.close: "10/min"
+    invoice.send: "30/min"
+    invoice.send_batch: "10/min"
+    invoice.query: "100/min"
+    invoice.get: "100/min"
+    invoice.pdf: "60/min"
+
+action_fields:
+  session.open:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: form_code
+      label: "Kod formularza"
+      type: string
+      required: false
+      default: "FA3"
+    - field: session_type
+      label: "Typ sesji"
+      type: string
+      required: false
+      default: "online"
+
+  invoice.send:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: reference_number
+      label: "Numer referencyjny sesji"
+      type: string
+      required: true
+    - field: invoice_xml
+      label: "XML faktury (FA3)"
+      type: string
+      required: false
+    - field: invoice_data
+      label: "Dane faktury (obiekt)"
+      type: object
+      required: false
+
+  invoice.get:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: ksef_reference_number
+      label: "Numer referencyjny KSeF"
+      type: string
+      required: true
+
+  invoice.pdf:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: ksef_reference_number
+      label: "Numer KSeF"
+      type: string
+      required: true
+
+  invoice.query:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: date_from
+      label: "Data od (ISO 8601)"
+      type: string
+      required: false
+    - field: date_to
+      label: "Data do (ISO 8601)"
+      type: string
+      required: false
+    - field: subject_nip
+      label: "NIP kontrahenta"
+      type: string
+      required: false
+
+output_fields:
+  session.open:
+    - field: reference_number
+      label: "Numer referencyjny sesji"
+      type: string
+    - field: status
+      label: "Status sesji"
+      type: string
+
+  invoice.send:
+    - field: reference_number
+      label: "Numer referencyjny faktury"
+      type: string
+    - field: status
+      label: "Status wysyłki"
+      type: string
+
+  invoice.get:
+    - field: invoice_xml
+      label: "XML faktury"
+      type: string
+    - field: ksef_reference_number
+      label: "Numer referencyjny KSeF"
+      type: string
+
+  invoice.query:
+    - field: invoices
+      label: "Lista faktur"
+      type: array
+    - field: has_more
+      label: "Czy są kolejne strony"
+      type: boolean
+    - field: is_truncated
+      label: "Czy wyniki zostały ucięte"
+      type: boolean
+
+  upo.get:
+    - field: upo_content
+      label: "Treść UPO (base64)"
+      type: string
+    - field: reference_number
+      label: "Numer referencyjny"
+      type: string
