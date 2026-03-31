@@ -7,6 +7,7 @@ interface: e-invoicing
 service_name: connector-ksef
 country: PL
 website_url: https://ksef.mf.gov.pl
+documentation_url: https://ksef.mf.gov.pl/dokumentacja
 logo_url: /assets/logos/ksef.png
 
 capabilities:
