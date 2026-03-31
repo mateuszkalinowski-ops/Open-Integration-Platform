@@ -9,6 +9,7 @@ on:
       - "*.md"
       - "LICENSE"
       - ".github/dependabot.yml"
+      - ".cursor/**"
   pull_request:
     branches: [main]
     paths-ignore:
@@ -16,6 +17,7 @@ on:
       - "*.md"
       - "LICENSE"
       - ".github/dependabot.yml"
+      - ".cursor/**"
 
 env:
   REGISTRY: ghcr.io
