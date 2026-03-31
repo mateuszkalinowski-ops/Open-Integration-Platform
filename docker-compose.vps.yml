@@ -354,6 +354,17 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-ksef:
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ksef:${IMAGE_TAG:-latest}
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KSEF_DEFAULT_ENVIRONMENT: production
+    depends_on:
+      - platform
+    restart: unless-stopped
+    <<: *connector-healthcheck
+
   # --- Courier Connectors ---
   connector-inpost-v1:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v1:${IMAGE_TAG:-latest}
