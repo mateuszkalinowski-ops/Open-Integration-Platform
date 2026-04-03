@@ -162,7 +162,10 @@ class WorkflowEngine:
         ctx._workflow_chain = [*(parent_chain or []), str(workflow.id)]
 
         for var_name, var_def in (workflow.variables or {}).items():
-            ctx.variables[var_name] = var_def.get("default")
+            if isinstance(var_def, dict):
+                ctx.variables[var_name] = var_def.get("default")
+            else:
+                ctx.variables[var_name] = var_def
 
         execution = WorkflowExecution(
             workflow_id=workflow.id,
@@ -1749,7 +1752,10 @@ class WorkflowEngine:
 
         for var_name, var_def in (workflow.variables or {}).items():
             if var_name not in ctx.variables:
-                ctx.variables[var_name] = var_def.get("default")
+                if isinstance(var_def, dict):
+                    ctx.variables[var_name] = var_def.get("default")
+                else:
+                    ctx.variables[var_name] = var_def
 
         execution = WorkflowExecution(
             workflow_id=workflow.id,
