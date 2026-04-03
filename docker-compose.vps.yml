@@ -363,7 +363,11 @@ services:
     depends_on:
       - platform
     restart: unless-stopped
-    <<: *connector-healthcheck
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
 
   # --- Courier Connectors ---
   connector-inpost-v1:
