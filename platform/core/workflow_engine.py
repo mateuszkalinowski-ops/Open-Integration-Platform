@@ -1208,6 +1208,11 @@ class WorkflowEngine:
             return node_output
         if path.startswith("trigger."):
             return _get_nested(ctx.trigger_data, path[8:])
+        if path.startswith("item."):
+            batch_item = ctx.variables.get("batch_item")
+            if isinstance(batch_item, dict):
+                return _get_nested(batch_item, path[5:])
+            return None
         if path.startswith("data."):
             return _get_nested(ctx.data, path[5:])
 
@@ -2335,7 +2340,7 @@ def _safe_truncate(value: Any, max_len: int = 2000) -> Any:
     if isinstance(value, dict):
         s = str(value)
         if len(s) > max_len:
-            return {"_truncated": True, "_preview": s[:max_len]}
+            return {"truncated": True, "preview": s[:max_len]}
     return value
 
 

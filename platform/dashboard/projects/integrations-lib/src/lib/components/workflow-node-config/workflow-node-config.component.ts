@@ -1718,6 +1718,18 @@ export class WorkflowNodeConfigComponent implements OnChanges, OnDestroy {
 
     const triggerNodes = this.allNodes.filter(n => n.type === 'trigger');
     for (const tn of triggerNodes) {
+      const triggerType = tn.config['type'] as string;
+      const requestFields = tn.config['fields'] as ConnectorFieldDef[] | undefined;
+      if (triggerType === 'request' && requestFields?.length) {
+        for (const f of requestFields) {
+          if (!seen.has(f.field)) {
+            seen.add(f.field);
+            fields.push(f);
+          }
+        }
+        continue;
+      }
+
       const connectorName = tn.config['connector_name'] as string;
       const connectorVersion = tn.config['connector_version'] as string | undefined;
       const eventName = tn.config['event'] as string;
