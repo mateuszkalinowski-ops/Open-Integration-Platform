@@ -29,6 +29,7 @@ WORKDIR /app
 COPY --from=build /install /usr/local
 COPY --from=build /app/src ./src
 COPY --from=build /app/config ./config
+COPY --from=build /app/xsd ./xsd
 COPY --from=build /app/connector.yaml ./connector.yaml
 
 RUN mkdir -p /app/data && chown -R appuser:appuser /app

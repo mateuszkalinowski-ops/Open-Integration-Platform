@@ -23,7 +23,12 @@ from src.ksef.schemas import (
     SendInvoiceApiResponse,
 )
 from src.ksef.test_data_generator import generate_test_credentials
-from src.ksef.xml_builder import build_invoice_xml, validate_invoice_xml
+from src.ksef.xml_builder import (
+    build_invoice_xml,
+    build_invoice_xml_from_raw_ksef,
+    is_raw_ksef_format,
+    validate_invoice_xml,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -197,6 +202,10 @@ async def send_invoice(req: SendInvoiceApiRequest) -> SendInvoiceApiResponse:
 
     Provide either invoice_xml (raw FA(3) XML) or invoice_data (structured dict
     that will be converted to XML automatically).
+
+    invoice_data accepts two formats:
+    - Simplified: {seller, buyer, items, ...}
+    - Raw KSeF: {fa, podmiot1, podmiot2} — native KSeF structure
     """
     try:
         client = app_state.account_manager.get_client(req.account_name)
@@ -204,14 +213,17 @@ async def send_invoice(req: SendInvoiceApiRequest) -> SendInvoiceApiResponse:
         if req.invoice_xml:
             xml_bytes = req.invoice_xml.encode("utf-8")
         elif req.invoice_data:
-            account = app_state.account_manager.get_account(req.account_name)
-            if account:
-                seller = req.invoice_data.setdefault("seller", {})
-                if "nip" not in seller:
-                    seller["nip"] = account.nip
-                if not seller.get("name"):
-                    seller["name"] = account.company_name or f"Podmiot NIP {account.nip}"
-            xml_bytes = build_invoice_xml(req.invoice_data)
+            if is_raw_ksef_format(req.invoice_data):
+                xml_bytes = build_invoice_xml_from_raw_ksef(req.invoice_data)
+            else:
+                account = app_state.account_manager.get_account(req.account_name)
+                if account:
+                    seller = req.invoice_data.setdefault("seller", {})
+                    if "nip" not in seller:
+                        seller["nip"] = account.nip
+                    if not seller.get("name"):
+                        seller["name"] = account.company_name or f"Podmiot NIP {account.nip}"
+                xml_bytes = build_invoice_xml(req.invoice_data)
         else:
             raise HTTPException(
                 status_code=400,

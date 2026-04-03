@@ -4,20 +4,323 @@ Generates XML documents conforming to the FA(3) XSD schema
 required by KSeF 2.0 from February 1, 2026.
 
 Namespace: http://crd.gov.pl/wzor/2025/06/25/13775/
+
+Supports two input formats:
+- Simplified/internal dict (seller, buyer, items, ...)
+- Raw KSeF JSON (podmiot1, podmiot2, fa with P_* fields)
 """
 
 from __future__ import annotations
 
 import logging
+import re
 from datetime import date, datetime
+from pathlib import Path
 from typing import Any
 from xml.etree.ElementTree import Element, SubElement, tostring
 
 logger = logging.getLogger(__name__)
 
+_XSD_DIR = Path(__file__).resolve().parent.parent.parent / "xsd"
+
 FA3_NAMESPACE = "http://crd.gov.pl/wzor/2025/06/25/13775/"
 ETD_NAMESPACE = "http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/"
 XSI_NAMESPACE = "http://www.w3.org/2001/XMLSchema-instance"
+
+# ---------------------------------------------------------------------------
+# Raw KSeF JSON -> XML conversion
+# ---------------------------------------------------------------------------
+
+_RAW_KSEF_KEY_MAP: dict[str, str] = {
+    "fa": "Fa",
+    "podmiot1": "Podmiot1",
+    "podmiot2": "Podmiot2",
+    "daneIdentyfikacyjne": "DaneIdentyfikacyjne",
+    "nip": "NIP",
+    "nazwa": "Nazwa",
+    "prefiksPodatnika": "PrefiksPodatnika",
+    "adres": "Adres",
+    "kodKraju": "KodKraju",
+    "adresL1": "AdresL1",
+    "adresL2": "AdresL2",
+    "jST": "JST",
+    "gV": "GV",
+    "kodWaluty": "KodWaluty",
+    "rodzajFaktury": "RodzajFaktury",
+    "faWiersz": "FaWiersz",
+    "nrWierszaFa": "NrWierszaFa",
+    "adnotacje": "Adnotacje",
+    "zwolnienie": "Zwolnienie",
+    "noweSrodkiTransportu": "NoweSrodkiTransportu",
+    "pMarzy": "PMarzy",
+    "ppMarzyN": "P_PMarzyN",
+    "platnosc": "Platnosc",
+    "terminPlatnosci": "TerminPlatnosci",
+    "termin": "Termin",
+    "terminOpis": "TerminOpis",
+    "ilosc": "Ilosc",
+    "jednostka": "Jednostka",
+    "zdarzeniePoczatkowe": "ZdarzeniePoczatkowe",
+    "rachunekBankowy": "RachunekBankowy",
+    "nrRb": "NrRB",
+    "nazwaBanku": "NazwaBanku",
+    "formaPlatnosci": "FormaPlatnosci",
+    "zaplacono": "Zaplacono",
+    "dataZaplaty": "DataZaplaty",
+    "rachunekBankowyFakt662": "RachunekBankowyFakt662",
+    "warunkiTransakcji": "WarunkiTransakcji",
+    "zamowienie": "Zamowienie",
+    "dodatkowyOpis": "DodatkowyOpis",
+    "klucz": "Klucz",
+    "wartosc": "Wartosc",
+    "kursWalutyZ": "KursWalutyZ",
+    "faWierszCtrl": "FaWierszCtrl",
+    "liczbaWierszyFaktury": "LiczbaWierszyFaktury",
+    "wartoscWierszyFaktury": "WartoscWierszyFaktury",
+}
+
+_P_FIELD_RE = re.compile(r"^p(\d+)([a-zA-Z]*)$")
+_P_COMPOUND_RE = re.compile(r"^p(\d{2,})(\d)([a-zA-Z]*)$")
+
+_ELEMENT_ORDER: dict[str, list[str]] = {
+    "Faktura": ["Naglowek", "Podmiot1", "Podmiot2", "Fa"],
+    "Podmiot1": ["PrefiksPodatnika", "DaneIdentyfikacyjne", "Adres"],
+    "Podmiot2": ["NrEORI", "DaneIdentyfikacyjne", "Adres", "JST", "GV"],
+    "DaneIdentyfikacyjne": ["NIP", "Nazwa"],
+    "Adres": ["KodKraju", "AdresL1", "AdresL2"],
+    "Fa": [
+        "KodWaluty",
+        "P_1",
+        "P_1M",
+        "P_2",
+        "P_3",
+        "P_4",
+        "P_5",
+        "P_6",
+        "OkresFa",
+        "P_13_1",
+        "P_13_2",
+        "P_13_3",
+        "P_13_4",
+        "P_13_5",
+        "P_13_6",
+        "P_13_7",
+        "P_13_8",
+        "P_13_9",
+        "P_13_10",
+        "P_13_11",
+        "P_14_1",
+        "P_14_2",
+        "P_14_3",
+        "P_14_4",
+        "P_14_5",
+        "P_14_1W",
+        "P_14_2W",
+        "P_14_3W",
+        "P_14_4W",
+        "P_14_5W",
+        "P_15",
+        "KursWalutyZ",
+        "Adnotacje",
+        "RodzajFaktury",
+        "PrzyczynaKorekty",
+        "TypKorekty",
+        "DaneFaKorygowanej",
+        "OkresFaKorygowanej",
+        "NrFaKorygowanej",
+        "OznaczenieFaZ",
+        "FaWiersz",
+        "FaWierszCtrl",
+        "Platnosc",
+        "WarunkiTransakcji",
+        "Zamowienie",
+        "DodatkowyOpis",
+    ],
+    "Adnotacje": [
+        "P_16",
+        "P_17",
+        "P_18",
+        "P_18A",
+        "Zwolnienie",
+        "NoweSrodkiTransportu",
+        "P_23",
+        "PMarzy",
+    ],
+    "Zwolnienie": ["P_19N", "P_19", "P_19A", "P_19B", "P_19C"],
+    "NoweSrodkiTransportu": ["P_22N", "P_22", "P_22A"],
+    "PMarzy": ["P_PMarzyN"],
+    "FaWiersz": [
+        "NrWierszaFa",
+        "UU_ID",
+        "P_7",
+        "IndeksF",
+        "CN",
+        "P_8A",
+        "P_8B",
+        "P_9A",
+        "P_9B",
+        "P_10",
+        "P_11",
+        "P_11A",
+        "P_11Vat",
+        "P_12",
+        "P_12_XII",
+        "P_12_Zal_15",
+        "KwotaAkcyzy",
+        "GTU",
+        "Procedura",
+        "KursWaluty",
+        "StanPrzed",
+    ],
+    "Platnosc": [
+        "Zaplacono",
+        "DataZaplaty",
+        "TerminPlatnosci",
+        "FormaPlatnosci",
+        "RachunekBankowy",
+        "RachunekBankowyFakt662",
+    ],
+    "TerminPlatnosci": ["Termin", "TerminOpis"],
+    "TerminOpis": ["Ilosc", "Jednostka", "ZdarzeniePoczatkowe"],
+    "RachunekBankowy": ["NrRB", "NazwaBanku", "OpisRachunku"],
+}
+
+
+def _resolve_xml_tag(key: str) -> str:
+    """Map a raw KSeF JSON key to the corresponding XML element name."""
+    if key in _RAW_KSEF_KEY_MAP:
+        return _RAW_KSEF_KEY_MAP[key]
+
+    m = _P_COMPOUND_RE.match(key)
+    if m:
+        prefix, suffix_digit, alpha = m.groups()
+        tag = f"P_{prefix}_{suffix_digit}"
+        if alpha:
+            tag += alpha.upper() if len(alpha) == 1 else alpha
+        return tag
+
+    m = _P_FIELD_RE.match(key)
+    if m:
+        digits, alpha = m.groups()
+        tag = f"P_{digits}"
+        if alpha:
+            tag += alpha.upper() if len(alpha) == 1 else alpha
+        return tag
+
+    return key[0].upper() + key[1:] if key else key
+
+
+def _sorted_children(parent_tag: str, children: dict[str, Any]) -> list[tuple[str, Any]]:
+    """Sort child elements according to FA(3) schema order."""
+    order = _ELEMENT_ORDER.get(parent_tag)
+    if not order:
+        return list(children.items())
+
+    order_map = {tag: i for i, tag in enumerate(order)}
+
+    def sort_key(item: tuple[str, Any]) -> tuple[int, str]:
+        tag = item[0]
+        return (order_map.get(tag, len(order)), tag)
+
+    return sorted(children.items(), key=sort_key)
+
+
+def _raw_ksef_to_xml(parent: Element, tag: str, value: Any) -> None:
+    """Recursively convert a raw KSeF JSON node to an XML sub-tree."""
+    if isinstance(value, list):
+        for item in value:
+            _raw_ksef_to_xml(parent, tag, item)
+        return
+
+    if isinstance(value, dict):
+        elem = SubElement(parent, tag)
+        resolved: dict[str, Any] = {}
+        for k, v in value.items():
+            xml_tag = _resolve_xml_tag(k)
+            resolved[xml_tag] = v
+        for child_tag, child_val in _sorted_children(tag, resolved):
+            _raw_ksef_to_xml(elem, child_tag, child_val)
+        return
+
+    elem = SubElement(parent, tag)
+    if isinstance(value, float):
+        elem.text = f"{value:.2f}"
+    else:
+        elem.text = str(value)
+
+
+def _preprocess_raw_ksef(data: dict[str, Any]) -> dict[str, Any]:
+    """Fix structural issues in raw KSeF JSON before XML generation.
+
+    Handles differences between KSeF JSON key layout and FA(3) XSD:
+    - PrefiksPodatnika is only valid in Podmiot1, not Podmiot2
+    - P_19* fields belong inside Zwolnienie, not directly in Adnotacje
+    - P_22* fields belong inside NoweSrodkiTransportu, not directly in Adnotacje
+    """
+    import copy
+
+    data = copy.deepcopy(data)
+
+    if "podmiot2" in data and "prefiksPodatnika" in data["podmiot2"]:
+        del data["podmiot2"]["prefiksPodatnika"]
+
+    if "fa" in data:
+        fa = data["fa"]
+
+        if "adnotacje" in fa:
+            adn = fa["adnotacje"]
+
+        zwol_fields = ("p19", "p19A", "p19B", "p19C")
+        zwol = adn.get("zwolnienie", {})
+        p19n_set = zwol.get("p19N") == 1
+        for k in zwol_fields:
+            if k in adn:
+                val = adn.pop(k)
+                if p19n_set or isinstance(val, int):
+                    continue
+                if "zwolnienie" not in adn:
+                    adn["zwolnienie"] = {}
+                adn["zwolnienie"][k] = val
+
+            nst_keys = [k for k in ("p22", "p22A") if k in adn]
+            if nst_keys:
+                if "noweSrodkiTransportu" not in adn:
+                    adn["noweSrodkiTransportu"] = {}
+                for k in nst_keys:
+                    adn["noweSrodkiTransportu"][k] = adn.pop(k)
+
+    return data
+
+
+def is_raw_ksef_format(data: dict[str, Any]) -> bool:
+    return "fa" in data or "podmiot1" in data or "podmiot2" in data
+
+
+def build_invoice_xml_from_raw_ksef(data: dict[str, Any]) -> bytes:
+    """Build FA(3) XML from raw KSeF JSON (podmiot1, podmiot2, fa)."""
+    data = _preprocess_raw_ksef(data)
+    root = Element("Faktura")
+    root.set("xmlns", FA3_NAMESPACE)
+    root.set("xmlns:etd", ETD_NAMESPACE)
+    root.set("xmlns:xsi", XSI_NAMESPACE)
+
+    _add_header(root, {})
+
+    if "podmiot1" in data:
+        _raw_ksef_to_xml(root, "Podmiot1", data["podmiot1"])
+    if "podmiot2" in data:
+        _raw_ksef_to_xml(root, "Podmiot2", data["podmiot2"])
+    if "fa" in data:
+        _raw_ksef_to_xml(root, "Fa", data["fa"])
+
+    xml_declaration = b'<?xml version="1.0" encoding="UTF-8"?>\n'
+    xml_body = tostring(root, encoding="unicode").encode("utf-8")
+    return xml_declaration + xml_body
+
+
+# ---------------------------------------------------------------------------
+# Simplified/internal format -> XML conversion
+# ---------------------------------------------------------------------------
 
 
 def build_invoice_xml(invoice_data: dict[str, Any]) -> bytes:
@@ -339,13 +642,77 @@ def _vat_rate_decimal(rate: int | float | str) -> float:
         return 0.0
 
 
+_xsd_schema_cache: Any = None
+
+
+def _load_xsd_schema() -> Any:
+    """Load and cache the FA(3) XSD schema for validation."""
+    global _xsd_schema_cache
+    if _xsd_schema_cache is not None:
+        return _xsd_schema_cache
+
+    schema_path = _XSD_DIR / "schemat.xsd"
+    if not schema_path.exists():
+        logger.warning("XSD schema not found at %s — skipping XSD validation", schema_path)
+        return None
+
+    try:
+        from lxml import etree as lxml_etree
+
+        parser = lxml_etree.XMLParser()
+        parser.resolvers.add(_make_local_xsd_resolver())
+        schema_doc = lxml_etree.parse(str(schema_path), parser)
+        _xsd_schema_cache = lxml_etree.XMLSchema(schema_doc)
+        logger.info("FA(3) XSD schema loaded from %s", schema_path)
+    except Exception:
+        logger.exception("Failed to load XSD schema")
+        return None
+
+    return _xsd_schema_cache
+
+
+def _make_local_xsd_resolver() -> Any:
+    """Create an lxml Resolver that maps remote XSD URLs to local files."""
+    from lxml import etree as lxml_etree
+
+    url_to_local = {
+        "http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/StrukturyDanych_v10-0E.xsd": "StrukturyDanych_v10-0E.xsd",
+        "http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/ElementarneTypyDanych_v10-0E.xsd": "ElementarneTypyDanych_v10-0E.xsd",
+        "http://crd.gov.pl/xml/schematy/dziedzinowe/mf/2022/01/05/eD/DefinicjeTypy/KodyKrajow_v10-0E.xsd": "KodyKrajow_v10-0E.xsd",
+    }
+
+    class _Resolver(lxml_etree.Resolver):
+        def resolve(self, system_url: str, public_id: str, context: Any) -> Any:
+            local_name = url_to_local.get(system_url)
+            if local_name:
+                local_path = _XSD_DIR / local_name
+                if local_path.exists():
+                    return self.resolve_filename(str(local_path), context)
+            return None
+
+    return _Resolver()
+
+
 def validate_invoice_xml(xml_bytes: bytes) -> list[str]:
-    """Basic structural validation of invoice XML.
+    """Validate invoice XML against the FA(3) XSD schema.
 
     Returns a list of validation errors (empty if valid).
-    Full XSD validation requires the FA(3) schema file.
+    Falls back to basic structural checks if XSD is unavailable.
     """
     errors: list[str] = []
+
+    schema = _load_xsd_schema()
+    if schema is not None:
+        try:
+            from lxml import etree as lxml_etree
+
+            doc = lxml_etree.fromstring(xml_bytes)
+            if not schema.validate(doc):
+                for err in schema.error_log:
+                    errors.append(f"Line {err.line}: {err.message}")
+            return errors
+        except Exception as exc:
+            return [f"XML parsing failed: {exc}"]
 
     try:
         from xml.etree.ElementTree import fromstring
