@@ -58,8 +58,9 @@ The platform supports optional runtime schema discovery for connector actions. S
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 | 34 | InsERT Nexo (Subiekt) | ERP | v1.0.0 | .NET SDK (pythonnet) + REST | `sql_server`, `sql_database`, `nexo_operator_login`, `nexo_operator_password` |
-| 35 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
-| 36 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
+| 35 | Symfonia ERP (Handel & FK) | ERP | v1.0.0 | REST/JSON (WebAPI) | `webapi_url`, `application_guid` |
+| 37 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
+| 38 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
 
 ---
 
@@ -834,6 +835,44 @@ Features:
 - Automatic heartbeat monitoring
 
 Protocol: .NET SDK (pythonnet) + REST (cloud connector).
+
+### Symfonia ERP — Handel & FK (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `webapi_url` | Yes | Symfonia WebAPI URL (e.g. `https://192.168.1.100:8080`) |
+| `application_guid` | Yes | Application GUID from Symfonia configurator |
+| `device_name` | No | Device name for session identification (default: `pinquark-oip`) |
+| `sync_interval_seconds` | No | Polling interval for incremental sync (default: 300) |
+| `session_timeout_minutes` | No | Session timeout before renewal (default: 30) |
+
+**Deployment model**: Cloud (direct REST connection to on-premise Symfonia WebAPI)
+
+The Symfonia ERP connector integrates with **Symfonia Handel** (trade, warehouse, sales, purchases) and **Symfonia Finanse i Księgowość** (finance & accounting) modules via the Symfonia WebAPI REST/JSON interface. No on-premise agent required — the connector communicates directly with the WebAPI service.
+
+Environment variables:
+```bash
+SYMFONIA_CONNECTOR_LOG_LEVEL=INFO
+SYMFONIA_CONNECTOR_WEBAPI_URL=https://192.168.1.100:8080
+SYMFONIA_CONNECTOR_APPLICATION_GUID=493EB16D-7029-48AA-BB25-8BA7138D763A
+SYMFONIA_CONNECTOR_DEVICE_NAME=pinquark-oip
+SYMFONIA_CONNECTOR_SESSION_TIMEOUT_MINUTES=30
+SYMFONIA_CONNECTOR_SYNC_INTERVAL_SECONDS=300
+```
+
+Features:
+- Contractor CRUD (list, get, create, update) with HMF and SQL filtering
+- Product catalog CRUD (list, get, create, update) with barcode management
+- Sales documents (list, get, filter by date/buyer, PDF export, corrections)
+- Purchase documents (list, get, filter by date/supplier, PDF export)
+- Orders — foreign (ZMO) and own (ZMW) — with date/recipient filtering
+- Inventory states (all, by product, by warehouse, change detection)
+- Payment operations (KP/KW documents)
+- Incremental sync for all entities via `IncrementalSync` endpoints
+- Session-based authentication with automatic renewal
+- Credential validation via Ping/Alive endpoints
+
+Protocol: REST/JSON (Symfonia WebAPI).
 
 ---
 

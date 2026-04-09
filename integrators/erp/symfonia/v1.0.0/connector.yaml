@@ -1,0 +1,876 @@
+name: symfonia
+category: erp
+version: 1.0.0
+display_name: Symfonia ERP (Handel & FK)
+description: Connector for Symfonia ERP WebAPI — integrates with Symfonia Handel (trade, warehouse, sales,
+  purchases) and Symfonia Finanse i Księgowość (finance & accounting) modules via REST/JSON API.
+  Supports contractors, products, orders, sales & purchase documents, inventory states, and payments.
+website_url: https://symfonia.pl/oprogramowanie/web-api/
+country: PL
+logo_url: /assets/logos/symfonia.svg
+interface: erp
+deployment: cloud
+requires_onpremise_agent: false
+capabilities:
+- list_contractors
+- get_contractor
+- create_contractor
+- update_contractor
+- list_products
+- get_product
+- create_product
+- update_product
+- list_orders
+- get_order
+- list_sales_documents
+- get_sales_document
+- list_purchase_documents
+- get_purchase_document
+- get_stock_levels
+- get_stock_for_product
+- list_own_orders
+- get_own_order
+events:
+- contractor.created
+- contractor.updated
+- product.created
+- product.updated
+- product.price_changed
+- document.sales.created
+- document.purchase.created
+- order.created
+- order.status_changed
+- stock.level_changed
+actions:
+- contractor.create
+- contractor.update
+- contractor.list
+- contractor.get
+- contractor.filter
+- product.create
+- product.update
+- product.list
+- product.get
+- product.filter
+- document.sales.list
+- document.sales.get
+- document.sales.filter
+- document.purchase.list
+- document.purchase.get
+- document.purchase.filter
+- order.list
+- order.get
+- order.filter
+- order.own.list
+- order.own.get
+- stock.levels
+- stock.get
+- stock.changes
+- payment.list
+action_routes:
+  contractor.create:
+    method: POST
+    path: /api/v1/contractors
+  contractor.update:
+    method: PUT
+    path: /api/v1/contractors
+  contractor.list:
+    method: GET
+    path: /api/v1/contractors
+  contractor.get:
+    method: GET
+    path: /api/v1/contractors/{contractor_id}
+  contractor.filter:
+    method: PATCH
+    path: /api/v1/contractors/filter
+  product.create:
+    method: POST
+    path: /api/v1/products
+  product.update:
+    method: PUT
+    path: /api/v1/products
+  product.list:
+    method: GET
+    path: /api/v1/products
+  product.get:
+    method: GET
+    path: /api/v1/products/{product_id}
+  product.filter:
+    method: PATCH
+    path: /api/v1/products/filter
+  document.sales.list:
+    method: GET
+    path: /api/v1/sales
+  document.sales.get:
+    method: GET
+    path: /api/v1/sales/{document_id}
+  document.sales.filter:
+    method: GET
+    path: /api/v1/sales/filter
+  document.purchase.list:
+    method: GET
+    path: /api/v1/purchases
+  document.purchase.get:
+    method: GET
+    path: /api/v1/purchases/{document_id}
+  document.purchase.filter:
+    method: GET
+    path: /api/v1/purchases/filter
+  order.list:
+    method: GET
+    path: /api/v1/orders
+  order.get:
+    method: GET
+    path: /api/v1/orders/{order_id}
+  order.filter:
+    method: GET
+    path: /api/v1/orders/filter
+  order.own.list:
+    method: GET
+    path: /api/v1/own-orders
+  order.own.get:
+    method: GET
+    path: /api/v1/own-orders/{order_id}
+  stock.levels:
+    method: GET
+    path: /api/v1/inventory
+  stock.get:
+    method: GET
+    path: /api/v1/inventory/{product_id}
+  stock.changes:
+    method: GET
+    path: /api/v1/inventory/changes
+  payment.list:
+    method: GET
+    path: /api/v1/payments
+credential_validation:
+  test_request:
+    method: GET
+    path: /api/Ping
+    expected_status: 200
+event_fields:
+  contractor.created:
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: code
+    label: Contractor code
+    type: string
+  - field: name
+    label: Name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: pesel
+    label: PESEL
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: street
+    label: Street
+    type: string
+  - field: postal_code
+    label: Postal code
+    type: string
+  - field: country
+    label: Country
+    type: string
+  - field: phone
+    label: Phone
+    type: string
+  - field: email
+    label: Email
+    type: string
+  contractor.updated:
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: code
+    label: Contractor code
+    type: string
+  - field: name
+    label: Name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: pesel
+    label: PESEL
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: street
+    label: Street
+    type: string
+  - field: postal_code
+    label: Postal code
+    type: string
+  - field: country
+    label: Country
+    type: string
+  product.created:
+  - field: id
+    label: Product ID
+    type: integer
+  - field: code
+    label: Product code
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN barcode
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit
+    label: Unit
+    type: string
+  - field: weight
+    label: Weight
+    type: number
+  - field: group
+    label: Group
+    type: string
+  product.updated:
+  - field: id
+    label: Product ID
+    type: integer
+  - field: code
+    label: Product code
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN barcode
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit
+    label: Unit
+    type: string
+  product.price_changed:
+  - field: id
+    label: Product ID
+    type: integer
+  - field: code
+    label: Product code
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: net_price
+    label: Net price
+    type: number
+  - field: gross_price
+    label: Gross price
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  document.sales.created:
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type (FVS, PAR, etc.)
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: buyer_code
+    label: Buyer code
+    type: string
+  - field: buyer_name
+    label: Buyer name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  - field: issue_date
+    label: Issue date
+    type: string
+  - field: sale_date
+    label: Sale date
+    type: string
+  document.purchase.created:
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type (FVZ, etc.)
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: supplier_code
+    label: Supplier code
+    type: string
+  - field: supplier_name
+    label: Supplier name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  order.created:
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: contractor_code
+    label: Contractor code
+    type: string
+  - field: contractor_name
+    label: Contractor name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  order.status_changed:
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: New status
+    type: string
+  - field: contractor_code
+    label: Contractor code
+    type: string
+  stock.level_changed:
+  - field: product_code
+    label: Product code
+    type: string
+  - field: product_name
+    label: Product name
+    type: string
+  - field: warehouse_code
+    label: Warehouse code
+    type: string
+  - field: warehouse_name
+    label: Warehouse name
+    type: string
+  - field: quantity_available
+    label: Available quantity
+    type: number
+  - field: quantity_reserved
+    label: Reserved quantity
+    type: number
+  - field: quantity_total
+    label: Total quantity
+    type: number
+  - field: unit
+    label: Unit
+    type: string
+action_fields:
+  contractor.create:
+  - field: code
+    label: Contractor code
+    type: string
+    required: true
+  - field: name
+    label: Name
+    type: string
+    required: true
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: pesel
+    label: PESEL
+    type: string
+  - field: street
+    label: Street
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: postal_code
+    label: Postal code
+    type: string
+  - field: country
+    label: Country
+    type: string
+  - field: phone
+    label: Phone
+    type: string
+  - field: email
+    label: Email
+    type: string
+  contractor.update:
+  - field: id
+    label: Contractor ID (or code)
+    type: string
+    required: true
+  - field: name
+    label: Name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: street
+    label: Street
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: postal_code
+    label: Postal code
+    type: string
+  contractor.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  contractor.get:
+  - field: id
+    label: Contractor ID
+    type: string
+    required: true
+  contractor.filter:
+  - field: query
+    label: Filter query (HMF or SQL)
+    type: string
+    required: true
+  - field: mode
+    label: Filter mode (hmf/sql)
+    type: string
+  product.create:
+  - field: code
+    label: Product code
+    type: string
+    required: true
+  - field: name
+    label: Product name
+    type: string
+    required: true
+  - field: ean
+    label: EAN barcode
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit
+    label: Unit of measure
+    type: string
+  - field: weight
+    label: Weight
+    type: number
+  - field: description
+    label: Description
+    type: string
+  product.update:
+  - field: id
+    label: Product ID (or code)
+    type: string
+    required: true
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN barcode
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  product.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  product.get:
+  - field: id
+    label: Product ID
+    type: string
+    required: true
+  product.filter:
+  - field: query
+    label: Filter query (HMF or SQL)
+    type: string
+    required: true
+  - field: mode
+    label: Filter mode (hmf/sql)
+    type: string
+  document.sales.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  document.sales.get:
+  - field: id
+    label: Document ID
+    type: string
+    required: true
+  document.sales.filter:
+  - field: date_from
+    label: Date from
+    type: string
+    required: true
+  - field: date_to
+    label: Date to
+    type: string
+    required: true
+  - field: buyer_code
+    label: Buyer code
+    type: string
+  - field: buyer_id
+    label: Buyer ID
+    type: string
+  document.purchase.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  document.purchase.get:
+  - field: id
+    label: Document ID
+    type: string
+    required: true
+  document.purchase.filter:
+  - field: date_from
+    label: Date from
+    type: string
+    required: true
+  - field: date_to
+    label: Date to
+    type: string
+    required: true
+  - field: supplier_code
+    label: Supplier code
+    type: string
+  - field: supplier_id
+    label: Supplier ID
+    type: string
+  order.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  order.get:
+  - field: id
+    label: Order ID
+    type: string
+    required: true
+  order.filter:
+  - field: date_from
+    label: Date from
+    type: string
+    required: true
+  - field: date_to
+    label: Date to
+    type: string
+    required: true
+  - field: recipient_code
+    label: Recipient code
+    type: string
+  order.own.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+  order.own.get:
+  - field: id
+    label: Own order ID
+    type: string
+    required: true
+  stock.levels:
+  - field: warehouse_id
+    label: Warehouse ID
+    type: string
+  - field: warehouse_code
+    label: Warehouse code
+    type: string
+  stock.get:
+  - field: product_id
+    label: Product ID
+    type: string
+  - field: product_code
+    label: Product code
+    type: string
+  stock.changes:
+  - field: description
+    label: Get inventory changes since last poll
+    type: string
+  payment.list:
+  - field: page
+    label: Page
+    type: integer
+  - field: page_size
+    label: Page size
+    type: integer
+output_fields:
+  contractor.create:
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: code
+    label: Contractor code
+    type: string
+  - field: name
+    label: Name
+    type: string
+  contractor.get:
+  - field: id
+    label: Contractor ID
+    type: integer
+  - field: code
+    label: Contractor code
+    type: string
+  - field: name
+    label: Name
+    type: string
+  - field: nip
+    label: NIP
+    type: string
+  - field: regon
+    label: REGON
+    type: string
+  - field: city
+    label: City
+    type: string
+  - field: street
+    label: Street
+    type: string
+  - field: postal_code
+    label: Postal code
+    type: string
+  contractor.list:
+  - field: items
+    label: Contractors list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
+  product.create:
+  - field: id
+    label: Product ID
+    type: integer
+  - field: code
+    label: Product code
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  product.get:
+  - field: id
+    label: Product ID
+    type: integer
+  - field: code
+    label: Product code
+    type: string
+  - field: name
+    label: Product name
+    type: string
+  - field: ean
+    label: EAN barcode
+    type: string
+  - field: vat_rate
+    label: VAT rate
+    type: string
+  - field: unit
+    label: Unit
+    type: string
+  product.list:
+  - field: items
+    label: Products list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
+  document.sales.get:
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  - field: currency
+    label: Currency
+    type: string
+  document.sales.list:
+  - field: items
+    label: Documents list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
+  document.purchase.get:
+  - field: id
+    label: Document ID
+    type: integer
+  - field: number
+    label: Document number
+    type: string
+  - field: document_type
+    label: Document type
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  document.purchase.list:
+  - field: items
+    label: Documents list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
+  order.get:
+  - field: id
+    label: Order ID
+    type: integer
+  - field: number
+    label: Order number
+    type: string
+  - field: status
+    label: Status
+    type: string
+  - field: contractor_code
+    label: Contractor code
+    type: string
+  - field: contractor_name
+    label: Contractor name
+    type: string
+  - field: net_total
+    label: Net total
+    type: number
+  - field: gross_total
+    label: Gross total
+    type: number
+  order.list:
+  - field: items
+    label: Orders list
+    type: object[]
+  - field: total
+    label: Total count
+    type: integer
+  stock.levels:
+  - field: items
+    label: Stock levels list
+    type: object[]
+  - field: total_products
+    label: Total products
+    type: integer
+  stock.get:
+  - field: product_code
+    label: Product code
+    type: string
+  - field: product_name
+    label: Product name
+    type: string
+  - field: quantity_available
+    label: Available quantity
+    type: number
+  - field: quantity_reserved
+    label: Reserved quantity
+    type: number
+  - field: quantity_total
+    label: Total quantity
+    type: number
+  - field: unit
+    label: Unit
+    type: string
+config_schema:
+  required:
+  - webapi_url
+  - application_guid
+  optional:
+  - device_name
+  - sync_interval_seconds
+  - session_timeout_minutes
+  field_types:
+    webapi_url:
+      type: string
+      label: Symfonia WebAPI URL (e.g. https://192.168.1.100:8080)
+    application_guid:
+      type: password
+      label: Application GUID (from Symfonia configurator)
+    device_name:
+      type: string
+      label: Device name for session identification
+      default: pinquark-oip
+    sync_interval_seconds:
+      type: integer
+      label: Polling interval for incremental sync (seconds)
+      default: 300
+    session_timeout_minutes:
+      type: integer
+      label: Session timeout before renewal (minutes)
+      default: 30
+health_endpoint: /health
+docs_url: /docs
+service_name: connector-symfonia

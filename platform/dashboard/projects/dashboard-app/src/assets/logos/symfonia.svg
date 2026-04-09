@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <rect width="120" height="120" rx="16" fill="#1A237E"/>
+  <path d="M30 85 C30 85 35 55 60 55 C85 55 90 85 90 85" stroke="#4FC3F7" stroke-width="4" stroke-linecap="round" fill="none"/>
+  <path d="M25 70 C25 70 32 40 60 40 C88 40 95 70 95 70" stroke="#81D4FA" stroke-width="3" stroke-linecap="round" fill="none"/>
+  <path d="M20 55 C20 55 30 25 60 25 C90 25 100 55 100 55" stroke="#B3E5FC" stroke-width="2.5" stroke-linecap="round" fill="none"/>
+  <text x="60" y="103" text-anchor="middle" font-family="Arial, sans-serif" font-size="11" font-weight="bold" fill="white">SYMFONIA</text>
+</svg>

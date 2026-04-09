@@ -1,0 +1,22 @@
+version: "3.8"
+
+services:
+  connector-symfonia:
+    build:
+      context: ../../../../
+      dockerfile: integrators/erp/symfonia/v1.0.0/Dockerfile
+    container_name: connector-symfonia
+    ports:
+      - "8010:8000"
+    environment:
+      - SYMFONIA_CONNECTOR_LOG_LEVEL=DEBUG
+      - SYMFONIA_CONNECTOR_WEBAPI_URL=${SYMFONIA_WEBAPI_URL:-http://host.docker.internal:8080}
+      - SYMFONIA_CONNECTOR_APPLICATION_GUID=${SYMFONIA_APPLICATION_GUID:-}
+      - SYMFONIA_CONNECTOR_DEVICE_NAME=${SYMFONIA_DEVICE_NAME:-pinquark-oip-dev}
+      - SYMFONIA_CONNECTOR_SESSION_TIMEOUT_MINUTES=30
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import httpx; r = httpx.get('http://localhost:8000/health'); r.raise_for_status()"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
