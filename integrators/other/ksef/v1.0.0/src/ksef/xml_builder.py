@@ -52,8 +52,26 @@ _RAW_KSEF_KEY_MAP: dict[str, str] = {
     "adnotacje": "Adnotacje",
     "zwolnienie": "Zwolnienie",
     "noweSrodkiTransportu": "NoweSrodkiTransportu",
+    "nowySrodekTransportu": "NowySrodekTransportu",
     "pMarzy": "PMarzy",
     "ppMarzyN": "P_PMarzyN",
+    "pNrWierszaNST": "P_NrWierszaNST",
+    "p22a": "P_22A",
+    "p22b": "P_22B",
+    "p22b1": "P_22B1",
+    "p22b2": "P_22B2",
+    "p22b3": "P_22B3",
+    "p22b4": "P_22B4",
+    "p22bt": "P_22BT",
+    "p22bmk": "P_22BMK",
+    "p22bmd": "P_22BMD",
+    "p22bk": "P_22BK",
+    "p22bnr": "P_22BNR",
+    "p22brp": "P_22BRP",
+    "p22c": "P_22C",
+    "p22c1": "P_22C1",
+    "p22d": "P_22D",
+    "p22d1": "P_22D1",
     "platnosc": "Platnosc",
     "terminPlatnosci": "TerminPlatnosci",
     "termin": "Termin",
@@ -81,6 +99,7 @@ _RAW_KSEF_KEY_MAP: dict[str, str] = {
 
 _P_FIELD_RE = re.compile(r"^p(\d+)([a-zA-Z]*)$")
 _P_COMPOUND_RE = re.compile(r"^p(\d{2,})(\d)([a-zA-Z]*)$")
+_P_ALPHA_DIGIT_RE = re.compile(r"^p(\d+)([a-zA-Z]+\d+)$")
 
 _ELEMENT_ORDER: dict[str, list[str]] = {
     "Faktura": ["Naglowek", "Podmiot1", "Podmiot2", "Fa"],
@@ -147,7 +166,26 @@ _ELEMENT_ORDER: dict[str, list[str]] = {
         "PMarzy",
     ],
     "Zwolnienie": ["P_19N", "P_19", "P_19A", "P_19B", "P_19C"],
-    "NoweSrodkiTransportu": ["P_22N", "P_22", "P_22A"],
+    "NoweSrodkiTransportu": ["P_22N", "P_22", "P_42_5", "NowySrodekTransportu"],
+    "NowySrodekTransportu": [
+        "P_22A",
+        "P_NrWierszaNST",
+        "P_22BMK",
+        "P_22BMD",
+        "P_22BK",
+        "P_22BNR",
+        "P_22BRP",
+        "P_22B",
+        "P_22B1",
+        "P_22B2",
+        "P_22B3",
+        "P_22B4",
+        "P_22BT",
+        "P_22C",
+        "P_22C1",
+        "P_22D",
+        "P_22D1",
+    ],
     "PMarzy": ["P_PMarzyN"],
     "FaWiersz": [
         "NrWierszaFa",
@@ -190,6 +228,11 @@ def _resolve_xml_tag(key: str) -> str:
     """Map a raw KSeF JSON key to the corresponding XML element name."""
     if key in _RAW_KSEF_KEY_MAP:
         return _RAW_KSEF_KEY_MAP[key]
+
+    m = _P_ALPHA_DIGIT_RE.match(key)
+    if m:
+        digits, suffix = m.groups()
+        return f"P_{digits}{suffix.upper()}"
 
     m = _P_COMPOUND_RE.match(key)
     if m:
@@ -270,24 +313,24 @@ def _preprocess_raw_ksef(data: dict[str, Any]) -> dict[str, Any]:
         if "adnotacje" in fa:
             adn = fa["adnotacje"]
 
-        zwol_fields = ("p19", "p19A", "p19B", "p19C")
-        zwol = adn.get("zwolnienie", {})
-        p19n_set = zwol.get("p19N") == 1
-        for k in zwol_fields:
-            if k in adn:
-                val = adn.pop(k)
-                if p19n_set or isinstance(val, int):
-                    continue
-                if "zwolnienie" not in adn:
-                    adn["zwolnienie"] = {}
-                adn["zwolnienie"][k] = val
+            zwol_fields = ("p19", "p19A", "p19B", "p19C")
+            zwol = adn.get("zwolnienie", {})
+            p19n_set = zwol.get("p19N") == 1
+            for k in zwol_fields:
+                if k in adn:
+                    val = adn.pop(k)
+                    if p19n_set or isinstance(val, int):
+                        continue
+                    if "zwolnienie" not in adn:
+                        adn["zwolnienie"] = {}
+                    adn["zwolnienie"][k] = val
 
-            nst_keys = [k for k in ("p22", "p22A") if k in adn]
+            nst_keys = [nk for nk in ("p22", "p22A") if nk in adn]
             if nst_keys:
                 if "noweSrodkiTransportu" not in adn:
                     adn["noweSrodkiTransportu"] = {}
-                for k in nst_keys:
-                    adn["noweSrodkiTransportu"][k] = adn.pop(k)
+                for nk in nst_keys:
+                    adn["noweSrodkiTransportu"][nk] = adn.pop(nk)
 
     return data
 
