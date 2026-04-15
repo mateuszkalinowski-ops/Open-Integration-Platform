@@ -9,7 +9,7 @@ LABEL maintainer="integrations@pinquark.com"
 LABEL version="0.1.0"
 LABEL component="platform"
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl libpq5 \
+RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends curl libpq5 \
     && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 WORKDIR /app

@@ -19,7 +19,7 @@ LABEL version="1.0.0"
 LABEL category="ecommerce"
 LABEL system="woocommerce"
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/* \
     && groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 

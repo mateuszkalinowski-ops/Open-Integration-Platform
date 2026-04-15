@@ -11,7 +11,7 @@ LABEL maintainer="integrations@pinquark.com"
 LABEL version="1.0.0"
 LABEL component="verification-agent"
 
-RUN apt-get update && apt-get install -y --no-install-recommends curl \
+RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
 WORKDIR /app

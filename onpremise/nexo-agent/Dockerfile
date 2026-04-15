@@ -31,6 +31,8 @@ LABEL category="erp"
 LABEL system="insert-nexo"
 LABEL deployment="on-premise"
 
+
+RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 SHELL ["powershell", "-Command", "$ErrorActionPreference = 'Stop';"]
 
 # Install Python 3.12

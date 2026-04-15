@@ -19,7 +19,7 @@ LABEL version="1.0.0"
 LABEL category="other"
 LABEL system="ksef"
 
-RUN apt-get update -qq && apt-get install -y --no-install-recommends fonts-dejavu-core \
+RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && apt-get install -y --no-install-recommends fonts-dejavu-core \
     && rm -rf /var/lib/apt/lists/*
 
 RUN groupadd -r appuser && useradd -r -g appuser -d /app -s /sbin/nologin appuser
