@@ -16,10 +16,10 @@ def mock_symfonia_client():
 
 @pytest.fixture
 def test_client(mock_symfonia_client):
-    app_state.symfonia_client = mock_symfonia_client
     from src.main import app
 
     with TestClient(app, raise_server_exceptions=False) as client:
+        app_state.symfonia_client = mock_symfonia_client
         yield client
     app_state.symfonia_client = None
 
