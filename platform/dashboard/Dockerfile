@@ -10,7 +10,6 @@ FROM nginx:1.27-alpine
 LABEL maintainer="integrations@pinquark.com"
 LABEL component="dashboard"
 
-RUN apt-get update -qq && apt-get upgrade -y --no-install-recommends && rm -rf /var/lib/apt/lists/*
 RUN apk upgrade --no-cache
 COPY --from=build /app/dist/dashboard-app/browser /usr/share/nginx/html
 COPY nginx.conf /etc/nginx/conf.d/default.conf
