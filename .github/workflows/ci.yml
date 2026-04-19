@@ -464,6 +464,9 @@ jobs:
           - name: connector-ksef
             context: .
             dockerfile: integrators/other/ksef/v1.0.0/Dockerfile
+          - name: connector-rest-api
+            context: .
+            dockerfile: integrators/other/rest-api/v1.0.0/Dockerfile
     steps:
       - uses: actions/checkout@v4
 
