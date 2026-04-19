@@ -18,6 +18,12 @@ on:
       - "LICENSE"
       - ".github/dependabot.yml"
       - ".cursor/**"
+  workflow_dispatch:
+    inputs:
+      force_build_all:
+        description: "Force build of all images (platform, dashboard, verification-agent, connectors)"
+        type: boolean
+        default: true
 
 env:
   REGISTRY: ghcr.io
@@ -191,10 +197,11 @@ jobs:
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'workflow_dispatch' && inputs.force_build_all) ||
+      (github.event_name == 'push' &&
       (github.ref_type == 'tag' ||
       (github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.platform == 'true' || needs.changes.outputs.shared == 'true')))
+      (needs.changes.outputs.platform == 'true' || needs.changes.outputs.shared == 'true'))))
     steps:
       - uses: actions/checkout@v4
 
@@ -240,9 +247,10 @@ jobs:
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'workflow_dispatch' && inputs.force_build_all) ||
+      (github.event_name == 'push' &&
       (github.ref_type == 'tag' ||
-      (github.ref == 'refs/heads/main' && needs.changes.outputs.dashboard == 'true'))
+      (github.ref == 'refs/heads/main' && needs.changes.outputs.dashboard == 'true')))
     steps:
       - uses: actions/checkout@v4
 
@@ -288,10 +296,11 @@ jobs:
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'workflow_dispatch' && inputs.force_build_all) ||
+      (github.event_name == 'push' &&
       (github.ref_type == 'tag' ||
       (github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.verification-agent == 'true' || needs.changes.outputs.shared == 'true')))
+      (needs.changes.outputs.verification-agent == 'true' || needs.changes.outputs.shared == 'true'))))
     steps:
       - uses: actions/checkout@v4
 
@@ -337,10 +346,11 @@ jobs:
     needs: [changes, lint, test, security-scan, build-dashboard-verify]
     runs-on: ubuntu-latest
     if: >-
-      github.event_name == 'push' &&
+      (github.event_name == 'workflow_dispatch' && inputs.force_build_all) ||
+      (github.event_name == 'push' &&
       (github.ref_type == 'tag' ||
       (github.ref == 'refs/heads/main' &&
-      (needs.changes.outputs.connectors == 'true' || needs.changes.outputs.shared == 'true')))
+      (needs.changes.outputs.connectors == 'true' || needs.changes.outputs.shared == 'true'))))
     strategy:
       fail-fast: false
       matrix:
