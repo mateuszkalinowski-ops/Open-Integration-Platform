@@ -61,8 +61,7 @@ The platform supports optional runtime schema discovery for connector actions. S
 | 35 | Symfonia ERP (Handel & FK) | ERP | v1.0.0 | REST/JSON (WebAPI) | `webapi_url`, `application_guid` |
 | 37 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
 | 38 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
-| 39 | EDIFACT Container Terminal | Other | v1.0.0 | REST/JSON | `base_url`, `api_key` |
-| 40 | REST API Gateway | Other | v1.0.0 | REST (configurable) | `base_url`, `auth_type` |
+| 39 | REST API Gateway | Other | v1.0.0 | REST (configurable) | `base_url`, `auth_type` |
 
 ---
 
@@ -1263,74 +1262,6 @@ KSeF API environments:
 Protocol: REST (JWT authentication, AES-256-CBC invoice encryption, RSA-OAEP key exchange).
 
 ---
-
-### EDIFACT Container Terminal (v1.0.0)
-
-| Parameter | Required | Description |
-|----------|----------|------|
-| `base_url` | Yes | Base URL of the external terminal/TOS/PCS REST API |
-| `api_key` | No | API key / Bearer token for authentication |
-| `api_timeout_connect` | No | Connection timeout in seconds (default: `30`) |
-| `api_timeout_read` | No | Read timeout in seconds (default: `60`) |
-| `max_retries` | No | Max retry attempts for failed requests (default: `3`) |
-
-Environment variables:
-```bash
-EDIFACT_BASE_URL=https://terminal-api.example.com
-EDIFACT_API_KEY=your-api-key
-EDIFACT_API_TIMEOUT_CONNECT=30
-EDIFACT_API_TIMEOUT_READ=60
-EDIFACT_MAX_RETRIES=3
-```
-
-Account configuration in `config/accounts.yaml`:
-```yaml
-accounts:
-  - name: default
-    base_url: "https://terminal-api.example.com"
-    api_key: "${EDIFACT_API_KEY}"
-    description: "Main terminal system"
-```
-
-Features:
-- **CODECO** — Container gate-in/gate-out reports, internal moves, status changes
-- **BAPLIE** — Bay plan / stowage plan management (provisional, final, actual)
-- **IFTMIN** — Transport instruction issuance, amendment, cancellation
-- **COPRAR** — Container Pre-Advice (rail wagon/container manifests)
-- **COPARN** — Container Release / Reservation Orders
-- **COHAOR** — Container Special Handling Orders (load, discharge, shift, inspection)
-- **COARRI** — Container Discharge/Loading Reports with damage tracking
-- **IFTSTA** — Multimodal Status Reports (SMDG codes: GTI, GTO, DIS, LOA, etc.)
-- **APERAK** — Application Error and Acknowledgement (accepted/rejected/with_errors)
-- **CONTRL** — Syntax Acknowledgement (interchange-level ACK/NAK)
-- **Raw EDIFACT parse/build** — Convert raw UNB+...UNZ EDIFACT to JSON and back (pydifact)
-- ISO 6346/BIC container number validation with check digit
-- UN/LOCODE validation for port/terminal locations
-- IMO vessel number validation with check digit
-- IMDG dangerous goods class validation
-- Reefer container temperature settings
-- Multi-account support for multiple terminal systems
-- Exponential backoff retry with jitter for external API calls
-- Prometheus metrics and health checks
-- Kafka event publishing for gate events, bay plans, and transport instructions
-
-Message types mapped to REST/JSON:
-
-| EDIFACT Message | REST Prefix | Operations |
-|---|---|---|
-| CODECO (D.95B+) | `/codeco/gate-events` | Create, List, Get, Update, Cancel |
-| BAPLIE (D.13B+) | `/baplie/bay-plans` | Create, List, Get, Update, Locations |
-| IFTMIN (D.10B+) | `/iftmin/instructions` | Create, List, Get, Amend, Cancel |
-| COPRAR | `/coprar/pre-advice` | Create, List, Get |
-| COPARN | `/coparn/release-orders` | Create, List, Get |
-| COHAOR | `/cohaor/handling-orders` | Create, List, Get |
-| COARRI | `/coarri/reports` | Create, List, Get |
-| IFTSTA | `/iftsta/status-reports` | Create, List, Get |
-| APERAK | `/aperak/acknowledgements` | Send, List |
-| CONTRL | `/contrl/syntax-ack` | Send, List |
-| Raw EDIFACT | `/edifact/parse`, `/edifact/build` | Parse (EDI→JSON), Build (JSON→EDI) |
-
-Protocol: REST/JSON (Bearer token authentication, configurable external terminal system URL).
 
 ### REST API Gateway (v1.0.0)
 

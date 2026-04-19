@@ -1,5 +1,0 @@
-accounts:
-  - name: default
-    base_url: "http://localhost:9999"
-    api_key: "test-key"
-    description: "Local test account"

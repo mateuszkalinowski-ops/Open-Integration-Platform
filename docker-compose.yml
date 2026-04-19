@@ -92,29 +92,6 @@ services:
       - platform
     restart: unless-stopped
 
-  connector-edifact:
-    build:
-      context: .
-      dockerfile: integrators/other/edifact/v1.0.0/Dockerfile
-    ports:
-      - "8002:8000"
-    volumes:
-      - ./integrators/other/edifact/v1.0.0/src:/app/src
-      - ./integrators/other/edifact/v1.0.0/config:/app/config:ro
-    environment:
-      EDIFACT_DEBUG: "true"
-      EDIFACT_LOG_LEVEL: DEBUG
-      EDIFACT_BASE_URL: http://localhost:9999
-      KAFKA_ENABLED: "false"
-      PLATFORM_API_URL: http://platform:8080
-      PLATFORM_EVENT_NOTIFY: "true"
-      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
-    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
-    depends_on:
-      - platform
-    healthcheck: *connector-healthcheck
-    restart: unless-stopped
-
   connector-rest-api:
     build:
       context: .
