@@ -601,6 +601,40 @@ services:
     restart: unless-stopped
     healthcheck: *connector-healthcheck
 
+  # ─── Other: EDIFACT Container Terminal ──────────────────────
+  connector-edifact:
+    build:
+      context: .
+      dockerfile: integrators/other/edifact/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
+    depends_on:
+      - platform
+    restart: unless-stopped
+    healthcheck: *connector-healthcheck
+
+  # ─── Other: REST API Gateway ──────────────────────────────
+  connector-rest-api:
+    build:
+      context: .
+      dockerfile: integrators/other/rest-api/v1.0.0/Dockerfile
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
+    depends_on:
+      - platform
+    restart: unless-stopped
+    healthcheck: *connector-healthcheck
+
   # ─── ERP: InsERT Nexo (cloud connector) ─────────────────────
   connector-insert-nexo:
     build:

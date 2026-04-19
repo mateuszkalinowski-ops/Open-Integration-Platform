@@ -1,0 +1,107 @@
+name: cohaor-inbound-rest-edi
+description: |
+  COHAOR via REST+EDIFACT. Zewnętrzna firma wysyła wiadomość EDIFACT COHAOR
+  (handling order) jako string w JSON payload przez HTTP POST. OIP parsuje
+  EDIFACT, tworzy zlecenie obsługi w TOS i zwraca APERAK/CONTRL w odpowiedzi HTTP.
+
+trigger:
+  type: http
+  method: POST
+  auth: api_key
+
+nodes:
+
+  - id: validate-input
+    type: expression
+    output: validated
+    expression: |
+      {% if not trigger_data.edifact_content %}
+        {{ raise("edifact_content is required — raw EDIFACT string") }}
+      {% endif %}
+      {% if not trigger_data.partner_code %}
+        {{ raise("partner_code is required (e.g. METRANS, HHLA)") }}
+      {% endif %}
+      {{ trigger_data | tojson }}
+
+  - id: resolve-edifact-account
+    type: connector.action
+    connector: oip-internal
+    action: partner_registry.resolve_by_code
+    input:
+      partner_code: "{{ trigger_data.partner_code }}"
+
+  - id: parse-cohaor
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: cohaor.parse
+    input:
+      content: "{{ trigger_data.edifact_content }}"
+    on_error:
+      - type: expression
+        output: contrl_nack
+        expression: |
+          {{ edifact.build_contrl(
+               raw_content=trigger_data.edifact_content,
+               syntax_status="error",
+               error=error
+             ) }}
+
+  - id: build-contrl-ack
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: contrl.build
+    input:
+      raw_content: "{{ trigger_data.edifact_content }}"
+      syntax_status: ok
+
+  - id: build-aperak-ack
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: aperak.build
+    input:
+      parsed_message: "{{ nodes.parse-cohaor.output }}"
+      response_type: accepted
+
+  - id: create-handling-order
+    type: connector.action
+    connector: rest-api
+    account: clip-malaszewicze
+    action: rest.call
+    input:
+      account: clip-malaszewicze
+      named_action: movement.save
+      body:
+        operation_type: "{{ nodes.parse-cohaor.output.payload.operation_type }}"
+        container_no: "{{ nodes.parse-cohaor.output.payload.container_no }}"
+        from_location: "{{ nodes.parse-cohaor.output.payload.from_location }}"
+        to_location: "{{ nodes.parse-cohaor.output.payload.to_location }}"
+        priority: "{{ nodes.parse-cohaor.output.payload.priority | default('normal') }}"
+        document_id: "{{ nodes.parse-cohaor.output.payload.document_id }}"
+        carrier_code: "{{ nodes.parse-cohaor.output.payload.carrier.id }}"
+        references: "{{ nodes.parse-cohaor.output.payload.references | tojson }}"
+    retry:
+      max_attempts: 3
+      backoff_s: [2, 5, 15]
+
+  - id: return-response
+    type: expression
+    output: response
+    expression: |
+      {
+        "status": "accepted",
+        "handling_order_id": "{{ nodes.create-handling-order.output.data.doc_id }}",
+        "operation_type": "{{ nodes.parse-cohaor.output.payload.operation_type }}",
+        "contrl": "{{ nodes.build-contrl-ack.output.edifact_content }}",
+        "aperak": "{{ nodes.build-aperak-ack.output.edifact_content }}"
+      }
+
+error_handler:
+  workflow: 11_dead_letter_queue
+  input:
+    source_workflow: cohaor-inbound-rest-edi
+    error: "{{ error }}"
+    context:
+      partner_code: "{{ trigger_data.partner_code | default('unknown') }}"

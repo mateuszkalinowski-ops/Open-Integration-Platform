@@ -1,0 +1,125 @@
+name: iftsta-outbound
+description: |
+  Outbound IFTSTA subworkflow. Invoked by 00_tos_poll_events for status change
+  events (POCIAG_PRZYJECHAL, POCIAG_ODJECHAL, USZKODZENIE_ZGLOSZONE,
+  STATUS_DOKUMENTU_ZMIENIONY). Maps TOS status to SMDG codes, enriches doc
+  from TOS, resolves EDI partners, and sends IFTSTA per partner.
+  Partner-agnostic.
+
+inputs:
+  event:
+    type: object
+    required: true
+    description: "TOS audit_log event object"
+  status_code:
+    type: string
+    required: true
+    description: "SMDG/TOS status code (ARRIVED, DEPARTED, DAMAGED, or dynamic)"
+
+nodes:
+
+  - id: map-smdg-code
+    type: expression
+    expression: >
+      {% set mapping = {
+        'ARRIVED': 'ARR',
+        'DEPARTED': 'GTO',
+        'DAMAGED': 'DAM',
+        'AWK_AWIZOWANY': 'EAR',
+        'AWK_ZAAKCEPTOWANY': 'ARR',
+        'ZDB_WJAZD_KOLEJOWY': 'GTI',
+        'PRZ_WYLADUNEK': 'DIS',
+        'PRZ_ZALADUNEK': 'LOA',
+        'ZDB_WYJAZD_KOLEJOWY': 'GTO',
+        'AWD_WJAZD_DROGOWY': 'GTI',
+        'AWD_WYJAZD_DROGOWY': 'GTO',
+        'PRZ_ANULOWANE': 'CAN'
+      } %}
+      {{ mapping.get(inputs.status_code, inputs.status_code) }}
+    output: smdg_code
+
+  - id: enrich-doc
+    type: connector.action
+    connector: rest-api
+    account: clip-malaszewicze
+    action: rest.call
+    input:
+      account: clip-malaszewicze
+      named_action: doc.get_status
+      body:
+        doc_id: "{{ inputs.event.doc_id }}"
+    timeout_s: 15
+
+  - id: resolve-partners
+    type: connector.action
+    connector: oip-internal
+    action: partner_registry.resolve_by_codes
+    input:
+      partner_codes: "{{ nodes.enrich-doc.output.data.edi_partner_codes | split(',') }}"
+
+  - id: skip-if-no-partners
+    type: condition
+    if: "{{ nodes.resolve-partners.output.partners | length == 0 }}"
+    then:
+      - id: log-no-partner
+        type: log
+        level: warn
+        message: "No EDI partners for doc {{ inputs.event.doc_id }} — skipping IFTSTA"
+      - id: end-no-partner
+        type: end
+
+  - id: fanout-partners
+    type: foreach
+    items: "{{ nodes.resolve-partners.output.partners }}"
+    parallel: true
+    body:
+
+      - id: check-iftsta-capability
+        type: condition
+        if: >
+          {{ inputs.status_code in ['ARRIVED', 'DEPARTED']
+             and item.capabilities.needs_iftsta_progress == false }}
+        then:
+          - type: log
+            level: debug
+            message: "Partner {{ item.partner_code }} opted out of IFTSTA progress — skipping"
+          - type: continue
+
+      - id: build-iftsta
+        type: connector.action
+        connector: edifact
+        account: "{{ item.edifact_account }}"
+        action: iftsta.build
+        input:
+          msg_type: IFTSTA
+          version: "{{ item.edifact_version }}"
+          status_code: "{{ nodes.map-smdg-code.output.smdg_code }}"
+          status_time: "{{ inputs.event.created_at }}"
+          document_id: "{{ inputs.event.doc_symbol }}-{{ inputs.event.id }}"
+          doc_data: "{{ nodes.enrich-doc.output.data }}"
+          container_no: "{{ inputs.event.details.container_no | default('') }}"
+
+      - id: upload-iftsta
+        type: connector.action
+        connector: ftp-sftp
+        account: "{{ item.ftp_account }}"
+        action: file.upload
+        input:
+          path: "/outbound/{{ item.partner_code }}/IFTSTA_{{ inputs.event.doc_symbol }}_{{ inputs.event.id }}.edi"
+          content: "{{ nodes.build-iftsta.output.content }}"
+
+      - id: log-sent
+        type: log
+        level: info
+        message: >
+          IFTSTA {{ nodes.map-smdg-code.output.smdg_code }} sent to
+          {{ item.partner_code }} for doc {{ inputs.event.doc_symbol }}
+
+error_handler:
+  workflow: 11_dead_letter_queue
+  input:
+    source_workflow: iftsta-outbound
+    error: "{{ error }}"
+    context:
+      event_id: "{{ inputs.event.id }}"
+      status_code: "{{ inputs.status_code }}"

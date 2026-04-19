@@ -1,0 +1,21 @@
+accounts:
+  - name: jsonplaceholder
+    base_url: "https://jsonplaceholder.typicode.com"
+    auth:
+      type: none
+    response_profile: generic
+    timeout_connect: 15
+    timeout_read: 30
+    action_registry:
+      posts.list:
+        method: GET
+        endpoint: /posts
+      posts.get:
+        method: GET
+        endpoint: /posts/{id}
+      posts.create:
+        method: POST
+        endpoint: /posts
+      users.list:
+        method: GET
+        endpoint: /users

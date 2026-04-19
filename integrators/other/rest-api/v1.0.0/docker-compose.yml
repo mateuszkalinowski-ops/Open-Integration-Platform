@@ -1,0 +1,23 @@
+version: "3.8"
+
+services:
+  rest-api:
+    build:
+      context: ../../../../
+      dockerfile: integrators/other/rest-api/v1.0.0/Dockerfile
+    ports:
+      - "8010:8000"
+    env_file:
+      - .env
+    environment:
+      REST_API_LOG_LEVEL: DEBUG
+      REST_API_DEBUG: "true"
+      REST_API_ACCOUNTS_CONFIG_PATH: /app/config/accounts.yaml
+      REST_API_PROFILES_DIR: /app/config/profiles
+    volumes:
+      - ./config:/app/config:ro
+    restart: unless-stopped
+
+networks:
+  default:
+    name: rest-api-dev

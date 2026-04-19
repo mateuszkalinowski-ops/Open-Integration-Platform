@@ -1,0 +1,116 @@
+name: coparn-inbound
+description: |
+  COPARN inbound workflow. Triggered when a new COPARN .edi file is detected
+  on partner SFTP. Parses the COPARN message (container release/reservation),
+  sends CONTRL + APERAK acknowledgements, then creates AWD (road notification)
+  in TOS via rest-api connector. Partner-agnostic.
+
+trigger:
+  type: event
+  connector: ftp-sftp
+  event: file.new
+  filter:
+    path: "**/COPARN_*.edi"
+
+nodes:
+
+  - id: resolve-partner
+    type: connector.action
+    connector: oip-internal
+    action: partner_registry.resolve_by_ftp_account
+    input:
+      ftp_account: "{{ trigger.account }}"
+
+  - id: download-file
+    type: connector.action
+    connector: ftp-sftp
+    account: "{{ trigger.account }}"
+    action: file.download
+    input:
+      path: "{{ trigger.data.path }}"
+
+  - id: parse-coparn
+    type: connector.action
+    connector: edifact
+    account: "{{ resolve-partner.output.edifact_account }}"
+    action: coparn.parse
+    input:
+      content: "{{ nodes.download-file.output.content }}"
+    on_error:
+      - type: workflow.invoke
+        workflow: 10_contrl_auto_response
+        input:
+          raw_content: "{{ nodes.download-file.output.content }}"
+          edifact_account: "{{ resolve-partner.output.edifact_account }}"
+          ftp_account: "{{ trigger.account }}"
+          syntax_status: error
+          error: "{{ error }}"
+
+  - id: send-contrl-ack
+    type: workflow.invoke
+    workflow: 10_contrl_auto_response
+    input:
+      raw_content: "{{ nodes.download-file.output.content }}"
+      edifact_account: "{{ resolve-partner.output.edifact_account }}"
+      ftp_account: "{{ trigger.account }}"
+      syntax_status: ok
+
+  - id: send-aperak-ack
+    type: workflow.invoke
+    workflow: 08_aperak_auto_response
+    input:
+      parsed_message: "{{ nodes.parse-coparn.output }}"
+      edifact_account: "{{ resolve-partner.output.edifact_account }}"
+      ftp_account: "{{ trigger.account }}"
+      response_type: accepted
+
+  - id: create-awd
+    type: connector.action
+    connector: rest-api
+    account: clip-malaszewicze
+    action: rest.call
+    input:
+      account: clip-malaszewicze
+      named_action: awd.create
+      body:
+        operation_type: "{{ nodes.parse-coparn.output.payload.operation_type }}"
+        container_no: "{{ nodes.parse-coparn.output.payload.container_no }}"
+        iso_size_type: "{{ nodes.parse-coparn.output.payload.iso_size_type }}"
+        is_empty: "{{ nodes.parse-coparn.output.payload.is_empty }}"
+        carrier_code: "{{ nodes.parse-coparn.output.payload.carrier.id }}"
+        booking_ref: "{{ nodes.parse-coparn.output.payload.booking_ref }}"
+        pickup_window_from: "{{ nodes.parse-coparn.output.payload.pickup_window_from }}"
+        pickup_window_to: "{{ nodes.parse-coparn.output.payload.pickup_window_to }}"
+        truck_plate: "{{ nodes.parse-coparn.output.payload.truck_plate }}"
+        driver_name: "{{ nodes.parse-coparn.output.payload.driver_name }}"
+        document_id: "{{ nodes.parse-coparn.output.payload.document_id }}"
+        function_code: "{{ nodes.parse-coparn.output.payload.function_code }}"
+    retry:
+      max_attempts: 3
+      backoff_s: [2, 5, 15]
+
+  - id: archive-source
+    type: connector.action
+    connector: ftp-sftp
+    account: "{{ trigger.account }}"
+    action: file.move
+    input:
+      source: "{{ trigger.data.path }}"
+      destination: "{{ trigger.data.path | replace('/inbound/', '/archive/') }}"
+
+  - id: log-success
+    type: log
+    level: info
+    message: >
+      COPARN inbound processed: {{ nodes.parse-coparn.output.payload.document_id }},
+      container={{ nodes.parse-coparn.output.payload.container_no }},
+      awd_id={{ nodes.create-awd.output.data.doc_id }}
+
+error_handler:
+  workflow: 11_dead_letter_queue
+  input:
+    source_workflow: coparn-inbound
+    error: "{{ error }}"
+    context:
+      file_path: "{{ trigger.data.path }}"
+      account: "{{ trigger.account }}"

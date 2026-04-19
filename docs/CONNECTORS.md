@@ -61,6 +61,8 @@ The platform supports optional runtime schema discovery for connector actions. S
 | 35 | Symfonia ERP (Handel & FK) | ERP | v1.0.0 | REST/JSON (WebAPI) | `webapi_url`, `application_guid` |
 | 37 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
 | 38 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
+| 39 | EDIFACT Container Terminal | Other | v1.0.0 | REST/JSON | `base_url`, `api_key` |
+| 40 | REST API Gateway | Other | v1.0.0 | REST (configurable) | `base_url`, `auth_type` |
 
 ---
 
@@ -1259,6 +1261,140 @@ KSeF API environments:
 | Production | `https://api.ksef.mf.gov.pl/v2` | Real documents, legal effect |
 
 Protocol: REST (JWT authentication, AES-256-CBC invoice encryption, RSA-OAEP key exchange).
+
+---
+
+### EDIFACT Container Terminal (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `base_url` | Yes | Base URL of the external terminal/TOS/PCS REST API |
+| `api_key` | No | API key / Bearer token for authentication |
+| `api_timeout_connect` | No | Connection timeout in seconds (default: `30`) |
+| `api_timeout_read` | No | Read timeout in seconds (default: `60`) |
+| `max_retries` | No | Max retry attempts for failed requests (default: `3`) |
+
+Environment variables:
+```bash
+EDIFACT_BASE_URL=https://terminal-api.example.com
+EDIFACT_API_KEY=your-api-key
+EDIFACT_API_TIMEOUT_CONNECT=30
+EDIFACT_API_TIMEOUT_READ=60
+EDIFACT_MAX_RETRIES=3
+```
+
+Account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: default
+    base_url: "https://terminal-api.example.com"
+    api_key: "${EDIFACT_API_KEY}"
+    description: "Main terminal system"
+```
+
+Features:
+- **CODECO** — Container gate-in/gate-out reports, internal moves, status changes
+- **BAPLIE** — Bay plan / stowage plan management (provisional, final, actual)
+- **IFTMIN** — Transport instruction issuance, amendment, cancellation
+- **COPRAR** — Container Pre-Advice (rail wagon/container manifests)
+- **COPARN** — Container Release / Reservation Orders
+- **COHAOR** — Container Special Handling Orders (load, discharge, shift, inspection)
+- **COARRI** — Container Discharge/Loading Reports with damage tracking
+- **IFTSTA** — Multimodal Status Reports (SMDG codes: GTI, GTO, DIS, LOA, etc.)
+- **APERAK** — Application Error and Acknowledgement (accepted/rejected/with_errors)
+- **CONTRL** — Syntax Acknowledgement (interchange-level ACK/NAK)
+- **Raw EDIFACT parse/build** — Convert raw UNB+...UNZ EDIFACT to JSON and back (pydifact)
+- ISO 6346/BIC container number validation with check digit
+- UN/LOCODE validation for port/terminal locations
+- IMO vessel number validation with check digit
+- IMDG dangerous goods class validation
+- Reefer container temperature settings
+- Multi-account support for multiple terminal systems
+- Exponential backoff retry with jitter for external API calls
+- Prometheus metrics and health checks
+- Kafka event publishing for gate events, bay plans, and transport instructions
+
+Message types mapped to REST/JSON:
+
+| EDIFACT Message | REST Prefix | Operations |
+|---|---|---|
+| CODECO (D.95B+) | `/codeco/gate-events` | Create, List, Get, Update, Cancel |
+| BAPLIE (D.13B+) | `/baplie/bay-plans` | Create, List, Get, Update, Locations |
+| IFTMIN (D.10B+) | `/iftmin/instructions` | Create, List, Get, Amend, Cancel |
+| COPRAR | `/coprar/pre-advice` | Create, List, Get |
+| COPARN | `/coparn/release-orders` | Create, List, Get |
+| COHAOR | `/cohaor/handling-orders` | Create, List, Get |
+| COARRI | `/coarri/reports` | Create, List, Get |
+| IFTSTA | `/iftsta/status-reports` | Create, List, Get |
+| APERAK | `/aperak/acknowledgements` | Send, List |
+| CONTRL | `/contrl/syntax-ack` | Send, List |
+| Raw EDIFACT | `/edifact/parse`, `/edifact/build` | Parse (EDI→JSON), Build (JSON→EDI) |
+
+Protocol: REST/JSON (Bearer token authentication, configurable external terminal system URL).
+
+### REST API Gateway (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `base_url` | Yes | Target system base URL |
+| `auth_type` | Yes | Authentication type: `none`, `bearer`, `basic`, `api_key_header`, `api_key_query`, `oauth2_client_credentials` |
+| `auth_token` | Depends | Bearer token / API key (for bearer, api_key_header, api_key_query) |
+| `auth_username` | Depends | Username (for basic auth) |
+| `auth_password` | Depends | Password (for basic auth) |
+| `oauth2_token_url` | Depends | Token endpoint (for oauth2_client_credentials) |
+| `oauth2_client_id` | Depends | Client ID (for oauth2_client_credentials) |
+| `oauth2_client_secret` | Depends | Client secret (for oauth2_client_credentials) |
+| `timeout_connect` | No | Connection timeout in seconds (default: `30`) |
+| `timeout_read` | No | Read timeout in seconds (default: `60`) |
+| `max_retries` | No | Max retries (default: `3`) |
+| `response_profile` | No | Response parsing profile: `generic`, `pinquark`, `sap` (default: `generic`) |
+
+Environment variables:
+```bash
+REST_API_HOST=0.0.0.0
+REST_API_PORT=8000
+REST_API_LOG_LEVEL=INFO
+REST_API_DEFAULT_TIMEOUT_CONNECT=30
+REST_API_DEFAULT_TIMEOUT_READ=60
+REST_API_DEFAULT_MAX_RETRIES=3
+```
+
+Account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: clip-malaszewicze
+    base_url: "https://tos.clip.com.pl/api"
+    auth:
+      type: bearer_with_custom_headers
+      token: "vault://clip-tos-token"
+      custom_headers:
+        token-mer: "vault://clip-mer-token"
+    response_profile: pinquark
+    timeout_connect: 15
+    timeout_read: 30
+    action_registry:
+      awk.create:
+        method: POST
+        path: /tos_notification_rail_save
+      events.poll:
+        method: GET
+        path: /tos_get_events_since
+```
+
+Features:
+- Generic REST API client supporting any REST system (Pinquark TOS, Navis N4, SAP OData, etc.)
+- 5 generic actions: `rest.call`, `rest.poll`, `rest.batch`, `rest.health`, `rest.discover`
+- Dynamic action registry — define named actions per account (aliases like `awk.create`)
+- OpenAPI/Swagger auto-discovery — detects endpoints from `/openapi.json`, `/swagger.json`, etc.
+- Multiple auth strategies: Bearer, Basic, API Key, OAuth2 Client Credentials, custom headers
+- Response parsing profiles (Pinquark, SAP OData, Generic HTTP) with auto-detection
+- Batch API calls (sequential or parallel)
+- Polling with cursor management for event-driven workflows
+- Exponential backoff retry with jitter
+- Multi-account support for connecting to multiple REST systems simultaneously
+- Prometheus metrics and health checks
+
+Protocol: REST (configurable authentication, dynamic endpoint discovery).
 
 ---
 

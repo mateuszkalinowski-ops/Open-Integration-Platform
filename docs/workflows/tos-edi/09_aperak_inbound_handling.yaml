@@ -1,0 +1,97 @@
+name: aperak-inbound-handling
+description: |
+  Handles incoming APERAK from partners — responses to our outbound EDI
+  messages (CODECO, COARRI, IFTSTA). Logs status to OIP audit trail.
+  Sends Slack/email alert if the APERAK indicates rejection.
+  Partner-agnostic.
+
+trigger:
+  type: event
+  connector: ftp-sftp
+  event: file.new
+  filter:
+    path: "**/APERAK_*.edi"
+
+nodes:
+
+  - id: resolve-partner
+    type: connector.action
+    connector: oip-internal
+    action: partner_registry.resolve_by_ftp_account
+    input:
+      ftp_account: "{{ trigger.account }}"
+
+  - id: download-file
+    type: connector.action
+    connector: ftp-sftp
+    account: "{{ trigger.account }}"
+    action: file.download
+    input:
+      path: "{{ trigger.data.path }}"
+
+  - id: parse-aperak
+    type: connector.action
+    connector: edifact
+    account: "{{ resolve-partner.output.edifact_account }}"
+    action: aperak.parse
+    input:
+      content: "{{ nodes.download-file.output.content }}"
+
+  - id: log-to-oip
+    type: connector.action
+    connector: oip-internal
+    action: audit.log
+    input:
+      event_type: APERAK_RECEIVED
+      partner_code: "{{ resolve-partner.output.partner_code }}"
+      response_type: "{{ nodes.parse-aperak.output.payload.response_type }}"
+      referenced_message_ref: "{{ nodes.parse-aperak.output.payload.referenced_message_ref }}"
+      referenced_interchange_ref: "{{ nodes.parse-aperak.output.payload.referenced_interchange_ref }}"
+      errors: "{{ nodes.parse-aperak.output.payload.errors }}"
+
+  - id: check-rejected
+    type: condition
+    if: "{{ nodes.parse-aperak.output.payload.response_type == 'rejected' }}"
+    then:
+      - id: alert-rejection
+        type: connector.action
+        connector: oip-internal
+        action: notification.send
+        input:
+          channels: [slack, email]
+          severity: warning
+          title: "APERAK REJECTED from {{ resolve-partner.output.partner_code }}"
+          message: >
+            Partner {{ resolve-partner.output.partner_code }} rejected message
+            {{ nodes.parse-aperak.output.payload.referenced_message_ref }}.
+            Errors: {{ nodes.parse-aperak.output.payload.errors | tojson }}.
+            Review outbound message and resend if needed.
+          context:
+            file_path: "{{ trigger.data.path }}"
+            partner: "{{ resolve-partner.output.partner_code }}"
+
+  - id: archive-source
+    type: connector.action
+    connector: ftp-sftp
+    account: "{{ trigger.account }}"
+    action: file.move
+    input:
+      source: "{{ trigger.data.path }}"
+      destination: "{{ trigger.data.path | replace('/inbound/', '/archive/') }}"
+
+  - id: log-success
+    type: log
+    level: info
+    message: >
+      APERAK inbound from {{ resolve-partner.output.partner_code }}:
+      {{ nodes.parse-aperak.output.payload.response_type }}
+      for ref {{ nodes.parse-aperak.output.payload.referenced_message_ref }}
+
+error_handler:
+  workflow: 11_dead_letter_queue
+  input:
+    source_workflow: aperak-inbound-handling
+    error: "{{ error }}"
+    context:
+      file_path: "{{ trigger.data.path }}"
+      account: "{{ trigger.account }}"

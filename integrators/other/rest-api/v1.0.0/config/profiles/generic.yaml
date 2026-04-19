@@ -1,0 +1,3 @@
+name: generic
+description: "Standard HTTP — success = 2xx, error = 4xx/5xx"
+use_http_status: true

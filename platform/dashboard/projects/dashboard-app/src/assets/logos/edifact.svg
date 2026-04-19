@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 256 256" fill="none">
+  <rect width="256" height="256" rx="40" fill="#1565C0"/>
+  <rect x="40" y="56" width="176" height="16" rx="4" fill="#BBDEFB"/>
+  <rect x="40" y="84" width="140" height="12" rx="3" fill="#64B5F6"/>
+  <rect x="40" y="108" width="160" height="12" rx="3" fill="#64B5F6"/>
+  <rect x="40" y="132" width="120" height="12" rx="3" fill="#64B5F6"/>
+  <rect x="40" y="160" width="176" height="16" rx="4" fill="#BBDEFB"/>
+  <rect x="40" y="188" width="150" height="12" rx="3" fill="#64B5F6"/>
+  <text x="128" y="240" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="22" fill="#E3F2FD">EDIFACT</text>
+</svg>

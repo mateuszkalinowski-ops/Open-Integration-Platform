@@ -1,0 +1,5 @@
+name: sap
+description: "SAP OData response format"
+status_field: d.Status
+data_field: d
+error_code_field: error.message.value

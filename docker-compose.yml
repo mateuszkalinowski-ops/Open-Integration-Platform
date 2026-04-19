@@ -20,6 +20,7 @@ services:
       APP_ENV: development
       LOG_LEVEL: ${LOG_LEVEL:-DEBUG}
       DEMO_MODE: ${DEMO_MODE:-true}
+      CORS_ALLOWED_ORIGINS: "http://localhost:3000,http://localhost:4200,*"
     volumes:
       - ./integrators:/integrators:ro
       - ./platform:/app
@@ -89,6 +90,53 @@ services:
     entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
     depends_on:
       - platform
+    restart: unless-stopped
+
+  connector-edifact:
+    build:
+      context: .
+      dockerfile: integrators/other/edifact/v1.0.0/Dockerfile
+    ports:
+      - "8002:8000"
+    volumes:
+      - ./integrators/other/edifact/v1.0.0/src:/app/src
+      - ./integrators/other/edifact/v1.0.0/config:/app/config:ro
+    environment:
+      EDIFACT_DEBUG: "true"
+      EDIFACT_LOG_LEVEL: DEBUG
+      EDIFACT_BASE_URL: http://localhost:9999
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      - platform
+    healthcheck: *connector-healthcheck
+    restart: unless-stopped
+
+  connector-rest-api:
+    build:
+      context: .
+      dockerfile: integrators/other/rest-api/v1.0.0/Dockerfile
+    ports:
+      - "8003:8000"
+    volumes:
+      - ./integrators/other/rest-api/v1.0.0/src:/app/src
+      - ./integrators/other/rest-api/v1.0.0/config:/app/config:ro
+    environment:
+      REST_API_DEBUG: "true"
+      REST_API_LOG_LEVEL: DEBUG
+      REST_API_ACCOUNTS_CONFIG_PATH: /app/config/accounts.yaml
+      REST_API_PROFILES_DIR: /app/config/profiles
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET:-}
+    entrypoint: ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8000", "--reload"]
+    depends_on:
+      - platform
+    healthcheck: *connector-healthcheck
     restart: unless-stopped
 
 volumes:

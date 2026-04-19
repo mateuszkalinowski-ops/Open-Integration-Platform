@@ -1,0 +1,161 @@
+name: coprar-inbound-rest-edi
+description: |
+  COPRAR via REST+EDIFACT. Zewnętrzna firma wysyła wiadomość EDIFACT COPRAR
+  jako string w JSON payload przez HTTP POST. OIP parsuje EDIFACT konektorem
+  edifact, tworzy AWK w TOS, dodaje wagony i kontenery, i zwraca APERAK/CONTRL
+  w odpowiedzi HTTP. Nie wymaga SFTP — cały cykl odbywa się w jednym request/response.
+
+trigger:
+  type: http
+  method: POST
+  auth: api_key
+
+nodes:
+
+  - id: validate-input
+    type: expression
+    output: validated
+    expression: |
+      {% if not trigger_data.edifact_content %}
+        {{ raise("edifact_content is required — raw EDIFACT string") }}
+      {% endif %}
+      {% if not trigger_data.partner_code %}
+        {{ raise("partner_code is required (e.g. METRANS, HHLA)") }}
+      {% endif %}
+      {{ trigger_data | tojson }}
+
+  - id: resolve-edifact-account
+    type: connector.action
+    connector: oip-internal
+    action: partner_registry.resolve_by_code
+    input:
+      partner_code: "{{ trigger_data.partner_code }}"
+
+  - id: parse-coprar
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: coprar.parse
+    input:
+      content: "{{ trigger_data.edifact_content }}"
+    on_error:
+      - type: expression
+        output: contrl_nack
+        expression: |
+          {{ edifact.build_contrl(
+               raw_content=trigger_data.edifact_content,
+               syntax_status="error",
+               error=error
+             ) }}
+
+  - id: build-contrl-ack
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: contrl.build
+    input:
+      raw_content: "{{ trigger_data.edifact_content }}"
+      syntax_status: ok
+
+  - id: build-aperak-ack
+    type: connector.action
+    connector: edifact
+    account: "{{ nodes.resolve-edifact-account.output.edifact_account }}"
+    action: aperak.build
+    input:
+      parsed_message: "{{ nodes.parse-coprar.output }}"
+      response_type: accepted
+
+  - id: create-awk
+    type: connector.action
+    connector: rest-api
+    account: clip-malaszewicze
+    action: rest.call
+    input:
+      account: clip-malaszewicze
+      named_action: awk.create
+      body:
+        tos_train_no: "{{ nodes.parse-coprar.output.payload.train_no }}"
+        tos_doc_planned_arrival: "{{ nodes.parse-coprar.output.payload.eta }}"
+        carrier_code: "{{ nodes.parse-coprar.output.payload.carrier.id }}"
+        TOS_DOC_POL: "{{ nodes.parse-coprar.output.payload.pol.un_locode }}"
+        TOS_DOC_POD: "{{ nodes.parse-coprar.output.payload.pod.un_locode }}"
+        function_code: "{{ nodes.parse-coprar.output.payload.function_code }}"
+        document_id: "{{ nodes.parse-coprar.output.payload.document_id }}"
+    retry:
+      max_attempts: 3
+      backoff_s: [2, 5, 15]
+
+  - id: add-wagons
+    type: foreach
+    items: "{{ nodes.parse-coprar.output.payload.wagons }}"
+    parallel: false
+    body:
+      - id: add-wagon
+        type: connector.action
+        connector: rest-api
+        account: clip-malaszewicze
+        action: rest.call
+        input:
+          account: clip-malaszewicze
+          named_action: train.add_wagon
+          body:
+            doc_id: "{{ nodes.create-awk.output.data.doc_id }}"
+            wagon_no: "{{ item.wagon_no }}"
+            wagon_type: "{{ item.wagon_type }}"
+            sequence_no: "{{ item.sequence_no }}"
+        retry:
+          max_attempts: 2
+          backoff_s: [1, 3]
+
+  - id: add-containers
+    type: foreach
+    items: "{{ nodes.parse-coprar.output.payload.wagons }}"
+    parallel: false
+    body:
+      - id: add-containers-per-wagon
+        type: foreach
+        items: "{{ item.containers }}"
+        parallel: false
+        body:
+          - id: add-container
+            type: connector.action
+            connector: rest-api
+            account: clip-malaszewicze
+            action: rest.call
+            input:
+              account: clip-malaszewicze
+              named_action: train.add_container
+              body:
+                doc_id: "{{ nodes.create-awk.output.data.doc_id }}"
+                wagon_no: "{{ item.wagon_no }}"
+                container_no: "{{ item.container_no }}"
+                iso_size_type: "{{ item.iso_size_type }}"
+                weight_kg: "{{ item.weight_kg }}"
+                is_empty: "{{ item.is_empty }}"
+                seal_no: "{{ item.seal_no }}"
+                dangerous_goods: "{{ item.dangerous_goods }}"
+            retry:
+              max_attempts: 2
+              backoff_s: [1, 3]
+
+  - id: return-response
+    type: expression
+    output: response
+    expression: |
+      {
+        "status": "accepted",
+        "awk_id": "{{ nodes.create-awk.output.data.doc_id }}",
+        "train_no": "{{ nodes.parse-coprar.output.payload.train_no }}",
+        "wagons_count": {{ nodes.parse-coprar.output.payload.wagons | length }},
+        "contrl": "{{ nodes.build-contrl-ack.output.edifact_content }}",
+        "aperak": "{{ nodes.build-aperak-ack.output.edifact_content }}"
+      }
+
+error_handler:
+  workflow: 11_dead_letter_queue
+  input:
+    source_workflow: coprar-inbound-rest-edi
+    error: "{{ error }}"
+    context:
+      partner_code: "{{ trigger_data.partner_code | default('unknown') }}"

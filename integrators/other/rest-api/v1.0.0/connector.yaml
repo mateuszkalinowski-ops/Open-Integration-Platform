@@ -1,0 +1,267 @@
+name: rest-api
+category: other
+version: 1.0.0
+display_name: "REST API Gateway"
+description: >
+  Universal REST API connector — connects OIP to any REST/JSON system.
+  Supports Bearer, Basic, OAuth2, API Key, custom headers authentication.
+  Auto-discovers endpoints from OpenAPI specs. Configurable response parsing
+  profiles (pinquark, generic, sap, custom).
+website_url: https://github.com/pinquark/open-integration-platform
+country: global
+logo_url: /assets/logos/rest-api.svg
+interface: rest-api
+service_name: connector-rest-api
+
+capabilities:
+  - rest_call
+  - rest_poll
+  - rest_batch
+  - health_check
+  - openapi_discovery
+  - action_registry
+
+actions:
+  - rest.call
+  - rest.poll
+  - rest.batch
+  - rest.health
+  - rest.discover
+
+config_schema:
+  required:
+    - base_url
+  optional:
+    - path_prefix
+    - default_method
+    - response_profile
+    - connect_timeout_s
+    - read_timeout_s
+    - rate_limit
+    - openapi_spec_path
+    - custom_headers
+  field_types:
+    base_url:
+      type: string
+      label: "Base URL"
+      placeholder: "https://example.com/api"
+      row: connection
+    path_prefix:
+      type: string
+      label: "Path prefix (optional)"
+      placeholder: "/integration"
+      row: connection
+    default_method:
+      type: string
+      label: "Default HTTP method"
+      placeholder: "POST"
+      row: connection
+    response_profile:
+      type: string
+      label: "Response profile"
+      placeholder: "auto"
+      row: response
+    connect_timeout_s:
+      type: integer
+      label: "Connect timeout (s)"
+      placeholder: "30"
+      row: advanced
+    read_timeout_s:
+      type: integer
+      label: "Read timeout (s)"
+      placeholder: "60"
+      row: advanced
+    rate_limit:
+      type: string
+      label: "Rate limit"
+      placeholder: "600/min"
+      row: advanced
+    openapi_spec_path:
+      type: string
+      label: "OpenAPI spec path (optional)"
+      placeholder: "/openapi.json"
+      row: advanced
+    custom_headers:
+      type: string
+      label: "Custom headers (JSON)"
+      placeholder: '{"token-mer": "..."}'
+      row: advanced
+
+credential_validation:
+  required_fields: [base_url]
+  validate_endpoint: /validate-connection/{account_name}
+
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    base_url: base_url
+    path_prefix: path_prefix
+    auth_type: auth_type
+    bearer_token: bearer_token
+    username: username
+    password: password
+    client_id: client_id
+    client_secret: client_secret
+    api_key: api_key
+    custom_headers: custom_headers
+
+action_routes:
+  rest.call:
+    method: POST
+    path: /rest/call
+  rest.poll:
+    method: POST
+    path: /rest/poll
+  rest.batch:
+    method: POST
+    path: /rest/batch
+  rest.health:
+    method: GET
+    path: /rest/health/{account_name}
+  rest.discover:
+    method: POST
+    path: /rest/discover
+
+action_fields:
+  rest.call:
+    - field: account
+      label: "Account name"
+      type: string
+      required: true
+    - field: named_action
+      label: "Named action (from discovered endpoints)"
+      type: string
+    - field: endpoint
+      label: "Endpoint path (alternative to named_action)"
+      type: string
+    - field: method
+      label: "HTTP method (default from account)"
+      type: string
+    - field: body
+      label: "Request body (JSON)"
+      type: json
+    - field: headers
+      label: "Additional headers"
+      type: json
+    - field: query_params
+      label: "Query parameters"
+      type: json
+    - field: timeout_s
+      label: "Timeout (seconds)"
+      type: integer
+  rest.poll:
+    - field: account
+      label: "Account name"
+      type: string
+      required: true
+    - field: named_action
+      label: "Polling endpoint (named action)"
+      type: string
+    - field: endpoint
+      label: "Polling endpoint (path)"
+      type: string
+    - field: cursor_field
+      label: "Cursor field in request"
+      type: string
+    - field: cursor_response_field
+      label: "Cursor field in response"
+      type: string
+    - field: items_field
+      label: "Items array field in response"
+      type: string
+    - field: limit
+      label: "Items limit"
+      type: integer
+    - field: cursor_value
+      label: "Current cursor value"
+      type: string
+  rest.batch:
+    - field: account
+      label: "Account name"
+      type: string
+      required: true
+    - field: calls
+      label: "List of calls"
+      type: json
+      required: true
+    - field: parallel
+      label: "Execute in parallel"
+      type: boolean
+    - field: stop_on_error
+      label: "Stop on first error"
+      type: boolean
+  rest.discover:
+    - field: account
+      label: "Account name"
+      type: string
+      required: true
+    - field: openapi_url
+      label: "OpenAPI spec URL (optional)"
+      type: string
+    - field: generate_aliases
+      label: "Generate aliases"
+      type: boolean
+
+output_fields:
+  rest.call:
+    - field: status
+      label: "Status (success/error)"
+      type: string
+    - field: http_status
+      label: "HTTP status code"
+      type: integer
+    - field: response_status
+      label: "Response status value"
+      type: string
+    - field: message
+      label: "Message"
+      type: string
+    - field: data
+      label: "Response data (JSON)"
+      type: json
+    - field: elapsed_ms
+      label: "Elapsed time (ms)"
+      type: integer
+  rest.poll:
+    - field: status
+      label: "Status"
+      type: string
+    - field: items
+      label: "Items array"
+      type: json
+    - field: cursor_value
+      label: "Next cursor value"
+      type: string
+    - field: count
+      label: "Items count"
+      type: integer
+  rest.batch:
+    - field: status
+      label: "Status"
+      type: string
+    - field: results
+      label: "Results array"
+      type: json
+    - field: total
+      label: "Total calls"
+      type: integer
+    - field: succeeded
+      label: "Succeeded"
+      type: integer
+    - field: failed
+      label: "Failed"
+      type: integer
+
+health_endpoint: /health
+docs_url: /docs
+
+rate_limits:
+  default: "600/min"
+  per_action:
+    rest.call: "600/min"
+    rest.poll: "120/min"
+    rest.batch: "60/min"
+    rest.discover: "10/min"

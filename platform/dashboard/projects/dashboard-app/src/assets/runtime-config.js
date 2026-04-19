@@ -1,5 +1,5 @@
 window.__PINQUARK_CONFIG__ = {
-  apiUrl: '',
+  apiUrl: 'http://localhost:8080',
   apiKey: '',
   adminSecret: ''
 };
