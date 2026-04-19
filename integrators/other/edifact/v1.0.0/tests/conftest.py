@@ -68,10 +68,10 @@ def mock_account_manager():
 
 @pytest.fixture()
 def client(mock_account_manager):
-    app_state.account_manager = mock_account_manager
-    app_state.health_checker = None
     application = create_app()
     with TestClient(application, raise_server_exceptions=False) as c:
+        app_state.account_manager = mock_account_manager
+        app_state.health_checker = None
         yield c
     app_state.account_manager = None
     app_state.health_checker = None

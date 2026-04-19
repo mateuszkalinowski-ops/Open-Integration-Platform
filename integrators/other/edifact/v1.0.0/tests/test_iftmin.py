@@ -112,7 +112,7 @@ class TestIftminApi:
                         "description": "Machine parts",
                         "packages_count": 120,
                         "equipment": {
-                            "container_id": "MSKU1234567",
+                            "container_id": "MSKU1234565",
                             "iso_size_type": "22G1",
                         },
                     }
