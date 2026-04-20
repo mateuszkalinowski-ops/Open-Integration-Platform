@@ -104,9 +104,20 @@ _P_ALPHA_DIGIT_RE = re.compile(r"^p(\d+)([a-zA-Z]+\d+)$")
 _ELEMENT_ORDER: dict[str, list[str]] = {
     "Faktura": ["Naglowek", "Podmiot1", "Podmiot2", "Fa"],
     "Podmiot1": ["PrefiksPodatnika", "DaneIdentyfikacyjne", "Adres"],
-    "Podmiot2": ["NrEORI", "DaneIdentyfikacyjne", "Adres", "JST", "GV"],
+    "Podmiot2": [
+        "NrEORI",
+        "DaneIdentyfikacyjne",
+        "Adres",
+        "AdresKoresp",
+        "DaneKontaktowe",
+        "NrKlienta",
+        "IDNabywcy",
+        "JST",
+        "GV",
+    ],
     "DaneIdentyfikacyjne": ["NIP", "Nazwa"],
     "Adres": ["KodKraju", "AdresL1", "AdresL2"],
+    "AdresKoresp": ["KodKraju", "AdresL1", "AdresL2"],
     "Fa": [
         "KodWaluty",
         "P_1",
