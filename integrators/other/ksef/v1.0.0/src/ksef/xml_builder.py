@@ -92,9 +92,28 @@ _RAW_KSEF_KEY_MAP: dict[str, str] = {
     "klucz": "Klucz",
     "wartosc": "Wartosc",
     "kursWalutyZ": "KursWalutyZ",
+    "kursWalutyZK": "KursWalutyZK",
     "faWierszCtrl": "FaWierszCtrl",
     "liczbaWierszyFaktury": "LiczbaWierszyFaktury",
     "wartoscWierszyFaktury": "WartoscWierszyFaktury",
+    "daneFaKorygowanej": "DaneFaKorygowanej",
+    "dataWystFaKorygowanej": "DataWystFaKorygowanej",
+    "nrFaKorygowanej": "NrFaKorygowanej",
+    "nrKSeF": "NrKSeF",
+    "nrKSeFN": "NrKSeFN",
+    "nrKSeFFaKorygowanej": "NrKSeFFaKorygowanej",
+    "przyczynaKorekty": "PrzyczynaKorekty",
+    "typKorekty": "TypKorekty",
+    "okresFaKorygowanej": "OkresFaKorygowanej",
+    "nrFaKorygowany": "NrFaKorygowany",
+    "stanPrzed": "StanPrzed",
+    "p15zk": "P_15ZK",
+    "p15ZK": "P_15ZK",
+    "podmiot1K": "Podmiot1K",
+    "podmiot2K": "Podmiot2K",
+    "zaliczkaCzesciowa": "ZaliczkaCzesciowa",
+    "zwrotAkcyzy": "ZwrotAkcyzy",
+    "opisRachunku": "OpisRachunku",
 }
 
 _P_FIELD_RE = re.compile(r"^p(\d+)([a-zA-Z]*)$")
@@ -157,8 +176,13 @@ _ELEMENT_ORDER: dict[str, list[str]] = {
         "TypKorekty",
         "DaneFaKorygowanej",
         "OkresFaKorygowanej",
-        "NrFaKorygowanej",
-        "OznaczenieFaZ",
+        "NrFaKorygowany",
+        "Podmiot1K",
+        "Podmiot2K",
+        "P_15ZK",
+        "KursWalutyZK",
+        "ZaliczkaCzesciowa",
+        "ZwrotAkcyzy",
         "FaWiersz",
         "FaWierszCtrl",
         "Platnosc",
@@ -198,6 +222,13 @@ _ELEMENT_ORDER: dict[str, list[str]] = {
         "P_22D1",
     ],
     "PMarzy": ["P_PMarzyN"],
+    "DaneFaKorygowanej": [
+        "DataWystFaKorygowanej",
+        "NrFaKorygowanej",
+        "NrKSeF",
+        "NrKSeFFaKorygowanej",
+        "NrKSeFN",
+    ],
     "FaWiersz": [
         "NrWierszaFa",
         "UU_ID",
@@ -290,7 +321,7 @@ def _raw_ksef_to_xml(parent: Element, tag: str, value: Any) -> None:
         elem = SubElement(parent, tag)
         resolved: dict[str, Any] = {}
         for k, v in value.items():
-            xml_tag = _resolve_xml_tag(k)
+            xml_tag = _resolve_xml_tag(k.strip())
             resolved[xml_tag] = v
         for child_tag, child_val in _sorted_children(tag, resolved):
             _raw_ksef_to_xml(elem, child_tag, child_val)
