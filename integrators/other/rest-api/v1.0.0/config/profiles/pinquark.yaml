@@ -1,0 +1,8 @@
+name: pinquark
+description: "Pinquark platform response format (status/message/data)"
+status_field: status
+status_ok_values: ["OK"]
+status_error_values: ["ERROR"]
+message_field: message
+data_field: data
+error_code_field: error_code

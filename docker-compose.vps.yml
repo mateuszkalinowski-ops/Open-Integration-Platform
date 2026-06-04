@@ -354,6 +354,21 @@ services:
       - platform
     restart: unless-stopped
 
+  connector-ksef:
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-ksef:${IMAGE_TAG:-latest}
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KSEF_DEFAULT_ENVIRONMENT: production
+    depends_on:
+      - platform
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
   # --- Courier Connectors ---
   connector-inpost-v1:
     image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-inpost-v1:${IMAGE_TAG:-latest}
@@ -595,6 +610,21 @@ services:
       - platform
       - kafka
     restart: unless-stopped
+
+  # --- Other: REST API Gateway ---
+  connector-rest-api:
+    image: ghcr.io/${GITHUB_ORG:-your-org}/oip/connector-rest-api:${IMAGE_TAG:-latest}
+    environment:
+      APP_ENV: production
+      APP_PORT: 8000
+      KAFKA_ENABLED: "false"
+      PLATFORM_API_URL: http://platform:8080
+      PLATFORM_EVENT_NOTIFY: "true"
+      PLATFORM_INTERNAL_SECRET: ${INTERNAL_SECRET}
+    depends_on:
+      - platform
+    restart: unless-stopped
+    <<: *connector-healthcheck
 
   # --- ERP Connector ---
   connector-insert-nexo:

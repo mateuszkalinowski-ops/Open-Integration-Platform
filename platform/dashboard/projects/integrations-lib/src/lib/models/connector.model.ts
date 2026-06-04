@@ -81,6 +81,7 @@ export const COUNTRY_FLAG_MAP: Record<string, string> = {
   CH: '\u{1F1E8}\u{1F1ED}',
   UA: '\u{1F1FA}\u{1F1E6}',
   CA: '\u{1F1E8}\u{1F1E6}',
+  global: '\u{1F310}',
 };
 
 export const COUNTRY_NAME_MAP: Record<string, string> = {
@@ -113,6 +114,7 @@ export const COUNTRY_NAME_MAP: Record<string, string> = {
   CH: 'Szwajcaria',
   UA: 'Ukraina',
   CA: 'Kanada',
+  global: 'Global',
 };
 
 export interface ConnectorGroup {

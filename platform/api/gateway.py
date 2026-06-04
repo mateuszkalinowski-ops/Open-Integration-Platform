@@ -2046,6 +2046,23 @@ async def validate_credentials(
     return await generic_validate_credentials(connector_name, merged, registry, connector_version=instance_version)
 
 
+@app.post("/api/v1/connectors/{connector_name}/generate-test-data", tags=["connectors"])
+async def connector_generate_test_data(
+    connector_name: str,
+    _tenant: Tenant = Depends(get_current_tenant),
+) -> dict[str, Any]:
+    """Proxy to a connector's /generate-test-data endpoint (e.g. KSeF test env)."""
+    base = _resolve_service_url(connector_name, registry)
+    async with httpx.AsyncClient(timeout=60.0) as client:
+        try:
+            resp = await client.post(f"{base}/generate-test-data")
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:500])
+            return resp.json()
+        except httpx.HTTPError as exc:
+            raise HTTPException(status_code=502, detail=f"Cannot reach connector: {exc}") from exc
+
+
 @app.post("/api/v1/credentials/{connector_name}/token/regenerate", tags=["credentials"])
 async def regenerate_credential_token(
     connector_name: str,

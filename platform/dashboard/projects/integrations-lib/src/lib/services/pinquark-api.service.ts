@@ -270,6 +270,14 @@ export class PinquarkApiService {
     });
   }
 
+  generateTestData(connectorName: string): Observable<Record<string, string>> {
+    return this.http.post<Record<string, string>>(
+      `${this.apiUrl}/api/v1/connectors/${connectorName}/generate-test-data`,
+      {},
+      { headers: this.headers },
+    );
+  }
+
   validateCredentials(
     connectorName: string,
     credentialName = 'default',

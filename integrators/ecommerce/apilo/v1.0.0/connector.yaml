@@ -94,3 +94,160 @@ api_version_check:
   version_field: info.version
   docs_url: https://developer.apilo.com/api/
 service_name: connector-apilo
+credential_provisioning:
+  mode: account
+  account_endpoint: /accounts
+  payload_field: account_name
+  credential_mapping:
+    name: account_name
+    client_id: client_id
+    client_secret: client_secret
+    authorization_code:
+      source: authorization_code
+      default: ""
+    refresh_token:
+      source: refresh_token
+      default: ""
+    base_url:
+      source: base_url
+      default: "https://app.apilo.com"
+    environment:
+      source: environment
+      default: "production"
+action_fields:
+  shipment.create:
+  - field: orderId
+    label: ID zamówienia w Apilo
+    type: integer
+    required: true
+  - field: carrierAccountId
+    label: ID konta przewoźnika (carrier-account)
+    type: string
+    required: true
+  - field: carrierMethodId
+    label: ID metody dostawy
+    type: string
+    required: true
+  - field: idExternal
+    label: Identyfikator zewnętrzny (np. numer dokumentu WMS)
+    type: string
+  - field: package
+    label: Paczka (weight, sizeX/Y/Z, content, value, currency)
+    type: object
+  - field: additionalServices
+    label: Dodatkowe usługi przewoźnika
+    type: object[]
+  - field: senderAddress
+    label: Adres nadawcy
+    type: object
+  - field: receiverAddress
+    label: Adres odbiorcy
+    type: object
+    required: true
+  shipment.get:
+  - field: shipment_id
+    label: ID przesyłki
+    type: string
+    required: true
+  shipment.confirm:
+  - field: confirmations
+    label: Lista potwierdzeń przewoźnika
+    type: object[]
+    required: true
+  order.shipment_add:
+  - field: order_id
+    label: ID zamówienia
+    type: string
+    required: true
+  - field: tracking
+    label: Numer listu przewozowego
+    type: string
+    required: true
+  - field: carrier_provider_id
+    label: ID przewoźnika w Apilo
+    type: integer
+    required: true
+  - field: id_external
+    label: Identyfikator zewnętrzny
+    type: string
+  - field: post_date
+    label: Data nadania (YYYY-MM-DD HH:MM:SS)
+    type: string
+  - field: media
+    label: Etykieta (PDF base64)
+    type: string
+output_fields:
+  shipment.create:
+  - field: status
+    label: Status
+    type: string
+  - field: result
+    label: Odpowiedź Apilo (zawiera m.in. id przesyłki)
+    type: object
+  shipment.get:
+  - field: id
+    label: ID przesyłki
+    type: string
+  - field: tracking
+    label: Numer listu
+    type: string
+  - field: status
+    label: Status przesyłki
+    type: string
+action_routes:
+  order.fetch:
+    method: GET
+    path: /orders
+    query_from_payload: [account_name, since, page, page_size]
+  order.get:
+    method: GET
+    path: /orders/{order_id}
+    query_from_payload: [account_name]
+  order.create:
+    method: POST
+    path: /orders
+    query_from_payload: [account_name]
+  order.status_update:
+    method: PUT
+    path: /orders/{order_id}/status
+    query_from_payload: [account_name]
+  order.payment_add:
+    method: POST
+    path: /orders/{order_id}/payment
+    query_from_payload: [account_name]
+  order.note_add:
+    method: POST
+    path: /orders/{order_id}/note
+    query_from_payload: [account_name]
+  order.tag_add:
+    method: POST
+    path: /orders/{order_id}/tag
+    query_from_payload: [account_name]
+  order.tag_remove:
+    method: DELETE
+    path: /orders/{order_id}/tag/{tag_id}
+    query_from_payload: [account_name]
+  order.shipment_add:
+    method: POST
+    path: /orders/{order_id}/shipment
+    query_from_payload: [account_name]
+  stock.sync:
+    method: POST
+    path: /stock/sync
+    query_from_payload: [account_name]
+  product.search:
+    method: GET
+    path: /products
+    query_from_payload: [account_name, query, page, page_size]
+  product.get:
+    method: GET
+    path: /products/{product_id}
+    query_from_payload: [account_name]
+  shipment.create:
+    method: POST
+    path: /shipments
+    query_from_payload: [account_name]
+  shipment.get:
+    method: GET
+    path: /shipments/{shipment_id}
+    query_from_payload: [account_name]

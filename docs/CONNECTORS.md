@@ -58,7 +58,10 @@ The platform supports optional runtime schema discovery for connector actions. S
 | 32 | FX Couriers | Courier | v1.0.0 | REST (Bearer Token) | `api_token` |
 | 33 | FTP / SFTP | Other | v1.0.0 | FTP (RFC 959) / SFTP (SSH) | `host`, `protocol` |
 | 34 | InsERT Nexo (Subiekt) | ERP | v1.0.0 | .NET SDK (pythonnet) + REST | `sql_server`, `sql_database`, `nexo_operator_login`, `nexo_operator_password` |
-| 35 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
+| 35 | Symfonia ERP (Handel & FK) | ERP | v1.0.0 | REST/JSON (WebAPI) | `webapi_url`, `application_guid` |
+| 37 | Amazon S3 | Other | v1.0.0 | REST (AWS S3 API) | `aws_access_key_id`, `aws_secret_access_key` |
+| 38 | KSeF | Other | v1.0.0 | REST (JWT + AES-256-CBC) | `nip`, `ksef_token` |
+| 39 | REST API Gateway | Other | v1.0.0 | REST (configurable) | `base_url`, `auth_type` |
 
 ---
 
@@ -834,6 +837,44 @@ Features:
 
 Protocol: .NET SDK (pythonnet) + REST (cloud connector).
 
+### Symfonia ERP — Handel & FK (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `webapi_url` | Yes | Symfonia WebAPI URL (e.g. `https://192.168.1.100:8080`) |
+| `application_guid` | Yes | Application GUID from Symfonia configurator |
+| `device_name` | No | Device name for session identification (default: `pinquark-oip`) |
+| `sync_interval_seconds` | No | Polling interval for incremental sync (default: 300) |
+| `session_timeout_minutes` | No | Session timeout before renewal (default: 30) |
+
+**Deployment model**: Cloud (direct REST connection to on-premise Symfonia WebAPI)
+
+The Symfonia ERP connector integrates with **Symfonia Handel** (trade, warehouse, sales, purchases) and **Symfonia Finanse i Księgowość** (finance & accounting) modules via the Symfonia WebAPI REST/JSON interface. No on-premise agent required — the connector communicates directly with the WebAPI service.
+
+Environment variables:
+```bash
+SYMFONIA_CONNECTOR_LOG_LEVEL=INFO
+SYMFONIA_CONNECTOR_WEBAPI_URL=https://192.168.1.100:8080
+SYMFONIA_CONNECTOR_APPLICATION_GUID=493EB16D-7029-48AA-BB25-8BA7138D763A
+SYMFONIA_CONNECTOR_DEVICE_NAME=pinquark-oip
+SYMFONIA_CONNECTOR_SESSION_TIMEOUT_MINUTES=30
+SYMFONIA_CONNECTOR_SYNC_INTERVAL_SECONDS=300
+```
+
+Features:
+- Contractor CRUD (list, get, create, update) with HMF and SQL filtering
+- Product catalog CRUD (list, get, create, update) with barcode management
+- Sales documents (list, get, filter by date/buyer, PDF export, corrections)
+- Purchase documents (list, get, filter by date/supplier, PDF export)
+- Orders — foreign (ZMO) and own (ZMW) — with date/recipient filtering
+- Inventory states (all, by product, by warehouse, change detection)
+- Payment operations (KP/KW documents)
+- Incremental sync for all entities via `IncrementalSync` endpoints
+- Session-based authentication with automatic renewal
+- Credential validation via Ping/Alive endpoints
+
+Protocol: REST/JSON (Symfonia WebAPI).
+
 ---
 
 ## 5. Other
@@ -1159,6 +1200,132 @@ Features:
 - Prometheus metrics for S3 operations
 
 Protocol: REST (Amazon S3 API / AWS Signature V4 authentication).
+
+---
+
+### KSeF (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `nip` | Yes | NIP (tax identification number) of the entity |
+| `ksef_token` | Yes | KSeF authorization token |
+| `environment` | No | API environment: `test`, `demo`, `production` (default: `demo`) |
+| `certificate_path` | No | Path to qualified certificate for XAdES auth (alternative to token) |
+| `certificate_password` | No | Certificate password |
+
+Environment variables:
+```bash
+KSEF_LOG_LEVEL=INFO
+KSEF_DEFAULT_ENVIRONMENT=demo
+KSEF_AUTH_POLL_INTERVAL=2.0
+KSEF_AUTH_POLL_MAX_ATTEMPTS=30
+KAFKA_ENABLED=false
+KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+```
+
+KSeF account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: main-company
+    nip: "1234567890"
+    ksef_token: "${KSEF_TOKEN}"
+    environment: production
+
+  - name: demo-company
+    nip: "0987654321"
+    ksef_token: "${KSEF_DEMO_TOKEN}"
+    environment: demo
+```
+
+Features:
+- Full KSeF 2.0 API support (API version 2.3.0)
+- Authentication via KSeF tokens (challenge → encrypted token → JWT)
+- Automatic JWT token refresh
+- Invoice encryption (AES-256-CBC + RSA-OAEP key wrapping)
+- FA(3) XML invoice generation from structured data
+- Interactive and batch session management
+- Invoice sending, retrieval, status checking, and querying
+- UPO (Urzędowe Poświadczenie Odbioru) download
+- Three environments: test, demo, production
+- Multi-account support (multiple NIP entities)
+- Connection validation with health checks
+- Prometheus metrics
+
+KSeF API environments:
+
+| Environment | URL | Description |
+|---|---|---|
+| Test | `https://api-test.ksef.mf.gov.pl/v2` | Self-signed certs, no legal effect |
+| Demo | `https://api-demo.ksef.mf.gov.pl/v2` | Real credentials, no legal effect |
+| Production | `https://api.ksef.mf.gov.pl/v2` | Real documents, legal effect |
+
+Protocol: REST (JWT authentication, AES-256-CBC invoice encryption, RSA-OAEP key exchange).
+
+---
+
+### REST API Gateway (v1.0.0)
+
+| Parameter | Required | Description |
+|----------|----------|------|
+| `base_url` | Yes | Target system base URL |
+| `auth_type` | Yes | Authentication type: `none`, `bearer`, `basic`, `api_key_header`, `api_key_query`, `oauth2_client_credentials` |
+| `auth_token` | Depends | Bearer token / API key (for bearer, api_key_header, api_key_query) |
+| `auth_username` | Depends | Username (for basic auth) |
+| `auth_password` | Depends | Password (for basic auth) |
+| `oauth2_token_url` | Depends | Token endpoint (for oauth2_client_credentials) |
+| `oauth2_client_id` | Depends | Client ID (for oauth2_client_credentials) |
+| `oauth2_client_secret` | Depends | Client secret (for oauth2_client_credentials) |
+| `timeout_connect` | No | Connection timeout in seconds (default: `30`) |
+| `timeout_read` | No | Read timeout in seconds (default: `60`) |
+| `max_retries` | No | Max retries (default: `3`) |
+| `response_profile` | No | Response parsing profile: `generic`, `pinquark`, `sap` (default: `generic`) |
+
+Environment variables:
+```bash
+REST_API_HOST=0.0.0.0
+REST_API_PORT=8000
+REST_API_LOG_LEVEL=INFO
+REST_API_DEFAULT_TIMEOUT_CONNECT=30
+REST_API_DEFAULT_TIMEOUT_READ=60
+REST_API_DEFAULT_MAX_RETRIES=3
+```
+
+Account configuration in `config/accounts.yaml`:
+```yaml
+accounts:
+  - name: clip-malaszewicze
+    base_url: "https://tos.clip.com.pl/api"
+    auth:
+      type: bearer_with_custom_headers
+      token: "vault://clip-tos-token"
+      custom_headers:
+        token-mer: "vault://clip-mer-token"
+    response_profile: pinquark
+    timeout_connect: 15
+    timeout_read: 30
+    action_registry:
+      awk.create:
+        method: POST
+        path: /tos_notification_rail_save
+      events.poll:
+        method: GET
+        path: /tos_get_events_since
+```
+
+Features:
+- Generic REST API client supporting any REST system (Pinquark TOS, Navis N4, SAP OData, etc.)
+- 5 generic actions: `rest.call`, `rest.poll`, `rest.batch`, `rest.health`, `rest.discover`
+- Dynamic action registry — define named actions per account (aliases like `awk.create`)
+- OpenAPI/Swagger auto-discovery — detects endpoints from `/openapi.json`, `/swagger.json`, etc.
+- Multiple auth strategies: Bearer, Basic, API Key, OAuth2 Client Credentials, custom headers
+- Response parsing profiles (Pinquark, SAP OData, Generic HTTP) with auto-detection
+- Batch API calls (sequential or parallel)
+- Polling with cursor management for event-driven workflows
+- Exponential backoff retry with jitter
+- Multi-account support for connecting to multiple REST systems simultaneously
+- Prometheus metrics and health checks
+
+Protocol: REST (configurable authentication, dynamic endpoint discovery).
 
 ---
 

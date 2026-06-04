@@ -35,7 +35,7 @@ Open Integration Platform by Pinquark.com is an open-source integration hub conn
 | ERP        | 1                                | InsERT Nexo (hybrid on-premise + cloud)                                                                               |
 | WMS        | 1                                | Pinquark WMS                                                                                                          |
 | AI         | 1                                | Gemini AI Agent (risk analysis, courier recommendations, data extraction)                                             |
-| Other      | 6                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), FTP/SFTP (file transfer), Slack, BulkGate SMS, Amazon S3      |
+| Other      | 7                                | Email Client (IMAP/SMTP), SkanujFakture (invoice OCR), KSeF (e-invoicing), FTP/SFTP (file transfer), Slack, BulkGate SMS, Amazon S3 |
 
 
 ### Technology stack
@@ -570,9 +570,7 @@ The entity key uniquely identifies a record across sync runs. It supports:
 
 > **Maintenance rule**: This diagram MUST be updated whenever the database schema changes (new tables, column additions/removals, relationship changes, new migrations). The source image is stored at `docs/database-schema.png`.
 
-> **TODO**: Generate `database-schema.png` from the current database schema. You can use tools like [SchemaCrawler](https://www.schemacrawler.com/), [pgAdmin ERD](https://www.pgadmin.org/), or [DBeaver](https://dbeaver.io/) to export an ERD diagram. Place the resulting PNG at `docs/database-schema.png`.
-
-<!-- ![Database Schema ERD](database-schema.png) -->
+![Database Schema ERD](database-schema.png)
 
 ### 4.1 Table overview
 
@@ -1096,7 +1094,7 @@ Configuration in `k8s/integrators/base/`:
 
 ## 8. Integration configuration
 
-Detailed documentation of configuration parameters for all 35 connectors (18 couriers, 8 e-commerce, 1 ERP, 1 WMS, 1 AI, 6 other) and credentials management via API can be found in a separate file:
+Detailed documentation of configuration parameters for all 36 connectors (18 couriers, 8 e-commerce, 1 ERP, 1 WMS, 1 AI, 7 other) and credentials management via API can be found in a separate file:
 
 **[CONNECTORS.md](CONNECTORS.md)**
 

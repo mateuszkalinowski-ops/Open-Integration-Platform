@@ -31,6 +31,35 @@ _DEFAULT_RETRY_AFTER = 2.0
 _rate_limiter: Any | None = None
 
 
+def _raise_for_status_with_body(response: "httpx.Response") -> None:
+    """Call response.raise_for_status() but include response body in the error.
+
+    Connectors often return structured error details in the response body
+    (e.g. {"detail": {"validation_errors": [...]}}), but httpx's default
+    HTTPStatusError message only mentions the status code. This helper
+    wraps the raised exception so that its ``str(...)`` includes the body
+    so workflow executions show the actual cause, not just "400 Bad Request".
+    """
+    if response.is_success:
+        return
+    try:
+        response.raise_for_status()
+    except httpx.HTTPStatusError as exc:
+        body_repr: str | None = None
+        try:
+            parsed = response.json()
+            detail = parsed.get("detail") if isinstance(parsed, dict) else None
+            body_repr = json.dumps(detail if detail is not None else parsed, ensure_ascii=False)
+        except Exception:
+            text = (response.text or "").strip()
+            if text:
+                body_repr = text[:1000]
+        if body_repr:
+            message = f"{exc}: {body_repr}"
+            raise httpx.HTTPStatusError(message, request=exc.request, response=exc.response) from exc
+        raise
+
+
 def set_rate_limiter(rate_limiter: Any | None) -> None:
     """Register the shared connector rate limiter used by dispatch_action()."""
     global _rate_limiter
@@ -406,7 +435,7 @@ async def dispatch_action(
                 action,
                 json_body=payload,
             )
-            response.raise_for_status()
+            _raise_for_status_with_body(response)
             return response.json()
 
     url, query_params, extra_headers, body = _build_url(route, base_url, payload)
@@ -484,7 +513,7 @@ async def dispatch_action(
                 sent_body={k: type(v).__name__ for k, v in body.items()},
             )
 
-        response.raise_for_status()
+        _raise_for_status_with_body(response)
 
         try:
             return response.json()

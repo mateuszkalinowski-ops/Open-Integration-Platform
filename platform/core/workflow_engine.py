@@ -66,6 +66,7 @@ class WorkflowContext:
 
     def __init__(self, trigger_data: dict[str, Any]) -> None:
         self.data: dict[str, Any] = copy.deepcopy(trigger_data)
+        self.trigger_data: dict[str, Any] = copy.deepcopy(trigger_data)
         self.variables: dict[str, Any] = {}
         self.node_outputs: dict[str, Any] = {}
         self.node_results: list[dict[str, Any]] = []
@@ -162,7 +163,10 @@ class WorkflowEngine:
         ctx._workflow_chain = [*(parent_chain or []), str(workflow.id)]
 
         for var_name, var_def in (workflow.variables or {}).items():
-            ctx.variables[var_name] = var_def.get("default")
+            if isinstance(var_def, dict):
+                ctx.variables[var_name] = var_def.get("default")
+            else:
+                ctx.variables[var_name] = var_def
 
         execution = WorkflowExecution(
             workflow_id=workflow.id,
@@ -659,6 +663,7 @@ class WorkflowEngine:
 
         async def _run_branch(branch_node: dict[str, Any]) -> tuple[str, Any, list]:
             branch_ctx = WorkflowContext(copy.deepcopy(ctx.data))
+            branch_ctx.trigger_data = copy.deepcopy(ctx.trigger_data)
             branch_ctx.variables = copy.deepcopy(ctx.variables)
             branch_ctx.node_outputs = copy.deepcopy(ctx.node_outputs)
             branch_ctx.dry_run = ctx.dry_run
@@ -1071,6 +1076,7 @@ class WorkflowEngine:
                     await asyncio.sleep(throttle_ms / 1000.0)
 
                 item_ctx = WorkflowContext(copy.deepcopy(ctx.data))
+                item_ctx.trigger_data = copy.deepcopy(ctx.trigger_data)
                 item_ctx.variables = copy.deepcopy(ctx.variables)
                 item_ctx.variables["batch_item"] = item
                 item_ctx.variables["batch_index"] = idx
@@ -1200,6 +1206,15 @@ class WorkflowEngine:
             if len(parts) > 1 and isinstance(node_output, dict):
                 return _get_nested(node_output, parts[1])
             return node_output
+        if path.startswith("trigger."):
+            return _get_nested(ctx.trigger_data, path[8:])
+        if path.startswith("item."):
+            batch_item = ctx.variables.get("batch_item")
+            if isinstance(batch_item, dict):
+                return _get_nested(batch_item, path[5:])
+            return None
+        if path.startswith("data."):
+            return _get_nested(ctx.data, path[5:])
 
         return _get_nested(ctx.data, path)
 
@@ -1749,7 +1764,10 @@ class WorkflowEngine:
 
         for var_name, var_def in (workflow.variables or {}).items():
             if var_name not in ctx.variables:
-                ctx.variables[var_name] = var_def.get("default")
+                if isinstance(var_def, dict):
+                    ctx.variables[var_name] = var_def.get("default")
+                else:
+                    ctx.variables[var_name] = var_def
 
         execution = WorkflowExecution(
             workflow_id=workflow.id,
@@ -2322,7 +2340,7 @@ def _safe_truncate(value: Any, max_len: int = 2000) -> Any:
     if isinstance(value, dict):
         s = str(value)
         if len(s) > max_len:
-            return {"_truncated": True, "_preview": s[:max_len]}
+            return {"truncated": True, "preview": s[:max_len]}
     return value
 
 

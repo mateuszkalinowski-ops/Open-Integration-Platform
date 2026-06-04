@@ -1,0 +1,22 @@
+---
+description: Run ruff lint and format checks before every git commit and push
+alwaysApply: true
+---
+
+# Pre-commit lint checks
+
+Before every `git commit`, run these checks on all modified Python files and fix any errors BEFORE committing:
+
+```bash
+ruff check platform/ integrators/ --config ruff.toml
+ruff format --check platform/ integrators/ --config ruff.toml
+```
+
+If `ruff check` reports errors:
+1. Run `ruff check --fix platform/ integrators/ --config ruff.toml` to auto-fix what's possible
+2. Manually fix remaining errors (unused imports, unsorted imports, deprecated patterns, etc.)
+3. Run `ruff format platform/ integrators/ --config ruff.toml` to auto-format
+4. Re-run both checks to confirm they pass
+5. Only then proceed with `git add` and `git commit`
+
+Never commit code that fails `ruff check` or `ruff format --check`.
