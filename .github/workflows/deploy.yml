@@ -106,6 +106,9 @@ jobs:
               sudo rm -rf "$CONF_BASE"/archive/${DOMAIN}*
               sudo rm -rf "$CONF_BASE"/renewal/${DOMAIN}*
               NEED_CERT=1
+            elif ! sudo openssl x509 -in "$CERT_DIR/fullchain.pem" -noout -checkend 2592000 >/dev/null 2>&1; then
+              echo "Let's Encrypt certificate expired or expiring within 30 days — re-issuing"
+              NEED_CERT=1
             else
               echo "Valid Let's Encrypt certificate found — skipping certbot"
               sudo chmod -R 755 "$CONF_BASE"/live "$CONF_BASE"/archive 2>/dev/null || true
