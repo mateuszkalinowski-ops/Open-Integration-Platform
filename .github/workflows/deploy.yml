@@ -116,6 +116,13 @@ jobs:
 
             if [ "$NEED_CERT" = "1" ]; then
               echo "Obtaining Let's Encrypt certificate via standalone mode..."
+              CERTBOT_EMAIL="${{ secrets.CERTBOT_EMAIL }}"
+              if [ -n "$CERTBOT_EMAIL" ]; then
+                EMAIL_ARG="--email $CERTBOT_EMAIL"
+              else
+                echo "CERTBOT_EMAIL not set — registering without email"
+                EMAIL_ARG="--register-unsafely-without-email"
+              fi
               docker compose -f docker-compose.vps.yml stop nginx 2>/dev/null || true
               sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
               sleep 2
@@ -127,7 +134,7 @@ jobs:
                 --standalone \
                 --non-interactive \
                 --cert-name ${DOMAIN} \
-                --email ${{ secrets.CERTBOT_EMAIL }} \
+                $EMAIL_ARG \
                 --agree-tos --no-eff-email \
                 -d ${DOMAIN} \
                 || echo "WARNING: certbot failed — self-signed fallback will be created"
