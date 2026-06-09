@@ -123,8 +123,11 @@ jobs:
                 echo "CERTBOT_EMAIL not set — registering without email"
                 EMAIL_ARG="--register-unsafely-without-email"
               fi
-              docker compose -f docker-compose.vps.yml stop nginx 2>/dev/null || true
+              # Stop nginx (frees port 80) and the certbot sidecar (releases the
+              # /etc/letsencrypt lock) before running standalone certonly.
+              docker compose -f docker-compose.vps.yml stop nginx certbot 2>/dev/null || true
               sudo lsof -ti:80 | xargs -r sudo kill -9 2>/dev/null || true
+              sudo rm -f "$CONF_BASE/.certbot.lock" 2>/dev/null || true
               sleep 2
               docker run --rm \
                 -v "$CONF_BASE":/etc/letsencrypt \
