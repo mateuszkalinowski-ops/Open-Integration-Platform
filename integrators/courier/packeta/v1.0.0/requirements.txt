@@ -2,4 +2,4 @@ fastapi==0.135.2
 uvicorn[standard]==0.42.0
 pydantic==2.10.4
 pydantic-settings==2.7.1
-zeep==4.3.1
+zeep==4.3.3
