@@ -338,6 +338,36 @@ def _sorted_children(parent_tag: str, children: dict[str, Any]) -> list[tuple[st
     return sorted(children.items(), key=sort_key)
 
 
+# Fields typed as TIlosci in the FA(3) schema allow up to 6 fraction digits
+# (exchange rates and line quantities). Formatting them to 2 decimals would
+# truncate the value the client actually sent (e.g. a currency rate of 4.1234).
+_SIX_DECIMAL_TAGS: frozenset[str] = frozenset(
+    {
+        "KursWaluty",
+        "KursWalutyZ",
+        "KursWalutyZK",
+        "KursWalutyZW",
+        "KursUmowny",
+        "P_8B",
+        "P_8BZ",
+    }
+)
+
+# Fields typed as TKwotowy2 in the FA(3) schema allow up to 8 fraction digits
+# (unit prices).
+_EIGHT_DECIMAL_TAGS: frozenset[str] = frozenset({"P_9A", "P_9B", "P_10", "P_9AZ"})
+
+
+def _format_amount(value: float, max_fraction_digits: int) -> str:
+    """Format a numeric value, keeping up to ``max_fraction_digits`` decimals.
+
+    Trailing zeros are stripped so a value the client sent with fewer decimals
+    is preserved as-is, while still respecting the schema's maximum precision.
+    """
+    text = f"{value:.{max_fraction_digits}f}".rstrip("0").rstrip(".")
+    return text or "0"
+
+
 def _raw_ksef_to_xml(parent: Element, tag: str, value: Any) -> None:
     """Recursively convert a raw KSeF JSON node to an XML sub-tree."""
     if isinstance(value, list):
@@ -357,7 +387,12 @@ def _raw_ksef_to_xml(parent: Element, tag: str, value: Any) -> None:
 
     elem = SubElement(parent, tag)
     if isinstance(value, float):
-        elem.text = f"{value:.2f}"
+        if tag in _SIX_DECIMAL_TAGS:
+            elem.text = _format_amount(value, 6)
+        elif tag in _EIGHT_DECIMAL_TAGS:
+            elem.text = _format_amount(value, 8)
+        else:
+            elem.text = f"{value:.2f}"
     else:
         elem.text = str(value)
 

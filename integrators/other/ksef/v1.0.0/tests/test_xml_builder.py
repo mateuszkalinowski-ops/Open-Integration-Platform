@@ -2,7 +2,11 @@
 
 from xml.etree.ElementTree import fromstring
 
-from src.ksef.xml_builder import build_invoice_xml, validate_invoice_xml
+from src.ksef.xml_builder import (
+    build_invoice_xml,
+    build_invoice_xml_from_raw_ksef,
+    validate_invoice_xml,
+)
 
 SAMPLE_INVOICE_DATA = {
     "invoice_number": "FV/2026/001",
@@ -118,6 +122,33 @@ class TestBuildInvoiceXml:
         xml_bytes = build_invoice_xml(minimal)
         assert b"FV/001" in xml_bytes
         assert b"1111111111" in xml_bytes
+
+
+class TestRawKsefDecimalPrecision:
+    """The FA(3) schema allows up to 6 fraction digits for currency rates
+    (TIlosci). The builder must not truncate them to 2 decimals."""
+
+    def _fa_with_rate(self, rate: float) -> dict[str, object]:
+        return {
+            "fa": {
+                "kodWaluty": "EUR",
+                "p1": "2026-07-09",
+                "p2": "FV/2026/07/09",
+                "kursWaluty": rate,
+            }
+        }
+
+    def test_currency_rate_keeps_four_decimals(self) -> None:
+        xml_bytes = build_invoice_xml_from_raw_ksef(self._fa_with_rate(4.1234))
+        assert b"<KursWaluty>4.1234</KursWaluty>" in xml_bytes
+
+    def test_currency_rate_keeps_six_decimals(self) -> None:
+        xml_bytes = build_invoice_xml_from_raw_ksef(self._fa_with_rate(4.123456))
+        assert b"<KursWaluty>4.123456</KursWaluty>" in xml_bytes
+
+    def test_currency_rate_not_truncated_to_two_decimals(self) -> None:
+        xml_bytes = build_invoice_xml_from_raw_ksef(self._fa_with_rate(4.1234))
+        assert b"<KursWaluty>4.12</KursWaluty>" not in xml_bytes
 
 
 class TestValidateInvoiceXml:
