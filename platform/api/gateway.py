@@ -3289,10 +3289,11 @@ async def update_workflow(
         user_id=getattr(tenant, "slug", None),
     )
 
-    await db.commit()
-    # updated_at is set by the DB (onupdate) and expired after the UPDATE;
-    # reload it here, otherwise building the response lazy-loads it -> MissingGreenlet.
+    # updated_at is set by the DB (onupdate) and expired after the UPDATE; reload it
+    # before commit, otherwise building the response lazy-loads it -> MissingGreenlet.
+    # Must run before commit: the RLS tenant setting is transaction-local.
     await db.refresh(workflow)
+    await db.commit()
 
     needs_provision = "nodes" in update_data or (update_data.get("is_enabled") is True)
     if needs_provision:
