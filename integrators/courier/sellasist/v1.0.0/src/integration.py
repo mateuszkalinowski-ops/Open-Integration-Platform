@@ -4,7 +4,7 @@ import logging
 from http import HTTPStatus
 
 import httpx
-from pypdf import PdfMerger
+from pypdf import PdfWriter
 
 from src.config import settings
 from src.schemas import SellAsistCredentials
@@ -98,7 +98,7 @@ class SellAsistIntegration:
         if len(waybills_bytes) == 1:
             return waybills_bytes[0], HTTPStatus.OK
 
-        merger = PdfMerger()
+        merger = PdfWriter()
         for pdf in waybills_bytes:
             merger.append(io.BytesIO(pdf))
 
