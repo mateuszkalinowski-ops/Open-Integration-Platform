@@ -3290,6 +3290,9 @@ async def update_workflow(
     )
 
     await db.commit()
+    # updated_at is set by the DB (onupdate) and expired after the UPDATE;
+    # reload it here, otherwise building the response lazy-loads it -> MissingGreenlet.
+    await db.refresh(workflow)
 
     needs_provision = "nodes" in update_data or (update_data.get("is_enabled") is True)
     if needs_provision:
