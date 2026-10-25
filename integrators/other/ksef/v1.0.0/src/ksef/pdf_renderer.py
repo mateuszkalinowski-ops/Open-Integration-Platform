@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import io
 import logging
 import os
@@ -103,17 +105,46 @@ VAT_RATE_LABELS = {
 }
 
 
-KSEF_VERIFY_URLS = {
-    "test": "https://ksef-test.mf.gov.pl/web/verify",
-    "demo": "https://ksef-demo.mf.gov.pl/web/verify",
-    "production": "https://ksef.mf.gov.pl/web/verify",
+# KOD I (online invoice verification), see CIRFMF/ksef-docs kody-qr.md:
+#   {host}/invoice/{seller NIP}/{P_1 as DD-MM-YYYY}/{SHA-256 of the invoice file, Base64URL}
+KSEF_QR_URLS = {
+    "test": "https://qr-test.ksef.mf.gov.pl",
+    "demo": "https://qr-demo.ksef.mf.gov.pl",
+    "production": "https://qr.ksef.mf.gov.pl",
 }
+
+
+def build_verification_url(
+    invoice_xml: str | bytes,
+    environment: str = "demo",
+    invoice_hash: str = "",
+) -> str:
+    """Official KSeF verification link (KOD I). Empty string when the XML lacks NIP or P_1.
+
+    ``invoice_hash`` is the SHA-256 reported by KSeF (Base64 or Base64URL); when missing,
+    it is computed from the XML bytes.
+    """
+    if isinstance(invoice_xml, str):
+        invoice_xml = invoice_xml.encode("utf-8")
+    inv = _parse_invoice(fromstring(invoice_xml))
+    nip = (inv.get("seller") or {}).get("nip", "")
+    issue_date = inv.get("issue_date", "")
+    if not nip or len(issue_date) != 10:
+        return ""
+    yyyy, mm_, dd = issue_date.split("-")
+    if invoice_hash:
+        digest = invoice_hash.strip().replace("+", "-").replace("/", "_").rstrip("=")
+    else:
+        digest = base64.urlsafe_b64encode(hashlib.sha256(invoice_xml).digest()).decode("ascii").rstrip("=")
+    host = KSEF_QR_URLS.get(environment, KSEF_QR_URLS["demo"])
+    return f"{host}/invoice/{nip}/{dd}-{mm_}-{yyyy}/{digest}"
 
 
 def render_invoice_pdf(
     invoice_xml: str | bytes,
     ksef_number: str = "",
     environment: str = "demo",
+    invoice_hash: str = "",
 ) -> bytes:
     _register_fonts()
 
@@ -122,6 +153,7 @@ def render_invoice_pdf(
 
     root = fromstring(invoice_xml)
     inv = _parse_invoice(root)
+    verify_url = build_verification_url(invoice_xml, environment, invoice_hash) if ksef_number else ""
 
     buf = io.BytesIO()
     doc = SimpleDocTemplate(
@@ -147,7 +179,7 @@ def render_invoice_pdf(
     _hr(elements)
     _add_payment(elements, s, inv)
     _hr(elements)
-    _add_footer(elements, s, ksef_number, environment)
+    _add_footer(elements, s, ksef_number, verify_url)
 
     doc.build(elements)
     return buf.getvalue()
@@ -746,19 +778,16 @@ def _add_footer(
     elements: list[Any],
     s: dict[str, ParagraphStyle],
     ksef_number: str,
-    environment: str = "demo",
+    verify_url: str = "",
 ) -> None:
     if ksef_number:
         _hr(elements)
 
-        base_url = KSEF_VERIFY_URLS.get(environment, KSEF_VERIFY_URLS["demo"])
-        verify_url = f"{base_url}/{ksef_number}"
-        qr_drawing = _make_qr_drawing(verify_url)
-
         qr_title = Paragraph("Sprawdzenie faktury w KSeF", s["qr_title"])
         qr_number = Paragraph(ksef_number, s["qr_label"])
 
-        qr_cell = [qr_drawing, Spacer(1, 2 * mm), qr_number]
+        # Without NIP/P_1 a valid KOD I cannot be built — show only the KSeF number.
+        qr_cell = [_make_qr_drawing(verify_url), Spacer(1, 2 * mm), qr_number] if verify_url else [qr_number]
 
         page_w = A4[0] - 4 * cm
         data = [

@@ -39,6 +39,7 @@ actions:
   - invoice.send_batch
   - invoice.get
   - invoice.pdf
+  - invoice.pdf_base64
   - invoice.query
   - session.invoices
   - session.failed_invoices
@@ -112,7 +113,11 @@ action_routes:
   invoice.pdf:
     method: GET
     path: /invoices/{ksef_reference_number}/pdf
-    query_from_payload: [account_name]
+    query_from_payload: [account_name, invoice_hash]
+  invoice.pdf_base64:
+    method: GET
+    path: /invoices/{ksef_reference_number}/pdf/base64
+    query_from_payload: [account_name, invoice_hash]
   invoice.query:
     method: POST
     path: /invoices/query
@@ -160,6 +165,7 @@ rate_limits:
     invoice.query: "100/min"
     invoice.get: "100/min"
     invoice.pdf: "60/min"
+    invoice.pdf_base64: "60/min"
 
 action_fields:
   session.open:
@@ -216,6 +222,20 @@ action_fields:
       type: string
       required: true
 
+  invoice.pdf_base64:
+    - field: account_name
+      label: "Nazwa konta"
+      type: string
+      required: true
+    - field: ksef_reference_number
+      label: "Numer KSeF"
+      type: string
+      required: true
+    - field: invoice_hash
+      label: "Skrót SHA-256 faktury z KSeF (do kodu QR)"
+      type: string
+      required: false
+
   invoice.query:
     - field: account_name
       label: "Nazwa konta"
@@ -235,6 +255,20 @@ action_fields:
       required: false
 
 output_fields:
+  invoice.pdf_base64:
+    - field: pdf_base64
+      label: "PDF faktury (base64)"
+      type: string
+    - field: pdf_filename
+      label: "Nazwa pliku PDF"
+      type: string
+    - field: ksef_number
+      label: "Numer KSeF"
+      type: string
+    - field: verification_url
+      label: "Link weryfikacji KSeF (kod QR)"
+      type: string
+
   session.open:
     - field: reference_number
       label: "Numer referencyjny sesji"

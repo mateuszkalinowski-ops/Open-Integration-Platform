@@ -354,9 +354,44 @@ async def get_invoice(
 async def get_invoice_pdf(
     ksef_reference_number: str = ...,
     account_name: str = Query(..., description="Nazwa konta KSeF", example="default"),
+    invoice_hash: str = Query("", description="SHA-256 faktury z KSeF (invoiceHash) — do kodu QR"),
 ) -> Response:
     """Pobierz fakturę jako PDF (renderowaną z KSeF XML)."""
-    from src.ksef.pdf_renderer import render_invoice_pdf
+    pdf_bytes, _ = await _render_pdf(ksef_reference_number, account_name, invoice_hash)
+    filename = f"faktura_{ksef_reference_number}.pdf"
+    return Response(
+        content=pdf_bytes,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@router.get(
+    "/invoices/{ksef_reference_number}/pdf/base64",
+    summary="Pobierz fakturę jako PDF (base64 w JSON)",
+    description=(
+        "Jak `/invoices/{numer_ksef}/pdf`, ale zwraca JSON z PDF zakodowanym w base64 — "
+        "do użycia w workflow (akcje przekazują tylko JSON)."
+    ),
+)
+async def get_invoice_pdf_base64(
+    ksef_reference_number: str = ...,
+    account_name: str = Query(..., description="Nazwa konta KSeF", example="default"),
+    invoice_hash: str = Query("", description="SHA-256 faktury z KSeF (invoiceHash) — do kodu QR"),
+) -> dict[str, str]:
+    pdf_bytes, verification_url = await _render_pdf(ksef_reference_number, account_name, invoice_hash)
+    return {
+        "ksef_number": ksef_reference_number,
+        "pdf_filename": f"faktura_{ksef_reference_number}.pdf",
+        "content_type": "application/pdf",
+        "pdf_base64": base64.b64encode(pdf_bytes).decode("ascii"),
+        "verification_url": verification_url,
+    }
+
+
+async def _render_pdf(ksef_reference_number: str, account_name: str, invoice_hash: str = "") -> tuple[bytes, str]:
+    """Fetch the invoice XML from KSeF and render it to PDF; also return the KSeF verification link."""
+    from src.ksef.pdf_renderer import build_verification_url, render_invoice_pdf
 
     try:
         client = app_state.account_manager.get_client(account_name)
@@ -370,13 +405,9 @@ async def get_invoice_pdf(
             invoice_xml,
             ksef_number=ksef_reference_number,
             environment=account.environment.value,
+            invoice_hash=invoice_hash,
         )
-        filename = f"faktura_{ksef_reference_number}.pdf"
-        return Response(
-            content=pdf_bytes,
-            media_type="application/pdf",
-            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-        )
+        return pdf_bytes, build_verification_url(invoice_xml, account.environment.value, invoice_hash)
     except KeyError as exc:
         raise HTTPException(status_code=404, detail=f"Account '{account_name}' not found") from exc
     except httpx.HTTPStatusError as exc:
