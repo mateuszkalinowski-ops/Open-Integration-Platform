@@ -9,6 +9,7 @@ import logging
 import os
 from typing import Any
 from xml.etree.ElementTree import Element, fromstring
+from xml.sax.saxutils import escape
 
 from reportlab.graphics.barcode.qr import QrCodeWidget
 from reportlab.graphics.shapes import Drawing
@@ -249,11 +250,49 @@ def _parse_invoice(root: Element) -> dict[str, Any]:
             "due_date": _ft(payment, "TerminPlatnosci/Termin"),
             "paid": _ft(payment, "Zaplacono") == "1",
             "payment_date": _ft(payment, "DataZaplaty"),
+            "bank_accounts": _parse_bank_accounts(payment),
         }
     else:
         inv["payment"] = {}
 
     return inv
+
+
+def _parse_bank_accounts(payment: Element) -> list[dict[str, str]]:
+    """RachunekBankowy (and factor accounts, RachunekBankowyFakt662) from Platnosc."""
+    accounts: list[dict[str, str]] = []
+    for tag, kind in (("RachunekBankowy", "own"), ("RachunekBankowyFakt662", "factor")):
+        for acc in payment.findall(f"{FA3_NS}{tag}"):
+            number = _ft(acc, "NrRB")
+            if not number:
+                continue
+            accounts.append(
+                {
+                    "kind": kind,
+                    "number": number,
+                    "swift": _ft(acc, "SWIFT"),
+                    "bank_name": _ft(acc, "NazwaBanku"),
+                    "description": _ft(acc, "OpisRachunku"),
+                }
+            )
+    return accounts
+
+
+def _format_account_number(number: str) -> str:
+    """'PL58105015591000009033071052' -> 'PL58 1050 1559 1000 0090 3307 1052'."""
+    compact = "".join(number.split())
+    return " ".join(compact[i : i + 4] for i in range(0, len(compact), 4))
+
+
+def _format_bank_account(acc: dict[str, str]) -> str:
+    text = escape(_format_account_number(acc["number"]))
+    if acc.get("bank_name"):
+        text += f" ({escape(acc['bank_name'])})"
+    if acc.get("swift"):
+        text += f", SWIFT: {escape(acc['swift'])}"
+    if acc.get("description"):
+        text += f" — {escape(acc['description'])}"
+    return text
 
 
 def _parse_party(root: Element, tag: str) -> dict[str, str]:
@@ -758,6 +797,10 @@ def _add_payment(
     if method:
         label = PAYMENT_METHOD_LABELS.get(method, method)
         elements.append(_label_value(s, "Forma płatności", label))
+
+    for acc in payment.get("bank_accounts", []):
+        label = "Rachunek faktora" if acc["kind"] == "factor" else "Rachunek bankowy"
+        elements.append(_label_value(s, label, _format_bank_account(acc)))
 
     currency = inv.get("currency", "PLN")
     gross = inv.get("total_gross", "0.00")
