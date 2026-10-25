@@ -439,7 +439,7 @@ class OrlenPaczkaIntegration:
         extract: Callable[[object], object] | None = None,
         *args: object,
         **kwargs: object,
-    ) -> tuple[object | None, None | tuple[str, int]]:
+    ) -> tuple[object | None, tuple[str, int] | None]:
         """Wrapper for Orlen Paczka SOAP calls with error classification.
 
         Uses custom extraction functions because Orlen Paczka returns
