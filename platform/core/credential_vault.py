@@ -20,6 +20,14 @@ from sqlalchemy.ext.asyncio import AsyncSession
 _NONCE_SIZE = 12
 _TOKEN_PREFIX = "ctok_"
 
+# Placeholder returned by the API instead of stored secret values.
+CREDENTIAL_MASK = "••••••••"
+
+
+def submitted_credential_values(credentials: dict[str, str]) -> dict[str, str]:
+    """Drop empty values and the mask placeholder, so they never overwrite stored secrets."""
+    return {k: v for k, v in credentials.items() if v and v != CREDENTIAL_MASK}
+
 
 def _generate_credential_token() -> str:
     return f"{_TOKEN_PREFIX}{secrets.token_urlsafe(32)}"

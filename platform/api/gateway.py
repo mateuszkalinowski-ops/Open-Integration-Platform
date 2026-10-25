@@ -38,7 +38,7 @@ from core.audit_trail import (
 from core.connector_health import ConnectorHealthMonitor
 from core.connector_rate_limiter import ConnectorRateLimiter
 from core.connector_registry import ConnectorManifest, ConnectorRegistry
-from core.credential_vault import CredentialVault
+from core.credential_vault import CREDENTIAL_MASK, CredentialVault, submitted_credential_values
 from core.flow_engine import FlowEngine
 from core.mapping_resolver import MappingResolver
 from core.oauth2_manager import OAuth2Manager
@@ -1797,6 +1797,7 @@ async def store_credentials(
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, Any]:
     is_rename = body.old_credential_name and body.old_credential_name != body.credential_name
+    submitted = submitted_credential_values(body.credentials)
 
     if is_rename:
         old_creds = await vault.retrieve_all(
@@ -1805,7 +1806,7 @@ async def store_credentials(
             body.connector_name,
             credential_name=body.old_credential_name,  # type: ignore[arg-type]
         )
-        merged = {**old_creds, **{k: v for k, v in body.credentials.items() if v}}
+        merged = {**old_creds, **submitted}
         for key, value in merged.items():
             await vault.store(
                 db,
@@ -1830,16 +1831,15 @@ async def store_credentials(
         )
     else:
         workflows_updated = 0
-        for key, value in body.credentials.items():
-            if value:
-                await vault.store(
-                    db,
-                    tenant.id,
-                    body.connector_name,
-                    key,
-                    value,
-                    credential_name=body.credential_name,
-                )
+        for key, value in submitted.items():
+            await vault.store(
+                db,
+                tenant.id,
+                body.connector_name,
+                key,
+                value,
+                credential_name=body.credential_name,
+            )
 
     if is_rename:
         await vault.rename_token(
@@ -1946,7 +1946,7 @@ async def get_credentials(
         token = token_row.token
         await db.commit()
 
-    values: dict[str, str] = {k: "••••••••" for k in creds}
+    values: dict[str, str] = {k: CREDENTIAL_MASK for k in creds}
     return {
         "connector": connector_name,
         "credential_name": credential_name,
@@ -2024,7 +2024,7 @@ async def validate_credentials(
     cred_name = body.credential_name if body and body.credential_name else credential_name
     stored = await vault.retrieve_all(db, tenant.id, connector_name, credential_name=cred_name)
 
-    merged = {**stored, **{k: v for k, v in body.credentials.items() if v}} if body and body.credentials else stored
+    merged = {**stored, **submitted_credential_values(body.credentials)} if body and body.credentials else stored
 
     if not merged:
         raise HTTPException(status_code=404, detail="No credentials found for this connector")

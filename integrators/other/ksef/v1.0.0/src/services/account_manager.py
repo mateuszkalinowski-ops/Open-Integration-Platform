@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import re
 from pathlib import Path
 from typing import Any
 
@@ -49,8 +50,9 @@ class AccountManager:
 
         account = KSeFAccountConfig(
             name=account_data["name"],
-            nip=account_data["nip"],
-            ksef_token=account_data.get("ksef_token", ""),
+            # Pasted values often carry spaces/newlines; KSeF rejects them (invalid NIP / token encoding).
+            nip=re.sub(r"\s+", "", str(account_data["nip"])),
+            ksef_token=str(account_data.get("ksef_token") or "").strip(),
             environment=KSeFEnvironment(env_str),
             certificate_path=account_data.get("certificate_path", ""),
             certificate_password=account_data.get("certificate_password", ""),

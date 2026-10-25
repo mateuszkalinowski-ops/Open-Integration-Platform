@@ -100,6 +100,19 @@ async def create_account(req: AccountCreateRequest) -> dict[str, Any]:
     }
 
 
+@router.put("/accounts/{account_name}")
+async def update_account(account_name: str, req: AccountCreateRequest) -> dict[str, Any]:
+    """Create or replace an account (the platform calls this when credentials are re-saved)."""
+    data = req.model_dump()
+    data["name"] = account_name
+    account = app_state.account_manager.add_account(data)
+    return {
+        "name": account.name,
+        "nip": f"{account.nip[:6]}****",
+        "environment": account.environment.value,
+    }
+
+
 @router.delete("/accounts/{account_name}")
 async def delete_account(account_name: str) -> dict[str, str]:
     app_state.account_manager.remove_account(account_name)

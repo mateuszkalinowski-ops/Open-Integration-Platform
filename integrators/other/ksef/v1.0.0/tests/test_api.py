@@ -83,6 +83,43 @@ class TestAccountsEndpoint:
         names = [a["name"] for a in response.json()]
         assert "second" in names
 
+    def test_update_account_replaces_credentials(self, client: TestClient, account_manager: AccountManager) -> None:
+        response = client.put(
+            "/accounts/test-account",
+            json={"name": "ignored", "nip": "5273148508", "ksef_token": "new-token", "environment": "production"},
+        )
+        assert response.status_code == 200
+        assert response.json()["name"] == "test-account"
+        account = account_manager.get_account("test-account")
+        assert account.nip == "5273148508"
+        assert account.ksef_token == "new-token"
+        assert account.environment.value == "production"
+
+    def test_update_account_creates_missing_account(self, client: TestClient, account_manager: AccountManager) -> None:
+        response = client.put(
+            "/accounts/meritus",
+            json={"name": "meritus", "nip": "5273148508", "ksef_token": "t", "environment": "demo"},
+        )
+        assert response.status_code == 200
+        assert account_manager.get_account("meritus").nip == "5273148508"
+
+    def test_whitespace_is_stripped_from_nip_and_token(
+        self, client: TestClient, account_manager: AccountManager
+    ) -> None:
+        response = client.post(
+            "/accounts",
+            json={
+                "name": "spaces",
+                "nip": " 527 314 8508\n",
+                "ksef_token": "  tok|nip-5273148508|abc \n",
+                "environment": "demo",
+            },
+        )
+        assert response.status_code == 201
+        account = account_manager.get_account("spaces")
+        assert account.nip == "5273148508"
+        assert account.ksef_token == "tok|nip-5273148508|abc"
+
 
 class TestAuthEndpoint:
     def test_auth_with_unknown_account_returns_404(self, client: TestClient) -> None:

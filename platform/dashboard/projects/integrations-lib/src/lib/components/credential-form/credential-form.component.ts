@@ -15,6 +15,9 @@ import { takeUntil } from 'rxjs/operators';
 import { Connector, ConfigFieldType, CredentialStoreRequest, CredentialValidationResult } from '../../models';
 import { PinquarkApiService } from '../../services/pinquark-api.service';
 
+/** Placeholder the API returns instead of stored secret values — never send it back. */
+const CREDENTIAL_MASK = '••••••••';
+
 @Component({
   selector: 'pinquark-credential-form',
   standalone: true,
@@ -257,7 +260,7 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
         const val = this.existingValues[field];
         controls[field] = [val === 'true' || val === '1' || ft.default === true];
       } else {
-        const prefill = this.existingValues[field] ?? (ft?.default != null ? String(ft.default) : '');
+        const prefill = this.prefillValue(field);
         controls[field] = [
           prefill,
           this.editMode && this.existingKeys.includes(field) ? [] : Validators.required,
@@ -270,7 +273,7 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
         const val = this.existingValues[field];
         controls[field] = [val === 'true' || val === '1' || (val == null && ft.default === true)];
       } else {
-        const prefill = this.existingValues[field] ?? (ft?.default != null ? String(ft.default) : '');
+        const prefill = this.prefillValue(field);
         controls[field] = [prefill];
       }
     }
@@ -333,6 +336,27 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
     return 'text';
   }
 
+  /** Stored values come back masked: leave such fields empty so the saved value is kept. */
+  private prefillValue(field: string): string {
+    const existing = this.existingValues[field];
+    if (existing === CREDENTIAL_MASK) return '';
+    const ft = this.getFieldType(field);
+    return existing ?? (ft?.default != null ? String(ft.default) : '');
+  }
+
+  private collectCredentials(): Record<string, string> {
+    const fieldTypes = this.connector?.config_schema?.field_types ?? {};
+    const credentials: Record<string, string> = {};
+    for (const [key, value] of Object.entries(this.form.value)) {
+      if (fieldTypes[key]?.type === 'boolean') {
+        credentials[key] = value ? 'true' : 'false';
+      } else if (value && value !== CREDENTIAL_MASK) {
+        credentials[key] = value as string;
+      }
+    }
+    return credentials;
+  }
+
   getPlaceholder(field: string): string {
     if (this.editMode && this.isSecretField(field) && this.existingKeys.includes(field)) {
       return '(saved — enter new value to overwrite)';
@@ -369,15 +393,7 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
     this.validating = true;
     this.validationResult = null;
 
-    const fieldTypes = this.connector?.config_schema?.field_types ?? {};
-    const credentials: Record<string, string> = {};
-    for (const [key, value] of Object.entries(this.form.value)) {
-      if (fieldTypes[key]?.type === 'boolean') {
-        credentials[key] = value ? 'true' : 'false';
-      } else if (value) {
-        credentials[key] = value as string;
-      }
-    }
+    const credentials = this.collectCredentials();
 
     const name = this.connectorName || this.connector.name;
     this.api.validateCredentials(name, this.credentialName, Object.keys(credentials).length > 0 ? credentials : undefined).pipe(takeUntil(this.destroy$)).subscribe({
@@ -396,15 +412,7 @@ export class CredentialFormComponent implements OnInit, OnDestroy {
     if (this.form.invalid || !this.credentialName.trim()) return;
     this.saving = true;
 
-    const fieldTypes = this.connector?.config_schema?.field_types ?? {};
-    const credentials: Record<string, string> = {};
-    for (const [key, value] of Object.entries(this.form.value)) {
-      if (fieldTypes[key]?.type === 'boolean') {
-        credentials[key] = value ? 'true' : 'false';
-      } else if (value) {
-        credentials[key] = value as string;
-      }
-    }
+    const credentials = this.collectCredentials();
 
     const nameChanged = this.editMode && this.originalCredentialName !== this.credentialName;
 
